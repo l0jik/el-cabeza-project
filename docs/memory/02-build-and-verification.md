@@ -35,7 +35,7 @@
   validation, warning machinery), costing ~34-37% extra bundle size and
   real per-render CPU, not just a dev-only warning.
 - `npm test` = `npm run test:engine` (Node-only smoke tests, no browser:
-  `engine.smoke.mjs`, `theme-{standard,neon}.smoke.mjs` — import theme
+  `engine.smoke.mjs`, `theme-{standard,futuris}.smoke.mjs` — import theme
   modules directly, which is why they must stay plain ES modules with no
   JSX syntax) + `npm run test:e2e` (builds fresh, then drives the real
   built HTML in headless Chromium via Playwright: `e2e-smoke`,

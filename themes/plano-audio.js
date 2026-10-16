@@ -11,7 +11,7 @@
    tram's bell, a bicycle bell, a horn a few streets away, a bird in the
    park, and in the room someone drawing for a moment. It fades in at
    Begin Game and out at the end, with the same wind-down contract as
-   Cromo's and Neon's (beginFadeOut/resetWindDown). */
+   Cromo's and Futuris's (beginFadeOut/resetWindDown). */
 
 export const hasAudio = true;
 
@@ -262,7 +262,7 @@ export function createAudio() {
     playSelect, playDeselect, playBlocked, playRollStart, playLanding, playCapture, playWin,
     playMenu, fadeOutMenu, stopMenu, playRulesOpen, playRulesClose, playRulesTab,
     playPowerOn, playPowerOff, playDockOpen, playDockClose,
-    // Neon-only effects; the chassis calls every audio method unconditionally.
+    // Futuris-only effects; the chassis calls every audio method unconditionally.
     playFlicker: noop, playArc: noop, playGlitch: noop,
     playSingularityOpen: noop, playSingularityClose: noop, playSingularityBell: noop, playSingularityDismiss: noop,
     startSingularityHum: noop, updateSingularityHum: noop, stopSingularityHum: noop,

@@ -15,7 +15,7 @@ export const POINTS_GLOW = {
   den: { dark: "#ff8a2a", light: "#ffd98a" },
   tienda: { dark: "#f2b632", light: "#6dffb0" }, // Big Glutts: harvest gold, the register's green digits
   store: { dark: "#f2b632", light: "#6dffb0" },
-  neon: { dark: "#4de8ff", light: "#ffb454" }, // its own glows
+  futuris: { dark: "#4de8ff", light: "#ffb454" }, // its own glows
   lluvia: { dark: "#3fe6ff", light: "#ff4fa3" }, // signs in the rain
   cromo: { dark: "#8fcaff", light: "#f4f8ff" }, // a cold blue pilot light, chrome white
   plano: { dark: "#8ec2ff", light: "#ffffff" }, // the blueprint's line work

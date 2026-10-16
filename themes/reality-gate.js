@@ -9,7 +9,7 @@
      Cabeza Nova opens the sheet. "Other realities" under them is the way
      back to the switcher (realities.js).
    - The sheet: everything Nova's places offer (Tienda's order form,
-     Neon's sphere, the den's catalog), together in one simple scrolling
+     Futuris's sphere, the den's catalog), together in one simple scrolling
      menu: who's playing, the pieces, the rules, the board (its size,
      squares cut out, the black holes' place, a shuffled start). Reset
      and Play at the bottom. The choices are rules-selections.js's, applied
@@ -84,7 +84,7 @@ const LOOKS = {
     line: "rgba(43,29,18,0.32)", lineW: "1.5px", radius: "8px", display: "'Fraunces', Georgia, serif", displayWeight: 800, body: "'Libre Franklin', 'Helvetica Neue', Arial, sans-serif",
     shadow: "0 24px 60px rgba(10,6,3,0.55)", glow: "none", case: "none", track: "0.01em", cellA: "#E3CDA2", cellB: "#B98A5B",
   },
-  neon: {
+  futuris: {
     backdrop: "rgba(2,4,8,0.62)", surface: "rgba(8,11,16,0.94)", ink: "#DDF6FF", muted: "#7FA3B8", accent: "#22E4FF", accentInk: "#02070B",
     line: "rgba(34,228,255,0.42)", lineW: "1px", radius: "3px", display: "'Chakra Petch', 'Barlow', sans-serif", displayWeight: 700, body: "'Chakra Petch', 'Barlow', sans-serif",
     shadow: "0 0 34px rgba(34,228,255,0.28), 0 20px 50px rgba(0,0,0,0.6)", glow: "0 0 10px rgba(34,228,255,0.75)", case: "uppercase", track: "0.14em", cellA: "#0E2230", cellB: "#081620",
@@ -291,7 +291,7 @@ const segBtn = (key, on, text, onClick, testid, disabled = false) => h("button",
 
 /* ------------------------------------------------------------ the square picker */
 
-/* Marking the board by hand (as Tienda's order form and Neon's sphere):
+/* Marking the board by hand (as Tienda's order form and Futuris's sphere):
    squares cut out (X) or the black holes' place (O); each mark's 180°
    partner is filled in. Drawn from Dark's side, as the board faces. The
    black holes' square is marked and stays shown till Done (user: "press
@@ -396,7 +396,7 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
    choosing, and in that theme's own look): built by the theme's own
    buildPieceVisual (as the board's and the dock's are), lit as the dock
    piece is, and taken at a three-quarter angle into a still. All of them
-   in one short-lived WebGL context, released straight after (as Neon's
+   in one short-lived WebGL context, released straight after (as Futuris's
    MATTER stills, piece-showcase.js). Light's pieces; the poses are the
    pieces' first starting ones (POSES). Sizes stay true to each other,
    only the smallest brought up a little to be seen. */
@@ -440,7 +440,7 @@ function lookRenderer(canvas, w, hgt) {
 /* A setup's piece, large, in 3D, in its world's look (user: "3D blow up
    piece inspections in the setup for every page"): tapped from its
    picture, it grows out of it, turns slowly, turns any way under a drag,
-   and goes back into the picture at a tap outside (Neon's MATTER viewer,
+   and goes back into the picture at a tap outside (Futuris's MATTER viewer,
    piece-showcase.js, with this world's piece, lights, colours and type). */
 const LOOK_SKIN = {
   backdrop: "var(--rg-backdrop)",

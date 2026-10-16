@@ -49,7 +49,7 @@
 - **Rayo and Zeta (built).** MATTER roster counters (0-4, default 0).
   Rayo: 4-cube S/Z (`rayo`, "Ra"); Zeta: 5-cube Z (`zeta`, "Ze"), which
   starts upright and can stand on one cube, so it can pivot (the Rayo can
-  too, once stood on end). Poses in themes/neon.js PIECE_ORIENTATIONS;
+  too, once stood on end). Poses in themes/futuris.js PIECE_ORIENTATIONS;
   Zeta never starts flat (3 rows deep).
 - **Pieces at 87%.** `PIECE_SCALE` 0.87 (user's final pick); the Cabeza
   stays at `CABEZA_SCALE` 0.84.
@@ -74,7 +74,7 @@
   boot board size, standard pieces, no holes), then sends the window event
   `el-cabeza:play-original`: the sphere exits if open, and Nova
   (apps/unified.jsx) transitions back to the Standard theme if it's on
-  Neon. Standard has no ANOMALY button, so nothing else to disable. Test:
+  Futuris. Standard has no ANOMALY button, so nothing else to disable. Test:
   tests/e2e-original.mjs.
 - **Original-game cue (built).** The link plays assets/original-cue.mp3
   (5.5 s of archive.org's "Mall Music Muzak – Mall Of 1974", Third Floor
@@ -110,7 +110,7 @@
 - **Undo after a game ends restores sound.** resetWindDown(true) also
   resumes a suspended AudioContext (phones may suspend it in the
   post-game silence); tests/e2e-undo-audio.mjs, probe
-  window.__EC_TEST_AUDIO__ / __EC_TEST_AUDIO_SUSPEND__ (Neon).
+  window.__EC_TEST_AUDIO__ / __EC_TEST_AUDIO_SUSPEND__ (Futuris).
 
 - **Cromo theme (built).** themes/cromo.js (+ cromo-fx.js scene effects,
   cromo-audio.js), apps/cromo.jsx, dist/el-cabeza-cromo.html, linked on
@@ -126,7 +126,7 @@
   gets it too. Pieces: mirror chrome (Light) / warm gunmetal (Dark) with
   a thin dark silhouette shell. Audio: synthesized struck-bar/stone
   modes per stone, room reverb, near-silent ambience (room tone, beating
-  55 Hz drone, a rare far bowl), Neon's wind-down contract. Fonts
+  55 Hz drone, a rare far bowl), Futuris's wind-down contract. Fonts
   Michroma + Barlow; chrome-gradient .ec-title. Test: e2e-smoke cromo.
 
 - **Lluvia theme (stage 1 built).** themes/lluvia.js (+ lluvia-fx.js,

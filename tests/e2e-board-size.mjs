@@ -42,8 +42,8 @@ const CANDIDATES = [...BASE_CANDIDATES, ...BASE_CANDIDATES.map(([x, y]) => [1 - 
 const CASES = [
   { theme: "standard", rows: 14, cols: 8, label: "tall" },
   { theme: "standard", rows: 20, cols: 20, label: "maximum" },
-  { theme: "neon", rows: 12, cols: 18, label: "wide" },
-  { theme: "neon", rows: 20, cols: 20, label: "maximum" },
+  { theme: "futuris", rows: 12, cols: 18, label: "wide" },
+  { theme: "futuris", rows: 20, cols: 20, label: "maximum" },
 ];
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });

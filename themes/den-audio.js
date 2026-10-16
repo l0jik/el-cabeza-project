@@ -869,7 +869,7 @@ export function createAudio() {
     playMenu() {}, fadeOutMenu() {}, stopMenu() {}, playRulesOpen() {}, playRulesClose() {}, playRulesTab() {}, playPowerOn() {},
     playPowerOff() {}, playFlicker() {}, playArc() {}, playGlitch() {},
     playSingularityOpen() {}, playSingularityClose() {},
-    /* Singularity is Neon's, but the chassis calls every audio method on
+    /* Singularity is Futuris's, but the chassis calls every audio method on
        every theme, so these are here as no-ops. */
     startSingularityHum() {}, updateSingularityHum() {}, stopSingularityHum() {},
     playSingularityDismiss() {},

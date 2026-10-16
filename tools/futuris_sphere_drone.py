@@ -1,6 +1,6 @@
-"""The Singularity's first visit, after the ring (themes/neon-unease.js
-createDrone, LostNudge in neon-singularity.js): the user's recording of an
-industrial pulse drone (assets/neon/src/industrial-pulse-drone-27456.mp3,
+"""The Singularity's first visit, after the ring (themes/futuris-unease.js
+createDrone, LostNudge in futuris-singularity.js): the user's recording of an
+industrial pulse drone (assets/futuris/src/industrial-pulse-drone-27456.mp3,
 from Freesound), made into a loop.
 
 The recording holds steady for about 25 s and then fades out over its
@@ -10,10 +10,10 @@ crossfaded (equal power) into its first 3 s. It's levelled to about
 second of its start after it, so a player looping from 1 s to 1 s + LOOP
 plays across the joins on the loop's own sound, whatever the decoder does
 at the file's very ends (an mp3 is padded there). Stereo, 24 kHz, to
-assets/neon/sphere-drone.mp3; LOOP (seconds) is printed, and
+assets/futuris/sphere-drone.mp3; LOOP (seconds) is printed, and
 createDrone's DRONE_LOOP has to match it.
 
-    python3 tools/neon_sphere_drone.py
+    python3 tools/futuris_sphere_drone.py
 """
 import os
 import subprocess
@@ -23,8 +23,8 @@ import numpy as np
 from scipy.io import wavfile
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-SRC = os.path.join(ROOT, "assets", "neon", "src", "industrial-pulse-drone-27456.mp3")
-OUT = os.path.join(ROOT, "assets", "neon", "sphere-drone.mp3")
+SRC = os.path.join(ROOT, "assets", "futuris", "src", "industrial-pulse-drone-27456.mp3")
+OUT = os.path.join(ROOT, "assets", "futuris", "sphere-drone.mp3")
 SR = 24000
 A, B, XF, PAD = 0.5, 25.0, 3.0, 1.0
 

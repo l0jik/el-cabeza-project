@@ -20,7 +20,7 @@ console.log("\nthe view jumps glide");
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
-  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
   await page.waitForTimeout(1500);
   await openDockPanel(page);
   await page.locator("button", { hasText: /Begin Game/ }).first().click();

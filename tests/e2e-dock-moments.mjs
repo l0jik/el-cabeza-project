@@ -17,7 +17,7 @@ const check = (l, c, extra) => { if (!c) failures++; console.log(`  ${c ? "ok  "
 const PAGES = [
   ["standard", null, { endGame: "Call it a night", newGame: "Set them up again", caption: "We'll finish it some other time." }],
   ["tienda", '[data-testid="tienda-open-box"]', { endGame: "Put them down", newGame: "Set up the demo again", caption: "Please leave pieces on the board." }],
-  ["neon", null, { endGame: "Disconnect", newGame: "Reboot", caption: "session closed" }],
+  ["futuris", null, { endGame: "Disconnect", newGame: "Reboot", caption: "session closed" }],
   ["cromo", null, { endGame: "Lay down", newGame: "Set the stones", caption: "The stones rest." }],
   ["plano", null, { endGame: "Roll up the plans", newGame: "A fresh sheet", caption: "Plans rolled up." }],
   ["luna", null, { endGame: "End mission", newGame: "New mission", caption: "Mission scrubbed." }],

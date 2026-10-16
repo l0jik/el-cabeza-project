@@ -19,7 +19,7 @@
    Move Log, the sound winding down (the tape stopping, keeping its
    place), and New Game back to the table with one store, not two.
 
-   Everything Neon's Singularity sphere offers, in the order form: the
+   Everything Futuris's Singularity sphere offers, in the order form: the
    Blocks and Arco sizes, Shoving's settings and the warnings, each rule's
    card, black holes and missing squares marked on the board by hand,
    the opponent, carbon copies (saved setups), the stamp as it's placed,
@@ -302,7 +302,7 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await ctx.close();
 }
 
-/* ---- everything Neon's Singularity sphere offers, as the order form ---- */
+/* ---- everything Futuris's Singularity sphere offers, as the order form ---- */
 {
   const size = SIZES[7];
   console.log(`\n${size.name}: everything the Singularity offers`);

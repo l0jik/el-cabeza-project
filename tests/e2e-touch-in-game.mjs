@@ -1,6 +1,6 @@
-/* A finger on the board once a game's begun, in every world: Neon's way
+/* A finger on the board once a game's begun, in every world: Futuris's way
    (user: "make all in-game touch movement tilt rotate exactly like it is
-   in Neon. That is the correct way they should all be when playing the
+   in Futuris. That is the correct way they should all be when playing the
    game"). Begun above the board's middle (its far side), a drag right
    turns it one way (theta up); begun below (its near side), the other
    (theta down); finger up tilts toward the horizon (phi up), down toward
@@ -23,7 +23,7 @@ import { openDockPanel } from "./dock-helpers.mjs";
 const D = "file:///home/user/el-cabeza-project/dist";
 const DEN_SEED = { "el-cabeza:story": JSON.stringify({ owned: true }), "el-cabeza:singularity-seen": "1", "el-cabeza:commercial-aired": "1", "el-cabeza:special-order-noted": "1" };
 const WORLDS = [
-  ["Neon", `${D}/el-cabeza-neon.html`, {}],
+  ["Futuris", `${D}/el-cabeza-futuris.html`, {}],
   ["Standard", `${D}/el-cabeza-standard.html`, {}],
   ["Nova den", `${D}/el-cabeza-nova.html`, DEN_SEED],
   ["Nova's store (the story's first visit)", `${D}/el-cabeza-nova.html`, {}],
@@ -149,7 +149,7 @@ for (const [name, url, seed, opts = {}] of WORLDS) {
   check("finger up: toward the horizon (phi up)", steady(d.up, 1, 1), fmt(d.up, 1));
   check("finger down: toward overhead (phi down)", steady(d.down, 1, -1), fmt(d.down, 1));
 
-  if (name === "Neon") {
+  if (name === "Futuris") {
     // The handlers bound again halfway through a drag (the pieces set
     // afresh, as a computer's step changes them): the turn carries on.
     await pose();

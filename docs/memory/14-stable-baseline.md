@@ -16,9 +16,9 @@ casually "improve" it without a specific reported problem:
   case), pre-game auto-fit, per-view fitting, full gesture parity
   (mouse/trackpad/touch/two-finger).
 - Full audio: Standard's wood-impact percussion (final simplified
-  recipe) + Neon's large ambient soundscape, both mute-able and
+  recipe) + Futuris's large ambient soundscape, both mute-able and
   mute-persistent across the unified app's theme switch.
-- Full Neon ambient FX suite (masthead flicker/scanline/ghosting/glitch,
+- Full Futuris ambient FX suite (masthead flicker/scanline/ghosting/glitch,
   turn halo, VHS glitch + CRT-aberration rotations, crawling swarm, 7
   arc/discharge styles, floor wave, digital-interior/voxel-shatter piece
   effects, landing particles/shockwave) — tuned down from original
@@ -29,5 +29,5 @@ casually "improve" it without a specific reported problem:
   height scroll body; camera horizontal pan clamp fixed for narrow/
   portrait aspect ratios (confirmed on real OnePlus 8T hardware).
 - Full regression suite green: `engine.smoke.mjs`, `theme-{standard,
-  neon}.smoke.mjs`, `e2e-{smoke,gameplay,ambient,singularity}.mjs`.
+  futuris}.smoke.mjs`, `e2e-{smoke,gameplay,ambient,singularity}.mjs`.
 

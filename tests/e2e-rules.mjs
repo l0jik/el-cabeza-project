@@ -2,7 +2,7 @@
    tab renders in both themes; "This game" lists exactly the laws in
    play (here 3 Actions + Slide, switched on through window.__EC_LAWS__),
    and tapping one jumps to its MOVES tile; the open-rules event opens a
-   given tab from anywhere; the How to play button opens it, and Neon's
+   given tab from anywhere; the How to play button opens it, and Futuris's
    Custom rules button opens the SINGULARITY invite. Screenshots of the cards land in /tmp. */
 import { chromium } from "playwright";
 
@@ -11,7 +11,7 @@ let failures = 0;
 const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
 const open = (page, tab, focus = null) => page.evaluate(([t, f]) => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: t, focus: f } })), [tab, focus]);
 
-for (const theme of ["neon", "standard"]) {
+for (const theme of ["futuris", "standard"]) {
   console.log(`[${theme}]`);
   const context = await browser.newContext({ viewport: { width: 900, height: 900 } });
   const page = await context.newPage();
@@ -73,7 +73,7 @@ for (const theme of ["neon", "standard"]) {
   check("a tap outside closes it", (await overlay.getAttribute("data-open")) === "false");
 
   // Out in the open: an always-visible How to play button opens the
-  // Quick card, and in Neon the setup dock's Custom rules button brings
+  // Quick card, and in Futuris the setup dock's Custom rules button brings
   // up the SINGULARITY invite (the same one five masthead taps do).
   // (Standard's den has none: its rules are the leaflet on the coffee
   // table, see e2e-den.mjs.)
@@ -90,7 +90,7 @@ for (const theme of ["neon", "standard"]) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(500);
   }
-  if (theme === "neon") {
+  if (theme === "futuris") {
     const { openDockPanel } = await import("./dock-helpers.mjs");
     await openDockPanel(page);
     const custom = page.locator('[data-testid="custom-rules"]');
@@ -118,7 +118,7 @@ for (const theme of ["neon", "standard"]) {
   const audioErrs = [];
   page.on("pageerror", (e) => audioErrs.push(e.message));
   await page.addInitScript(() => { window.__EC_MENU_CUES__ = []; });
-  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
   await page.waitForTimeout(1500);
   const cues = () => page.evaluate(() => window.__EC_MENU_CUES__.splice(0));
   const overlay = page.locator('[data-testid="info-overlay"]');
@@ -165,7 +165,7 @@ for (const theme of ["neon", "standard"]) {
   const context = await browser.newContext({ viewport: { width: 1200, height: 800 }, reducedMotion: "reduce" });
   const page = await context.newPage();
   await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ } }); // been to the Singularity: the extras are open (engine/journey.js; e2e-journey.mjs tests the lock)
-  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
   await page.waitForTimeout(2000);
   await open(page, "moves");
   await page.waitForTimeout(400);

@@ -9,7 +9,7 @@
    tab is one of RULES_TABS' keys ("about" is the chassis's own history
    page); focus names a MOVES tile (a law key or a move key) to scroll to
    and highlight. Colours come from the theme's COLORS, so the cards sit
-   in Standard's paper and Neon's glass alike. The text states the rules
+   in Standard's paper and Futuris's glass alike. The text states the rules
    exactly as the engine plays them (engine/constants.js, engine/rules.js). */
 import React, { useEffect, useRef } from "react";
 

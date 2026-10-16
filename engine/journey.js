@@ -1,5 +1,5 @@
 /* The journey: the extras are kept back until the player has been into
-   the Singularity once (the user: the store and the den, and Neon before
+   the Singularity once (the user: the store and the den, and Futuris before
    its sphere, are the classic game; the sphere unlocks the rest, for good,
    until Nova's "Start the story over").
 
@@ -9,7 +9,7 @@
    describe only the classic game, and the catalog's order form
    (themes/tienda-overlay.js) offers only the five pieces and the board's
    size. A theme opts in with `lockExtrasUntilSingularity` (Tienda,
-   Standard and Neon, on their own pages and in Nova alike).
+   Standard and Futuris, on their own pages and in Nova alike).
 
    Kept in localStorage, so it's the same on every page of the site: a
    visit to the sphere anywhere unlocks them everywhere. If storage is
@@ -44,7 +44,7 @@ function announce() {
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(JOURNEY_EVENT));
 }
 
-// The sphere has opened (themes/neon-singularity.js): the extras unlock.
+// The sphere has opened (themes/futuris-singularity.js): the extras unlock.
 export function markSingularitySeen() {
   if (singularitySeen()) return;
   seenThisVisit = true;

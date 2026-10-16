@@ -18,7 +18,7 @@
    The game's ambience is almost nothing: a low room tone, two drone
    partials beating slowly, and now and then a single far-off bowl
    strike deep in the reverb. It fades in at Begin Game and out at the
-   end of a game, like Neon's, with the same wind-down contract the
+   end of a game, like Futuris's, with the same wind-down contract the
    chassis expects (see beginFadeOut/resetWindDown). */
 
 import { getStone } from "./cromo.js";
@@ -218,7 +218,7 @@ export function createAudio() {
     master.gain.setValueAtTime(master.gain.value, t0);
     master.gain.linearRampToValueAtTime(0, t0 + (seconds || 3));
   }
-  /* Same three callers as Neon's: true = straight back into play (an
+  /* Same three callers as Futuris's: true = straight back into play (an
      undone ending), "sfxOnly" = a fresh setup screen (UI sounds back,
      ambience silent until Begin Game), anything else = leave it. */
   function resetWindDown(restoreVolume) {
@@ -344,7 +344,7 @@ export function createAudio() {
     playSelect, playDeselect, playBlocked, playRollStart, playLanding, playCapture, playWin,
     playMenu, fadeOutMenu, stopMenu, playRulesOpen, playRulesClose, playRulesTab,
     playPowerOn, playPowerOff, playDockOpen, playDockClose, playStone,
-    // Neon-only effects; the chassis calls every audio method unconditionally.
+    // Futuris-only effects; the chassis calls every audio method unconditionally.
     playFlicker: noop, playArc: noop, playGlitch: noop,
     playSingularityOpen: noop, playSingularityClose: noop, playSingularityBell: noop, playSingularityDismiss: noop,
     startSingularityHum: noop, updateSingularityHum: noop, stopSingularityHum: noop,

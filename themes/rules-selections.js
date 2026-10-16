@@ -1,7 +1,7 @@
 /* Custom rules as a set of choices: which pieces each side gets, which
    laws are on (and Shoving's one setting), and the board (its size, missing
    squares and the black holes' place, a shuffled start). The same
-   choices Neon's Singularity sphere offers, shared by the themes whose
+   choices Futuris's Singularity sphere offers, shared by the themes whose
    menus set them (Lluvia's city, Tienda's order form); the menus only
    draw the choices, this module applies them to a real game.
 
@@ -17,7 +17,7 @@ import { generateAnomalySetup, packHomeBand } from "../engine/anomaly.js";
 
 /* ------------------------------------------------------------ the choices */
 
-// Pieces per side: min, max and the classic game's count (as Neon's MATTER).
+// Pieces per side: min, max and the classic game's count (as Futuris's MATTER).
 export const PIECE_OPTIONS = [
   { key: "cabeza", name: "Cabeza", min: 1, max: 2, def: 1 },
   { key: "turrito", name: "Turrito", min: 0, max: 4, def: 1 },
@@ -216,7 +216,7 @@ export function spotProblem(sel, kind, row, col, keep = []) {
 /* Fills a feature's spots up to its count: hand-placed spots stay while
    they still fit, random ones too unless `reroll`, and the rest are rolled
    (off the standard opening for this board, off the other feature's
-   squares). As Neon's sphere does: run when a feature is switched on, on
+   squares). As Futuris's sphere does: run when a feature is switched on, on
    Random, when the pair count changes, and (with reroll) when the board
    changes size. Mutates and returns sel. */
 export function fillSpots(sel, kind, reroll = false) {
@@ -322,7 +322,7 @@ export function toggleLaw(sel, key) {
    own switch does it, the two Split movements one or the other (whichever
    is on, else three pieces, which brings its 3 actions); off: every law
    off the same way. All on reads true with either Split movement. `toggle`
-   is the menu's own (Neon's sphere keeps its own selections). Black hole
+   is the menu's own (Futuris's sphere keeps its own selections). Black hole
    squares, set with the board, are left alone, as Missing squares are. */
 const SPLITS = ["splitMovement", "splitThree"];
 export const allLawsOn = (sel) => RULE_LAWS.every((l) => (SPLITS.includes(l.key) ? SPLITS.some((k) => sel.laws[k]) : !!sel.laws[l.key]));
@@ -355,7 +355,7 @@ export function lawsForEngine(sel) {
 // Pieces that can ever stand balanced on one cube (so can pivot).
 export const PIVOT_CAPABLE = ["codo", "hombro", "cruce", "rayo", "zeta"];
 /* A law that's on but can't do anything with the other choices, and why
-   (as Neon's sphere warns): { key, testid, text } for each. */
+   (as Futuris's sphere warns): { key, testid, text } for each. */
 export function lawWarnings(sel) {
   const out = [];
   const l = sel.laws;
@@ -409,7 +409,7 @@ export function variantsOf(sel, labels = {}) {
 /* Missing squares and black holes for a game, against the pieces actually
    placed: every chosen spot still clear of them (and of each other, and,
    for missing squares, keeping a path) is used; any that isn't is
-   replaced by a fair random one. As Neon's buildMissingSquaresPlacement /
+   replaced by a fair random one. As Futuris's buildMissingSquaresPlacement /
    buildBlackHolePlacement. */
 function placeMissing(sel, rows, cols, pieces) {
   const out = [];
@@ -441,7 +441,7 @@ function placeHoles(sel, rows, cols, pieces, avoid) {
 
 /* Sets the board up as chosen: board size first, then the pieces (set
    out round any chosen squares), the laws, missing squares and black
-   holes (the order Neon's sphere uses). `x` is the theme's setup extras
+   holes (the order Futuris's sphere uses). `x` is the theme's setup extras
    (the chassis setters); `opts.labels` names the summary's groups. */
 export function applySelections(sel, x, opts = {}) {
   x.applyBoardResize && x.applyBoardResize(sel.rows, sel.cols);

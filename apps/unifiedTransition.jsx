@@ -1,11 +1,11 @@
 // Self-contained "switch theme" transition subsystem for the unified
 // app. Nothing here touches engine/, chassis/, or themes/ — it only
 // wraps whichever theme's <ElCabeza3D> is currently mounted, so it
-// carries zero risk to the existing Standard/Neon builds.
+// carries zero risk to the existing Standard/Futuris builds.
 //
 // Gesture: hold-press on the masthead for HOLD_MS. While held, a
 // progressively stronger "losing signal" degrade (screen warp,
-// chromatic aberration, scanlines, static, and — once Neon is on
+// chromatic aberration, scanlines, static, and — once Futuris is on
 // screen — a physical shake) builds up, driven by an SVG
 // feDisplacementMap filter. Releasing early eases it back out.
 // Completing the hold pops a CONNECT/DISCONNECT confirmation word;
@@ -34,7 +34,7 @@ const SHAKE_FREQ_MAX = 16;
 // A second, much larger-scale, low-frequency warp layered on top of
 // the "losing signal" static-noise degrade above — old CRTs bending
 // and wobbling under real magnetic/structural strain, not just losing
-// clean signal. Unconditional (unlike the shake, which is Neon-only):
+// clean signal. Unconditional (unlike the shake, which is Futuris-only):
 // this accompanies the existing chromatic aberration regardless of
 // which theme is currently on screen.
 // Chains onto the existing degrade filter (each displacement map warps
@@ -378,7 +378,7 @@ function useHoldTrigger(ms, onComplete) {
 // both themes render near the top-center of the card. Tracks
 // press-and-hold vs. a quick tap: a tap forwards a synthetic click to
 // whatever element is actually underneath it (so the title's own
-// click behavior, e.g. Neon's letter-phosphor effect, still works),
+// click behavior, e.g. Futuris's letter-phosphor effect, still works),
 // while a hold past HOLD_MS fires onHoldComplete instead.
 export function MastheadHoldZone({ zoneRef, onBegin, onEnd, onHoldComplete, onTap }) {
   const activeRef = useRef(false);
@@ -603,8 +603,8 @@ function ecCrtCurve(p) {
   };
 }
 
-// The full-screen CRT power-on ("in": Standard -> Neon) / power-off
-// ("out": Neon -> Standard) transition. Owns its own SVG filter chain
+// The full-screen CRT power-on ("in": Standard -> Futuris) / power-off
+// ("out": Futuris -> Standard) transition. Owns its own SVG filter chain
 // (geometry warp -> VHS noise -> tear -> RGB channel separation),
 // applied by the parent to the actual game content via `filterId`
 // while this overlay's mask/beam/flash play on top.
@@ -1144,7 +1144,7 @@ export function createSwitcherSfx() {
       bandpassNoiseBurst(c, t0 + 0.02, 0.05, 1800, 2, 0.14);
       playClick(t0 + 0.1);
     },
-    // Standard -> Neon: a low rumble, building static, a sawtooth
+    // Standard -> Futuris: a low rumble, building static, a sawtooth
     // power-up sweep, a bright flash-synced burst, then crackle
     // settling out — timed against the ~2s visual CRT power-on.
     powerOn() {
@@ -1163,7 +1163,7 @@ export function createSwitcherSfx() {
       crackleField(c, t0 + 1.25, 0.5, 8, 800, 2400, 0.06, 0.4, 1200, 2800);
       triangleBlip(c, t0 + 1.3, 1100, 0.05);
     },
-    // Neon -> Standard: a CRT shutdown — switch click, a flyback whine
+    // Futuris -> Standard: a CRT shutdown — switch click, a flyback whine
     // cut abruptly, a deflection downsweep, a power-rail drain with a
     // sub-bass pop, a long sinking phosphor hum, sparse residual
     // crackle, a detuned trailing whine, and a final settling pop

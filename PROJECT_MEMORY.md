@@ -27,6 +27,21 @@ How to use it:
 - If a cited number looks off, trust `grep` over the notes: code moves
   faster than docs.
 
+**Neon is Futuris** (since 2026-10-16; user: "Change all "neon" references
+to "futuris"", after trying "void" and "O"). The world, its page, files,
+ids and tests were renamed: themes/neon*.js are themes/futuris*.js,
+apps/neon.jsx is apps/futuris.jsx, assets/neon/ is assets/futuris/, the
+page el-cabeza-neon.html is el-cabeza-futuris.html (the old address is a
+page that forwards there, query and hash kept), the world id, the
+corner-menu look and the side-name, glow and gate keys are `futuris`, and
+tests/theme-neon.smoke.mjs is theme-futuris.smoke.mjs. An old
+`?world=neon` and a last world kept as `neon` still lead to Futuris. Notes
+written before (Recent rounds below and docs/memory/history/) say Neon
+and are left as they were; git history says Neon too. "neon" meaning
+light stays wherever it is: Lluvia's signs, Noir's red HOTEL sign (its
+`NEON` colour), the store's and the ending's neon blue, the pieces' neon
+rim, the front-page mock-ups of NOVA as a neon sign.
+
 ## Open reminders (from the user; not done yet)
 
 - None open. The last, the disclaimer (user, 2026-10-08), is in since
@@ -41,12 +56,12 @@ How to use it:
 - [02-build-and-verification.md](docs/memory/02-build-and-verification.md): Build (esbuild, one page per world) and how changes are verified
 - [03-game-ai.md](docs/memory/03-game-ai.md): The computer opponent: search, evaluation, difficulties
 - [03b-board-dimensions.md](docs/memory/03b-board-dimensions.md): Board size as a runtime parameter (TOPOLOGIES groundwork)
-- [03c-singularity-transition.md](docs/memory/03c-singularity-transition.md): Neon's Singularity cinematic transition
+- [03c-singularity-transition.md](docs/memory/03c-singularity-transition.md): Futuris's Singularity cinematic transition
 - [03d-sphere-menu.md](docs/memory/03d-sphere-menu.md): The MATTER / LAWS / TOPOLOGIES sphere menu
 - [04-performance-done.md](docs/memory/04-performance-done.md): Performance work already done (don't undo without reason)
 - [05-camera-input.md](docs/memory/05-camera-input.md): Camera and input: fragile, verify rigorously if touched
 - [06-dock-piece-preview.md](docs/memory/06-dock-piece-preview.md): The dock's spinning piece preview
-- [07-rendering-standard-vs-neon.md](docs/memory/07-rendering-standard-vs-neon.md): Standard vs Neon piece rendering techniques
+- [07-rendering-standard-vs-futuris.md](docs/memory/07-rendering-standard-vs-futuris.md): Standard vs Futuris piece rendering techniques
 - [08-visual-invariants.md](docs/memory/08-visual-invariants.md): Visual and design invariants: keep consistent
 - [09-audio.md](docs/memory/09-audio.md): Audio architecture
 - [10-solved-bugs.md](docs/memory/10-solved-bugs.md): Other solved bugs worth remembering
@@ -63,7 +78,7 @@ How to use it:
 - [design-canvas-3.md](docs/memory/design-canvas-3.md): Design canvas: third batch
 - [future-wishlist.md](docs/memory/future-wishlist.md): Future wishlist (user-requested, not started)
 - [tienda.md](docs/memory/tienda.md): Tienda: the 1975 department store
-- [tienda-singularity.md](docs/memory/tienda-singularity.md): Tienda: Neon's Singularity in the store's terms
+- [tienda-singularity.md](docs/memory/tienda-singularity.md): Tienda: Futuris's Singularity in the store's terms
 - [theme-lab.md](docs/memory/theme-lab.md): Theme Lab: ten design directions
 - [nova-on-phones.md](docs/memory/nova-on-phones.md): Nova on phones: the phone layout (MobileShell)
 - [nova-story.md](docs/memory/nova-story.md): Nova's story: the store, home, and the TV into Singularity
@@ -359,3 +374,4 @@ How to use it:
 - The pause chip off the piece card (user: "Yes, move the pause chip off the piece card"). The chip is the den's (theme.music, Nova's and Standard's page: the records); the Parrish looks have none (their soundtrack lives in the sound menu's now-playing strip), so there was nothing to measure there. The card's place is measured above the corner's buttons but never counted the chip: on a phone the chip (top of the corner column, bottom 18 + 38 × slots + 4 = 174 with the planet) lay 24 px into the card's top-left corner (720 px² selected, 750 after a move), on a desktop the strip (214 × 32 at bottom 62) sat under the card at bottom 66 (5992 px²). Fix, chassis: on a phone `musicChipLift`, measured from the card's top in a layout effect (deps pieceCardShown, selectedId, pieceCardBottom, musicChipBottom), the chip's bottom = musicChipBottom + lift with `bottom 0.3s ease` so it slides up as the card shows and back as it goes; on a desktop the card's own measurement includes the chip (`cornerStack ? "" : music-chip`) so the card sits 10 px above the strip, which stays put. Measured after (scratchpad chip/chip.mjs, Nova, the story ended): phone chip at bottom 288 over the card at 180 (column showing), 207 over the card at 99 (floats up); desktop strip at 62, card at 104; no overlap anywhere. The lifted chip reaches the board's lower-left frame corner on a phone (6 px over the frame, no square).
 - Hard from the user's win (user: "I just won against the Hard AI . Here's the game moves. Analyze and see if you can improve the Hard AI using this info."; 14 rows by 13, every law, ten pieces a side). The whole account is in docs/memory/03-game-ai.md, "Hard from two reported games". In short: in these rules Hard searches one turn deep; its reply check gave up three turns past its time and played the best-scoring one (its 29th: 2 of 2,576 turns held, it played one that lost at once), and the real mistake a turn earlier walked its Cabeza into a pocket (lost in two by force). de0c2fb: `endingLine` (the exact "can this side end the game on its coming turn" search, about 13x faster than generateTurns, 0 mismatches over 78,581 positions), Hard checks past its time until a turn holds (verifyGraceMs 1500) and looks one turn further for a net (netGuard, netGraceMs 2500, netMax 3), the threat walk follows black holes, exact speed-ups in the roll and pivot sweeps (legalMovesFor 2.2x); tests/ai-net.smoke.mjs in test:engine. New against old Hard on the user's setup: 8-3 (3 draws) over 14 games, about a second more thinking a turn (4.1 s against 3.1 s, at most 7.8 against 7.3). CI for de0c2fb green (Deploy #777, Browser tests #97, all eight shards). Open: the net check counts crush threats only, not a Cabeza brought within a turn of home (two of the three losses were walks home, one after a black-hole jump); see the topic note. LESSON: a head-to-head script must record each game's start position (setups use Math.random); batches A and B didn't, so their losses can't be replayed. aisim/sim.mjs records `start` now.
 - The user's loss to Hard (user: "Hard AI just won against me:", with the log and replay code): played before de0c2fb went live (Deploy #777 finished after it), so against the old Hard. Its Cabeza went into the black hole at (4,10) on its 32nd turn (C: SW.SW.SE), came out at (8,1) in the user's half and walked home at its 36th under the user's standing Arco Ancho. At the user's 35th turn 13 of their 876 turns would have stopped it (AN: slide-N, one action, puts the arch's leg on the square it walked under); the user never had a turn that ended the game (scratchpad hardgame/humanturns.mjs, defences69.mjs, CODE=./code2.txt). The check alert reads cabezaThreats (a crush on your own Cabeza) only, so it said nothing of the walk home: a warning for "the computer's Cabeza can reach your back row next turn" offered, not built.
+- Neon is Futuris (user: "Change all "neon" references to "void"", then "Instead, change all neon references to "O". Would this create any problems or conflicts?", answered: "O" already means the Opa in the move log and a chosen hole in the black-hole pickers, one letter can't be searched for among the code's ~1,100 lines using `o`, old links would break, and "O Cabeza" reads "or Cabeza" in Spanish; then "Change all "neon" references to "futuris""). The note at the top ("Neon is Futuris") says what moved where. Done by a script (scratchpad rename/rename.py, a dry run unless --apply): 657 replacements in 138 files, case kept (NEON/Neon/neon to FUTURIS/Futuris/futuris), then `git mv` of the 16 files with neon in their names; the dated notes (docs/memory/history/, this Recent rounds part) left alone; "neon" as light left alone by phrase (neon sign/tube/glow/blue/rim/night/glass/pixel/city, in neon, red/pink neon, neonish, Lluvia's "Neon glass:", the lost hand's "neon, wireframe", Lluvia's corner-menu `class="neon"`) and by file (lluvia-city.js, noir-models.js, noir.js, tienda-store.js, tienda-fx.js, e2e-store-opening.mjs). Kept working: dist/el-cabeza-neon.html, written by build/build.js like el-cabeza-unified.html, forwards to el-cabeza-futuris.html with the query and hash; Nova's ?world=neon (apps/unified.jsx WORLD_PARAM) and a last world kept as "neon" (themes/realities.js lastWorld) mean futuris. Checked: the build, test:engine (FUTURIS THEME SMOKE TEST PASSED among the rest), scratchpad rename/compat.mjs (the old address forwards with ?quality=low#x kept; Futuris's page titled "Futuris Cabeza", no errors, nothing asked for under the old name; Nova ?world=neon lands in Futuris; a last world "neon" offered as "Continue in Futuris"), the channel picture and the front page's world picture have no words in them. LESSON: the build doesn't empty dist/, so a renamed file's old copy stays there locally (el-cabeza-channel-neon.jpg, el-cabeza-neon-sphere-drone.mp3, front/world-neon.webp) and can hide a missed reference from local tests; delete such leftovers by name after a rename (CI builds from nothing). Playwright's Chromium here fails Google Fonts' certificate through the proxy (net::ERR_CERT_AUTHORITY_INVALID): a check for console errors has to let that one by.

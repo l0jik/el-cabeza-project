@@ -169,7 +169,7 @@ export function createAudio() {
     },
     playDockOpen() { if (ready()) I.whoosh(at(), 0.32, 0.03); },
     playDockClose() { if (ready()) I.whoosh(at(), 0.26, 0.022); },
-    // Neon-only effects; the chassis calls every audio method unconditionally.
+    // Futuris-only effects; the chassis calls every audio method unconditionally.
     playFlicker() {}, playArc() {}, playGlitch() {},
     playSingularityOpen() {}, playSingularityClose() {}, playSingularityBell() {}, playSingularityDismiss() {},
     startSingularityHum() {}, updateSingularityHum() {}, stopSingularityHum() {},

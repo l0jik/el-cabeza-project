@@ -3,8 +3,8 @@ import ReactDOM from "react-dom/client";
 import ElCabeza3D from "../chassis/ElCabeza3D.jsx";
 import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js";
 import * as standardTheme from "../themes/standard.js";
-import * as neonTheme from "../themes/neon.js";
-import { mountSummon, summonBridge } from "../themes/neon-summon.js";
+import * as futurisTheme from "../themes/futuris.js";
+import { mountSummon, summonBridge } from "../themes/futuris-summon.js";
 import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
 import { StoryCut, STORY_KEY, storyPreview, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone, hallDue, saveHallDue, hallFlares, saveHallFlares, storyEnded, saveStoryEnded, forgetStoryEnd } from "./novaStory.jsx";
@@ -104,7 +104,8 @@ const OPEN_SWITCHER = (() => {
 // From another page's realities menu (realities.js goToWorld): ?world=
 // <place>, after the story.
 const WORLD_PARAM = (() => {
-  try { const w = new URLSearchParams(window.location.search).get("world"); return storyEnded() && ["standard", "neon", "tienda", "ciudad"].includes(w) ? w : null; } catch (e) { return null; }
+  // (Futuris was Neon: an old ?world=neon link still lands there.)
+  try { const q = new URLSearchParams(window.location.search).get("world"); const w = q === "neon" ? "futuris" : q; return storyEnded() && ["standard", "futuris", "tienda", "ciudad"].includes(w) ? w : null; } catch (e) { return null; }
 })();
 // A look at one of the den's scenes without playing the story there:
 // ?scene=revelation (den-ending.js), ?scene=glutts (the trip back to
@@ -117,7 +118,7 @@ let SCENE_PARAM = (() => {
   try { const v = new URLSearchParams(window.location.search).get("scene"); return ["revelation", "glutts", "hall", "lure", "commercial"].includes(v) ? v : null; } catch (e) { return null; }
 })();
 const COMMERCIAL_SCENE = SCENE_PARAM === "commercial";
-// ?scene=summons: straight into Neon as if just through the den's set the
+// ?scene=summons: straight into Futuris as if just through the den's set the
 // first time: the summons over the board, then the sphere's first visit
 // (the ring and heartbeat, the menu coming apart, the hand). The journey
 // plays it as never seen and keeps this visit in memory only
@@ -234,25 +235,25 @@ const homeTheme = {
   },
 };
 /* Singularity's BACK, in Nova, goes home: straight to the den through
-   Nova's own transition (not back to Neon's board), where the set is on
+   Nova's own transition (not back to Futuris's board), where the set is on
    and, the first time, showing the commercial (the user's spot,
    themes/den-commercial.js). */
-const novaNeonTheme = {
-  ...neonTheme,
+const novaFuturisTheme = {
+  ...futurisTheme,
   // After the story: the gate as it comes up, and the other realities.
   // (Not over the summons opened by its own link, ?scene=summons.)
-  realityGate: SCENE_LINK ? null : { world: "neon", novaGo: (to, w) => storyBridge.goWorld(w) },
+  realityGate: SCENE_LINK ? null : { world: "futuris", novaGo: (to, w) => storyBridge.goWorld(w) },
   cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
   useSetupExtras: (x) => {
-    const e = { ...neonTheme.useSetupExtras(x), onSingularityBack: () => tvBridge.back() };
-    // The summons' way in (themes/neon-summon.js): Neon's own reveal.
+    const e = { ...futurisTheme.useSetupExtras(x), onSingularityBack: () => tvBridge.back() };
+    // The summons' way in (themes/futuris-summon.js): Futuris's own reveal.
     summonBridge.reveal = e.revealSingularity || null;
     return e;
   },
   /* The first arrival, until the Singularity's been visited: the way in
-     shows itself over the board (themes/neon-summon.js, the user's pick). */
+     shows itself over the board (themes/futuris-summon.js, the user's pick). */
   mountAmbientEffects: (refs, helpers) => {
-    const base = neonTheme.mountAmbientEffects(refs, helpers);
+    const base = futurisTheme.mountAmbientEffects(refs, helpers);
     const summon = !singularitySeen() && helpers && helpers.three ? mountSummon(helpers.three, { audio: helpers.audio, cam: helpers.cam }) : null;
     if (!summon) return base;
     return {
@@ -263,7 +264,7 @@ const novaNeonTheme = {
     };
   },
 };
-const THEMES = { tienda: storeTheme, standard: homeTheme, neon: novaNeonTheme };
+const THEMES = { tienda: storeTheme, standard: homeTheme, futuris: novaFuturisTheme };
 /* The site's other pages, on Nova's page as well (user: "consolidate
    everything into a single link to where it's all integrated together"),
    The City first: each fetched only when it's picked (build/build.js
@@ -271,9 +272,9 @@ const THEMES = { tienda: storeTheme, standard: homeTheme, neon: novaNeonTheme };
    these worlds in its own), and torn down with the chassis when it's
    left. LAZY[name]() resolves to the theme's module; THEMES[name] is made
    from it once, with Nova's own gate and corner (the realities menu in
-   place, as the den's and Neon's). */
+   place, as the den's and Futuris's). */
 const LAZY = { ciudad: () => import("../themes/ciudad.js") };
-const CUT_CAPTIONS = { standard: "The den, 1975.", neon: "Neon.", tienda: "Big Glutts, Games & Hobby Dept.", ciudad: "The City." };
+const CUT_CAPTIONS = { standard: "The den, 1975.", futuris: "Futuris.", tienda: "Big Glutts, Games & Hobby Dept.", ciudad: "The City." };
 // The tab's name while one of the site's other worlds is up here (its own
 // page's title; build/build.js); Nova's own otherwise.
 const WORLD_TITLES = { ciudad: "El Cabeza \u00b7 The City" };
@@ -308,7 +309,7 @@ function restoreBootRules() {
   setBoardDimensions(bootRules.board.rows, bootRules.board.cols);
 }
 /* A game in the den left through the television (or the title's hold)
-   for Neon comes back exactly as it was, when that trip is straight back
+   for Futuris comes back exactly as it was, when that trip is straight back
    (user): its rules as the engine held them, and the chassis's own game
    (carryRef's snapshot, handed back as `carry`). A story scene change
    starts the new place fresh, as before. */
@@ -328,11 +329,11 @@ const {
 
 function UnifiedApp() {
   // A first visit opens in the store; once the game is bought, at home.
-  const [themeName, setThemeName] = useState(() => (SUMMONS_PARAM ? "neon" : (WORLD_PARAM && THEMES[WORLD_PARAM] ? WORLD_PARAM : null) || (SCENE_PARAM || readOwned() ? "standard" : "tienda")));
+  const [themeName, setThemeName] = useState(() => (SUMMONS_PARAM ? "futuris" : (WORLD_PARAM && THEMES[WORLD_PARAM] ? WORLD_PARAM : null) || (SCENE_PARAM || readOwned() ? "standard" : "tienda")));
   useEffect(() => { try { document.title = WORLD_TITLES[themeName] || "El Cabeza Nova"; } catch (e) { /* no document */ } }, [themeName]);
   // A world being fetched (LAZY), named, while it comes.
   const [loadingWorld, setLoadingWorld] = useState(null);
-  // Before the first Singularity visit the way into Neon from the den is
+  // Before the first Singularity visit the way into Futuris from the den is
   // the television alone (user): no title hold there, no shortcut in the
   // phone menu. After it (engine/journey.js), both; a story restart locks
   // them again.
@@ -348,7 +349,7 @@ function UnifiedApp() {
   // loading; it's played on the way home from the Singularity.
   // (Its own link: all of it, at once.)
   useEffect(() => { if (COMMERCIAL_SCENE || !commercialAired()) prepareCommercial({ picture: COMMERCIAL_SCENE || singularityOpen }); }, [singularityOpen]);
-  // The den's game while Neon's up (see putRules above), and the one
+  // The den's game while Futuris's up (see putRules above), and the one
   // handed to the chassis as it mounts.
   const carryRef = useRef(null);
   const denSaveRef = useRef(null);
@@ -402,7 +403,7 @@ function UnifiedApp() {
 
   const applyDegrade = useCallback((intensity, aberration, nowMs) => {
     const el = contentRef.current;
-    const shakeOn = themeName === "neon";
+    const shakeOn = themeName === "futuris";
     const freq = SHAKE_FREQ_MIN + (SHAKE_FREQ_MAX - SHAKE_FREQ_MIN) * intensity;
     const t = (nowMs || 0) / 1000;
     const sx = shakeOn ? intensity * MAX_SHAKE_PX * Math.sin(t * freq * 2 * Math.PI) : 0;
@@ -415,13 +416,13 @@ function UnifiedApp() {
     // than intensity itself late in the hold (the ^1.4 curve), so it
     // reads as "the longer you hold, the worse this gets" rather than
     // a flat scale-up. Directional, like the shake above: holding from
-    // Standard (heading into Neon, CONNECT) stays comparatively mild —
+    // Standard (heading into Futuris, CONNECT) stays comparatively mild —
     // still just the original aberration/static/scanline degrade with
-    // a touch of bend — while holding from Neon (heading back to
+    // a touch of bend — while holding from Futuris (heading back to
     // Standard, DISCONNECT) gets the full effect alongside the shake,
     // so the two directions read as genuinely different events rather
     // than the same animation with a different word at the end.
-    const bendMultiplier = themeName === "neon" ? 1 : 0.4;
+    const bendMultiplier = themeName === "futuris" ? 1 : 0.4;
     const bendCurve = Math.pow(intensity, 1.4) * bendMultiplier;
     const wobbleDeg = bendCurve * MAX_WOBBLE_DEG * Math.sin(t * WOBBLE_FREQ_HZ * 2 * Math.PI);
     const wobbleSkew = bendCurve * MAX_WOBBLE_DEG * 0.7 * Math.sin(t * WOBBLE_FREQ_HZ * 2 * Math.PI * 0.63 + 1.1);
@@ -602,7 +603,7 @@ function UnifiedApp() {
         tvBridge.returning = true;
         if (singularitySeen() && !commercialAired()) { markCommercialAired(); tvBridge.commercial = true; setCommercialOn(true); }
       }
-      setThemeName(direction === "in" ? "neon" : "standard");
+      setThemeName(direction === "in" ? "futuris" : "standard");
     }, direction === "in" ? 380 : 1292);
   }, [themeName]);
 
@@ -701,11 +702,11 @@ function UnifiedApp() {
     return true;
   };
   tvBridge.back = () => {
-    if (busyRef.current || themeName !== "neon" || transition) return false;
+    if (busyRef.current || themeName !== "futuris" || transition) return false;
     beginTransition();
     return true;
   };
-  // (Test-only: home from Neon the way the Singularity's BACK goes.)
+  // (Test-only: home from Futuris the way the Singularity's BACK goes.)
   if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_BACK_HOME__ = () => tvBridge.back();
   // Under the black: the new place.
   const onCutSwap = useCallback(() => {
@@ -727,9 +728,9 @@ function UnifiedApp() {
   const onCutDone = useCallback(() => { storyBridge.arrival = false; setCut(null); }, []);
 
   // ABOUT's "The original El Cabeza" link: the chassis has already reset
-  // to a plain game; from Neon, go back to the Standard theme as well.
+  // to a plain game; from Futuris, go back to the Standard theme as well.
   useEffect(() => {
-    const onOriginal = () => { if (themeName === "neon" && !transition) beginTransition(); };
+    const onOriginal = () => { if (themeName === "futuris" && !transition) beginTransition(); };
     window.addEventListener("el-cabeza:play-original", onOriginal);
     return () => window.removeEventListener("el-cabeza:play-original", onOriginal);
   }, [themeName, transition, beginTransition]);
@@ -737,7 +738,7 @@ function UnifiedApp() {
   /* Phone layout (chassis/MobileShell.jsx): the theme switch is also a
      menu item there, since a four-second hold on the title is hard to
      find on a phone. It opens the same CONNECT / DISCONNECT prompt the
-     hold ends in, and is there where the hold is (in Neon, only once the
+     hold ends in, and is there where the hold is (in Futuris, only once the
      story's over). */
   /* Layout: the classic dock with its floating piece (the default, on
      phones too, as the user asked) or the control bar. Remembered in this
@@ -750,11 +751,11 @@ function UnifiedApp() {
     try { localStorage.setItem(LAYOUT_KEY, v); } catch (e) { /* storage blocked: this visit only */ }
   }, []);
   /* The phone layout's menu, by place: in the store the purchase; at home
-     the switch into Neon, the way back to the store and the fresh start;
-     in Neon the switch back. */
+     the switch into Futuris, the way back to the store and the fresh start;
+     in Futuris the switch back. */
   const mobileShell = useMemo(() => {
     // At home: the television's knob (the prompt the title hold ends in,
-    // if the set isn't there to turn). In Neon: back to the den.
+    // if the set isn't there to turn). In Futuris: back to the den.
     const switchTheme = {
       key: "switch-theme",
       testid: "shell-menu-switch-theme",
@@ -783,7 +784,7 @@ function UnifiedApp() {
             ended && { key: "realities", testid: "shell-menu-realities", label: "Other realities", detail: "Every version of the game", onClick: () => storyBridge.openRealities() },
             // (No "Back to the store" here either, user.)
           ].filter(Boolean)
-        // (In Neon its way back, the hold's twin, only once the story's
+        // (In Futuris its way back, the hold's twin, only once the story's
         // over, as the hold.)
         : [ended && switchTheme, ended && { key: "realities", testid: "shell-menu-realities", label: "Other realities", detail: "Every version of the game", onClick: () => storyBridge.openRealities() }].filter(Boolean);
     return { preferBar: layoutPref === "bar", onLayoutChange, menuItems: items };
@@ -831,13 +832,13 @@ function UnifiedApp() {
             }}
           />
         </div>
-        {/* The title hold: the den's into Neon once the Singularity's
+        {/* The title hold: the den's into Futuris once the Singularity's
             been visited (the television is the way in the first time);
-            Neon's back out to the den only once the story's over (user:
+            Futuris's back out to the den only once the story's over (user:
             no long press on the masthead to teleport back to the den
             until everything's unlocked; till then the way home is the
             Singularity's BACK). The store has none. */}
-        {((themeName === "standard" && singularityOpen) || (themeName === "neon" && ended)) && (
+        {((themeName === "standard" && singularityOpen) || (themeName === "futuris" && ended)) && (
           <MastheadHoldZone
             zoneRef={holdZoneRef}
             onBegin={beginHold}

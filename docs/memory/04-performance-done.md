@@ -21,7 +21,7 @@
 - **Dock preview render loop fully paused** while its panel is open
   (`dockView === "panel"`) — that tiny scene was rendering every frame at
   opacity 0 (fully invisible) for no reason.
-- **Neon per-frame FX loops** (crawling mass, digital glitch — up to ~40
+- **Futuris per-frame FX loops** (crawling mass, digital glitch — up to ~40
   live voxels across overlapping generations) use plain indexed loops,
   not `.forEach` with destructuring, to avoid per-item-per-frame closure
   allocation.

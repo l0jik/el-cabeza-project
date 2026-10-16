@@ -5,7 +5,7 @@ all options available, streamline and remove any cruft". Built as an
 opt-in chassis mode, so only Nova changes: `apps/unified.jsx` passes
 `mobileShell` to ElCabeza3D, and the chassis uses it when
 `SHELL_QUERY` matches (≤ 700px wide, or a coarse pointer ≤ 520px tall —
-a phone on its side). Desktop Nova and every other page (Neon, Standard,
+a phone on its side). Desktop Nova and every other page (Futuris, Standard,
 Tienda, Lluvia, Cromo, Lab) keep the dock exactly as before.
 
 - **What goes (on phones only).** The floating 3D dock piece (its render
@@ -19,16 +19,16 @@ Tienda, Lluvia, Cromo, Lab) keep the dock exactly as before.
   over the board's side in landscape). One bar along the bottom (down the
   right side, bottom-anchored, in landscape) with three states:
   setup (First move, Opponent Human/AI, AI plays Dark/Light, Level, Begin
-  Game, plus the theme's `shellSetupActions` — Neon: Anomaly beside
+  Game, plus the theme's `shellSetupActions` — Futuris: Anomaly beside
   Begin, Custom rules below), play (turn dot + status + points dots;
   Undo move / Stop here / Undo turn, or the chosen piece's description
   (tap = its MOVES tile), or a hint; the one view toggle), over (result,
   Move Log, New Game). A side's segment, once chosen, takes that side's
-  colours (and glow in Neon). The menu sheet: How to play, Rules in this
+  colours (and glow in Futuris). The menu sheet: How to play, Rules in this
   game, Move log, End game (second tap confirms) / New game / Take back
   the last turn / Reset rules, Top-down / Player view, Full screen, Sound,
   Points left, Move costs on the board, the page's own items (Nova:
-  "Switch to Neon / Standard", which opens the same CONNECT/DISCONNECT
+  "Switch to Futuris / Standard", which opens the same CONNECT/DISCONNECT
   prompt the 4 s title hold ends in — the hold still works), About,
   version. Everything calls the chassis's own handlers via the `ctl`
   object; nothing is reimplemented.
@@ -42,14 +42,14 @@ Tienda, Lluvia, Cromo, Lab) keep the dock exactly as before.
   re-applies the one showing (`viewMode`). The pre-game framing fits
   between the title and the bar's top (the whole height in landscape)
   and refits when the bar grows (ResizeObserver).
-- **Theme hooks.** Neon's turn halo and glitch label refs move to the
+- **Theme hooks.** Futuris's turn halo and glitch label refs move to the
   bar's dot and status (the halo's `--ec-halo-intensity` now drives the
   dot's glow). The bar and menu button fade out while a Singularity
   phase is running (`ctl.hidden`); the camera insets are dropped only
   from blackout on (`ctl.fullFrame`), so nothing shifts mid-collapse and
-  the sphere is framed on the whole screen. `html.ec-shell` moves Neon's rules flyout under the
+  the sphere is framed on the whole screen. `html.ec-shell` moves Futuris's rules flyout under the
   title row. The rules overlay becomes a full-width bottom sheet with a
-  close button. Neon's SINGULARITY invite text now fits a portrait
+  close button. Futuris's SINGULARITY invite text now fits a portrait
   phone on every page (`min(13vmin, 9vw)`).
 - **Page.** Nova is built with `viewport-fit=cover` (safe-area insets are
   read from a probe element), and the browser's theme-color follows the
@@ -57,9 +57,9 @@ Tienda, Lluvia, Cromo, Lab) keep the dock exactly as before.
 - **Test.** `tests/e2e-nova-mobile.mjs`: portrait (dock gone, setup
   choices, framing between the bars, piece description, Undo/Stop here,
   view toggle, every menu row, switches, rules sheet, End game, Move Log,
-  New Game, theme switch to Neon, Anomaly, Custom rules invite fits),
+  New Game, theme switch to Futuris, Anomaly, Custom rules invite fits),
   landscape (bar on the right, title and board clear of it), and desktop
-  Nova / Neon's own page on a phone keeping the dock.
+  Nova / Futuris's own page on a phone keeping the dock.
 
 ### Follow-up decisions (user answers)
 - **Desktop Nova: both layouts.** `apps/unified.jsx` keeps a layout
@@ -80,7 +80,7 @@ Tienda, Lluvia, Cromo, Lab) keep the dock exactly as before.
   piece's colour mid-game and broke the Lab's mid-step switch), snapped
   on arriving at setup; switching First move turns it on the usual
   damping. It used to be a random roll.
-- **Neon's custom-rules emblem** (VariantsFlyout) only shows in a game
+- **Futuris's custom-rules emblem** (VariantsFlyout) only shows in a game
   that has custom rules (`renderVariantsFlyout`).
 - **Standard's wood sounds:** (superseded) the user once planned to
   upload recordings; they later chose Tienda's synthesized knocks instead
@@ -152,10 +152,10 @@ readback while nothing sounds through it — play a move before reading
 the pieces gate. Test: tests/e2e-sound-channels.mjs.
 
 ### Nova's sound menu (user request: "the same sound menu" as Tienda)
-Neon exports `soundChannels`: Ambience (the hum/crackle bed and its
+Futuris exports `soundChannels`: Ambience (the hum/crackle bed and its
 far-off events: `ambienceGate` after introGain), Pieces (select,
 deselect, blocked, landing, capture, win) and Interface (menus, rules,
-dock, CONNECT, the Singularity, and the bell's own bus). Every Neon cue
+dock, CONNECT, the Singularity, and the bell's own bus). Every Futuris cue
 connects to `sfxGain`, which is now the interface gate; the piece cues
 are wrapped in `pieceCue`, which points `sfxGain` at the pieces gate for
 the (synchronous) call. The landing reverb sends to the pieces gate. Both
@@ -164,7 +164,7 @@ gates feed `sfxOut` (the old 1.25 sfx level). `__EC_TEST_AUDIO__` reports
 and Pieces. On a phone (MobileShell) the menu's Sound becomes
 "All sounds" with the channels indented under it
 (`shell-menu-sound-<key>`). The storage key is shared across pages, so
-"pieces" off carries between Tienda and Neon. Test:
+"pieces" off carries between Tienda and Futuris. Test:
 tests/e2e-nova-sound.mjs.
 
 ### Side buttons in the side's material (user request, Tienda)
@@ -207,14 +207,14 @@ announcement at the end of a game is not random and is unchanged.
 "In SINGULARITY, the sphere is much smaller now...what happened?" The
 sphere (radius 6, at the board's middle) took its size from wherever the
 chassis's camera was when the cinematic began. Measured against the build
-before Sep 27 (the Neon page and Nova; phone, laptop and 1100x900; the TV
+before Sep 27 (the Futuris page and Nova; phone, laptop and 1100x900; the TV
 path, the bar and the floating piece), the board's fitted view hadn't
 changed, but zoomed out (up to ZOOM_MAX_FOR_BOARD, 55) the sphere came
 out about half the size, the likely cause. Now the chassis keeps the last
 fitted radius (`lastBoardFitRadiusRef`, not cleared when play starts,
 unlike preGameFitRadiusRef) and gives themes
 `three.current.boardFitScale()` (the view's radius over it), and
-`fitSphereToScreen` (neon-singularity.js) scales the sphere's frame by
+`fitSphereToScreen` (futuris-singularity.js) scales the sphere's frame by
 it on arrival and every frame of the sphere phase: the size it has at
 the fitted view on that screen (phone 317 px of 390; 1100x900, 649 px),
 zoomed out or in. A first try at a fixed share of the screen matched a
@@ -309,11 +309,11 @@ pan easing out (200 px in 0.32 s) leave the view where it is.
 - **Sound sliders** ("sliders instead of toggles to balance sounds mixing,
   with a slide all the way to the left muting that channel"): the dock's
   sound menu and the phone's menu sheet have a slider per channel (Tienda:
-  music, store, pieces; the den: the room, music, pieces; Neon: ambience,
+  music, store, pieces; the den: the room, music, pieces; Futuris: ambience,
   pieces, interface) and "All sounds" over them. A channel's level is 0..1
   (localStorage `el-cabeza:sound-levels`; a switch left off before
   carries over as 0), heard as its square (`chGain` in tienda-audio.js,
-  den-audio.js, neon.js: `setChannelLevel`), so halfway is a quarter of
+  den-audio.js, futuris.js: `setChannelLevel`), so halfway is a quarter of
   the gain, about evenly spaced by ear. All sounds is a master level
   (`el-cabeza:sound-master`) multiplying every channel; all the way left
   is the mute it always was (audioMuted, onMutedChange). The inputs keep
@@ -548,7 +548,7 @@ choice).
   `hallPaper()` (den-textures.js), a period geometric of interlocking
   avocado and harvest-gold rings with orange dots on cream,
   `HALL_PAPER_TILE` 16, on the hall's three walls.
-- **Diagonal Slide brings Slide** (Neon's sphere, neon-singularity.js):
+- **Diagonal Slide brings Slide** (Futuris's sphere, futuris-singularity.js):
   checking Diagonal Slide checks Slide, and unchecking Slide unchecks
   Diagonal Slide, as Tienda's order form (rules-selections.js
   `toggleLaw`) and Lluvia's city menu (lluvia-overlay.js) already did;

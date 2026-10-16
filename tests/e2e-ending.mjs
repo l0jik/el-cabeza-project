@@ -179,7 +179,7 @@ check("...every version of the game (21, Orinoco, Watermark, Plano, Luna, Noir a
   // A moment to read it first (user: taps still coming from the scene
   // picked a world): the choices held, a tap goes nowhere.
   check("...held a moment before anything can be picked", (await page.locator('[data-testid="realities"]').getAttribute("data-locked")) === "true");
-  const b = await page.locator('[data-testid="reality-neon"]').boundingBox();
+  const b = await page.locator('[data-testid="reality-futuris"]').boundingBox();
   if (b) await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   await page.waitForTimeout(400);
   check("...a tap meanwhile picks nothing", (await page.locator('[data-testid="realities"]').count()) === 1 && (await page.evaluate(() => window.__DEN_ENDING__().stage)) === "menu");
@@ -210,7 +210,7 @@ check("the set's channel dial glows (the story's over)", (await page.evaluate(()
 await page.evaluate(() => window.__DEN_TV_CHANNEL__());
 check("a turn of the dial: the set on, channel 02, the den", !!(await poll(async () => { const c = await page.evaluate(() => window.__DEN_CHANNEL__()); return c.phase === "channel" && c.name === "The Den, 1975"; }, 6000)));
 await page.evaluate(() => window.__DEN_TV_CHANNEL__());
-check("again: the next reality (Neon)", !!(await poll(async () => (await page.evaluate(() => window.__DEN_CHANNEL__().name)) === "Neon", 4000)));
+check("again: the next reality (Futuris)", !!(await poll(async () => (await page.evaluate(() => window.__DEN_CHANNEL__().name)) === "Futuris", 4000)));
 // A real tap on the dial itself (the camera settled at the set first).
 await page.waitForTimeout(2600);
 const dial = await page.evaluate(() => { const t = window.__DEN_THREE__; let m = null; t.scene.traverse((o) => { if (!m && o.isMesh && o.userData && o.userData.tv === "channel") m = o; }); const v = m.getWorldPosition(m.position.clone()); v.project(t.camera); const r = t.renderer.domElement.getBoundingClientRect(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height }; });

@@ -3,7 +3,7 @@ import {
   shuffledIndices, generateAnomalySetup, computeTension,
   makeBoardTexture, makeGridGlowTexture, makeGrid, createSoundscape,
   buildPieceVisual,
-} from "../themes/neon.js";
+} from "../themes/futuris.js";
 import { createInitialPieces } from "../engine/rules.js";
 import { parseVox, groundCellsOf, mirrorVox, piecesClash } from "../engine/shapes.js";
 import { makeRoundedBox } from "../engine/geometry.js";
@@ -130,4 +130,4 @@ console.log("shell is EdgesGeometry-based LineSegments:", shell.geometry.type ==
   console.log("generateAnomalySetup places Hombros and Cruces with their cubes, mirrored and non-overlapping (200 rolls): ok");
 }
 
-console.log("\nNEON THEME SMOKE TEST PASSED");
+console.log("\nFUTURIS THEME SMOKE TEST PASSED");

@@ -11,13 +11,13 @@
    (tap one, or the matching button below), each opening a terminal panel
    of settings. BEGIN THE GAME applies them for real (board size first,
    then the pieces, the laws, missing squares and black holes, the same
-   order Neon's sphere uses) and starts the game. The rules then persist
+   order Futuris's sphere uses) and starts the game. The rules then persist
    across New Game until Reset rules, and after a finished game "change the
    rules" brings the city back.
 
    All of this is a full-screen layer over the chassis while a game is
    still awaiting Begin; themes/lluvia.js shows it through
-   renderExtraOverlays. Written with createElement, like Neon's overlays,
+   renderExtraOverlays. Written with createElement, like Futuris's overlays,
    so the theme stays importable in plain Node for the smoke tests. */
 
 import { usePivotGuide, useGuideHush } from "./pivot-guide.js";

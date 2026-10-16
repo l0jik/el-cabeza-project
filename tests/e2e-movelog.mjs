@@ -14,7 +14,7 @@ page.on("pageerror", (e) => errs.push(e.message));
 let failures = 0;
 const check = (l, c) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}`); };
 
-await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
 await page.waitForTimeout(1500);
 await openDockPanel(page);
 // The second AI button hands Light to the AI; the status pill picks who opens.
@@ -33,7 +33,7 @@ await page.locator('[data-testid="end-game"]').click();
 await page.waitForTimeout(800);
 await page.locator('[data-testid="move-log"]').click();
 await page.waitForTimeout(800);
-const headers = await page.evaluate(() => [...document.querySelectorAll("span")].map((s) => s.textContent.trim()).filter((t) => t === "Photon" || t === "Plasma")); // Neon: Photon is Dark, Plasma is Light
+const headers = await page.evaluate(() => [...document.querySelectorAll("span")].map((s) => s.textContent.trim()).filter((t) => t === "Photon" || t === "Plasma")); // Futuris: Photon is Dark, Plasma is Light
 check(`the Move Log's first column is Plasma, the Light side (${headers.join(", ")})`, headers[0] === "Plasma" && headers[1] === "Photon");
 await page.locator("button", { hasText: /Copy Move[ _]?Log/i }).first().click();
 await page.waitForTimeout(400);

@@ -228,7 +228,7 @@ async function open(name, opts = {}) {
 // (The Lab's Swiss Design: white on its white page can't be seen, so its
 // red, whichever side's piece; Parrish names its own, its ash, candlelight
 // on the painting: theme.dockCallGlow.)
-for (const [name, glows] of [["standard", /^#(ff8a2a|ffd98a)$/i], ["neon", /^#(4de8ff|ffb454)$/i], ["lab", /^#e63946$/i], ["parrish?look=orinoco", /^#d9b77e$/i], ["parrish?look=watermark", /^#d4a86c$/i]]) {
+for (const [name, glows] of [["standard", /^#(ff8a2a|ffd98a)$/i], ["futuris", /^#(4de8ff|ffb454)$/i], ["lab", /^#e63946$/i], ["parrish?look=orinoco", /^#d9b77e$/i], ["parrish?look=watermark", /^#d4a86c$/i]]) {
   console.log(name);
   const { ctx, page, errs } = await open(name);
   await begin(page);

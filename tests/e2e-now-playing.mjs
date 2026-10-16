@@ -5,7 +5,7 @@
    - Orinoco and Watermark: the look's soundtrack, from Begin Game;
    - Big Glutts: the store's tape, once the box is opened;
    - the den: a record put on from the stereo's panel;
-   - Neon (no music): no strip.
+   - Futuris (no music): no strip.
 
    In each: the strip shows the title and the time, and the time moves on;
    its button pauses (the time holds) and plays again (it moves on from
@@ -46,7 +46,7 @@ const PLACES = [
   { name: "Watermark", url: "el-cabeza-parrish.html?look=watermark", title: "\u00d4m Nhau V\u0129nh C\u1eedu", start: "begin" },
   { name: "Big Glutts", url: "el-cabeza-tienda.html", title: /Muzak, 1974|Coupon Gloss|Atrium|Emporium|Clearance|arrangement/, start: "box" },
   { name: "the den", url: "el-cabeza-standard.html", title: /\S/, start: "record" },
-  { name: "Neon", url: "el-cabeza-neon.html", title: null, start: "begin" },
+  { name: "Futuris", url: "el-cabeza-futuris.html", title: null, start: "begin" },
 ];
 
 for (const place of PLACES) {

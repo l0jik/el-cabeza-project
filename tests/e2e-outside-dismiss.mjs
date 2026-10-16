@@ -42,7 +42,7 @@ async function startGame(theme, laws) {
   return { context, page, errs };
 }
 
-for (const theme of ["neon", "tienda", "lluvia"]) {
+for (const theme of ["futuris", "tienda", "lluvia"]) {
   console.log(`[${theme}]`);
   let { context, page, errs } = await startGame(theme);
   let errs2 = [];

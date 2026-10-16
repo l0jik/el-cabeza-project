@@ -296,7 +296,7 @@ if (want("gate")) {
 }
 
 if (want("worlds")) console.log("Every world");
-if (want("worlds")) for (const w of ["neon", "cromo", "plano", "luna", "ciudad", "noir", "lluvia", "tienda", "lab", "parrish?look=orinoco", "parrish?look=watermark"]) {
+if (want("worlds")) for (const w of ["futuris", "cromo", "plano", "luna", "ciudad", "noir", "lluvia", "tienda", "lab", "parrish?look=orinoco", "parrish?look=watermark"]) {
   const [world, q] = w.split("?");
   const { ctx, page, errs } = await open(world, { query: q ? `?${q}` : "" });
   let s = await setOutFromDock(page);

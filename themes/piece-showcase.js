@@ -1,6 +1,6 @@
-/* The MATTER menu's piece models (themes/neon-singularity.js).
+/* The MATTER menu's piece models (themes/futuris-singularity.js).
 
-   Every piece type gets a finished 3D model in the Neon look: dark
+   Every piece type gets a finished 3D model in the Futuris look: dark
    glass with a clear-coat, lit by a painted studio panorama, traced in
    cyan along its real corners. Two uses:
 
@@ -14,8 +14,8 @@
      menu, and flies back into the same still when closed, so it is
      always clear which piece is being shown.
 
-   Poses are each piece's first starting pose (themes/neon.js,
-   PIECE_ORIENTATIONS), copied here rather than imported: neon.js
+   Poses are each piece's first starting pose (themes/futuris.js,
+   PIECE_ORIENTATIONS), copied here rather than imported: futuris.js
    imports this module's importer. */
 import React from "react";
 import * as THREE from "three";
@@ -200,9 +200,9 @@ const OPEN_MS = 420;
    scene and lights, `makeGl(canvas, w, h)` its renderer, `keepMaterials`
    when the model's materials are the world's own (shared with its board:
    only the geometry's let go), and `skin` its colours and type (the
-   backdrop, and the words under the piece). Neon's MATTER menu passes
+   backdrop, and the words under the piece). Futuris's MATTER menu passes
    none of them. */
-const NEON_SKIN = {
+const FUTURIS_SKIN = {
   backdrop: "rgba(2,6,10,0.42)",
   caption: null,
   title: { fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 22, letterSpacing: "0.08em", color: "#dffaff", textShadow: "0 0 18px rgba(77,232,255,0.45)", textTransform: "uppercase" },
@@ -210,7 +210,7 @@ const NEON_SKIN = {
   hint: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.12em", color: "rgba(142,243,255,0.55)" },
 };
 export function PieceViewer({ type, name, detail, fromRect, closing, onClose, onClosed, model = buildModel, stage = makeStage, makeGl = makeRenderer, keepMaterials = false, skin = null, vars = null }) {
-  const sk = skin || NEON_SKIN;
+  const sk = skin || FUTURIS_SKIN;
   const h = React.createElement;
   const canvasRef = React.useRef(null);
   const [open, setOpen] = React.useState(false);
@@ -352,7 +352,7 @@ export function PieceViewer({ type, name, detail, fromRect, closing, onClose, on
    is there: of the pixels an opaque copy of its shapes covers, the share
    the real model leaves (nearly) empty. Glows and lines aren't shapes.
    The model's own materials are a world's, often shared: kept. */
-export const NEON_SHOWCASE = { model: buildModel, stage: makeStage, makeGl: makeRenderer };
+export const FUTURIS_SHOWCASE = { model: buildModel, stage: makeStage, makeGl: makeRenderer };
 export function modelViews(parts, type, views, size = 220) {
   if (!POSES[type]) return null;
   const canvas = document.createElement("canvas");

@@ -8,7 +8,7 @@
   corner badge (0.45, a mobile-only 5x, half of that, flat `scale(0.4)`)
   before the real fix: give the smaller element its **own** `clamp()` at
   the target ratio. Full writeup in `ARCHITECTURE.md`'s "Known
-  pitfalls." `theme.mastheadScale` (Neon = 1.25, Standard unset) follows
+  pitfalls." `theme.mastheadScale` (Futuris = 1.25, Standard unset) follows
   this correctly — it scales the clamp's own numbers via a
   `mastheadClamp(floor, vw, ceiling, scale)` helper, never a wrapping
   transform.
@@ -20,7 +20,7 @@
   (masthead incorrectly shrank in fullscreen before Begin Game).
 - Dark/light player color must always come from the theme-agnostic
   `bodyDark`/`bodyLight` pair, **never** `charcoal`/`cream` literally —
-  Neon's own `charcoal`/`cream` are semantically inverted for its dark
+  Futuris's own `charcoal`/`cream` are semantically inverted for its dark
   UI. This exact bug recurred across move-log headers, the turn halo, and
   the AI-side picker's dot before `bodyDark`/`bodyLight` was established
   as the one source of truth. Similarly, the AI-picker dot must use the
@@ -28,16 +28,16 @@
   pill's *text* color — the opposite of the intended meaning).
 - Chrome tokens (`modalBackdrop`, `modalSurface`, `canvasGradientStart/
   End`) must come from the theme, never hardcoded literals — caught once
-  via a screenshot showing Neon's Move Log popup rendering in Standard's
+  via a screenshot showing Futuris's Move Log popup rendering in Standard's
   cream colors.
-- Neon's ambient FX intensity has been tuned **down** repeatedly and
+- Futuris's ambient FX intensity has been tuned **down** repeatedly and
   deliberately, specifically for flashing/seizure-risk reasons (VHS
   glitch interval widened ~30%; crawling-swarm brightness ceiling cut in
   several passes down to 0.26; the newer CRT-aberration family —
   chromatic ghosting, degauss wobble, phosphor trail, curvature ripple —
   was added on smooth easing specifically as *calmer* alternatives on
   their own separate rotation, not merged into the harsher
-  hard-cut glitch pool). Default to restraint on any new Neon ambient
+  hard-cut glitch pool). Default to restraint on any new Futuris ambient
   effect, not brightness/frequency.
 - **Card-targeted glitches (`fireVhs`, `fireRare`, `fireCrtAberration`) are
   gated on `isVisibleForGlitch(card)`.** `cardRef` is the dock panel
@@ -48,10 +48,10 @@
   gate the button jitter uses). `fireVhs` still fires its screen-wide overlay
   flash + cue regardless (not the dock); `fireRare`'s card-only cue is
   skipped with its visual when the dock is closed.
-- Every theme's font must be read from `theme.titleFontFamily` (Neon =
+- Every theme's font must be read from `theme.titleFontFamily` (Futuris =
   Chakra Petch via `@import` in `styleSheet`; Standard defaults to
   Fraunces) — never hardcoded on the chassis side; this broke once
-  (silently fell back to serif everywhere, including the standalone Neon
+  (silently fell back to serif everywhere, including the standalone Futuris
   build).
 - Move-triggered FX (`pulseSquare`, `spawnGlitchBurst`,
   `spawnLandingShockwave`, `spawnLandingParticles`) are plain optional

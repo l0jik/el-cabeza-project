@@ -14,7 +14,7 @@ console.log("COLORS.cream:", standard.COLORS.cream);
 console.log("HEX.charcoal:", standard.HEX.charcoal.toString(16));
 console.log("EDGE_RADIUS:", standard.EDGE_RADIUS);
 check("the palette's tokens are all set", ["cream", "creamAlt", "charcoal", "slate", "pageBg", "pageBgDeep", "bodyDark", "bodyLight"].every((k) => typeof standard.COLORS[k] === "string"));
-check("no accentDark (the chassis reads that as a Neon-style theme)", !standard.COLORS.accentDark);
+check("no accentDark (the chassis reads that as a Futuris-style theme)", !standard.COLORS.accentDark);
 for (const fn of ["makeBoardTexture", "buildSlabMaterials", "makeGrid", "buildPieceVisual", "buildMoveIndicator", "buildMissingSquareVisual", "buildBlackHoleVisual", "sideSurface", "createAudio", "mountAmbientEffects"]) {
   check(`${fn} is a function`, typeof standard[fn] === "function");
 }

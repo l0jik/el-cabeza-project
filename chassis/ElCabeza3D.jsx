@@ -42,7 +42,7 @@ import NowPlaying from "./NowPlaying.jsx";
 import CornerMenu from "./CornerMenu.jsx";
 import { gameRules } from "./corner-menu.js";
 import { RealityGate, storyOver, GATE_EVENT, openRealityGate, lookParts } from "../themes/reality-gate.js";
-import { modelViews, NEON_SHOWCASE } from "../themes/piece-showcase.js";
+import { modelViews, FUTURIS_SHOWCASE } from "../themes/piece-showcase.js";
 import { saveLastWorld } from "../themes/realities.js";
 import { sideNamesOf, SIDE_NAMES as WORLD_SIDE_NAMES, DEFAULT_SIDE_NAMES } from "../themes/side-names.js";
 import { RULE_LAWS, HOLES_LAW } from "../themes/rules-selections.js";
@@ -461,7 +461,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const sideName = (side) => SIDE_NAMES[side === "dark" ? "dark" : "light"];
   /* Display face for the masthead title and modal headers (Move Log,
      the intro panel, the end-of-game banner). Themes without their own
-     opinion fall back to Standard's Fraunces — only Neon currently
+     opinion fall back to Standard's Fraunces — only Futuris currently
      overrides this, with Chakra Petch. */
   const titleFontFamily = theme.titleFontFamily || "'Fraunces', serif";
   /* The camera's pitch for the setup screen and Current Player View
@@ -511,7 +511,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return {
       ...MINI_BUTTON_BASE,
       // bodyDark/bodyLight, not the raw charcoal/cream ink tokens —
-      // Neon's own charcoal/cream are inverted for its dark UI, which
+      // Futuris's own charcoal/cream are inverted for its dark UI, which
       // would otherwise swap which player's button reads as filled-
       // dark vs filled-light. See the same fix on the move-log column
       // headers.
@@ -1035,7 +1035,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      module state, invisible to React's render cycle, same reason
      `pieces` is its own useState rather than being read off some
      engine-side array. Populated by finalizeSingularityBegin
-     (themes/neon-singularity.js) via the setter threaded through
+     (themes/futuris-singularity.js) via the setter threaded through
      useSetupExtras below, alongside the constants.js copy every other
      consumer (rules.js, the AI worker) reads. */
   const [blackHoles, setBlackHoles] = useState(() => carried("blackHoles", []));
@@ -1046,7 +1046,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      via the setter threaded through useSetupExtras below. */
   const [missingSquares, setMissingSquares] = useState(() => carried("missingSquares", []));
   /* Snapshot of the specials (LAWS / MATTER / TOPOLOGY) chosen for the
-     current game, captured by finalizeSingularityBegin (themes/neon-
+     current game, captured by finalizeSingularityBegin (themes/futuris-
      singularity.js): the New Game card's line, the Plain rules link. null
      means a plain game. Cleared on New Game (handleReset). (The rules in
      play, for the corner menu, are read from the engine: rulesNow.) */
@@ -1290,7 +1290,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   /* --------------------- theme plugin wiring ---------------------- */
   /* Audio: every theme exports createAudio() returning the same fixed
      set of methods (see ARCHITECTURE.md) — Standard's are all no-ops,
-     Neon's is the real Web Audio engine. The chassis calls these
+     Futuris's is the real Web Audio engine. The chassis calls these
      unconditionally at the same game-event sites regardless of which
      theme is mounted. */
   const audioRef = useRef(null);
@@ -1308,7 +1308,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }
 
   /* Ambient visual FX (title flicker, VHS glitch, arcs, etc. — entirely
-     theme-owned, see themes/neon.js's mountAmbientEffects). Standard
+     theme-owned, see themes/futuris.js's mountAmbientEffects). Standard
      has nothing to attach, so its own mountAmbientEffects returns
      no-ops; the chassis never branches on which theme is active. */
   const ambientRef = useRef(null);
@@ -2256,7 +2256,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const middle = drawnMiddle([mesh, shell]);
     mesh.position.sub(middle);
     if (shell) shell.position.sub(middle);
-    // Neon's body is translucent with depthWrite:false (see
+    // Futuris's body is translucent with depthWrite:false (see
     // buildPieceVisual's own comment on the self-z-fighting bevel
     // bug this avoids), which also means its wireframe shell never
     // gets occluded by the body's own near faces — both the near AND
@@ -2585,7 +2585,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // (And never less than 1.8x the board's own fitted view: on a phone that
   // fit sits close to the fixed limit, and a pinch out barely moved,
   // user: "pinch zooming in works pretty well, but pinch zooming out...
-  // just does not work very well". Measured on a phone in Neon: start
+  // just does not work very well". Measured on a phone in Futuris: start
   // 41.8, limit 53, against 12.8 at the closest.)
   const zoomMaxFor = () => Math.max(ZOOM_MAX_FOR_BOARD, (theme.freeCamera && theme.freeCamera.zoomMax) || 0, (cam.current.dollhouse && theme.freeCamera && theme.freeCamera.dollhouse && theme.freeCamera.dollhouse.radius) || 0, (lastBoardFitRadiusRef.current || 0) * 1.8);
   /* A room with walls and a ceiling (theme.freeCamera.room, a box in the
@@ -3014,8 +3014,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }
 
   /* A theme's pre-game setup screen can need its own local state and
-     handlers (Neon's Singularity easter egg: a hover-hold reveal timer,
-     an info popup) that call back into chassis state (Neon's Anomaly
+     handlers (Futuris's Singularity easter egg: a hover-hold reveal timer,
+     an info popup) that call back into chassis state (Futuris's Anomaly
      button calls setPieces). Since renderSetupExtras is a plain
      function — not a component — it can't call useState/useRef itself
      without breaking React's rules of hooks the moment it's skipped on
@@ -3032,7 +3032,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      `cam` was for the collapse camera work — real opponent-picker state
      and the real Begin Game trigger (see triggerBeginGame below), not a
      theme-local reimplementation, so a theme's own Opponent/AI/Begin
-     Game controls (Neon's Singularity summary menu) drive the exact
+     Game controls (Futuris's Singularity summary menu) drive the exact
      same game-start path the dock's own buttons do. */
   const isPlaying = status === "playing";
   /* The check alert: against the computer, on your own turn, the enemy
@@ -3152,7 +3152,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // it!" card); nothing with the phone's bar, whose menu is its own.
     openDock: () => { if (!shell && dockView === "piece") triggerDockBounce(); },
     // Black Hole Squares LAW: the chassis-local React state, threaded
-    // through so finalizeSingularityBegin (themes/neon-singularity.js)
+    // through so finalizeSingularityBegin (themes/futuris-singularity.js)
     // can populate it with the same placement it hands to
     // engine/constants.js's setBlackHoles, for rendering (see the
     // holeGroup effect below) rather than a second computation.
@@ -3181,7 +3181,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     },
   }) : null;
   /* The corner menu (chassis/CornerMenu.jsx): while a game is being
-     played (not through Neon's Singularity, nor where a theme says there's
+     played (not through Futuris's Singularity, nor where a theme says there's
      no game), in the look the theme names (theme.cornerMenu: a look's
      name, or a function of the setup extras giving one, { look, extra },
      or nothing, as the store does before the game's bought). The story's
@@ -3198,7 +3198,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      and its quiet links. */
   const dockWords = { ...DOCK_WORDS, ...(theme.dockWords || {}) };
   // A theme may raise the corner controls over a full-screen layer of
-  // its own (Neon's SINGULARITY sphere), so they stay usable there.
+  // its own (Futuris's SINGULARITY sphere), so they stay usable there.
   const cornerControlsZ = (setupExtras && setupExtras.cornerControlsZ) || 12;
   const noGame = !!(setupExtras && setupExtras.noGame);
   /* The dock panel's corner switches sit in the strip its bottom padding
@@ -3222,15 +3222,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // hide it out from under a still-fresh reveal.
     if (infoBtnTimerRef.current) clearTimeout(infoBtnTimerRef.current);
     infoBtnTimerRef.current = setTimeout(() => setInfoBtnVisible(false), 4000);
-    // Neon's hidden SINGULARITY trigger: five masthead taps reveal the
-    // invite (see useSetupExtras/handleMastheadTap in themes/neon.js).
+    // Futuris's hidden SINGULARITY trigger: five masthead taps reveal the
+    // invite (see useSetupExtras/handleMastheadTap in themes/futuris.js).
     // A no-op in Standard (no useSetupExtras -> setupExtras null), and
     // it coexists with the Info easter egg above — both react per tap.
     if (setupExtras && setupExtras.handleMastheadTap) setupExtras.handleMastheadTap();
   }
 
   // The masthead's click handler is bound NATIVELY (below) rather than as
-  // a React onClick prop: Neon splits "EL CABEZA" into per-letter <span>s
+  // a React onClick prop: Futuris splits "EL CABEZA" into per-letter <span>s
   // created imperatively (splitTitleIntoLetters), which are NOT in React's
   // fiber tree — so a React onClick on the title span never fires for a
   // click that lands on a letter (only on the bare spaces/padding). A
@@ -3253,7 +3253,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      the player switches to it, the tail when they close from ABOUT, and
      leaving ABOUT for another tab silences the choir (stopMenu). Every
      other open, close and tab change has its own small earcon instead
-     (playRulesOpen / playRulesClose / playRulesTab — see themes/neon.js).
+     (playRulesOpen / playRulesClose / playRulesTab — see themes/futuris.js).
      infoTabRef mirrors infoTab for the close cleanup, which runs after
      the state has moved on. */
   const infoTabRef = useRef(infoTab);
@@ -3616,7 +3616,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }
 
   /* The real Begin Game action, hoisted out of the button below so a
-     theme-owned trigger (Neon's Singularity summary menu) can fire the
+     theme-owned trigger (Futuris's Singularity summary menu) can fire the
      exact same game-start path as the dock's own button rather than a
      re-implementation that could drift from it. */
   // The board size the app booted at — restored on New Game so a resized
@@ -4159,8 +4159,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // (the first turn's, or this first turn's own start while it's going).
     window.__EC_TEST_NEW_GAME__ = () => handleReset();
     // A close-up's model turned any way (piece-showcase.js modelViews): this
-    // world's own (the gate's and its menus'), or Neon's MATTER glass.
-    window.__EC_TEST_LOOK_VIEWS__ = (type, views, size, which) => modelViews(which === "neon" ? NEON_SHOWCASE : lookParts({ buildPieceVisual: theme.buildPieceVisual, EDGE_RADIUS: theme.EDGE_RADIUS }), type, views, size);
+    // world's own (the gate's and its menus'), or Futuris's MATTER glass.
+    window.__EC_TEST_LOOK_VIEWS__ = (type, views, size, which) => modelViews(which === "futuris" ? FUTURIS_SHOWCASE : lookParts({ buildPieceVisual: theme.buildPieceVisual, EDGE_RADIUS: theme.EDGE_RADIUS }), type, views, size);
     window.__EC_TEST_REPLAY_START__ = () => ((turnHistory[0] && turnHistory[0].pieces) || turnSnapshot || []).map((p) => ({ id: p.id, row: p.row, col: p.col }));
     // A square's middle, or a piece on the bench, on the screen.
     const toScreen = (x, z, y = 0) => {
@@ -4989,7 +4989,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // How much farther the camera is than at the board's fitted view on
       // this screen (1 there, 2 zoomed out to twice the distance). The
       // Singularity sphere is scaled by it so it always has the size it
-      // has at the fitted view (neon-singularity.js fitSphereToScreen).
+      // has at the fitted view (futuris-singularity.js fitSphereToScreen).
       boardFitScale: () => (lastBoardFitRadiusRef.current ? cam.current.view.radius / lastBoardFitRadiusRef.current : 1),
     };
 
@@ -5672,9 +5672,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          cheap even though it runs every frame. The actual opacity
          value is applied via the theme's own setOpacity() — see
          theme.buildMoveIndicator — rather than touching .material
-         directly, since Neon's indicator is a multi-mesh Group with no
+         directly, since Futuris's indicator is a multi-mesh Group with no
          single material of its own; indicator.tick() separately drives
-         Neon's own entrance-animation position/depth on top of this,
+         Futuris's own entrance-animation position/depth on top of this,
          entirely independent of the opacity fade. */
       if (ghostGroup) {
         for (let i = ghostGroup.children.length - 1; i >= 0; i--) {
@@ -5706,7 +5706,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (shadowsChanged && shadowDrawn) renderer.shadowMap.needsUpdate = true;
       if (governor) governor.govern(now);
 
-      // A theme may draw the frame itself (Nova's Neon summons: the frame
+      // A theme may draw the frame itself (Nova's Futuris summons: the frame
       // through its shock waves), returning true when it has.
       if (!(ambientRef.current && ambientRef.current.render && ambientRef.current.render(renderer, scene, camera))) renderer.render(scene, camera);
       if (readout) readout.frame(now, performance.now() - workStart, shadowDrawn, aboutFrame);
@@ -5790,7 +5790,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             );
 
       // Everything about HOW a piece is materialized and outlined is
-      // theme-owned (see ARCHITECTURE.md) — Standard and Neon use
+      // theme-owned (see ARCHITECTURE.md) — Standard and Futuris use
       // genuinely different rendering techniques here, not the same
       // function with different colors.
       const { mesh, shell } = theme.buildPieceVisual({ piece: p, isDark, isDisc, geo, center, y });
@@ -6066,7 +6066,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const c = pieceCenter(state);
     mesh.position.set(c.x, restingY(state), c.z);
     mesh.renderOrder = 6;
-    // (The outline traced on a sharp-cornered copy, as Neon's pieces are:
+    // (The outline traced on a sharp-cornered copy, as Futuris's pieces are:
     // the rounded one's edges turn too gently for EdgesGeometry to find.)
     if (edges && !disc) {
       const sharp = state.vox ? makePolycubeGeometry(state, PIECE_SCALE) : new THREE.BoxGeometry(state.w * PIECE_SCALE, state.z * PIECE_SCALE, state.h * PIECE_SCALE);
@@ -6403,7 +6403,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
       /* Move-indicator visual: entirely theme-owned (see
          theme.buildMoveIndicator in themes/standard.js and
-         themes/neon.js) — Standard's own dashed square and Neon's
+         themes/futuris.js) — Standard's own dashed square and Futuris's
          animated corner-bracket reticle are genuinely different
          objects, not the same shape recolored. The chassis only owns
          WHEN this fades in/out or brightens on hover (below), via the
@@ -6417,7 +6417,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          real (hot/cold) opacity — see the hover-emphasis effect just
          below, which computes that value the same way it always has.
          This is what makes a newly-hovered or newly-selected piece's
-         indicators fade IN instead of appearing instantly. Neon's own
+         indicators fade IN instead of appearing instantly. Futuris's own
          indicator additionally runs its own entrance animation on top
          of this opacity fade (see its tick()), driven independently. */
       setGhostLineTarget(indicator.root, isCrush ? 0.8 : 0.5, false);
@@ -6876,7 +6876,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     /* Move-triggered ambient FX (weight lifting/landing glow, glitch
        bursts, landing shockwave) — entirely theme-owned. These
        properties only exist on three.current when a theme's own
-       mountAmbientEffects put them there (see themes/neon.js); the
+       mountAmbientEffects put them there (see themes/futuris.js); the
        `&&` guards make every one of these calls a no-op for a theme
        that never sets them, same as the original per-theme sources
        did before this component was shared. */
@@ -6926,7 +6926,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       });
       if (landingFootprint) {
         t.pulseSquare && t.pulseSquare(landingFootprint.row, landingFootprint.col, landingFootprint.w, landingFootprint.h, "apply", accentColor);
-        // Per Neon's own design, the Cabeza never gets the landing
+        // Per Futuris's own design, the Cabeza never gets the landing
         // shockwave (or the landing-impact particle shed below) — it
         // rolls as a disc, not a tumbling polyhedron; every other
         // piece type still gets both.
@@ -7414,14 +7414,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // the far side: theme.dragTurnOneWay, the store's, user: begun below
       // the middle, where its low view is mostly table and floor, it felt
       // reversed.)
-      // A finger once a game's begun turns and tilts as Neon's does in
+      // A finger once a game's begun turns and tilts as Futuris's does in
       // every world (user: "that is the correct way they should all be
       // when playing the game"): the page's own ways (the store's one-way
       // turn, its tilt the other way) are for before Begin. The Room view
       // keeps its own tilt.
-      const neonWay = pointerType === "touch" && !awaitingBeginRef.current;
-      grab.theta = ((theme.dragTurnOneWay && !neonWay) || clientY - rect.top < mid) ? 1 : -1;
-      grab.phi = (cam.current.dollhouse ? 1 : -1) * (neonWay ? 1 : (pointerType === "touch" && invertTouchTiltRef.current ? -1 : 1) * (invertTiltRef.current ? -1 : 1));
+      const futurisWay = pointerType === "touch" && !awaitingBeginRef.current;
+      grab.theta = ((theme.dragTurnOneWay && !futurisWay) || clientY - rect.top < mid) ? 1 : -1;
+      grab.phi = (cam.current.dollhouse ? 1 : -1) * (futurisWay ? 1 : (pointerType === "touch" && invertTouchTiltRef.current ? -1 : 1) * (invertTiltRef.current ? -1 : 1));
     }
     /* Stays false until cumulative pointer travel since the down event
        crosses DRAG_DEAD_ZONE_PX — see onMove. Every touch carries a few
@@ -7513,7 +7513,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        computer takes changes what they close over (pieces, busy, the
        turn), and a fresh binding started with no finger down, so a turn
        of the board under way stopped dead whenever the opponent moved
-       (found checking every world's touch against Neon's, user). The
+       (found checking every world's touch against Futuris's, user). The
        view's own gestures (fingers down, the turn and tilt latched, a
        pinch, a two-finger tap) are handed on from the binding before; a
        piece's drag is let go as ever (see the cleanup). */
@@ -8097,7 +8097,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
            exactly vertical the view direction is parallel to the camera's
            up vector and lookAt has no defined roll, which snaps the view.
            Upper bound pulled in from 1.45 (~83deg, nearly edge-on) after
-           it turned out reachable at all: Neon's translucent pieces
+           it turned out reachable at all: Futuris's translucent pieces
            (depthWrite:false, an accepted trade-off — see buildPieceVisual's
            own comment on the rolling-piece z-fighting bug that traded
            for) sort by draw order rather than true depth at that shape,
@@ -8105,7 +8105,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
            pieces plus the grid produced a visibly wrong dark band, which
            Standard (opaque pieces) never showed at the identical angle —
            confirmed by removing slabEdges and the grid in turn and
-           finding the artifact persisted in Neon regardless, then
+           finding the artifact persisted in Futuris regardless, then
            checking Standard at the same angle and finding nothing.
            1.25 (~72deg) stays low/dramatic while keeping clear of the
            angles where that showed up in testing. */
@@ -9330,7 +9330,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // size, black holes, roster, FX and the variants snapshot as they were.
     if (!keepSingularityConfig) {
       // A fresh game is never a Singularity game until proven otherwise —
-      // snap the board palette/warp back to normal Neon this same frame.
+      // snap the board palette/warp back to normal Futuris this same frame.
       if (three.current) {
         three.current.singularityGameActive = false;
         theme.deactivateSingularityBoardFx && theme.deactivateSingularityBoardFx(three.current);
@@ -10149,7 +10149,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           }}
         />
         {/* Generic FX-overlay slot, always mounted so a theme's own
-           CSS/JS can decorate it (e.g. Neon's scanline/static
+           CSS/JS can decorate it (e.g. Futuris's scanline/static
            overlay) without the chassis knowing what any given theme
            puts here. Inert by construction for a theme that never
            styles it. */}
@@ -10256,7 +10256,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                readable floor on narrow phones up to a genuinely large
                display size on a wide desktop/fullscreen viewport. vw
                alone can't account for how wide "EL CABEZA" actually
-               renders in a given font (Neon's Chakra Petch runs wider
+               renders in a given font (Futuris's Chakra Petch runs wider
                per-character than Standard's Fraunces), so this pairs
                the vw scaling with a hard width ceiling on the wrapper
                below and lets the title wrap to two lines rather than
@@ -10273,7 +10273,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                opt into the smaller fullscreen-only formula even while
                windowed (theme.mastheadCompact, reasoning Standard's
                own display face, Fraunces, a serif, renders visually
-               larger than Neon's Chakra Petch at the exact same clamp
+               larger than Futuris's Chakra Petch at the exact same clamp
                values), but per feedback that read as the pre-game
                masthead being too small — both themes now share this
                one baseline formula.
@@ -10308,7 +10308,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                formula's own floor right along with the rest, hitting
                the exact same narrow-viewport illegibility bug on any
                theme whose multiplier pushes it down instead of up.
-               Applied per-theme (Neon at 1.25 per feedback that its
+               Applied per-theme (Futuris at 1.25 per feedback that its
                own regular masthead read small) rather than baked into
                the shared numbers, which both themes still default to
                unscaled (Standard has no mastheadScale export, so
@@ -10327,9 +10327,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             letterSpacing: "0.02em",
             color: COLORS.charcoal,
             paddingBottom: 8,
-            /* nowrap, not a maxWidth-driven wrap: Neon splits this text
+            /* nowrap, not a maxWidth-driven wrap: Futuris splits this text
                into one inline-block span per letter (see
-               splitTitleIntoLetters in themes/neon.js, for the raster-
+               splitTitleIntoLetters in themes/futuris.js, for the raster-
                tear effect), and inline-block siblings are valid
                wrap points to a browser's line-breaker even mid-word —
                a width-based wrap safety net here reliably produced
@@ -10400,7 +10400,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       {/* Out of the way while a cut-scene has the screen (user: the TV's
           commercial played with the points still showing). The story's
           scenes flag themselves on the page (the TV visit, the hall, the
-          summons, the trip, the ending, the store's clerk); Neon's
+          summons, the trip, the ending, the store's clerk); Futuris's
           Singularity through its phase. Their own sheets hide the rest. */}
       <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
 html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
@@ -11394,7 +11394,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
          so the rules are never more than one tap away. Opens the rules
          at the Quick card. Not where the rules lie in the room
          (rulesInRoom): there they're the leaflet on the table, nor while
-         a theme asks it away (setupExtras.hideHowToPlay: Neon's
+         a theme asks it away (setupExtras.hideHowToPlay: Futuris's
          Singularity). */}
       {!shell && !noHowTo && !(setupExtras && setupExtras.hideHowToPlay) && (
       <button
@@ -11521,7 +11521,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             ? "min(480px, 92vw)"
             : "min(560px, 92vw)",
           /* Pre-game only: shrunk by roughly the row (button + its
-             marginTop/paddingTop/border) that Begin Game and Neon's
+             marginTop/paddingTop/border) that Begin Game and Futuris's
              Anomaly used to occupy on their own line below the Opponent
              row, before both moved up into it (see there). Every other
              state keeps the original cap — the post-game Move Log/New
@@ -11706,7 +11706,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                 borderRadius: "50%",
                 // bodyDark/bodyLight, not the raw charcoal/cream ink
                 // tokens — see the same fix on the move-log column
-                // headers below for why (Neon's charcoal/cream are
+                // headers below for why (Futuris's charcoal/cream are
                 // inverted for its own dark UI).
                 background: sideFill(currentPlayer).background,
                 border: `1.5px solid ${COLORS.charcoal}`,
@@ -12114,7 +12114,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           {awaitingBegin && startRow}
 
           {/* Begin Game (and, for a theme with setup extras of its own
-              — Neon's Anomaly button — that whole extras row) on its
+              — Futuris's Anomaly button — that whole extras row) on its
               own line below Opponent/Difficulty, rather than crowding
               the same line — classier, and reads as "commit" only once
               the opponent configuration above it is settled. */}
@@ -12132,7 +12132,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                     fontSize: 11,
                     letterSpacing: "0.14em",
                     padding: "9px 16px",
-                    // A theme WITH extras (Neon's Anomaly button) lays
+                    // A theme WITH extras (Futuris's Anomaly button) lays
                     // this out sharing a never-wrapping row evenly with
                     // its sibling there — see renderSetupExtras — so it
                     // needs the matching "1 1 0" flex, not a plain
@@ -12526,7 +12526,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             boxSizing: "border-box",
             padding: "8px 0",
             background: modalSurface,
-            // Blurs what's behind a see-through surface (Neon's glass).
+            // Blurs what's behind a see-through surface (Futuris's glass).
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",
             border: `1px solid ${COLORS.slateSoft}`,
@@ -12671,7 +12671,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             barRef: shellBarRef,
             onInsets: handleShellInsets,
             turnHaloRef, turnLabelRef,
-            // A theme cinematic (Neon's Singularity) has the screen: the bars
+            // A theme cinematic (Futuris's Singularity) has the screen: the bars
             // step aside, and once the screen has gone black the camera
             // gets the whole screen back (no visible shift mid-collapse).
             hidden: !!(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle") || !!setOut,

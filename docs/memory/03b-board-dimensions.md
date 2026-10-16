@@ -63,7 +63,7 @@
   REPLAYS the same setup — laws, board size, black holes, MATTER roster,
   board FX and the variants snapshot — instead of wiping them; only the
   vanilla branch clears laws/holes/variants/FX and restores the boot board +
-  `createInitialPieces`. `finalizeSingularityBegin` (neon-singularity.js)
+  `createInitialPieces`. `finalizeSingularityBegin` (futuris-singularity.js)
   deep-clones the selections and registers `reapplySingularitySetup`
   (board resize + `applyMatterRoster` for a fresh, possibly re-randomized
   opening + `setActiveLaws` + the resolved holes + variants). `applyMatterRoster`
@@ -94,7 +94,7 @@
   persistence, unchanged). RECONFIGURE calls `resetGame(false)` (the same
   vanilla reset "Reset Rules" uses) then immediately
   `three.current.reconfigureSingularitySetup()` — a closure
-  `finalizeSingularityBegin` (neon-singularity.js) registers alongside
+  `finalizeSingularityBegin` (futuris-singularity.js) registers alongside
   `reapplySingularitySetup`, closed over the real, structured `sel` object
   (not `buildVariantsSnapshot`'s lossy display strings). That closure calls
   `enterSphereDirect(sel)`, a new function that jumps straight to
@@ -119,7 +119,7 @@
   with a real win, e.g. via a reduced-roster race to `GOAL_ROW`) before
   relying on it in production.
 - **Post-game win overlay tap-to-toggle, unified across the placard AND
-  the RETAIN/RECONFIGURE dialog above (both themes, not Neon-only —
+  the RETAIN/RECONFIGURE dialog above (both themes, not Futuris-only —
   extended scope, decided explicitly).** The Victory placard already
   dismissed on backdrop click/Escape without resetting the game; it just
   had no way back except the dock's own separate post-game row. Board

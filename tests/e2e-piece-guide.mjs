@@ -1,7 +1,7 @@
 /* The piece guide switch (chassis: showGuide, localStorage
    el-cabeza:piece-guide): the card that says what the chosen piece does,
    for players who know the game and don't want it any more.
-   1. Desktop (Standard and Neon): the dock's guide-toggle hides the piece
+   1. Desktop (Standard and Futuris): the dock's guide-toggle hides the piece
       card; the choice holds across a reload; switched back on, the card
       returns. The move markers and their cost badges are untouched.
    2. Nova on a phone: the menu's Piece guide switch hides the bar's piece
@@ -37,7 +37,7 @@ async function startGame(page) {
 }
 const card = (page) => page.locator('[data-testid="piece-card"]').count();
 
-for (const theme of ["standard", "neon"]) {
+for (const theme of ["standard", "futuris"]) {
   console.log(`[${theme}]`);
   const context = await browser.newContext({ viewport: { width: 1000, height: 900 } });
   const page = await context.newPage();

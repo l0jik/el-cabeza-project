@@ -17,7 +17,7 @@ in; leaving Singularity, back in the den as the set switches off.
   theme with `story: STORE_STORY`), `standard` home (the den, Standard's
   theme with Tienda's printed matter: `useSetupExtras`,
   `renderSetupExtras`, `renderExtraOverlays`, `shellSetupActions` from
-  tienda.js with `story: HOME_STORY`), `neon` Singularity. The first
+  tienda.js with `story: HOME_STORY`), `futuris` Singularity. The first
   place is the store unless `localStorage["el-cabeza:story"]` says
   `{ owned: true }` (apps/novaStory.jsx `readOwned`/`saveOwned`).
   The chassis keeps its theme object while mounted, so the story's
@@ -86,7 +86,7 @@ in; leaving Singularity, back in the den as the set switches off.
   the dive: the picture swirls toward the circle's middle and turns to
   Singularity's colours as the camera goes right up to the glass; 1.5 s
   in, `tv.enter()` → Nova's `beginTransition()` (the CRT transition into
-  Neon, no CONNECT prompt). A tap on the set before the dive turns it
+  Futuris, no CONNECT prompt). A tap on the set before the dive turns it
   off again. On Standard's own page (no `tv` helper) the set simply turns
   on and off.
 - While the camera visits the set, the title and the dock's piece step
@@ -96,7 +96,7 @@ in; leaving Singularity, back in the den as the set switches off.
   pattern are drawn in fixed frames (256 x 352, 512 x 384) scaled to the
   power-of-two canvas, so letters and the circle keep their shape. The
   phone menu's theme item is now "Turn on the TV" at home and "Back to
-  the den" in Neon (same testid, `shell-menu-switch-theme`).
+  the den" in Futuris (same testid, `shell-menu-switch-theme`).
 - **Back out**: Nova's "out" transition sets `tvBridge.returning`; the
   den mounts with the camera at the set showing the pattern, and 1.8 s
   later it switches off as the camera goes back to the board.

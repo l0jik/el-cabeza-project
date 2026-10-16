@@ -1,9 +1,9 @@
-## 3c. Singularity cinematic transition (Neon-only) — Part 1 of SINGULARITY_DESIGN.md, BUILT
+## 3c. Singularity cinematic transition (Futuris-only) — Part 1 of SINGULARITY_DESIGN.md, BUILT
 
 Holding the revealed Singularity button to commit no longer just opens a
 static "coming soon" info card. It now runs a real collapse → hard-cut-
 to-black → draggable Fresnel-glow sphere sequence, in a new module,
-`themes/neon-singularity.js`, kept separate from `themes/neon.js`
+`themes/futuris-singularity.js`, kept separate from `themes/futuris.js`
 (already 6000+ lines) rather than inlined.
 
 - **The bridge is a plain object on `three.current`, not React state.**
@@ -16,7 +16,7 @@ to-black → draggable Fresnel-glow sphere sequence, in a new module,
   written by one is visible to the other with zero new chassis-to-theme
   event/callback plumbing. `advanceSingularityScene(t, now, chromeRefs)`
   is the function mounted into that tick; see its call site in
-  `themes/neon.js`'s `mountAmbientEffects` right before
+  `themes/futuris.js`'s `mountAmbientEffects` right before
   `renderer.render(...)`.
 - **Two additive chassis changes, both in `chassis/ElCabeza3D.jsx`**:
   `three` is now also passed into `theme.useSetupExtras(...)`'s call
@@ -33,7 +33,7 @@ to-black → draggable Fresnel-glow sphere sequence, in a new module,
   opacity fades out. This is the **first custom shader in this
   codebase** — same for the sphere's Fresnel-rim `ShaderMaterial`.
 - **The hard cut is genuinely same-frame.** `cutSingularityAudioToSilence()`
-  (new, in `themes/neon.js`'s `createSoundscape()`) zeros the single
+  (new, in `themes/futuris.js`'s `createSoundscape()`) zeros the single
   shared `master` gain node — silencing every bus (hum/ambient/events/
   sfx) in one call — and hard-stops the hum's oscillators immediately
   (unlike `stopSingularityHum`, which deliberately lets a 7.5s tail

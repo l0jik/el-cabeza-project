@@ -15,7 +15,7 @@
 4. **`depthTest: false` for the board-edge outline ring** — draws over
    pieces at ordinary angles. See §7 for the actual fix.
 5. **A single shared move-indicator implementation/color across both
-   themes** (hardcoded `HEX.charcoal`) — literally invisible on Neon's
+   themes** (hardcoded `HEX.charcoal`) — literally invisible on Futuris's
    own near-black board. Each theme now owns `buildMoveIndicator`
    entirely.
 6. **Closed-form approximation for the vertical camera-visibility clamp**

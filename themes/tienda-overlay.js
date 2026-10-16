@@ -58,7 +58,7 @@ function classicSelections(sel) {
   return normalizeSelections(n);
 }
 /* Any order in the store (and the den): never a shuffled start. That's
-   Neon's anomaly, and Neon's alone (user). A carbon copy that had one
+   Futuris's anomaly, and Futuris's alone (user). A carbon copy that had one
    comes back without it. */
 function storeSelections(sel) {
   const n = cloneSelections(sel);

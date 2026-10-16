@@ -1,9 +1,9 @@
-/* The Singularity's first visit in the story (LostNudge, neon-singularity.js):
+/* The Singularity's first visit in the story (LostNudge, futuris-singularity.js):
    the silence there isn't quite silence at first. A heartbeat and a ringing
    in the ears as the sphere comes up, gone again in about three seconds
    (user: the ring with more reverb and lower, and both fading to silence
    after about three seconds; the caller stops it). Out through the
-   summons' way out (neon.js summonOutput: past the master the event horizon
+   summons' way out (futuris.js summonOutput: past the master the event horizon
    zeroes, at the interface channel's level, muted with everything else).
    Lub-dub thumps a phone's speaker can still carry (a falling 150 -> 52 Hz
    body, not just sub-bass), and for the ring one steady sine at 2.64 kHz
@@ -126,13 +126,13 @@ export function createUnease(audio) {
 
 /* ...and after the ring, the drone (user: the ring, then silence for
    about four seconds, then this): the user's recording of an industrial
-   pulse drone, looped (tools/neon_sphere_drone.py: its steady part, the
+   pulse drone, looped (tools/futuris_sphere_drone.py: its steady part, the
    join crossfaded; DRONE_LOOP from there), out the same way as the ring.
    A file beside the page, fetched when the sphere comes up; from disk
    (file:) there's no fetching, so no drone there.
 
    createDrone(audio) -> { start(delayS, fadeS), stop(fadeS) } */
-const DRONE_URL = "el-cabeza-neon-sphere-drone.mp3";
+const DRONE_URL = "el-cabeza-futuris-sphere-drone.mp3";
 const DRONE_FROM = 1.0, DRONE_LOOP = 21.5, DRONE_LEVEL = 0.5;
 export function createDrone(audio) {
   const out = audio && audio.summonOutput ? audio.summonOutput() : null;

@@ -629,7 +629,7 @@ export function contactArea(piece) {
 /* The same shape turned 180° about the vertical axis (x -> w-1-x,
    y -> h-1-y, levels unchanged) — how Light's copy of a piece mirrors
    Dark's in a rotationally symmetric opening (see generateAnomalySetup
-   in themes/neon.js, which mirrors positions the same way). */
+   in themes/futuris.js, which mirrors positions the same way). */
 export function mirrorVox(piece) {
   return voxKey(parseVox(piece.vox).map(([x, y, l]) => [piece.w - 1 - x, piece.h - 1 - y, l]));
 }

@@ -5,7 +5,7 @@
    catalog, and "Purchase and bring home". That rings it up and takes it
    home to the den (Standard), where the whole mail-order catalog of pieces,
    rules and boards is open, and where the TV leads into Singularity
-   (Neon). Once bought it stays bought (localStorage STORY_KEY): the next
+   (Futuris). Once bought it stays bought (localStorage STORY_KEY): the next
    visit opens at home, with the store a tap away and "Start the story
    over" to begin again from the shelf.
 

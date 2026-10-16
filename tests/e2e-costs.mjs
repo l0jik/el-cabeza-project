@@ -3,7 +3,7 @@
    reach says what that move costs, and a move that would put the board
    back as it was earlier this turn reads "free" — and the piece card
    (data-testid piece-card), which names the selected piece and says how
-   it moves, with a "More" link to its MOVES tile. Checked in Neon and
+   it moves, with a "More" link to its MOVES tile. Checked in Futuris and
    Standard; both have the switch that hides the badges. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
@@ -25,7 +25,7 @@ async function select(page, id) {
   await page.waitForTimeout(700);
 }
 
-for (const theme of ["neon", "standard"]) {
+for (const theme of ["futuris", "standard"]) {
   console.log(`[${theme}]`);
   const context = await browser.newContext({ viewport: { width: 1000, height: 900 } });
   const page = await context.newPage();
@@ -98,13 +98,13 @@ for (const theme of ["neon", "standard"]) {
 // made, an End turn button sits above the points row (only while the
 // points are shown).
 {
-  console.log("[neon, as played]");
+  console.log("[futuris, as played]");
   const context = await browser.newContext({ viewport: { width: 1000, height: 900 } });
   const page = await context.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
-  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
   await page.waitForTimeout(1500);
   await openDockPanel(page);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);
@@ -169,11 +169,11 @@ for (const theme of ["neon", "standard"]) {
 // Points hidden: no End turn either (user: it's an aid for whoever uses
 // the points).
 {
-  console.log("[neon, points hidden]");
+  console.log("[futuris, points hidden]");
   const context = await browser.newContext({ viewport: { width: 1000, height: 900 } });
   const page = await context.newPage();
   await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.setItem("el-cabeza:show-points", "0"); } catch (e) { /* none */ } });
-  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
   await page.waitForTimeout(1500);
   await openDockPanel(page);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);

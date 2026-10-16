@@ -1,8 +1,8 @@
-/* The first arrival in Neon from the den's television (Nova, before the
-   Singularity's been visited): the summons (themes/neon-summon.js). The
+/* The first arrival in Futuris from the den's television (Nova, before the
+   Singularity's been visited): the summons (themes/futuris-summon.js). The
    singularity over the board, the pieces turned to it and hovering, shock
    waves running out; the board and the dock out of reach, the title not
-   (though with no hold on it: in Neon, only once the story's over); a tap
+   (though with no hold on it: in Futuris, only once the story's over); a tap
    on the singularity opens the SINGULARITY invite, and
    the toll puts it all away. Its sound: the phone mix on a phone, the
    full-range mix on a computer, thunder on the waves. Once the
@@ -62,14 +62,14 @@ async function throughTheSet(seen, desktop, lostMs = null, unravelMs = null, pre
     await page.waitForTimeout(300);
     pressedAgain = { before, after: await page.evaluate(() => (window.__DEN_TV__ ? window.__DEN_TV__().portalAt : "gone")) };
   }
-  const inNeon = await poll(() => page.evaluate(() => !window.__DEN_TV__ && !!document.querySelector(".ec-title") && /Chakra/.test(getComputedStyle(document.querySelector(".ec-title")).fontFamily)), 40000);
-  return { ctx, page, errs, inNeon, pressedAgain };
+  const inFuturis = await poll(() => page.evaluate(() => !window.__DEN_TV__ && !!document.querySelector(".ec-title") && /Chakra/.test(getComputedStyle(document.querySelector(".ec-title")).fontFamily)), 40000);
+  return { ctx, page, errs, inFuturis, pressedAgain };
 }
 
 console.log("the first arrival");
 {
-  const { ctx, page, errs, inNeon } = await throughTheSet(false, false, 9000);
-  check("into Neon through the television", !!inNeon);
+  const { ctx, page, errs, inFuturis } = await throughTheSet(false, false, 9000);
+  check("into Futuris through the television", !!inFuturis);
   const S = () => page.evaluate(() => (window.__EC_SUMMON__ ? window.__EC_SUMMON__() : { active: false }));
   check("the summons is up", !!(await poll(async () => (await S()).active, 10000)));
   const snd = (await S()).sound;
@@ -80,7 +80,7 @@ console.log("the first arrival");
   const dockHidden = await page.evaluate(() => [...document.querySelectorAll('[data-dock-piece], [data-testid="dock-panel"]')].every((d) => getComputedStyle(d).visibility === "hidden"));
   check("the dock is put away", dockHidden);
   // Its shield over the board only, not the title; and on the title no
-  // hold before the story's over (user: the long press home from Neon
+  // hold before the story's over (user: the long press home from Futuris
   // only once everything's unlocked; the way home is the Singularity's).
   const atTitle = await page.evaluate(() => { const t = document.querySelector(".ec-title").getBoundingClientRect(); const el = document.elementFromPoint(t.left + t.width / 2, t.top + t.height / 2); return el && (el.closest(".ec-title") ? "the title" : el.getAttribute("data-testid") || el.className); });
   check(`the title isn't under its shield (${atTitle})`, !!atTitle && !/summon-shield/.test(String(atTitle)));
@@ -165,8 +165,8 @@ console.log("the first arrival");
 
 console.log("on a computer");
 desk: {
-  const { ctx, page, errs, inNeon } = await throughTheSet(false, true, null, 3000);
-  check("into Neon through the television", !!inNeon);
+  const { ctx, page, errs, inFuturis } = await throughTheSet(false, true, null, 3000);
+  check("into Futuris through the television", !!inFuturis);
   const S = () => page.evaluate(() => (window.__EC_SUMMON__ ? window.__EC_SUMMON__() : { active: false }));
   check("the summons is up", !!(await poll(async () => (await S()).active, 10000)));
   const snd = (await S()).sound;
@@ -263,9 +263,9 @@ desk: {
 
 console.log("once the Singularity's been visited");
 {
-  const { ctx, page, errs, inNeon, pressedAgain } = await throughTheSet(true, false, null, null, true);
+  const { ctx, page, errs, inFuturis, pressedAgain } = await throughTheSet(true, false, null, null, true);
   check(`a press on the set half a second into the way in doesn't call it off (${JSON.stringify(pressedAgain)})`, !!pressedAgain && pressedAgain.before > 0 && (pressedAgain.after === "gone" || pressedAgain.after === pressedAgain.before));
-  check("into Neon through the television", !!inNeon);
+  check("into Futuris through the television", !!inFuturis);
   await page.waitForTimeout(3000);
   check("no summons", !(await page.evaluate(() => window.__EC_SUMMON__ && window.__EC_SUMMON__().active)));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
@@ -296,7 +296,7 @@ async function preview(lostMs) {
   page.on("pageerror", (e) => errs.push(e.message));
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html?scene=summons");
   const S = () => page.evaluate(() => (window.__EC_SUMMON__ ? window.__EC_SUMMON__() : { active: false }));
-  check("it opens in Neon with the summons up, though the sphere's been seen", !!(await poll(async () => (await S()).active, 30000)));
+  check("it opens in Futuris with the summons up, though the sphere's been seen", !!(await poll(async () => (await S()).active, 30000)));
   // (CI runs 15 and 71: on a loaded runner the one tap on the sphere can
   // land before it takes taps, or where it was a frame ago: the sphere's
   // place is read again and tapped again, three times at most.)

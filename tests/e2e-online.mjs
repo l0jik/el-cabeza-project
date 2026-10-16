@@ -1,7 +1,7 @@
 /* Online play (chassis/online.js, server/relay.js; user: "implement online
    play against another person (it needs a small server)"; chose a relay
    the project writes, run here on a free port and reached with ?relay=).
-   Two browsers: the host in the den, the guest in Neon (a game's the same
+   Two browsers: the host in the den, the guest in Futuris (a game's the same
    rules in any world).
 
    - With no server set up (the placeholder address): Online says so.
@@ -103,7 +103,7 @@ check("...waiting for the other player", /Waiting for the other player/.test((aw
 const link = await T(host.page, () => { const u = new URL(location.href); u.searchParams.set("join", document.querySelector('[data-testid="online-code"]').textContent); return u.searchParams.get("join"); });
 check("the link carries the code", link === code);
 
-const guest = await open("neon", `join=${code}`);
+const guest = await open("futuris", `join=${code}`);
 const joined = await poll(async () => { const o = await online(guest.page); return o && o.status === "waiting" ? o : null; }, 15000);
 check("the guest joins by the link", !!joined && joined.role === "guest" && joined.code === code, JSON.stringify(await online(guest.page)));
 check("...plays the other side, Light", !!joined && joined.mySide === "light" && joined.theirSide === "dark");

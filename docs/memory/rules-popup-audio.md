@@ -9,7 +9,7 @@ nothing else:
   showing.
 - **Leaving ABOUT for another tab:** only silences the choir
   (`audio.stopMenu`, a 0.25 s fade with no tail).
-- **Every other open, switch or close gets its own small Neon earcon**
+- **Every other open, switch or close gets its own small Futuris earcon**
   (user follow-up):
   - `playRulesOpen` (How to play and every other non-ABOUT open): ONE
     plain struck tone, D5 with a faint octave, soft attack and a 0.5 s

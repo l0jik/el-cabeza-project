@@ -1,8 +1,8 @@
 /* The Singularity cinematic — Part 1 of SINGULARITY_DESIGN.md: the
    collapse of the board into a wormhole funnel, the hard silent cut to
    black, and the draggable Fresnel-glow sphere that follows. Split out
-   of themes/neon.js (already 6000+ lines before this) as its own
-   self-contained module; it touches neon.js at exactly four seams —
+   of themes/futuris.js (already 6000+ lines before this) as its own
+   self-contained module; it touches futuris.js at exactly four seams —
    see the comments at each call site in that file.
 
    State lives in two places that must agree on one shared object:
@@ -13,7 +13,7 @@
      the bridge that lets useSingularityPhase's triggers reach the
      actual 3D animation, which runs inside mountAmbientEffects's own
      per-frame tick (see advanceSingularityScene, called from
-     themes/neon.js's tick). Both hook invocations close over the
+     themes/futuris.js's tick). Both hook invocations close over the
      identical `three.current` object — that's what makes the bridge
      work without new chassis plumbing beyond exposing `three` to
      useSetupExtras (see chassis/ElCabeza3D.jsx).
@@ -44,13 +44,13 @@ import { markSingularitySeen, singularitySeen } from "../engine/journey.js";
 // seconds before the card can show them.
 const lostHandWireUrl = "el-cabeza-lost-hand-wire.webp";
 const lostHandSkinUrl = "el-cabeza-lost-hand-skin.webp";
-import { createUnease, createDrone } from "./neon-unease.js";
+import { createUnease, createDrone } from "./futuris-unease.js";
 import { guideToPivots } from "./pivot-guide.js";
 import { shoveNow, allLawsOn, setAllLaws } from "./rules-selections.js";
 import { SHOVE_SETTINGS, DEFAULT_SHOVE, shoveOf, shoveLaws, shoveSummary } from "../chassis/shove-settings.js";
 import { sideNamesFor, sideLabel, sideDotStyle } from "./side-names.js";
 
-const SIDE = sideNamesFor("neon"); // Photon / Plasma
+const SIDE = sideNamesFor("futuris"); // Photon / Plasma
 
 // TOLLING is the lead-in the player triggers by clicking the revealed
 // SINGULARITY invite: the cathedral bell tolls and a black curtain fades
@@ -649,7 +649,7 @@ const MATTER_ROSTER = [
   { key: "zeta", label: "Zeta", min: 0, max: 4, default: 0, icon: "zeta", view: "zeta", detail: "5 cubes in a Z." },
 ];
 // How many pieces a side may field; extras beyond it are dropped from the
-// end of the roster at game start (themes/neon.js, buildRosterFromSelections).
+// end of the roster at game start (themes/futuris.js, buildRosterFromSelections).
 const MAX_PIECES_PER_SIDE = 10;
 
 // The roster's names for the summary / variants.
@@ -1152,7 +1152,7 @@ function ensureSingularityObjects(t) {
 }
 
 /* ---------------------------------------------------------------------
-   Per-frame advance — called every frame from themes/neon.js's
+   Per-frame advance — called every frame from themes/futuris.js's
    mountAmbientEffects tick, regardless of phase (a no-op cost check
    when idle).
 --------------------------------------------------------------------- */
@@ -1780,7 +1780,7 @@ export function advanceSingularityScene(t, now, chromeRefs) {
 
 /* ---------------------------------------------------------------------
    React-facing hook + overlay — the two seams useSetupExtras and
-   renderExtraOverlays call into (themes/neon.js).
+   renderExtraOverlays call into (themes/futuris.js).
 --------------------------------------------------------------------- */
 
 /* ---------------------------------------------------------------------
@@ -3503,7 +3503,7 @@ function BackButton({ onExit }) {
    touched for a while on the sphere: a card comes up in the sphere's own
    neon, wireframe: the player's own hand, its skin falling away into
    lines as they watch, reaching for a button that says I want out of here
-   (which does). The hand is the user's own picture of it (assets/neon,
+   (which does). The hand is the user's own picture of it (assets/futuris,
    tools/lost_hand.py). Their own astonishment, a line or two. Once a
    visit. It's the only way out of this visit: no Back button in the
    corner (user), and Escape doesn't leave either; the card always comes
@@ -3512,7 +3512,7 @@ function BackButton({ onExit }) {
    Before it, something going wrong (user picked three of the ideas): the
    menus open and work, so they're known for menus; a heartbeat and a
    ringing as the sphere comes up, the heartbeat gone in about three seconds, the ring sliding away in the room until about five and a half
-   (neon-unease.js; then, after about four seconds of silence, the user's
+   (futuris-unease.js; then, after about four seconds of silence, the user's
    industrial drone, looped, until the visit's over; user, who also had
    the wireframe fingertip each touch
    used to leave taken out); and then the menu won't
@@ -3906,7 +3906,7 @@ export function useSingularityPhase({
   // so it re-establishes every bridge field fresh each time rather than
   // relying on an earlier write surviving.
   /* The bell-toll lead-in the SINGULARITY invite click fires (see
-     themes/neon.js's commitSingularity): the cathedral bell tolls, a
+     themes/futuris.js's commitSingularity): the cathedral bell tolls, a
      drone begins building, and a black curtain fades up over the
      still-visible board across SINGULARITY_TOLL_MS. When it's fully
      black, startCollapse takes over — and immediately fades the curtain
@@ -4103,7 +4103,7 @@ export function useSingularityPhase({
   // engines behind them.
   function finalizeSingularityBegin() {
     // Marks the game about to start as Singularity-originated — read by
-    // themes/neon.js's own board-FX tick (applySingularityBoardPalette)
+    // themes/futuris.js's own board-FX tick (applySingularityBoardPalette)
     // for as long as this game is active, and cleared only by the chassis's
     // "Reset rules" control now (see deactivateSingularityBoardFx). Set
     // before triggerBeginGame so the retint is already in place the instant
@@ -4466,7 +4466,7 @@ export function renderSingularityOverlay(setupExtras) {
       ref: blackDivRef,
       style: { position: "absolute", inset: 0, background: "#000", opacity: 0 },
     }),
-    // BACK: out to Neon's board; in Nova, home to the den instead
+    // BACK: out to Futuris's board; in Nova, home to the den instead
     // (setupExtras.onSingularityBack, apps/unified.jsx: its transition
     // takes the whole page, sphere and all, so the sphere isn't torn down
     // first unless it can't go). Not on the story's first visit (user):

@@ -31,13 +31,13 @@ const poll = async (fn, ms = 20000, step = 250) => {
 };
 const q = (page, id) => page.locator(`[data-testid="${id}"]`);
 const has = async (page, id) => (await q(page, id).count()) > 0;
-// Where the page is: the store's scene, the den's (test hooks), or Neon
+// Where the page is: the store's scene, the den's (test hooks), or Futuris
 // (its title in Chakra Petch).
 const place = (page) => page.evaluate(() => {
   if (window.__TIENDA_THREE__) return "store";
   if (window.__DEN_THREE__) return "home";
   const t = document.querySelector(".ec-title");
-  return t && /Chakra/.test(getComputedStyle(t).fontFamily) ? "neon" : null;
+  return t && /Chakra/.test(getComputedStyle(t).fontFamily) ? "futuris" : null;
 });
 const owned = (page) => page.evaluate(() => { try { return JSON.parse(localStorage.getItem("el-cabeza:story") || "null"); } catch (e) { return "bad"; } });
 // The board's plate, width over depth, from the live slab.
@@ -216,7 +216,7 @@ console.log("\ndesktop: the store, the purchase, home");
   await page.waitForFunction(() => { const n = document.querySelector(".td-special-note"); return n && performance.now() - Number(n.dataset.since) > 2600; }, null, { timeout: 8000 }); // (held a moment against wild taps)
   await q(page, "tienda-special-note").click();
   check("the note is the whole order form", await poll(() => has(page, "tienda-order"), 8000));
-  check("...with the board's size now, and still no shuffled start (Neon's alone)", (await has(page, "tienda-cols")) && !/Shuffled start/.test(await q(page, "tienda-order").innerText()));
+  check("...with the board's size now, and still no shuffled start (Futuris's alone)", (await has(page, "tienda-cols")) && !/Shuffled start/.test(await q(page, "tienda-order").innerText()));
   check("the note's gone once the form is open", !(await has(page, "tienda-special-note")));
   // Nothing ordered yet: the button waits, glowing, and says so if tapped.
   const place0 = q(page, "tienda-order-place");
@@ -412,12 +412,12 @@ console.log("\ndesktop: the den's television, into Singularity and back");
   check("another tap turns it on", !!(await poll(async () => { const s = await tv(); return s && s.phase !== "off"; }, 5000, 100)));
   check("...snow, then the test pattern", !!(await poll(async () => ["pattern", "dive"].includes(((await tv()) || {}).phase), 12000, 100)));
   check("...and the picture pulls the camera in", !!(await poll(async () => ((await tv()) || {}).dive > 0.3, 10000, 100)));
-  check("into Singularity (Neon)", !!(await poll(async () => (await place(page)) === "neon", 30000)));
-  // Back out. No title hold in Neon while the story's on (user: no
+  check("into Singularity (Futuris)", !!(await poll(async () => (await place(page)) === "futuris", 30000)));
+  // Back out. No title hold in Futuris while the story's on (user: no
   // teleporting back to the den before everything's unlocked); the way
   // home is the Singularity's BACK, as the hook goes.
   await page.waitForTimeout(1500);
-  check("in Neon, no title hold back to the den", (await page.locator(".ec-masthead-hold-zone").count()) === 0);
+  check("in Futuris, no title hold back to the den", (await page.locator(".ec-masthead-hold-zone").count()) === 0);
   check("...home as the Singularity's BACK goes", !!(await poll(() => page.evaluate(() => window.__EC_TEST_BACK_HOME__()), 20000, 400)));
   check("back in the den", !!(await poll(async () => (await place(page)) === "home", 30000)));
   const back = await poll(async () => { const s = await tv(); return s && (s.phase === "pattern" || s.phase === "closing") ? s : null; }, 8000, 100);
@@ -449,13 +449,13 @@ console.log("\nphone with the control bar: the store and home");
   await q(page, "shell-menu-button").tap().catch(() => {});
   const menuHas = await poll(() => has(page, "shell-menu-purchase"), 8000);
   check("...and the menu has Purchase and bring home", !!menuHas);
-  check("...and no switch to Neon in the store", !(await has(page, "shell-menu-switch-theme")));
+  check("...and no switch to Futuris in the store", !(await has(page, "shell-menu-switch-theme")));
   await q(page, "shell-menu-purchase").tap();
   const went = await throughCut(page, "home");
   check("buying from the menu takes it home", went.gone && went.there, JSON.stringify(went));
   check("home's bar has See the pieces (before the Singularity)", await poll(() => has(page, "shell-see-pieces"), 10000) && !(await has(page, "shell-custom-rules")));
   await q(page, "shell-menu-button").tap().catch(() => {});
-  check("...and its menu Neon, no Back to the store (user), no Restart story", await poll(async () => (await has(page, "shell-menu-switch-theme")) && !(await has(page, "shell-menu-back-to-store")) && !(await has(page, "shell-menu-restart")), 8000));
+  check("...and its menu Futuris, no Back to the store (user), no Restart story", await poll(async () => (await has(page, "shell-menu-switch-theme")) && !(await has(page, "shell-menu-back-to-store")) && !(await has(page, "shell-menu-restart")), 8000));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

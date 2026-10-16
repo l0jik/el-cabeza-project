@@ -1,4 +1,4 @@
-/* A game in the den, left through the television for Neon and straight
+/* A game in the den, left through the television for Futuris and straight
    back, comes back exactly as it was (user): the same pieces where they
    were, the same log, the same side to move, still in play.
 
@@ -25,7 +25,7 @@ await ctx.addInitScript(() => {
     if (!sessionStorage.getItem("seeded")) {
       sessionStorage.setItem("seeded", "1");
       // Home, the Singularity already seen and its commercial aired: the
-      // set goes straight into Neon, and back out it just switches off.
+      // set goes straight into Futuris, and back out it just switches off.
       localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true }));
       localStorage.setItem("el-cabeza:singularity-seen", "1");
       localStorage.setItem("el-cabeza:commercial-aired", "1");
@@ -40,7 +40,7 @@ page.on("pageerror", (e) => errs.push(e.message));
 await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html");
 check("home, in the den", !!(await poll(() => page.evaluate(() => !!window.__DEN_TV__), 30000)));
 await page.waitForTimeout(1500);
-const place = () => page.evaluate(() => (window.__DEN_TV__ ? "den" : /Chakra/.test(getComputedStyle(document.querySelector(".ec-title") || document.body).fontFamily) ? "neon" : "?"));
+const place = () => page.evaluate(() => (window.__DEN_TV__ ? "den" : /Chakra/.test(getComputedStyle(document.querySelector(".ec-title") || document.body).fontFamily) ? "futuris" : "?"));
 const state = () => page.evaluate(() => ({
   pieces: JSON.stringify((window.__EC_TEST_PIECES__ || []).map((p) => [p.id, p.row, p.col, p.w, p.h, p.z]).sort()),
   log: JSON.stringify(window.__EC_TEST_LOG__ || []),
@@ -61,14 +61,14 @@ check("a move is made", !!(await poll(async () => JSON.parse((await state()).log
 await page.waitForTimeout(1200);
 const before = await state();
 
-// Through the set into Neon.
+// Through the set into Futuris.
 await page.evaluate(() => window.__DEN_TV_PRESS__());
-check("into Neon through the television", !!(await poll(async () => (await place()) === "neon", 30000)));
+check("into Futuris through the television", !!(await poll(async () => (await place()) === "futuris", 30000)));
 await page.waitForTimeout(1500);
-// Straight back. Not by the title's hold: in Neon that waits till the
+// Straight back. Not by the title's hold: in Futuris that waits till the
 // story's over (user: no teleporting back to the den before everything's
 // unlocked); the way home is the Singularity's BACK, as the hook goes.
-check("in Neon, no title hold back to the den while the story's on", (await page.locator(".ec-masthead-hold-zone").count()) === 0);
+check("in Futuris, no title hold back to the den while the story's on", (await page.locator(".ec-masthead-hold-zone").count()) === 0);
 check("...home as the Singularity's BACK goes", !!(await poll(() => page.evaluate(() => window.__EC_TEST_BACK_HOME__()), 20000, 400)));
 check("back in the den", !!(await poll(async () => (await place()) === "den", 30000)));
 await page.waitForTimeout(3000);
@@ -77,7 +77,7 @@ check("the same pieces where they were", after.pieces === before.pieces, `${befo
 check("the same move log", after.log === before.log, `${before.log} vs ${after.log}`);
 check(`the same side to move (${after.turn})`, after.turn === before.turn, `${before.turn} vs ${after.turn}`);
 check("still in play (no Begin Game waiting)", (await page.locator("button", { hasText: /^Begin Game$/ }).count()) === 0);
-// Once the story's over (everything unlocked, ?switcher), Neon has its
+// Once the story's over (everything unlocked, ?switcher), Futuris has its
 // title hold back to the den.
 {
   const ctx2 = await browser.newContext({ viewport: { width: 1100, height: 800 } });
@@ -85,9 +85,9 @@ check("still in play (no Begin Game waiting)", (await page.locator("button", { h
   p2.on("pageerror", (e) => errs.push(e.message));
   await p2.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
   await p2.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html?switcher");
-  await poll(async () => (await p2.locator('[data-testid="reality-neon"]').count()) > 0, 30000);
-  await p2.locator('[data-testid="reality-neon"]').click();
-  check("everything unlocked: in Neon, the title hold back to the den", !!(await poll(async () => (await p2.locator(".ec-masthead-hold-zone").count()) > 0 && /Chakra/.test(await p2.evaluate(() => getComputedStyle(document.querySelector(".ec-title") || document.body).fontFamily)), 30000)));
+  await poll(async () => (await p2.locator('[data-testid="reality-futuris"]').count()) > 0, 30000);
+  await p2.locator('[data-testid="reality-futuris"]').click();
+  check("everything unlocked: in Futuris, the title hold back to the den", !!(await poll(async () => (await p2.locator(".ec-masthead-hold-zone").count()) > 0 && /Chakra/.test(await p2.evaluate(() => getComputedStyle(document.querySelector(".ec-title") || document.body).fontFamily)), 30000)));
   await ctx2.close();
 }
 check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));

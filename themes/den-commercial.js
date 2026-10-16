@@ -59,7 +59,7 @@ function say(g, str, x, y, { font, color = "#fff", align = "center" }) {
 }
 
 /* The Singularity, for one frame: a black hole on the starfield, its
-   photon ring and the lensed disc in Neon's colours, and the word. */
+   photon ring and the lensed disc in Futuris's colours, and the word. */
 function blackHole(g, f) {
   g.fillStyle = "#010103"; g.fillRect(0, 0, W, H);
   for (let i = 0; i < 90; i++) {

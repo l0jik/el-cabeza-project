@@ -7,10 +7,10 @@
       piece description; Undo move / End turn; the view toggle; the
       menu's rows and switches; the rules sheet; End game (two taps),
       Move Log, New Game.
-   2. The menu's theme switch: CONNECT, then Neon with its own setup
+   2. The menu's theme switch: CONNECT, then Futuris with its own setup
       buttons (Anomaly, Custom rules) in the bar.
    3. Landscape: the bar down the right side, the board left of it.
-   4. The same page on a desktop, and Neon's own page on a phone, keep the
+   4. The same page on a desktop, and Futuris's own page on a phone, keep the
       desktop dock (only Nova opts in).
    5. A phone opens Nova with the floating piece (the user asked for it
       back); the dock's layout icon switches to the bar, and the choice is
@@ -207,7 +207,7 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "shell-new-game").click();
   check("New Game returns to setup", await waitFor(async () => (await phase(page)) === "setup"));
 
-  // 2. Into Neon from the menu: at home it turns on the TV (den-tv.js),
+  // 2. Into Futuris from the menu: at home it turns on the TV (den-tv.js),
   // whose picture takes the page into Singularity.
   await q(page, "shell-menu-button").click();
   await page.waitForTimeout(300);
@@ -222,8 +222,8 @@ async function waitFor(fn, ms = 8000) {
     await q(page, "shell-menu-switch-theme").click();
   }
   check("...which turns the set on", await waitFor(() => page.evaluate(() => { const tv = window.__DEN_TV__ && window.__DEN_TV__(); return !!tv && tv.phase !== "off"; }), 8000));
-  await page.waitForFunction(() => window.__EC_SUMMON__ && window.__EC_SUMMON__().active, null, { timeout: 30000 }).catch(() => {}); await page.evaluate(() => window.__EC_SUMMON_END__ && window.__EC_SUMMON_END__()); // (the first arrival's summons, themes/neon-summon.js: its own test)
-  check("Neon comes up with its setup buttons", await waitFor(async () => (await visible(page, "shell-anomaly")) && (await visible(page, "shell-custom-rules")), 30000));
+  await page.waitForFunction(() => window.__EC_SUMMON__ && window.__EC_SUMMON__().active, null, { timeout: 30000 }).catch(() => {}); await page.evaluate(() => window.__EC_SUMMON_END__ && window.__EC_SUMMON_END__()); // (the first arrival's summons, themes/futuris-summon.js: its own test)
+  check("Futuris comes up with its setup buttons", await waitFor(async () => (await visible(page, "shell-anomaly")) && (await visible(page, "shell-custom-rules")), 30000));
   const layout0 = await page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.map((p) => [p.id, p.row, p.col])));
   await q(page, "shell-anomaly").click();
   await page.waitForTimeout(1500);
@@ -238,7 +238,7 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "shell-begin").click();
   await page.waitForTimeout(2500);
   const cm = await page.evaluate(() => { const m = document.querySelector('[data-testid="corner-menu"]'); if (!m) return null; const r = m.getBoundingClientRect(); return { look: m.dataset.look, tab: m.querySelector('[data-testid="corner-menu-tab"]').textContent, top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right), bar: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ec-shell-top")) || 0 }; });
-  check("a plain Neon game: the corner menu says the standard game, under the bar, on the screen", !!cm && cm.look === "neon" && /STANDARD/i.test(cm.tab) && cm.top >= cm.bar && cm.left >= 0 && cm.right <= 390, JSON.stringify(cm));
+  check("a plain Futuris game: the corner menu says the standard game, under the bar, on the screen", !!cm && cm.look === "futuris" && /STANDARD/i.test(cm.tab) && cm.top >= cm.bar && cm.left >= 0 && cm.right <= 390, JSON.stringify(cm));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
@@ -288,7 +288,7 @@ async function waitFor(fn, ms = 8000) {
 
 // ---- 4. only Nova, only on phones ----
 {
-  console.log("desktop Nova, phone Neon page");
+  console.log("desktop Nova, phone Futuris page");
   const d = await open(NOVA, { width: 1280, height: 800, touch: false });
   check("desktop Nova keeps the dock", !(await q(d.page, "shell-bar").count()) && (await q(d.page, "dock-piece-canvas").count()) > 0);
   // Both layouts on a desktop: the dock's layout icon switches to the bar,
@@ -320,8 +320,8 @@ async function waitFor(fn, ms = 8000) {
   await q(d.page, "shell-menu-layout").click();
   check("the menu switches back to the dock", await waitFor(async () => !(await q(d.page, "shell-bar").count()) && (await visible(d.page, "dock-piece-canvas"))));
   await d.ctx.close();
-  const n = await open("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html", { width: 390, height: 844 });
-  check("Neon's own page keeps the dock on a phone", !(await q(n.page, "shell-bar").count()) && (await visible(n.page, "dock-piece-canvas")));
+  const n = await open("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html", { width: 390, height: 844 });
+  check("Futuris's own page keeps the dock on a phone", !(await q(n.page, "shell-bar").count()) && (await visible(n.page, "dock-piece-canvas")));
   await n.ctx.close();
 }
 

@@ -1,13 +1,13 @@
-/* Neon theme: palette, piece-edge rounding, board visuals, the
+/* Futuris theme: palette, piece-edge rounding, board visuals, the
    Anomaly random-setup generator, the position-tension reading used to
    drive ambient audio, and the full Web Audio ambient/SFX engine.
-   Extracted from el-cabeza-neon-3d.html.
+   Extracted from el-cabeza-futuris-3d.html.
 
    createSoundscape is fully self-contained (no engine or other theme
    dependencies) — it only touches the Web Audio API — so it is kept
    whole rather than split further. Everything else here mirrors
    themes/standard.js's shape (COLORS/HEX/EDGE_RADIUS/makeBoardTexture/
-   makeGrid) plus Neon-exclusive additions with no Standard equivalent
+   makeGrid) plus Futuris-exclusive additions with no Standard equivalent
    (PIECE_ORIENTATIONS/generateAnomalySetup for the Anomaly button,
    computeTension for the ambient hum, makeGridGlowTexture for the
    bloom pass). */
@@ -21,7 +21,7 @@ import { makePolycubeGeometry } from "../engine/geometry.js";
 import { PIECE_ORIENTATIONS, shuffledIndices, generateAnomalySetup } from "../engine/anomaly.js";
 // Moved to engine/anomaly.js; re-exported so existing imports keep working.
 export { PIECE_ORIENTATIONS, shuffledIndices, generateAnomalySetup };
-import { advanceSingularityScene, useSingularityPhase, renderSingularityOverlay } from "./neon-singularity.js";
+import { advanceSingularityScene, useSingularityPhase, renderSingularityOverlay } from "./futuris-singularity.js";
 
 /* Everything visual in this experimental skin lives in these two
    objects (COLORS for the DOM/CSS layer, HEX for the Three.js scene
@@ -82,7 +82,7 @@ export const COLORS = {
 export const titleFontFamily = "'Chakra Petch', sans-serif";
 
 /* Scales the REGULAR (pre-game/setup, non-relocated) masthead's own
-   font-size clamp() numbers up 25% — per feedback that Neon's own
+   font-size clamp() numbers up 25% — per feedback that Futuris's own
    regular masthead read small. Chassis applies this to the actual
    clamp() numbers (see mastheadClamp), not a wrapping transform:
    scale(), so it doesn't shrink the formula's own legibility floor on
@@ -175,7 +175,7 @@ function makeSoftGlowTexture() {
 // Converts the sphere's own MATTER selections into a roster
 // generateAnomalySetup understands. Only the two rectangular new piece
 // types are wired to anything real yet — L-Pentomino and Arch stay
-// selectable but inert (see neon-singularity.js's own MATTER copy)
+// selectable but inert (see futuris-singularity.js's own MATTER copy)
 // since they'd need a non-convex collision system that doesn't exist.
 // Enforces SINGULARITY_DESIGN.md's "max 10 pieces per side" cap by
 // trimming non-Cabeza counts (starting from the roster's own tail)
@@ -484,9 +484,9 @@ export function makeGrid() {
    Standard's inflated-silhouette shell technique break (self-
    overlapping bevel geometry z-fights against itself once the
    material is translucent, see the depthWrite:false comment below) —
-   Neon traces EdgesGeometry on a simplified sharp-cornered proxy
+   Futuris traces EdgesGeometry on a simplified sharp-cornered proxy
    instead. */
-/* No at-rest Y offset on Neon's shell (see buildPieceVisual below —
+/* No at-rest Y offset on Futuris's shell (see buildPieceVisual below —
    it's positioned at the same y as the body), so the chassis's roll
    animation has nothing to strip here. Kept as an explicit 0 rather
    than omitted, so `theme.outlineYOffset ?? 0` reads as "this theme
@@ -500,7 +500,7 @@ export const lockExtrasUntilSingularity = true;
 
 /* Modal chrome — see themes/standard.js's modalBackdrop/modalSurface
    for why these are dedicated tokens rather than derived from
-   COLORS.cream inline. Values match Neon's own original Info-overlay
+   COLORS.cream inline. Values match Futuris's own original Info-overlay
    styling (a near-black backdrop and panel, not cream-with-opacity). */
 export const modalBackdrop = "rgba(2,4,8,0.6)";
 export const modalSurface = "rgba(8,11,16,0.88)";
@@ -514,7 +514,7 @@ export const canvasGradientEnd = "#05070a";
    metadata rather than a chassis branch). */
 // The reality's name, at the top of the info panel's This game tab (user);
 // the same names as the Other realities menu (themes/realities.js WORLDS).
-export const realityName = "Neon";
+export const realityName = "Futuris";
 export const hasAudio = true;
 // The dock's sound button (and the phone menu) offers these, each switched
 // on its own (chassis: theme.soundChannels; createSoundscape's channelOff).
@@ -530,13 +530,13 @@ export function createAudio() {
   return createSoundscape();
 }
 
-/* Neon's ambient visual FX — title flicker/spark/letter-burn, the turn
+/* Futuris's ambient visual FX — title flicker/spark/letter-burn, the turn
    halo's slow breathing pulse, VHS glitch (regular + rare Scanimate/
    Vidicon-burn variants), localized jitter-tear, board arcs, the
    crawling voxel mass, the floor wave, and the digital-interior/
    voxel-shatter piece effects — plus the move-triggered weight-pulse/
    landing-shockwave/glitch-burst effects animateStep calls directly.
-   Ported from el-cabeza-neon-3d.html's scene-setup effect and its
+   Ported from el-cabeza-futuris-3d.html's scene-setup effect and its
    five separate ambient-effect useEffects, consolidated into one
    mountAmbientEffects call per ARCHITECTURE.md's plugin contract.
 
@@ -997,7 +997,7 @@ export function mountAmbientEffects(refs, helpers) {
     },
     // Rotating Helix: the spiral path above, cyan-tinted (this
     // effect's one deliberate accent, per "possible tinges... of the
-    // NEON cyan color motif") rather than plain off-white.
+    // FUTURIS cyan color motif") rather than plain off-white.
     (posA, posB) => {
       const life = 260 + Math.random() * 180;
       const line = makeArcLine(helixStrandPositions(posA, posB, 2.5, 0.16, 24), 0x9fe9ff);
@@ -2379,7 +2379,7 @@ export function mountAmbientEffects(refs, helpers) {
   }
 
   // The Singularity collapse/blackout/sphere sequence — see
-  // themes/neon-singularity.js. Runs regardless of boardEffectsIdle()
+  // themes/futuris-singularity.js. Runs regardless of boardEffectsIdle()
   // (it only ever fires from the pre-game setup screen, exactly where
   // this tick keeps running today) and reads/writes t.singularity, the
   // bridge object useSingularityPhase (called from useSetupExtras, a
@@ -2421,7 +2421,7 @@ export function mountAmbientEffects(refs, helpers) {
 /* Ambient-FX CSS: title-flicker/spark keyframes, the hover glow, VHS
    glitch (all six profiles) plus its scanline/static overlay, the two
    rarer Scanimate/Vidicon-burn flourishes, and localized jitter-tear.
-   Ported from el-cabeza-neon-3d.html's two <style> blocks (the outer
+   Ported from el-cabeza-futuris-3d.html's two <style> blocks (the outer
    page head and the inline JSX one), skipping the handful of rules
    that duplicate what the chassis's own base stylesheet already
    provides (box-sizing, .ec-btn transitions, .ec-btn-invert:hover).
@@ -2429,7 +2429,7 @@ export function mountAmbientEffects(refs, helpers) {
    renderSetupExtras below for why that's still pending. */
 /* The dock, said by the terminal (chassis DOCK_WORDS). */
 // The corner menu's look (chassis/corner-menu.js): a ruleset readout in cyan.
-export const cornerMenu = "neon";
+export const cornerMenu = "futuris";
 export const dockWords = {
   views: ["POV", "Orbit", "Room"],
   focus: "Dim",
@@ -2450,7 +2450,7 @@ export const styleSheet = `
      nothing in the build actually loaded it; the chassis's own base
      stylesheet only @imports the Standard theme's fonts (Fraunces/IBM
      Plex). Importing it here, the same way, is theme-owned and
-     applies to every build that mounts this theme (standalone Neon
+     applies to every build that mounts this theme (standalone Futuris
      and the unified app alike). */
   @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;500;600;700&display=swap');
   /* Permanent CRT ghosting on the masthead glyphs themselves — not an
@@ -3212,7 +3212,7 @@ export function renderGlobalDefs() {
   );
 }
 
-/* Local state/handlers for the pre-game setup screen's Neon-exclusive
+/* Local state/handlers for the pre-game setup screen's Futuris-exclusive
    extras (the Anomaly button, the Singularity hover-hold reveal and
    its info popup). A REAL React hook — not a plain function — because
    it needs useState/useRef/useEffect, and the chassis calls it
@@ -3231,13 +3231,13 @@ export function useSetupExtras({
   const singularityTapRef = React.useRef([]); // masthead tap timestamps
   const singularityHideTimerRef = React.useRef(null);
   const singularityBtnRef = React.useRef(null); // so a click-outside can tell "outside" from the button itself
-  // The collapse/blackout/sphere cinematic — see themes/neon-singularity.js.
+  // The collapse/blackout/sphere cinematic — see themes/futuris-singularity.js.
   // Opponent/AI/Begin Game are passed straight through from the chassis
   // (see its own useSetupExtras call) so the sphere's own Opponent/AI/
   // Begin Game controls drive the real game-start path, not a
   // reimplementation of it.
   // The sphere's own real Begin Game path (finalizeSingularityBegin,
-  // themes/neon-singularity.js) calls this right before actually
+  // themes/futuris-singularity.js) calls this right before actually
   // arming the game, so whatever roster was picked on the sphere is
   // what Anomaly's own generator places — the same mechanism the
   // plain Anomaly button already uses, just with a chosen roster
@@ -3339,7 +3339,7 @@ export function useSetupExtras({
      One click begins the whole sequence — the cathedral bell tolls, the
      screen blacks out over ~2s, then the collapse cinematic runs into the
      sphere (see startSingularityToll -> startCollapse in
-     themes/neon-singularity.js). Replaces the old press-and-hold: now the
+     themes/futuris-singularity.js). Replaces the old press-and-hold: now the
      patience gate is finding the 5-tap trigger, and committing is a
      single deliberate click. */
   function commitSingularity() {
@@ -3527,7 +3527,7 @@ export function renderSingularityInvite({ singularityRevealed, singularityPhase,
 }
 
 /* The Singularity's full-screen overlay — the collapse/blackout/sphere
-   cinematic (themes/neon-singularity.js) replaces what used to be a
+   cinematic (themes/futuris-singularity.js) replaces what used to be a
    static "coming soon" info popup here. Conditionally mounted (only
    while the cinematic is running) rather than the always-mounted/
    opacity-toggled pattern the rest of this file's modals use, since
@@ -3737,15 +3737,15 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
    Singularity board FX: a cosmic palette retune plus a purely visual,
    weight-based warp of the board surface, active only for a game that
    was actually started via the Singularity flow (see
-   finalizeSingularityBegin, themes/neon-singularity.js, which sets
+   finalizeSingularityBegin, themes/futuris-singularity.js, which sets
    t.singularityGameActive = true right before firing the real Begin
    Game). Neither of these touches gameplay — move legality, rolling,
    and the AI's evaluation are all untouched; this is purely "does the
    board look like something out of the sphere" per user feedback that
-   an active Singularity game should read as less neon-signage, more
-   deep-space/cosmic. Lives here (not themes/neon-singularity.js)
+   an active Singularity game should read as less futuris-signage, more
+   deep-space/cosmic. Lives here (not themes/futuris-singularity.js)
    because it retints THIS file's own HEX constants/materials in
-   place, and neon-singularity.js is imported BY this file — giving it
+   place, and futuris-singularity.js is imported BY this file — giving it
    these functions instead would create a circular import.
 
    Board/pieces already exist by the time a Singularity game's Begin
@@ -3761,7 +3761,7 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
 // retint TARGETS, not a parallel full palette, so only the handful of
 // roles actually being swapped need an entry. Monochrome white/grey/
 // black rather than a new accent hue, per feedback that an earlier
-// violet pass read as fighting Neon's own identity instead of a
+// violet pass read as fighting Futuris's own identity instead of a
 // simplified version of it — pieces (Dark's cyan, Light's amber) are
 // deliberately left untouched, only the board itself goes monochrome.
 const SINGULARITY_BOARD_PALETTE = {
@@ -3778,7 +3778,7 @@ const SINGULARITY_BOARD_PALETTE = {
 /* Sets (or restores) one color/intensity property on a material or
    light, snapshotting the ORIGINAL value into userData the first time
    it's ever touched — the same "stash the base value once, read it
-   back on the way out" pattern themes/neon-singularity.js already
+   back on the way out" pattern themes/futuris-singularity.js already
    uses for the grid's opacity (see its own singularityBaseOpacity
    comment). Works for both THREE.Color properties (material.color,
    material.emissive, light.color — anything with getHex/setHex) and
@@ -3827,7 +3827,7 @@ function applySingularityBoardPalette(t, active) {
 
 /* The one call site inside mountAmbientEffects's own tick (see below)
    — cheap early-return when no Singularity game is active, so this
-   costs nothing for every normal Neon session. (A per-frame weight-
+   costs nothing for every normal Futuris session. (A per-frame weight-
    based board-warp overlay lived here briefly; removed per feedback —
    it read as a busy floating layer on top of the board rather than
    the board itself deforming, and the effect wasn't landing even after
@@ -3840,7 +3840,7 @@ function advanceSingularityBoardFx(t) {
 
 /* Chassis's own New Game reset calls this directly (rather than
    waiting for the next tick's inactive branch above) so the board
-   snaps back to normal Neon colors in the same frame a fresh game is
+   snaps back to normal Futuris colors in the same frame a fresh game is
    armed, not one frame later. Exported since chassis needs to reach
    it; Standard has no equivalent, so chassis calls it as
    theme.deactivateSingularityBoardFx?.(...). */
@@ -3850,13 +3850,13 @@ export function deactivateSingularityBoardFx(t) {
 }
 
 /* Move/legal-move indicator: a four-corner L-bracket "targeting
-   reticle" — Neon's own replacement for Standard's dashed square,
+   reticle" — Futuris's own replacement for Standard's dashed square,
    deliberately different rather than the same shape recolored (a
    dashed charcoal square reads as board-game notation; Standard's own
    HEX.charcoal happens to be near-black on Standard's cream board, but
-   Neon's semantic "charcoal" — the Dark player's own near-black tone —
-   sits on Neon's OWN near-black board, so reusing that shared chassis
-   line was invisible here; this both fixes that and gives Neon a
+   Futuris's semantic "charcoal" — the Dark player's own near-black tone —
+   sits on Futuris's OWN near-black board, so reusing that shared chassis
+   line was invisible here; this both fixes that and gives Futuris a
    distinct sci-fi-HUD identity for it).
 
    Second full revision of the entrance, per feedback that the first
@@ -4219,7 +4219,7 @@ export function createSoundscape() {
   // silences everything else while the toll keeps ringing and its
   // reverb decays naturally all the way to nothing. See ensureBellBus.
   let bellBus = null;
-  // The summons' own way out (themes/neon-summon-audio.js), outside
+  // The summons' own way out (themes/futuris-summon-audio.js), outside
   // master for the same reason: its last clap of thunder rings on
   // through the toll, the fall and the cut to black into the sphere.
   // At the interface path's level (sfxOut 1.25 x master); see
@@ -4648,7 +4648,7 @@ export function createSoundscape() {
     }
   }
 
-  /* The only way back to sound today (see themes/neon-singularity.js's
+  /* The only way back to sound today (see themes/futuris-singularity.js's
      escape hatch) — there's no real "game begins" event reachable from
      the placeholder sphere yet, so this restores the same level
      ensureGraph() would have set, respecting the existing mute toggle. */
@@ -4945,7 +4945,7 @@ export function createSoundscape() {
      one channel and the long ones shorter (11.5 s -> about 5, 6.5 -> 3):
      the tap into the wormhole starts three at once, and on an Android
      phone the audio thread couldn't keep up and the sound dropped out
-     (user; measured in neon-summon-audio.js). A phone's speaker is all but
+     (user; measured in futuris-summon-audio.js). A phone's speaker is all but
      mono, and can't play the long low tails anyway. */
   const lightReverbs = typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches;
   function makeImpulse(duration, decay) {
@@ -6437,7 +6437,7 @@ export function createSoundscape() {
   }
 
   /* Plays a short, distinct "closing" choir tail — a few sine tones at
-     the opening chord's own root frequencies — every time the Neon
+     the opening chord's own root frequencies — every time the Futuris
      info overlay is dismissed (closed/backdrop-clicked/Escaped),
      regardless of whether the opening stab (see playChoirStab above)
      is still sustaining. Originally this only ever cut the STILL-
@@ -6507,7 +6507,7 @@ export function createSoundscape() {
 
   /* The rules pop-up's own earcons, for every open, close and tab change
      that isn't the ABOUT tab's (the choir owns ABOUT). The same glass
-     family as the rest of Neon: a sine and its bell-like 2.76x partial,
+     family as the rest of Futuris: a sine and its bell-like 2.76x partial,
      quick to fade, with a faint air of filtered noise on open/close.
      Each has variants and small random shifts, and the same variant
      never plays twice in a row, so repeats never sound identical.
@@ -6896,7 +6896,7 @@ export function createSoundscape() {
     playSelect: pieceCue(tink), // replaced with an extremely high-pitched tonal "tink" per feedback (was a 600Hz filtered-noise click)
     playDeselect: pieceCue(() => sfxClick(95, 0.009)),
     playBlocked: pieceCue(playBlocked),
-    // No-op: Neon has no wood-physical rolling cue of its own — this
+    // No-op: Futuris has no wood-physical rolling cue of its own — this
     // theme's whole audio identity is synthesized/electronic, not
     // acoustic-material — but the shared chassis call site (animateStep,
     // fired the instant a roll/slide animation starts) calls this
@@ -6982,7 +6982,7 @@ export function createSoundscape() {
     resumeAudioAfterSingularity,
     playSingularityDismiss,
     playSingularityBell,
-    // The summons (Nova's first arrival, themes/neon-summon-audio.js):
+    // The summons (Nova's first arrival, themes/futuris-summon-audio.js):
     // the context, its way out (at the interface channel's level, but
     // outside master, so its last thunder outlives the event-horizon
     // cut), and a way to wake the context from a tap (a phone starts it
@@ -7060,6 +7060,6 @@ export function createSoundscape() {
 /* What the two sides are called here (user; themes/side-names.js). */
 import { sideNamesFor } from "./side-names.js";
 import { pointsGlowFor } from "./points-glow.js";
-export const sideNames = sideNamesFor("neon");
+export const sideNames = sideNamesFor("futuris");
 // The points counter's embers (points-glow.js).
-export const pointsGlow = pointsGlowFor("neon");
+export const pointsGlow = pointsGlowFor("futuris");

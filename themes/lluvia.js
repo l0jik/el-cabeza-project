@@ -9,7 +9,7 @@
    sign; legal moves are marked in sodium yellow. Thunder in the score
    lights the sky.
 
-   Plugs into the shared chassis the same way Standard, Neon and Cromo do
+   Plugs into the shared chassis the same way Standard, Futuris and Cromo do
    (see ARCHITECTURE.md): board, grid and pieces through the usual hooks,
    everything Lluvia-only (the city, the rain, the lightning) from
    mountAmbientEffects (themes/lluvia-fx.js). The sound is the city's own

@@ -287,7 +287,7 @@ export function createAudio() {
     playSelect, playDeselect, playBlocked, playRollStart, playLanding, playCapture, playWin,
     playMenu, fadeOutMenu, stopMenu, playRulesOpen, playRulesClose, playRulesTab,
     playPowerOn, playPowerOff, playDockOpen, playDockClose,
-    // Neon-only effects; the chassis calls every audio method unconditionally.
+    // Futuris-only effects; the chassis calls every audio method unconditionally.
     playFlicker: noop, playArc: noop, playGlitch: noop,
     playSingularityOpen: noop, playSingularityClose: noop, playSingularityBell: noop, playSingularityDismiss: noop,
     startSingularityHum: noop, updateSingularityHum: noop, stopSingularityHum: noop,

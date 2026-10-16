@@ -1517,7 +1517,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           /* Under the set's hold, the board's own camera squares up, so
              the set lets go onto the board square on, at the usual
              pitch (user: it came back at an angle; the heading had come
-             along from Neon): the nearest side's heading. The chassis
+             along from Futuris): the nearest side's heading. The chassis
              eases its view there unseen while the set has the camera. */
           onTheBoard();
           if (commercialNext) {

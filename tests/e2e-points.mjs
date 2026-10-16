@@ -6,7 +6,7 @@
    returns to an earlier position (the free detour), and refills for the
    next player; after a finished game it holds that game's last turn
    through the win screen and clears when a new game is set up. Checked
-   in Neon and in Standard (which has no Sound icon,
+   in Futuris and in Standard (which has no Sound icon,
    so the toggle takes its corner). */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
@@ -39,7 +39,7 @@ const left = (page) => page.evaluate(() => {
   return el ? Number(el.getAttribute("data-left")) : null;
 });
 
-for (const theme of ["neon", "standard"]) {
+for (const theme of ["futuris", "standard"]) {
   console.log(`[${theme}]`);
   const context = await browser.newContext({ viewport: { width: 1000, height: 900 } });
   const page = await context.newPage();
@@ -72,7 +72,7 @@ for (const theme of ["neon", "standard"]) {
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
   await page.waitForTimeout(1400);
   check("a roll spends one", (await left(page)) === 1, String(await left(page)));
-  if (theme === "neon") await page.screenshot({ path: "/tmp/e2e-points.png" });
+  if (theme === "futuris") await page.screenshot({ path: "/tmp/e2e-points.png" });
 
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "N"));
   await page.waitForTimeout(1400);
@@ -113,7 +113,7 @@ for (const theme of ["neon", "standard"]) {
   const won = await page.evaluate(() => [...document.querySelectorAll("span")].some((el) => /wins/i.test(el.textContent || "")));
   check("a Cabeza stepping onto its far row wins", won);
   check("after the win the counter stays up, holding the last turn (1 action left)", (await left(page)) === 1, String(await left(page)));
-  if (theme === "neon") await page.screenshot({ path: "/tmp/e2e-points-won.png" });
+  if (theme === "futuris") await page.screenshot({ path: "/tmp/e2e-points-won.png" });
   await openDockPanel(page);
   await page.locator('[data-testid="new-game"]').click();
   await page.waitForTimeout(1500);
@@ -130,7 +130,7 @@ for (const theme of ["neon", "standard"]) {
   const context = await browser.newContext({ viewport: { width: 1000, height: 900 } });
   const page = await context.newPage();
   await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_LAWS__ = { threeActions: true }; });
-  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
   await page.waitForTimeout(1500);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), [
     { id: "dark-cabeza", type: "cabeza", owner: "dark", row: 0, col: 4, w: 1, h: 1, z: 1 },

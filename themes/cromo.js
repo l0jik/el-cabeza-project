@@ -9,7 +9,7 @@
    Light, warm gunmetal for Dark.
 
    Everything here plugs into the shared chassis the same way Standard
-   and Neon do (see ARCHITECTURE.md). The pieces the chassis builds (the
+   and Futuris do (see ARCHITECTURE.md). The pieces the chassis builds (the
    slab, the grid, the pieces) get Cromo's materials through the usual
    hooks; the parts only Cromo has (the cube below the slab, the light
    sweep, the landing shimmer) are added to the live scene from
@@ -33,7 +33,7 @@ import { makeRoundedBox, makePolycubeSmooth } from "../engine/geometry.js";
 /* ------------------------------------------------------------ palette */
 
 export const COLORS = {
-  // Dark UI, as Neon's: cream is the panel surface, charcoal the ink.
+  // Dark UI, as Futuris's: cream is the panel surface, charcoal the ink.
   cream: "#121315",
   creamAlt: "#17181B",
   charcoal: "#E6E8EC",

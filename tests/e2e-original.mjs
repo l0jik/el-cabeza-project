@@ -1,7 +1,7 @@
 /* ABOUT's "The original El Cabeza" link (chassis/ElCabeza3D.jsx
    playOriginal): it closes INFO and sets up a plain game with the basic
-   rules only. On the Neon page, laws switched on at boot (window.__EC_LAWS__)
-   are cleared. In Nova (apps/unified.jsx), taken from the Neon theme, it
+   rules only. On the Futuris page, laws switched on at boot (window.__EC_LAWS__)
+   are cleared. In Nova (apps/unified.jsx), taken from the Futuris theme, it
    also switches back to the Standard theme. And the disclaimer at ABOUT's
    foot, last of all, under a world's sound credits where it has them. */
 import { chromium } from "playwright";
@@ -19,21 +19,21 @@ const lawsInPlay = async (page) => {
   return n;
 };
 // The INFO title's colour tells the themes apart (Standard: dark ink on
-// paper; Neon: pale on glass).
+// paper; Futuris: pale on glass).
 const theme = (page) => page.evaluate(() => {
   const h = document.querySelector('[data-testid="info-overlay"] h2');
   const [r] = getComputedStyle(h).color.match(/\d+/g).map(Number);
-  return r > 128 ? "neon" : "standard";
+  return r > 128 ? "futuris" : "standard";
 });
 
 {
-  console.log("[neon page]");
+  console.log("[futuris page]");
   const page = await browser.newPage({ viewport: { width: 1000, height: 850 } });
   await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ } }); // been to the Singularity: the extras are open (engine/journey.js; e2e-journey.mjs tests the lock)
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   await page.addInitScript(() => { window.__EC_LAWS__ = { threeActions: true, slide: true, shoving: true }; });
-  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
   await page.waitForTimeout(1500);
   check("the game starts with three laws on", (await lawsInPlay(page)) === 3);
   await openAbout(page);
@@ -83,7 +83,7 @@ const theme = (page) => page.evaluate(() => {
   check("the den's ABOUT: the disclaimer last, under the sound credits", tail[0] === "info-sound-credits" && tail[1] === "info-disclaimer", JSON.stringify(tail));
   await page.mouse.click(6, 6);
   await page.waitForTimeout(500);
-  // Hold the masthead, then confirm CONNECT: over to Neon.
+  // Hold the masthead, then confirm CONNECT: over to Futuris.
   const box = await page.locator("h1").first().boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
@@ -92,7 +92,7 @@ const theme = (page) => page.evaluate(() => {
   await page.waitForTimeout(400);
   await page.locator(".ec-hold-modal-word").click({ force: true });
   await page.waitForTimeout(3500);
-  check("holding the masthead and confirming switches to Neon", (await theme(page)) === "neon");
+  check("holding the masthead and confirming switches to Futuris", (await theme(page)) === "futuris");
   await openAbout(page);
   await page.waitForTimeout(400);
   await page.locator('[data-testid="play-original"]').click();

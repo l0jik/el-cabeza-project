@@ -36,7 +36,7 @@ pieces have no `vox` and behave exactly as before.
     silhouette shell, and the MATTER models. A shape that isn't flat or
     has a hole falls back to `makePolycubeRounded`.
   - `makePolycubeGeometry`: outside faces only, so EdgesGeometry traces
-    just the real outline (Neon's shell, the MATTER models' edges).
+    just the real outline (Futuris's shell, the MATTER models' edges).
   - `makePolycubeRounded` (merged rounded cubes): fallback only. It
     showed grooves at the seams, and as Standard's shell those grooves
     cast thin self-shadow lines across the pieces.
@@ -57,7 +57,7 @@ pieces have no `vox` and behave exactly as before.
   `__EC_TEST_SET_PIECES__`, `__EC_TEST_PIECES__`, `__EC_TEST_MOVE__`,
   `__EC_TEST_SCREEN_POS__`.
 - Tests: `tests/e2e-codo.mjs` (a sheltered Cabeza under a real roll; the
-  AI with Codos) and the theme-neon smoke test (mirrored openings).
+  AI with Codos) and the theme-futuris smoke test (mirrored openings).
 
 **Arco** is one MATTER counter from 0 to 4 (default 0) plus a size
 choice, `matter.arcoSize` ("chico" / "alto" / "ancho"), which applies to
@@ -138,7 +138,7 @@ could ever be in the way. The rule now, confirmed with the user:
   `ACTIVE_LAWS.shoveOwn`; shown with either Shoves on choice). Written
   once in `chassis/shove-settings.js` (SHOVE_SETTINGS, shoveOf, shoveLaws,
   shoveSummary, shoveChosen, shoveNow), read by rules-selections (the
-  store, the gate menus), Neon's sphere, Lluvia, the corner menu and the
+  store, the gate menus), Futuris's sphere, Lluvia, the corner menu and the
   rules cards. Selection `shove: { onRolls, own }`; a save's old
   `ownOnRolls` keeps its answer; replay letter `o: 0` unchanged.
 
@@ -167,7 +167,7 @@ end of the collapse the roar, the drone and the bell's tail sum; the
 bell test measured up to 0.98 before the trim and ≤0.86 after.
 
 **Anomaly button shuffles the game's own pieces.** `handleAnomaly`
-(themes/neon.js) builds its roster from the pieces on the board
+(themes/futuris.js) builds its roster from the pieces on the board
 (`rosterFromPieces`: Dark's pieces counted by type), not the classic
 five. So a game set up on the sphere keeps its Codos, Arcos, extra
 Cabezas and so on, and only their layout changes. A plain board still
@@ -340,7 +340,7 @@ triggers now when the detour happens to end the turn some other way.
 - Tests: tests/e2e-pivot.mjs 1b (pivot back is free), 1c (swipe) and 5
   (roll out and back is free).
 
-**Neon piece occlusion (depth twin).** Neon's glass bodies don't write
+**Futuris piece occlusion (depth twin).** Futuris's glass bodies don't write
 depth (self-z-fighting fix), so translucent pieces were layered whole,
 by their centres. A balanced Codo over a 1x3 painted its base over the
 1x3 standing in front of it; no single order works when an arm is in
@@ -396,7 +396,7 @@ unaffected.
 - Remembered in localStorage `el-cabeza:show-points`; off by default.
 - During play (hidden while the dock panel is open) it shows one dot
   per point of `turnBudget()` at the bottom centre, labelled "Action points", dimmed (filled 0.55, spent 0.28) per feedback (`points-counter`,
-  `data-left`). Filled dots use the player's accent (Neon cyan/amber,
+  `data-left`). Filled dots use the player's accent (Futuris cyan/amber,
   glowing) or body colour (Standard); spent dots are hollow.
 - `pointsPulse` flashes it when a free detour refunds points.
 - Test: tests/e2e-points.mjs (both themes).

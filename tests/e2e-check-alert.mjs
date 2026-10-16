@@ -102,9 +102,9 @@ const VIDEO = (turrito) => [
   CAB("light-cabeza", "light", 1, 8), T("light-turrito", "light", 1, 2),
 ];
 
-console.log("Neon, desktop: the setup's switch, the warning, its own switch, the dock's");
+console.log("Futuris, desktop: the setup's switch, the warning, its own switch, the dock's");
 {
-  const { ctx, page, errs } = await open(`${D}/el-cabeza-neon.html`);
+  const { ctx, page, errs } = await open(`${D}/el-cabeza-futuris.html`);
   await openDockPanel(page);
   check("no Check alert switch while the opponent's a person", (await page.locator('[data-testid="check-alert-setup"]').count()) === 0);
   await page.locator('[data-opponent="ai-light"]').first().click();
@@ -316,7 +316,7 @@ console.log("\nYour own last move into reach: the turn waits");
   const cabAt = (page) => page.evaluate(() => { const c = window.__EC_TEST_PIECES__.find((p) => p.id === "dark-cabeza"); return c ? `${c.row},${c.col}` : null; });
   const step = async (page, to) => { await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "W")); return !!(await poll(async () => (await cabAt(page)) === to, 8000)); };
   async function game(alertOn) {
-    const { ctx, page, errs } = await open(`${D}/el-cabeza-neon.html`, { seed: alertOn ? {} : { "el-cabeza:check-alert": "0" } });
+    const { ctx, page, errs } = await open(`${D}/el-cabeza-futuris.html`, { seed: alertOn ? {} : { "el-cabeza:check-alert": "0" } });
     await openDockPanel(page);
     await page.locator('[data-opponent="ai-light"]').first().click();
     await page.waitForTimeout(500);
@@ -354,7 +354,7 @@ console.log("\nYour own last move into reach: the turn waits");
 
 console.log("\nTwo people: never a warning");
 {
-  const { ctx, page, errs } = await open(`${D}/el-cabeza-neon.html`);
+  const { ctx, page, errs } = await open(`${D}/el-cabeza-futuris.html`);
   await openDockPanel(page);
   const human = page.locator('[data-opponent="human"]').first();
   if ((await human.getAttribute("aria-pressed")) !== "true") await human.click();

@@ -1,7 +1,7 @@
 /* Random starting layouts: the Anomaly button's shuffle, and any custom
-   roster of pieces (Neon's MATTER menu, Lluvia's city, Tienda's order
+   roster of pieces (Futuris's MATTER menu, Lluvia's city, Tienda's order
    form). Theme-agnostic, so it lives with the engine: moved here from
-   themes/neon.js, which re-exports it unchanged.
+   themes/futuris.js, which re-exports it unchanged.
 
    PIECE_ORIENTATIONS lists each piece type's possible starting poses;
    generateAnomalySetup places Dark's pieces at random in its two home

@@ -1,10 +1,10 @@
-/* Neon's Singularity: the Anomaly random-setup button, the masthead
+/* Futuris's Singularity: the Anomaly random-setup button, the masthead
    5-tap reveal, the single-click commit, the toll/collapse/blackout/
    sphere cinematic, and the sphere's own menu — root labels distributed
    around the sphere (MATTER/LAWS/TOPOLOGIES), each opening a real
    holographic overlay of sub-items, finished by a triple-tap that
    reveals a BEGIN GAME summary menu with real Opponent/AI controls
-   (SINGULARITY_DESIGN.md Part 1, themes/neon-singularity.js).
+   (SINGULARITY_DESIGN.md Part 1, themes/futuris-singularity.js).
 
    The gesture under test: tap the EL CABEZA masthead five times to
    reveal the massive SINGULARITY invite overlay, then a single click on
@@ -37,10 +37,10 @@ import { fileURLToPath } from "url";
 import { openDockPanel, waitForDockCorner, reopenDockPanelFromCorner } from "./dock-helpers.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const file = path.join(__dirname, "..", "dist", "el-cabeza-neon.html");
+const file = path.join(__dirname, "..", "dist", "el-cabeza-futuris.html");
 
 // The bell-toll / fade-to-black lead-in (SINGULARITY_TOLL_MS = 2000ms in
-// themes/neon-singularity.js) plus generous margin for this sandbox's
+// themes/futuris-singularity.js) plus generous margin for this sandbox's
 // very variable timing, before the collapse proper begins.
 const TOLL_TO_COLLAPSE_MS = 3600;
 // Collapse (3200ms) + blackout dwell (700ms), with generous margin.
@@ -170,7 +170,7 @@ check("the collapse hands off to the sphere", finalPhase === "sphere", `phase=${
 check("audio is silent by the time the sphere settles (cut at the black frame, not after)",
   (await masterGain()) === 0, `gain=${await masterGain()}`);
 
-await page.screenshot({ path: "/tmp/neon-singularity-sphere.png" });
+await page.screenshot({ path: "/tmp/futuris-singularity-sphere.png" });
 
 // ---- no How to play in the corner in the Singularity (the user);
 // the full-screen button still works over the sphere ----
@@ -253,7 +253,7 @@ const closeOverlay = async () => {
 };
 
 // The label band sits on the sphere's actual geometric equator
-// (LABEL_CENTER_V, themes/neon-singularity.js), which does NOT
+// (LABEL_CENTER_V, themes/futuris-singularity.js), which does NOT
 // generally coincide with the viewport's own vertical center — the
 // camera looks at the sphere from an elevated angle inherited from
 // the board view, so "straight ahead" and "the equator" are two
@@ -298,7 +298,7 @@ async function waitForSphereSettle(timeoutMs = 3000) {
 
 // ---- root labels are distributed around the sphere with no checkbox
 // of their own; whichever label the sphere's own per-cycle shuffle
-// (shuffleRootLabels, themes/neon-singularity.js) assigned the u=0.5
+// (shuffleRootLabels, themes/futuris-singularity.js) assigned the u=0.5
 // slot sits front-and-center after the BLACKOUT->SPHERE auto-centering
 // raycast, so a plain tap dead center opens ITS holographic overlay —
 // MATTER isn't guaranteed to be that label any more, so read the
@@ -518,7 +518,7 @@ if (state.activeCategory === "topologies") {
   // ---- TOPOLOGIES: Missing Squares manual placement (the same
   // ghost-grid picker Black Hole Squares uses, just targeting a
   // different selections field — see PAIRED_SQUARE_KINDS in
-  // themes/neon-singularity.js). Toggling it on reveals a placement
+  // themes/futuris-singularity.js). Toggling it on reveals a placement
   // control; opening its picker and tapping a cell on the player's side
   // stores that cell as the manual missing square (its mirror is the
   // paired one), then closes back to the TOPOLOGIES overlay. ----
@@ -654,7 +654,7 @@ if (state.activeCategory === "topologies") {
   check("tapping an open square at the count swaps out a random spot",
     (await page.locator('[data-testid="missing-picker"] [data-chosen="random"]').count()) === 4 &&
       (await page.locator(`[data-testid="${openCellId}"]`).getAttribute("data-chosen")) === "hand");
-  await page.screenshot({ path: "/tmp/neon-missing-picker.png" });
+  await page.screenshot({ path: "/tmp/futuris-missing-picker.png" });
   await page.locator('[data-testid="missing-picker-done"]').click();
   await page.waitForTimeout(1000);
   for (let i = 0; i < 3; i++) {
@@ -1081,7 +1081,7 @@ await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
 await page.waitForTimeout(200);
 await tiltBackToEquator();
 
-await page.screenshot({ path: "/tmp/neon-singularity-labels.png" });
+await page.screenshot({ path: "/tmp/futuris-singularity-labels.png" });
 
 // ---- Escape (or the on-screen Back button, for touch) restores
 // everything: board, dock, masthead, audio — from any sub-stage, not
@@ -1204,7 +1204,7 @@ await page.waitForTimeout(150);
 const hardPressed = await page.locator('[data-testid="ai-difficulty-hard"]').getAttribute("aria-pressed");
 check("picking a difficulty on the summary menu marks it pressed", hardPressed === "true", `aria-pressed=${JSON.stringify(hardPressed)}`);
 
-await page.screenshot({ path: "/tmp/neon-singularity-summary.png" });
+await page.screenshot({ path: "/tmp/futuris-singularity-summary.png" });
 
 // ---- BEGIN GAME on the summary menu fires the exact same game-start
 // path the dock's own Begin Game button uses, then tears the
@@ -1238,7 +1238,7 @@ check("Missing Squares resolved to five real mirrored pairs (ten squares) on the
       (q.row === wantRows - 1 - liveMissing[i + 1].row && q.col === wantCols - 1 - liveMissing[i + 1].col)) &&
     new Set(liveMissing.map((q) => `${q.row},${q.col}`)).size === 10,
   `liveMissing=${JSON.stringify(liveMissing)}`);
-await page.screenshot({ path: "/tmp/neon-singularity-resized-board.png" });
+await page.screenshot({ path: "/tmp/futuris-singularity-resized-board.png" });
 
 // ---- after a Singularity Begin Game the dock must hand off exactly like
 // a normal Begin Game: the panel collapses (not left stranded visible by

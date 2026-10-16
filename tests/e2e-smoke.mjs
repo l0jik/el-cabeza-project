@@ -5,9 +5,9 @@ import { openDockPanel } from "./dock-helpers.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const target = process.argv[2]; // "standard" or "neon"
+const target = process.argv[2]; // "standard" or "futuris"
 if (!target) {
-  console.error("usage: node tests/e2e-smoke.mjs <standard|neon|cromo|plano|luna|noir|lluvia|tienda|ciudad>");
+  console.error("usage: node tests/e2e-smoke.mjs <standard|futuris|cromo|plano|luna|noir|lluvia|tienda|ciudad>");
   process.exit(1);
 }
 

@@ -8,7 +8,7 @@
    lobby set in from the walls, they showed straight through.
 
    Each piece is drawn as the close-up draws it (window.__EC_TEST_LOOK_
-   VIEWS__: the world's own pieces, or Neon's MATTER glass) from the side,
+   VIEWS__: the world's own pieces, or Futuris's MATTER glass) from the side,
    from below, from underneath and upside down; and again as an opaque copy
    of its shapes. See-through: of what the copy covers, the share the real
    one leaves (nearly) empty. Luna's Cabeza is meant to be see-through (a
@@ -24,7 +24,7 @@ const poll = async (fn, ms = 8000, step = 150) => { const end = Date.now() + ms;
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--enable-unsafe-swiftshader", "--use-gl=swiftshader"] });
 
 const WORLDS = process.argv.slice(2).length ? process.argv.slice(2)
-  : ["standard", "neon", "neon:matter", "cromo", "plano", "luna", "ciudad", "noir", "lluvia", "tienda", "lab", "parrish?look=orinoco", "parrish?look=watermark"];
+  : ["standard", "futuris", "futuris:matter", "cromo", "plano", "luna", "ciudad", "noir", "lluvia", "tienda", "lab", "parrish?look=orinoco", "parrish?look=watermark"];
 const TYPES = ["cabeza", "turrito", "flaco", "chato", "opa", "block1x3", "block2x3", "codo", "arcoChico", "arcoAlto", "arcoAncho", "rayo", "zeta", "hombro", "cruce"];
 // [yaw, pitch]: from the side, from below at a slant, from underneath, upside down.
 const VIEWS = [];

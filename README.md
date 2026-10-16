@@ -1,9 +1,9 @@
 # El Cabeza
 
 A two-player abstract board game of rolling and tipping blocks, played in
-the browser in several worlds (themes): Standard (a 1975 den), Neon,
+the browser in several worlds (themes): Standard (a 1975 den), Futuris,
 Cromo, Lluvia, Tienda (a 1970s department store), the Theme Lab, and
-**Nova**, which strings the den, the store and Neon together into a story.
+**Nova**, which strings the den, the store and Futuris together into a story.
 
 Live: <https://l0jik.github.io/el-cabeza-project/> (one page per world;
 `el-cabeza-nova.html?scene=revelation` and `?scene=glutts` jump to two of

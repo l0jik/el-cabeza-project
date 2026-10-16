@@ -1,7 +1,7 @@
 /* The journey (engine/journey.js): the extras (pieces past the five, the
    laws, the board's holes and cut squares) are kept back until the
    Singularity's first visit, everywhere that opts in (Tienda, Standard,
-   Neon, and Nova's store and den). Before it: the rules cards tell the
+   Futuris, and Nova's store and den). Before it: the rules cards tell the
    classic game alone and there are no custom rules: the catalog's page
    of the five pieces, look only, with special orders "by arrangement".
    The sphere's first opening unlocks them everywhere (localStorage,
@@ -104,8 +104,8 @@ async function page(url, init) {
 }
 
 {
-  console.log("Neon, before the sphere and after");
-  const { p, ctx, errs } = await page("el-cabeza-neon.html");
+  console.log("Futuris, before the sphere and after");
+  const { p, ctx, errs } = await page("el-cabeza-futuris.html");
   const r = await rulesView(p);
   check("before: the classic game", r.moves.classic === "true" && !r.moves.slide, JSON.stringify(r.moves));
   check("...not remembered as seen", (await p.evaluate((k) => localStorage.getItem(k), SEEN)) === null);

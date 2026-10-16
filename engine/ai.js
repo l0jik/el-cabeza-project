@@ -1,5 +1,5 @@
 /* Minimax AI for El Cabeza. Verified byte-for-byte identical between
-   the Standard and Neon theme sources before extraction (see
+   the Standard and Futuris theme sources before extraction (see
    build/scratch/) — pure logic, no React, no Three.js, no DOM. */
 
 import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor, moveCost, ACTIVE_LAWS, turnBudget, maxPiecesPerTurn, MISSING_SQUARES, BLACK_HOLES, OPENING_TURN, setOpeningTurn } from "./constants.js";

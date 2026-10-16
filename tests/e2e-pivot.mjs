@@ -1,4 +1,4 @@
-/* Cantilever Pivot LAW in the real game (Neon): a Codo balanced on one
+/* Cantilever Pivot LAW in the real game (Futuris): a Codo balanced on one
    cube turns a quarter turn about it for one point (engine: legalPivots
    in rules.js, pivotPiece / pivotSweepClashes in shapes.js; chassis:
    the spin animation in animateStep and nextStateAfterDir for undo).
@@ -24,7 +24,7 @@ import { openDockPanel } from "./dock-helpers.mjs";
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });
 let failures = 0;
 const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
-const FILE = "file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html";
+const FILE = "file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html";
 
 // Balanced on the cube at row 4, col 4; its arm is held up over (4,5).
 const BALANCED = { id: "dark-codo", type: "codo", owner: "dark", row: 4, col: 4, w: 2, h: 1, z: 2, vox: "0,0,0;0,0,1;1,0,1" };

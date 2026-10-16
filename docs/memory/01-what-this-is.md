@@ -2,11 +2,11 @@
 
 A 3D board game (React + Three.js r128) with a shared "chassis + theme
 plugin" architecture: `engine/` (pure rules/AI/geometry, no rendering),
-`themes/standard.js` and `themes/neon.js` (palette, materials, audio,
+`themes/standard.js` and `themes/futuris.js` (palette, materials, audio,
 ambient FX — two genuinely different visual identities), `chassis/
 ElCabeza3D.jsx` (~5900 lines — the actual React component: state, camera/
 input, JSX skeleton, generic actions; theme-agnostic). Three entry points
-(`apps/standard.jsx`, `apps/neon.jsx`, `apps/unified.jsx` + its
+(`apps/standard.jsx`, `apps/futuris.jsx`, `apps/unified.jsx` + its
 `unifiedTransition.jsx` theme-switcher) are bundled by `build/build.js`
 (esbuild) into three self-contained HTML files in `dist/` (gitignored,
 built fresh every time). No backend. Everything is client-side state,

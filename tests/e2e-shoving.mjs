@@ -1,4 +1,4 @@
-/* The Shoving LAW in the real game (Neon). Laws are switched on at boot
+/* The Shoving LAW in the real game (Futuris). Laws are switched on at boot
    (window.__EC_LAWS__, apps/boardBootstrap.js) and a position placed via
    the test-only hooks (window.__EC_TEST_HOOKS__). Then a real move plays
    through the click path:
@@ -25,7 +25,7 @@ async function openPage(laws) {
   page.on("pageerror", (e) => errs.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/ERR_CERT|ERR_CONNECTION/.test(m.text())) errs.push(m.text()); });
   await page.addInitScript((l) => { window.__EC_TEST_HOOKS__ = true; window.__EC_LAWS__ = l; }, laws);
-  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
   await page.waitForTimeout(1500);
   return { page, errs };
 }

@@ -52,7 +52,7 @@ for (let i = 0; i < 40; i++) {
 }
 check(`a tight order on a 10-wide board is set out as ordered, every time (${asOrdered}/40)`, asOrdered === 40);
 
-// Everything Neon's sphere offers, in the shared model.
+// Everything Futuris's sphere offers, in the shared model.
 import("../themes/rules-selections.js").then(async (m) => {
   const { getBoardDimensions, ACTIVE_LAWS } = await import("../engine/constants.js");
   const s = m.defaultSelections();

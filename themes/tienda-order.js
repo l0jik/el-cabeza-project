@@ -1,5 +1,5 @@
 /* Parts of Tienda's order form (tienda-overlay.js) that carry what
-   Neon's Singularity sphere offers, in the catalog's own manner:
+   Futuris's Singularity sphere offers, in the catalog's own manner:
 
    - SquarePicker: marking the board. The form's board diagram, large,
      where you mark the squares to cut out (X) or the black holes' place

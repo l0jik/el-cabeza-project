@@ -1,4 +1,4 @@
-"""The lost card's hand (themes/neon-singularity.js LostNudge), from the
+"""The lost card's hand (themes/futuris-singularity.js LostNudge), from the
 user's wireframe hand (tools/lost-hand-source.png, their second picture):
 cropped to the hand, the black taken out (alpha from brightness), recoloured
 toward the Singularity's cyan; a flesh hand modelled from the same shape for
@@ -40,7 +40,7 @@ lum = lum_full[y0:y1 + 1, x0:x1 + 1]
 W = 480
 H = round(lum.shape[0] * W / lum.shape[1])
 L = np.asarray(Image.fromarray((lum * 255).astype(np.uint8)).resize((W, H), Image.LANCZOS)).astype(np.float32) / 255.0
-Image.fromarray(wire_rgba(L), "RGBA").save("assets/neon/lost-hand-wire.webp", quality=86, method=6)
+Image.fromarray(wire_rgba(L), "RGBA").save("assets/futuris/lost-hand-wire.webp", quality=86, method=6)
 
 # The flesh hand. The silhouette: the lines closed up, and only the small
 # holes filled (the gap under the curled fingers stays open).
@@ -82,7 +82,7 @@ skin_rgb = skin_rgb * (1 - 0.3 * rim) + np.array([200, 92, 78.0]) * 0.3 * rim
 skin_rgb = np.clip(skin_rgb + spec[..., None] * 55, 0, 255)
 soft = blur(mask.astype(np.float32), 1.1)
 skin = np.dstack([skin_rgb, soft[..., None] * 255]).astype(np.uint8)
-Image.fromarray(skin, "RGBA").save("assets/neon/lost-hand-skin.webp", quality=86, method=6)
+Image.fromarray(skin, "RGBA").save("assets/futuris/lost-hand-skin.webp", quality=86, method=6)
 
 # (The fingertip each touch used to leave, lost-tip-wire.webp, was taken
 # out at the user's request; only the hand and its skin are made now.)

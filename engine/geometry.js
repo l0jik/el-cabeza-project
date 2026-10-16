@@ -1,5 +1,5 @@
 /* Shared piece/camera geometry math for El Cabeza's 3D engine.
-   Verified byte-for-byte identical between the Standard and Neon theme
+   Verified byte-for-byte identical between the Standard and Futuris theme
    sources before extraction (see build/scratch/). Depends on THREE
    (assumed global, matching both original sources' own usage) and on
    the shared board constants. setGhostLineTarget lives here too even
@@ -13,8 +13,8 @@ import { PIECE_META } from "./constants.js";
 import { parseVox } from "./shapes.js";
 
 /* `root` is a theme-built move-indicator's root object (see
-   theme.buildMoveIndicator in themes/standard.js and themes/neon.js) —
-   a plain Mesh/LineSegments for Standard, a Group for Neon's multi-bar
+   theme.buildMoveIndicator in themes/standard.js and themes/futuris.js) —
+   a plain Mesh/LineSegments for Standard, a Group for Futuris's multi-bar
    bracket. Reads/writes userData.currentOpacity rather than
    root.material.opacity directly so this stays agnostic to which:
    the chassis tick loop is what actually applies the interpolated
@@ -93,11 +93,11 @@ export function restingY(p) {
    That means there's no such thing as a piece "too big" or "too small"
    for a given seg the way there is for the digital-interior wireframe's
    own bars-per-unit density elsewhere in this codebase (see
-   buildDigitalInterior in themes/neon.js) — every piece shares the
+   buildDigitalInterior in themes/futuris.js) — every piece shares the
    exact same fillet geometry regardless of footprint, so one constant
    already suits all of them, and the only question is how low it can
    go before the facets show. At seg=6 the sagitta is ~0.066% of a
-   0.8-unit piece for Standard's radius (0.0625) and ~0.032% for Neon's
+   0.8-unit piece for Standard's radius (0.0625) and ~0.032% for Futuris's
    (0.03) — both comfortably under seg=8's own already-invisible 0.05%
    baseline in absolute terms, while cutting the exterior shell/body
    geometry from 648 to 392 vertices (1228 to 732 triangles) per piece,

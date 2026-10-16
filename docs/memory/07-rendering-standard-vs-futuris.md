@@ -1,4 +1,4 @@
-## 7. Rendering: Standard vs. Neon piece techniques (genuinely different, not parameterized)
+## 7. Rendering: Standard vs. Futuris piece techniques (genuinely different, not parameterized)
 
 - **Standard**: opaque `MeshStandardMaterial` body + an inflated
   back-face silhouette shell (grown by `OUTLINE_T`, rendered `BackSide`)
@@ -6,7 +6,7 @@
   (see "Tienda piece-base outline flicker"). Since the den, Standard and Tienda build their board
   and pieces from the same code, themes/wood-set.js (walnut and olive ash,
   see "Standard: the den" below).
-- **Neon**: translucent body (`depthWrite: false`, deliberately — avoids
+- **Futuris**: translucent body (`depthWrite: false`, deliberately — avoids
   a self-z-fighting bug on beveled edges) + a traced `EdgesGeometry`
   outline on a simplified sharp-cornered proxy. Trade-off, not an
   oversight: translucent pieces sort by draw order rather than true depth
@@ -16,7 +16,7 @@
   depth, no color) so its outline shell occludes correctly — without it,
   the translucent body's near and far edges both render at once,
   reading as a "trapezoidal double image." If a similar double-image
-  artifact appears anywhere else Neon renders a tumbling/spinning piece,
+  artifact appears anywhere else Futuris renders a tumbling/spinning piece,
   this is the fix to reapply.
 
 Board-edge outline ring (the thin line around the slab) took **three

@@ -975,7 +975,7 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
       bell(t + 1.2, 1046.5, 0.035, sfxBus, 2.4);
     },
     playMenu() { ensureGraph(); if (!ctx) return; paper(now(), 0.25, 0.05); },
-    // An order filled, close by (Neon's toll, in this world): the rubber
+    // An order filled, close by (Futuris's toll, in this world): the rubber
     // stamp coming down on the form, then the counter's register rings
     // it up (a few keys, the bell, the drawer).
     playOrderFilled() {
@@ -1007,7 +1007,7 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
     playDockOpen() { ensureGraph(); if (!ctx) return; paper(now(), 0.18, 0.035, 1300); },
     playDockClose() { ensureGraph(); if (!ctx) return; paper(now(), 0.14, 0.028, 1300); },
     playTubeFlicker,
-    // Neon-only effects; the chassis calls every audio method unconditionally.
+    // Futuris-only effects; the chassis calls every audio method unconditionally.
     playFlicker() {}, playArc() {}, playGlitch() {},
     playSingularityOpen() {}, playSingularityClose() {}, playSingularityBell() {}, playSingularityDismiss() {},
     startSingularityHum() {}, updateSingularityHum() {}, stopSingularityHum() {},

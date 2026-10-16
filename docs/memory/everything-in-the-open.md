@@ -8,8 +8,8 @@ direction). First pass, in the real game, both themes:
   board back as it was earlier this turn (same turn-trail test as the
   refund in commit; never for a crush, shove or the AI). It rides the
   marker's fade via a wrapper (`withCostBadge` in the ghost effect).
-  Colours: Neon uses the side's accent with `inkOnAccent`; Standard uses
-  `bodyDark`/`bodyLight`. `toneMapped: false`, or Neon's cyan dulls.
+  Colours: Futuris uses the side's accent with `inkOnAccent`; Standard uses
+  `bodyDark`/`bodyLight`. `toneMapped: false`, or Futuris's cyan dulls.
   Test hook `__EC_TEST_COST_BADGES__()` -> `[{ dir, text }]`.
 - **Piece card** (`piece-card`, lower left above the full-screen button):
   on your turn, the selected piece's name, how it moves and its cost under
@@ -22,13 +22,13 @@ direction). First pass, in the real game, both themes:
   stays selected and only the card goes (`pieceCardDismissed`, reset when
   the selection or player changes). The unused-points note and Tienda's
   tapped-open "Your order" slip (also Escape) close the same way.
-  Test: `tests/e2e-outside-dismiss.mjs` (neon, tienda, lluvia).
-- **Move costs switch** (user request, first Neon, now every theme): a
+  Test: `tests/e2e-outside-dismiss.mjs` (futuris, tienda, lluvia).
+- **Move costs switch** (user request, first Futuris, now every theme): a
   circled-"1" icon in the dock's corner row, left of the points switch
   (`costs-toggle`). It hides or shows the cost badges on the move
   markers. On by default, and remembered in localStorage
   `el-cabeza:show-move-costs`. A theme opts in with
-  `export const moveCostToggle = true`; Neon, Standard, Cromo and Lluvia
+  `export const moveCostToggle = true`; Futuris, Standard, Cromo and Lluvia
   all do. Standard got it after a Nova report that the numbers on the
   board couldn't be hidden: the points switch hides only the counter. The chassis reads `costsOn`, and the marker
   effect depends on it, so flipping it redraws the markers at once.
@@ -42,12 +42,12 @@ direction). First pass, in the real game, both themes:
   inert (`cornerControlsCovered` in the chassis, from the panel's width
   rule and `window.innerWidth`), then return when it closes. Before this
   they sat on top of the panel's DARK/LIGHT players line on phones.
-  - Both corner controls use `cornerControlsZ` (12 by default). Neon's
+  - Both corner controls use `cornerControlsZ` (12 by default). Futuris's
     useSetupExtras returns 2050 while the SINGULARITY sphere is up: above
     the sphere's full-screen layer (2000, which ate their taps; user
     report), under its menus (2100+) and the rules overlay (2500). They
     are not raised during the collapse or the cut to black.
-- **Custom rules** (`custom-rules`, Neon setup dock, under Anomaly/Begin
+- **Custom rules** (`custom-rules`, Futuris setup dock, under Anomaly/Begin
   Game): calls `revealSingularity`, the same reveal five masthead taps do
   (the taps still work).
 - **Points counter on by default.** `loadShowPoints` is true unless the

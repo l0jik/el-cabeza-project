@@ -34,7 +34,7 @@ const BOARD = { rows: 12, cols: 10 };
 const VIEW = { width: 1100, height: 800 };
 const WORLDS = [
   { page: "standard", look: "den" },
-  { page: "neon", look: "neon" },
+  { page: "futuris", look: "futuris" },
   { page: "tienda", look: "store", opening: "tienda-open-box" },
   { page: "lluvia", look: "lluvia", opening: "lluvia-straight-to-board" },
   { page: "cromo", look: "cromo" },
@@ -219,8 +219,8 @@ for (const world of WORLDS) {
 
 /* ---- a plain game says so; the game over, it's gone ---- */
 {
-  console.log("[neon, a plain game]");
-  const { context, page, errs } = await open({ page: "neon" }, { laws: null, board: null });
+  console.log("[futuris, a plain game]");
+  const { context, page, errs } = await open({ page: "futuris" }, { laws: null, board: null });
   await begin(page);
   const s = await poll(() => menuState(page));
   check(`the tab: the standard game ("${s && s.tab.trim()}")`, !!s && /STANDARD/i.test(s.tab) && /10\s*×\s*10/.test(s.tab), s && s.tab);

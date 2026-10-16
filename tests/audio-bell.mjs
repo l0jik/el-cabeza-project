@@ -1,4 +1,4 @@
-/* Clipping check for the SINGULARITY bell toll (themes/neon.js,
+/* Clipping check for the SINGULARITY bell toll (themes/futuris.js,
    playSingularityBell) and everything else sounding in the same window.
 
    Every connection to ctx.destination is re-routed, before the page's
@@ -25,9 +25,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const file = path.join(__dirname, "..", "dist", "el-cabeza-neon.html");
+const file = path.join(__dirname, "..", "dist", "el-cabeza-futuris.html");
 const RECORD_MS = 26000; // toll 2s + collapse ~3.2s + the bell's ~21s ring-out
-// Before the output stage (neon.js outStage) this sequence peaked at up to
+// Before the output stage (futuris.js outStage) this sequence peaked at up to
 // 0.98 with 15% of the mix under 30 Hz on the gauge below; after it,
 // 0.5-0.65 and 3-4%; with the bell revoiced for small speakers (its
 // strike was 77% under 80 Hz), 0.49-0.63 and 1.1-1.5%.
@@ -74,7 +74,7 @@ await page.addInitScript(() => {
   };
   const origConnect = AudioNode.prototype.connect;
   AudioNode.prototype.connect = function (dest, ...rest) {
-    // The theme's own last stage (neon.js outStage: subsonic cut and
+    // The theme's own last stage (futuris.js outStage: subsonic cut and
     // limiter) is what master and the bell's bus feed: meter each of
     // them there, and leave the path through that stage as it is.
     if (dest && dest.__ecOutput && !this.__isTap) {

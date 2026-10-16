@@ -1,7 +1,7 @@
 ## 3d. MATTER/LAWS/TOPOLOGIES sphere menu (Part 2 of SINGULARITY_DESIGN.md) — menu BUILT, rules mostly NOT
 
 The sphere's surface now carries a real canvas-texture UV-mapped menu
-(`themes/neon-singularity.js`), raycast-hit-tested against the actual
+(`themes/futuris-singularity.js`), raycast-hit-tested against the actual
 rotated geometry — not a flat DOM overlay. Root labels (MATTER/LAWS/
 TOPOLOGY — note singular "TOPOLOGY" as displayed text, `topologies` is
 still the internal key) sit at three fixed, evenly-spaced longitude
@@ -19,7 +19,7 @@ then a real Begin Game.
 **What's actually wired to gameplay vs. still just UI:**
 - **MATTER — rectangular pieces only, wired and real.** The roster
   (up to 2 Cabeza, plus 1×3/2×3 block toggles) is applied via
-  `applyMatterRoster`/`buildRosterFromSelections` in `themes/neon.js`,
+  `applyMatterRoster`/`buildRosterFromSelections` in `themes/futuris.js`,
   which builds a real `{type,count}[]` roster for the existing
   `generateAnomalySetup`. L-Pentomino and Arch (MATTER's two
   non-convex piece types) are selectable in the UI but **inert** —
@@ -44,7 +44,7 @@ then a real Begin Game.
   size-mismatched board. Actually wiring this needs the chassis to be
   forced through a full remount with the new size already set (e.g. a
   `key` prop keyed on `${rows}x${cols}` on whatever renders
-  `<ElCabeza3D>`, in `apps/neon.jsx`/`apps/unified.jsx`) — a real,
+  `<ElCabeza3D>`, in `apps/futuris.jsx`/`apps/unified.jsx`) — a real,
   deliberately-scoped-out feature, not a quick add. Assessed directly
   with the user and explicitly deferred; later dropped entirely ("forget about this").
 - **TOPOLOGY — Missing Squares, wired and real.** One to five pairs of
@@ -52,7 +52,7 @@ then a real Begin Game.
   below) (same manual-pick-plus-180°-mirror model as Black
   Hole Squares, same ghost-grid picker reused via a `kind` param —
   `PAIRED_SQUARE_KINDS`/`renderPairedSquarePicker`/`renderPairedSquare-
-  PlacementRow` in `themes/neon-singularity.js`) that are simply
+  PlacementRow` in `themes/futuris-singularity.js`) that are simply
   impassable: no wormhole, no teleport, no crush, just a square no
   move's footprint may ever overlap. Deliberately placed under
   TOPOLOGIES rather than as a LAW — it changes the board's playable
@@ -82,7 +82,7 @@ keep reshuffling through blacks/greys/silvers (small ShaderMaterial,
 uTime driven by the effect's own rAF loop), plus ONE continuous open
 square tube of semi-opaque black below the slab, alpha fading with depth
 in its shader — only visible if the camera tilts under the board. Tapping
-a Missing Square with a piece selected plays `playBlocked` (Neon: two
+a Missing Square with a piece selected plays `playBlocked` (Futuris: two
 soft low sine blips, Eb3->C3, a falling minor third; Standard: no-op) and
 keeps the selection. **No piece can ever start on a Black Hole or Missing
 Square:** `applyMatterRoster` returns the pieces it just placed and
@@ -104,7 +104,7 @@ lands on one; the pre-game Anomaly button also avoids the live
   full pipeline end to end, not just the picker UI in isolation).
 - **Sphere arrival, help "?", bell tail.**
   - **North pole faces the player on arrival.** `faceSphereNorthPole`
-    (neon-singularity.js) turns the sphere's parent `s.sphereFrame` so
+    (futuris-singularity.js) turns the sphere's parent `s.sphereFrame` so
     the camera sits on its +Z side. It spins the level sphere so the front
     root label faces the camera, then tilts `rotation.x` by
     `atan2(horizontalDist, dy)` so the pole meets the camera's line of
@@ -118,7 +118,7 @@ lands on one; the pre-game Anomaly button also avoids the live
     focus or tap shows the text. The "?" stops pointer events, so it never
     drags the sphere or counts toward the triple-tap.
   - **The bell rings out past the cut to silence.** `playSingularityBell`
-    (neon.js) routes through its own `bellReverb` → `bellBus` →
+    (futuris.js) routes through its own `bellReverb` → `bellBus` →
     `ctx.destination`, bypassing master. Its gain is `BELL_BUS_GAIN`
     (sfxGain × MASTER_GAIN, the same level as before), and `setMuted`
     follows it. `cutSingularityAudioToSilence` still zeroes everything
@@ -168,7 +168,7 @@ lands on one; the pre-game Anomaly button also avoids the live
 - **"Random" placement is a real spot rolled at setup time**, not a
   deferral to Begin Game (that deferral made a random spot invisible to the
   other feature's picker and read as "random lost my selection").
-  `fillPairedSpots` (neon-singularity.js) stores concrete spots marked
+  `fillPairedSpots` (futuris-singularity.js) stores concrete spots marked
   `random: true` — rolled on the player's side, off the standard opening
   for the chosen board size (`initialPiecesFor(rows, cols)` in
   engine/rules.js), off the other feature's squares, and for Black Holes

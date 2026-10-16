@@ -17,7 +17,7 @@ async function setup(laws) {
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   await page.addInitScript((l) => { window.__EC_TEST_HOOKS__ = true; window.__EC_LAWS__ = l; }, laws);
-  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
   await page.waitForTimeout(1500);
   await page.evaluate((h) => window.__EC_TEST_SET_HOLES__(h), HOLES);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), [
@@ -82,7 +82,7 @@ async function watchStray(page, ms) {
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_LAWS__ = { slide: true, threeActions: true, shoving: true }; });
-  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
   await page.waitForTimeout(1500);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), [
     P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cabeza", "cabeza", "light", 9, 9, 1, 1, 1),

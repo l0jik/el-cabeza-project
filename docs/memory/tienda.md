@@ -122,7 +122,7 @@ box art and an ad standee (assets/tienda/*.jpg).
     uses). Other themes draw squares as a grid (already rebuilt), so they
     don't opt in. e2e-tienda checks plate and paint proportions match.
 - **Sample the wares: 3-D wood pieces in the order form (user request,
-  like Neon's MATTER viewer).** themes/tienda-showcase.js, on the pattern
+  like Futuris's MATTER viewer).** themes/tienda-showcase.js, on the pattern
   of piece-showcase.js (POSES now exported from there): catalog-photo
   stills of each piece in walnut (one short-lived WebGL context for all),
   a "3-D" tag; tapping one (`tienda-view-KEY`) raises the live model out

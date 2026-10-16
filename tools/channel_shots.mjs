@@ -17,7 +17,7 @@ const dist = (f) => "file://" + path.join(ROOT, "dist", f);
 const LAB = ["swiss", "bauhaus", "destijl", "elementarism", "brutalist", "newTypography", "corporateSwiss", "neoBrutalist", "minimalMono", "ultimateFusion"];
 const SHOTS = [
   ["den", dist("el-cabeza-standard.html"), 6500],
-  ["neon", dist("el-cabeza-neon.html"), 6500],
+  ["futuris", dist("el-cabeza-futuris.html"), 6500],
   // (The store with its box opened, the demo table, set into a page of
   // Big Glutts' flyer: bigGlutts below.)
   ["store", dist("el-cabeza-tienda.html"), 7000, { click: '[data-testid="tienda-open-box"]', after: 5000, hideUi: true, frame: bigGlutts }],

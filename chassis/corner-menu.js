@@ -177,9 +177,9 @@ export const LOOKS = {
     .cm-den .ft .mark { color:var(--mus); }
     `,
   },
-  /* Neon: a readout in the light, cut corners, cyan hairlines, a faint
+  /* Futuris: a readout in the light, cut corners, cyan hairlines, a faint
      scan, the numbers in mono. */
-  neon: {
+  futuris: {
     fonts: "family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600",
     tab: (r) => `<span class="dia"></span><span class="tt"><span class="t">Ruleset</span><span class="s">${r.standard ? `STANDARD · ${r.board.cols}×${r.board.rows}` : `${r.laws.length} LAWS · ${r.perSide} PCS · ${r.board.cols}×${r.board.rows}`}</span></span>`,
     L: {
@@ -190,29 +190,29 @@ export const LOOKS = {
       foot: () => `<div class="ft"><span>Δ = not standard</span>${rulesLink("OPEN RULES ▸")}</div>`,
     },
     css: `
-    .cm-neon { --c:#22E4FF; --ink:#DDF6FF; --mut:#7FA3B8; --bg:rgba(7,11,17,.9); color: var(--ink); filter: drop-shadow(0 0 10px rgba(34,228,255,.35)); }
-    .cm-neon .cm-tab { gap:10px; padding:9px 16px 9px 12px; background:var(--bg); border:1px solid rgba(34,228,255,.55); clip-path:polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); }
-    .cm-neon .dia { width:12px; height:12px; border:1.5px solid var(--c); transform:rotate(45deg); box-shadow:0 0 8px var(--c), inset 0 0 4px var(--c); }
-    .cm-neon .tt { display:flex; flex-direction:column; gap:3px; }
-    .cm-neon .t { font:700 13px/1 'Chakra Petch', sans-serif; letter-spacing:.24em; text-transform:uppercase; color:var(--ink); text-shadow:0 0 8px rgba(34,228,255,.7); }
-    .cm-neon .s { font:500 10.5px/1 'IBM Plex Mono', monospace; letter-spacing:.06em; color:var(--mut); }
-    .cm-neon .cm-card { position:relative; padding:16px 18px 14px; background:var(--bg) repeating-linear-gradient(0deg, rgba(34,228,255,.035) 0 1px, transparent 1px 3px); border:1px solid rgba(34,228,255,.55); clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px)); color:var(--ink); }
-    .cm-neon .kick { font:500 10px/1 'IBM Plex Mono', monospace; letter-spacing:.14em; color:var(--c); }
-    .cm-neon h3 { margin:6px 0 0; font:700 24px/1 'Chakra Petch', sans-serif; letter-spacing:.16em; color:#fff; text-shadow:0 0 12px rgba(34,228,255,.8); }
-    .cm-neon .rule { display:block; height:1px; margin:10px 0 2px; background:linear-gradient(90deg, var(--c), rgba(34,228,255,.1)); box-shadow:0 0 6px var(--c); }
-    .cm-neon h4 { display:flex; justify-content:space-between; align-items:baseline; margin:12px 0 5px; font:700 11px/1 'Chakra Petch', sans-serif; letter-spacing:.24em; color:var(--c); }
-    .cm-neon h4 small { font:500 9.5px/1 'IBM Plex Mono', monospace; letter-spacing:.08em; color:var(--mut); margin-left:6px; margin-right:auto; }
-    .cm-neon h4 b { font:600 11px/1 'IBM Plex Mono', monospace; color:var(--mut); }
-    .cm-neon .cm-law { padding:3px 0 3px 10px; border-left:1px solid rgba(34,228,255,.3); margin-bottom:3px; }
-    .cm-neon .cm-name { font:600 13px/1.3 'Chakra Petch', sans-serif; letter-spacing:.08em; text-transform:uppercase; }
-    .cm-neon .cm-set { font:500 10.5px/1.45 'IBM Plex Mono', monospace; color:var(--mut); }
-    .cm-neon .cm-set .k { text-transform:uppercase; } .cm-neon .cm-set .k::after { content:" ▸"; color:var(--c); } .cm-neon .cm-set .v { color:var(--ink); }
-    .cm-neon .cm-pc, .cm-neon .cm-bd { font:500 11.5px/1.75 'IBM Plex Mono', monospace; color:var(--ink); }
-    .cm-neon .cm-pc .n, .cm-neon .cm-bd .k { text-transform:uppercase; letter-spacing:.06em; color:var(--mut); }
-    .cm-neon .cm-pc.changed .c { color:#fff; text-shadow:0 0 8px var(--c); }
-    .cm-neon .cm-pc.changed .c::before { content:"Δ "; color:var(--c); }
-    .cm-neon .ft { display:flex; justify-content:space-between; gap:10px; margin-top:12px; padding-top:8px; border-top:1px solid rgba(34,228,255,.25); font:500 10px/1 'IBM Plex Mono', monospace; color:var(--mut); }
-    .cm-neon .ft .go, .cm-neon .cm-extra { color:var(--c); letter-spacing:.12em; font:500 10px/1 'IBM Plex Mono', monospace; }
+    .cm-futuris { --c:#22E4FF; --ink:#DDF6FF; --mut:#7FA3B8; --bg:rgba(7,11,17,.9); color: var(--ink); filter: drop-shadow(0 0 10px rgba(34,228,255,.35)); }
+    .cm-futuris .cm-tab { gap:10px; padding:9px 16px 9px 12px; background:var(--bg); border:1px solid rgba(34,228,255,.55); clip-path:polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); }
+    .cm-futuris .dia { width:12px; height:12px; border:1.5px solid var(--c); transform:rotate(45deg); box-shadow:0 0 8px var(--c), inset 0 0 4px var(--c); }
+    .cm-futuris .tt { display:flex; flex-direction:column; gap:3px; }
+    .cm-futuris .t { font:700 13px/1 'Chakra Petch', sans-serif; letter-spacing:.24em; text-transform:uppercase; color:var(--ink); text-shadow:0 0 8px rgba(34,228,255,.7); }
+    .cm-futuris .s { font:500 10.5px/1 'IBM Plex Mono', monospace; letter-spacing:.06em; color:var(--mut); }
+    .cm-futuris .cm-card { position:relative; padding:16px 18px 14px; background:var(--bg) repeating-linear-gradient(0deg, rgba(34,228,255,.035) 0 1px, transparent 1px 3px); border:1px solid rgba(34,228,255,.55); clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px)); color:var(--ink); }
+    .cm-futuris .kick { font:500 10px/1 'IBM Plex Mono', monospace; letter-spacing:.14em; color:var(--c); }
+    .cm-futuris h3 { margin:6px 0 0; font:700 24px/1 'Chakra Petch', sans-serif; letter-spacing:.16em; color:#fff; text-shadow:0 0 12px rgba(34,228,255,.8); }
+    .cm-futuris .rule { display:block; height:1px; margin:10px 0 2px; background:linear-gradient(90deg, var(--c), rgba(34,228,255,.1)); box-shadow:0 0 6px var(--c); }
+    .cm-futuris h4 { display:flex; justify-content:space-between; align-items:baseline; margin:12px 0 5px; font:700 11px/1 'Chakra Petch', sans-serif; letter-spacing:.24em; color:var(--c); }
+    .cm-futuris h4 small { font:500 9.5px/1 'IBM Plex Mono', monospace; letter-spacing:.08em; color:var(--mut); margin-left:6px; margin-right:auto; }
+    .cm-futuris h4 b { font:600 11px/1 'IBM Plex Mono', monospace; color:var(--mut); }
+    .cm-futuris .cm-law { padding:3px 0 3px 10px; border-left:1px solid rgba(34,228,255,.3); margin-bottom:3px; }
+    .cm-futuris .cm-name { font:600 13px/1.3 'Chakra Petch', sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+    .cm-futuris .cm-set { font:500 10.5px/1.45 'IBM Plex Mono', monospace; color:var(--mut); }
+    .cm-futuris .cm-set .k { text-transform:uppercase; } .cm-futuris .cm-set .k::after { content:" ▸"; color:var(--c); } .cm-futuris .cm-set .v { color:var(--ink); }
+    .cm-futuris .cm-pc, .cm-futuris .cm-bd { font:500 11.5px/1.75 'IBM Plex Mono', monospace; color:var(--ink); }
+    .cm-futuris .cm-pc .n, .cm-futuris .cm-bd .k { text-transform:uppercase; letter-spacing:.06em; color:var(--mut); }
+    .cm-futuris .cm-pc.changed .c { color:#fff; text-shadow:0 0 8px var(--c); }
+    .cm-futuris .cm-pc.changed .c::before { content:"Δ "; color:var(--c); }
+    .cm-futuris .ft { display:flex; justify-content:space-between; gap:10px; margin-top:12px; padding-top:8px; border-top:1px solid rgba(34,228,255,.25); font:500 10px/1 'IBM Plex Mono', monospace; color:var(--mut); }
+    .cm-futuris .ft .go, .cm-futuris .cm-extra { color:var(--c); letter-spacing:.12em; font:500 10px/1 'IBM Plex Mono', monospace; }
     `,
   },
   /* Big Glutts: the price tag ("Your order") and the typed sales slip it

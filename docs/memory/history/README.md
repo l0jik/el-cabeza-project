@@ -1,5 +1,8 @@
 # The history, part by part
 
+(Neon, all through these notes, is Futuris since 2026-10-16: its files
+and ids were renamed to match, see PROJECT_MEMORY.md, "Neon is Futuris".)
+
 The round-by-round notes, oldest first, as they were appended to
 PROJECT_MEMORY.md until the split (2026-10-10), and since then whenever
 its Recent rounds passed about 300 lines (12 on). Each part starts at a

@@ -3,7 +3,7 @@
    for [slides] only as well in all relevant instances throughout all
    themes. This should be written into the chassis"; asked, one choice for
    slides and rolls alike). Read by the shared menus
-   (themes/rules-selections.js: the store, the worlds' gate menus), Neon's
+   (themes/rules-selections.js: the store, the worlds' gate menus), Futuris's
    sphere, Lluvia's terminal, the corner menu and the rules cards.
 
    Two choices while the Shoving law is on:
@@ -63,7 +63,7 @@ export const OWN_BLOCKS = "A shove pushes only your opponent's pieces: one of yo
    developer). It changes as Orthogonal slide is ticked. `laws` are the
    menu's own: slide, diagonalSlide. The menus keep "Slides only" and
    Orthogonal slide in step (rules-selections.js toggleLaw and setShove,
-   Neon's sphere its own), and the buttons show it when they move, so
+   Futuris's sphere its own), and the buttons show it when they move, so
    the line no longer warns of it (user, of "Turning Orthogonal slide off
    switches this back to Slides and rolls": "a bit opaque ... we should
    take it out"; its twin "Choosing Slides only turns it on" went too). */

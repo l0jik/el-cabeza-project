@@ -15,7 +15,7 @@ The original plan was "shared engine + theme." Comparing the two
 recovered sources function-by-function and effect-by-effect shows a
 third layer sitting between them: most of the React component itself
 — state shape, camera/input math, the JSX skeleton, generic actions
-like Undo/Reset/Copy Log — is **identical** between Standard and Neon.
+like Undo/Reset/Copy Log — is **identical** between Standard and Futuris.
 It isn't game logic (doesn't belong in `engine/`) and it isn't visual
 identity (doesn't belong in `themes/`). Calling it "theme code" and
 duplicating it, or forcing it into the theme plugin, would be wrong
@@ -35,7 +35,7 @@ Evidence this split is real, not assumed:
 
 - All 25 `useState` slots (`pieces`, `currentPlayer`, `selectedId`, …
   through `showInfoOverlay`) are declared identically, in the same
-  order, in both sources. Neon adds exactly 8 more on top
+  order, in both sources. Futuris adds exactly 8 more on top
   (`audioMuted`, `singularityRevealed`, `isFullscreen`, …) — it never
   removes or renames a shared one.
 - Derived flags (`awaitingBegin`, `declutter`, `showTopButton`) are
@@ -44,23 +44,23 @@ Evidence this split is real, not assumed:
   config** for every light in both themes — only `color` and
   `intensity` differ (e.g. the key light: `(9,13,5)`, `castShadow`,
   identical `shadow.mapSize`/bias/radius in both; `0xfff6e8` @ 1.08 in
-  Standard vs `0xcfe9ff` @ 1.02 in Neon).
+  Standard vs `0xcfe9ff` @ 1.02 in Futuris).
 - `tick()` — the animation-frame loop — is 232 lines in Standard and
-  309 in Neon. The extra 77 lines are five item arrays Neon animates
+  309 in Futuris. The extra 77 lines are five item arrays Futuris animates
   (`fxItems`, `digitalGlitchItems`, `voxelShatterItems`,
   `crawlMassItems`, `shockwaveItems`); the camera-damping, ghost-line
   fade, and roll/slide animation code they're interleaved with is
   identical.
 - Audio: 19 distinct `audioRef.current.*` methods, called from 32
-  sites in Neon's component. **Zero** in Standard's. The call sites
+  sites in Futuris's component. **Zero** in Standard's. The call sites
   themselves (e.g. "on piece select," "on turn commit," "on win") are
   places Standard's component reaches too — it just has nothing to
   call there.
 
 One genuine surprise: `isFullscreen`/`toggleFullscreen` exists **only**
-in the recovered Neon source, not Standard's — even though it's
+in the recovered Futuris source, not Standard's — even though it's
 generic browser API code with no theme dependency at all. That's
-noted below as a promotion candidate, not modeled as a Neon feature.
+noted below as a promotion candidate, not modeled as a Futuris feature.
 
 ## Where the two sources actually diverge
 
@@ -74,21 +74,21 @@ Lights, board/slab materials, `EDGE_RADIUS`. Already extracted as
 
 **2. Same shape, different implementation — a function hook per theme.**
 `makeBoardTexture`/`makeGrid` are structurally similar (both draw a
-canvas texture, both build line-geometry grid + border) but Neon's
+canvas texture, both build line-geometry grid + border) but Futuris's
 adds a whole second bloom-texture pass with additive blending that
 Standard's doesn't have. Already extracted as separate functions, one
 per theme, in `themes/*.js` — not merged into one parameterized
-function, because forcing that would either lose Neon's bloom pass or
-leak Neon-only concerns into "shared" code.
+function, because forcing that would either lose Futuris's bloom pass or
+leak Futuris-only concerns into "shared" code.
 
 **3. Genuinely different technique — needs a coarse-grained hook.**
 Piece rendering is the sharpest example. Standard's pieces are opaque
 `MeshStandardMaterial` bodies with an **inflated back-face silhouette
 shell** for the outline (grown by `OUTLINE_T`, rendered `BackSide`).
-Neon's pieces are **translucent** (`opacity < 1`, `depthWrite: false`)
+Futuris's pieces are **translucent** (`opacity < 1`, `depthWrite: false`)
 with an emissive glow, and — per its own code comments — evolved away
 from the inflated-shell technique specifically because it interacts
-badly with translucent depth-sorting; Neon instead traces
+badly with translucent depth-sorting; Futuris instead traces
 `EdgesGeometry` on a simplified sharp-cornered proxy. These are two
 deliberately different rendering strategies, not one function with
 different color arguments. This needs a hook that hands the *whole*
@@ -110,11 +110,11 @@ A theme module (`themes/<name>.js`) exports:
 // destructures COLORS/HEX/EDGE_RADIUS straight off the theme module.
 export const COLORS = { ... };
 export const HEX = { ... };
-export const EDGE_RADIUS = 0.0625; // or 0.03 for Neon
+export const EDGE_RADIUS = 0.0625; // or 0.03 for Futuris
 
 // Modal chrome for the chassis's shared popups (Move Log, Info,
 // Victory placard) and the canvas mount's own background gradient.
-// Not discovered until a screenshot caught Neon's Move Log rendering
+// Not discovered until a screenshot caught Futuris's Move Log rendering
 // in Standard's cream colors — see the "bugs caught" note below.
 export const modalBackdrop = "...";
 export const modalSurface = "...";
@@ -135,7 +135,7 @@ export const lights = {
 export function makeBoardTexture() { ... }   // → THREE.CanvasTexture
 export function makeGrid() { ... }           // → THREE.Group
 
-// Discovered during implementation: Neon's board top face uses
+// Discovered during implementation: Futuris's board top face uses
 // MeshPhysicalMaterial's clearcoat layer for a glossy sheen — a
 // different material class, not just different numbers — so this
 // needed its own hook alongside buildPieceVisual, not a data table.
@@ -147,7 +147,7 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
 }
 
 // A theme with an outline technique that carries no at-rest Y offset
-// (Neon) sets this to 0; Standard's inflated-shell technique needs its
+// (Futuris) sets this to 0; Standard's inflated-shell technique needs its
 // own OUTLINE_T. The chassis always applies `theme.outlineYOffset ?? 0`
 // when a shell enters a roll's pivot rotation, never branching on theme.
 export const outlineYOffset = 0; // or OUTLINE_Y_OFFSET (OUTLINE_T + SHELL_LIFT) for Standard/Tienda
@@ -165,7 +165,7 @@ export const freeCamera = { zoomMin: 4.5, reach: 70, yMin: -8, yMax: 30 }; // or
 
 // Declared capability, not a branch: lets the chassis skip an inert
 // Sound On/Off button for a theme with no audio.
-export const hasAudio = false; // or true for Neon
+export const hasAudio = false; // or true for Futuris
 
 // The theme sets the pixel ratio itself (the den's den-fx.js, the
 // store's tienda-fx.js, Parrish): the chassis then leaves it alone.
@@ -176,7 +176,7 @@ export const hasAudio = false; // or true for Neon
 export const ownsPixelRatio = true; // or undefined
 
 // Every method always exists — Standard's is every method as a no-op,
-// Neon's is createSoundscape(). The chassis calls these unconditionally
+// Futuris's is createSoundscape(). The chassis calls these unconditionally
 // at fixed game-event sites and never branches on "does this theme
 // have audio." One exception, playSlide, and only where the pieces are
 // wood (export const woodPieces = true: the den, the store): a
@@ -203,7 +203,7 @@ export function createAudio() {
 // Ambient visual FX lifecycle — title flicker/spark/letter-burn, turn
 // halo pulse, VHS glitch + Scanimate/Vidicon rare variants, jitter-tear,
 // board arcs, crawling voxel mass, floor wave, digital-interior/
-// voxel-shatter piece effects, all ported for Neon (themes/neon.js).
+// voxel-shatter piece effects, all ported for Futuris (themes/futuris.js).
 // Chassis calls these at mount (via this call itself), Begin Game
 // click (armOnBegin), New Game/undo-past-a-win (restart), every
 // animation frame (tick), and unmount (dispose); it passes refs to the
@@ -237,8 +237,8 @@ export function mountAmbientEffects(refs, helpers) {
 // this screen; the Singularity sphere keeps its size by it).
 
 // JSX injection slot for theme-exclusive UI with no shared equivalent
-// (Neon's Anomaly button + Singularity easter egg — NOT YET PORTED,
-// see themes/neon.js). Returns JSX or null; rendered inside the
+// (Futuris's Anomaly button + Singularity easter egg — NOT YET PORTED,
+// see themes/futuris.js). Returns JSX or null; rendered inside the
 // chassis's pre-game setup block.
 export function renderSetupExtras(props) { return null; }
 
@@ -246,7 +246,7 @@ export function renderSetupExtras(props) { return null; }
 // once via <style>{theme.styleSheet}</style>.
 export const styleSheet = `...`;
 
-// Global SVG <defs> (Neon's VHS-glitch warp filters — feTurbulence/
+// Global SVG <defs> (Futuris's VHS-glitch warp filters — feTurbulence/
 // feDisplacementMap can't be expressed as pure CSS). Not in the
 // original sketch; discovered when porting the VHS glitch profiles
 // that reference url(#ec-warp-a). Written with React.createElement,
@@ -269,7 +269,7 @@ the board's own, tagged `bench-piece` / `bench-shell` so nothing that
 looks for the board's pieces finds them. A theme may name the bench and
 the rows (`setOutWords: { bench, rows }`, optional). Every way a game is
 begun from a menu (the dock, the phone's bar, `beginCustomGame` from a
-world's own menus, the reality gate, Neon's sphere) goes through the
+world's own menus, the reality gate, Futuris's sphere) goes through the
 chassis's `beginOrSetOut`; a replay and a theme's own story begin go
 straight to `triggerBeginGame`.
 
@@ -303,7 +303,7 @@ built alongside it. `npm test` runs three layers:
 This verification found real bugs before they shipped, not just after
 the fact: a missing `cabezaInDanger` import (phase 2); the Move Log
 popup and canvas gradient using hardcoded Standard color literals
-instead of theme tokens (caught by screenshotting the Neon build); and
+instead of theme tokens (caught by screenshotting the Futuris build); and
 twice during the ambient-FX port, a `Cannot read properties of
 undefined` crash from `weightGroup`/`fxGroup` being added to the scene
 but never assigned back onto the shared `three.current` object the
@@ -354,7 +354,7 @@ reverting after 2 seconds.
 
 The Anomaly random-setup button and the Singularity easter egg are now
 ported too. Their underlying logic (`generateAnomalySetup`,
-`PIECE_ORIENTATIONS`) had been in `themes/neon.js` since phase 2; this
+`PIECE_ORIENTATIONS`) had been in `themes/futuris.js` since phase 2; this
 phase wired the JSX and added a hook the earlier interface sketch
 hadn't anticipated:
 
@@ -376,7 +376,7 @@ export function useSetupExtras({ awaitingBegin, pieces, setPieces }) {
 `renderSetupExtras` needed a signature change from the original sketch
 too: it now receives `{ beginGameButton, ...setupExtras }` and returns
 the *entire* pre-game row/column, not just something appended after
-Begin Game — Neon's Anomaly button sits **beside** Begin Game, not
+Begin Game — Futuris's Anomaly button sits **beside** Begin Game, not
 after it, so the theme needs to place the chassis-supplied button
 itself rather than only being handed a slot below it. A theme that
 returns `null` (Standard) gets the chassis's own default single-button
@@ -397,7 +397,7 @@ presence — an initial version of this test asserted on the wrong
 element and reported a false failure, caught by checking the real
 inline style directly rather than trusting a guessed selector).
 
-One knowable gap: this ports the *recovered* Neon source's Singularity
+One knowable gap: this ports the *recovered* Futuris source's Singularity
 CSS, which — per this session's own earlier task history — predates a
 later polish pass ("33% smaller letters, bold removed, immediate
 pulse-on-unlock, fixed padding, calmer plasma") applied directly to

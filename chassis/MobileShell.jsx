@@ -19,7 +19,7 @@ import { sideNamesOf, sideDotStyle } from "../themes/side-names.js";
 
    Everything here drives the chassis's own handlers (see the `ctl`
    object ElCabeza3D builds), so the phone plays exactly the same game.
-   Colours and faces come from the theme, so Standard and Neon each look
+   Colours and faces come from the theme, so Standard and Futuris each look
    like themselves. The bar reports the room it takes (onInsets) and the
    camera frames the board in the space that's left. */
 
@@ -72,7 +72,7 @@ export default function MobileShell({ ctl }) {
   // board's framing doesn't jump as the bar's contents change; setup's
   // taller bar is handled by the chassis's own pre-game framing.
   const sideW = Math.min(SIDE_MAX, Math.round(vp.w * 0.44)) + safe.right;
-  // While a theme's cinematic has the screen (Neon's Singularity) the
+  // While a theme's cinematic has the screen (Futuris's Singularity) the
   // bars are away; once it has gone black (ctl.fullFrame) the camera gets
   // the whole screen.
   useEffect(() => {
@@ -128,7 +128,7 @@ export default function MobileShell({ ctl }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
-  // A cinematic taking the screen (Neon's Singularity) closes the menu, as
+  // A cinematic taking the screen (Futuris's Singularity) closes the menu, as
   // does a theme's scene putting every sheet away (ctl.shutMenu).
   useEffect(() => { if (ctl.hidden) setMenuOpen(false); }, [ctl.hidden]);
   useEffect(() => { if (ctl.shutMenu) setMenuOpen(false); }, [ctl.shutMenu]);

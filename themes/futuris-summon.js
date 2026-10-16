@@ -1,4 +1,4 @@
-/* The summons (Nova, the first arrival in Neon from the den's television,
+/* The summons (Nova, the first arrival in Futuris from the den's television,
    until the Singularity has been visited; user's choice, idea 5 of the
    mock-ups): the way in shows itself.
 
@@ -20,20 +20,20 @@
 
    Meanwhile the board takes no input (a shield over the canvas) and the
    dock is put away: the one thing that answers is the singularity. A
-   tap on it opens the SINGULARITY invite (summonBridge.reveal, Neon's
+   tap on it opens the SINGULARITY invite (summonBridge.reveal, Futuris's
    revealSingularity); the invite taken up, the toll begins, and this
    stands down (t.singularity.phase leaves "idle"), putting the pieces
    back as they were for the collapse.
 
-   Its sound (themes/neon-summon-audio.js, the user's "C6"): a low hum
+   Its sound (themes/futuris-summon-audio.js, the user's "C6"): a low hum
    growing from silence, and the thunder that brings each wave; a
    full-range mix on a computer, a phone-speaker mix on a phone. */
 
 import * as THREE from "three";
 import { getBoardDimensions, ORBIT_SENS_THETA, ORBIT_SENS_PHI } from "../engine/constants.js";
-import { createSummonSound, summonMixFor } from "./neon-summon-audio.js";
+import { createSummonSound, summonMixFor } from "./futuris-summon-audio.js";
 
-// Set by Nova's Neon (apps/unified.jsx) each render: Neon's own reveal.
+// Set by Nova's Futuris (apps/unified.jsx) each render: Futuris's own reveal.
 export const summonBridge = { reveal: null };
 
 const WAVES = 6;
@@ -168,7 +168,7 @@ export function mountSummon(three, { delay = 300, audio = null, cam = null } = {
   /* ---- the singularity: the Singularity's own sphere (user: "make it
      look like when you go to the singularity sphere"): black, its edge
      glowing blue in a thin Fresnel "photon ring" that breathes slowly
-     (neon-singularity.js SPHERE_FRAGMENT: pow 2.5, the same blue, 22%
+     (futuris-singularity.js SPHERE_FRAGMENT: pow 2.5, the same blue, 22%
      breathing at 1.1 rad/s), and a halo hugging that edge just outside
      it (user: the ring sits directly on the edge of the black disk). ---- */
   const group = new THREE.Group();
@@ -530,7 +530,7 @@ export function mountSummon(three, { delay = 300, audio = null, cam = null } = {
   }
 
   // (fade: how fast its hum goes; opts.last: the closing clap of thunder,
-  // whose tail rings on into the sphere, neon-summon-audio.js.)
+  // whose tail rings on into the sphere, futuris-summon-audio.js.)
   function end(fade = 0.35, opts) {
     if (!active) return;
     active = false;
@@ -546,7 +546,7 @@ export function mountSummon(three, { delay = 300, audio = null, cam = null } = {
   }
 
   if (typeof window !== "undefined") {
-    // Test-only: stand it down (the tests that need Neon's own menus).
+    // Test-only: stand it down (the tests that need Futuris's own menus).
     if (window.__EC_TEST_HOOKS__) window.__EC_SUMMON_END__ = () => end();
     window.__EC_SUMMON__ = () => {
       if (!active) return { active: false };

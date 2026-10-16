@@ -241,7 +241,7 @@ setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, can
 console.log("[missing squares] wormhole ejection onto a missing square refused");
 
 // pickMissingSquares' own avoid list (used to keep it off Black Hole
-// Squares' cells when both are active — see themes/neon-singularity.js's
+// Squares' cells when both are active — see themes/futuris-singularity.js's
 // buildMissingSquaresPlacement) and its path guard: a 2x3 board has three
 // mirror pairs, (0,0)/(1,2), (0,1)/(1,1) and (0,2)/(1,0). The middle pair
 // would cut the board in two, and reserving the first must then leave

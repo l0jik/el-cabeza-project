@@ -1,5 +1,5 @@
 /* Core move/board rules for El Cabeza. Verified byte-for-byte identical
-   between the Standard and Neon theme sources before extraction — see
+   between the Standard and Futuris theme sources before extraction — see
    build/scratch/. Pure logic: no React, no Three.js, no DOM. */
 
 import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, MISSING_SQUARES, SLIDE_COST, OPA_MOVE_COST, maxPiecesPerTurn, moveCost, PIVOT_KEYS } from "./constants.js";

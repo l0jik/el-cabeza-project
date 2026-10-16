@@ -17,7 +17,7 @@
    6. The south wall's doorway opens onto a hall; the coffee table has its
       snack mix, piece by piece.
    7. Nova (phone menu): its "Choose music" opens the music panel;
-      Standard (the den) to Neon, where the den is gone, and back to
+      Standard (the den) to Futuris, where the den is gone, and back to
       Standard, where it's built again. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
@@ -513,7 +513,7 @@ async function waitFor(fn, ms = 8000) {
 }
 
 {
-  console.log("Nova: the den, Neon, and back");
+  console.log("Nova: the den, Futuris, and back");
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
   const errs = [];
@@ -539,7 +539,7 @@ async function waitFor(fn, ms = 8000) {
   check("...which puts the menu away and opens the music panel", (await q(page, "music-panel").count()) === 1);
   await page.mouse.click(8, 300); // outside the panel puts it away
   await page.waitForTimeout(300);
-  // Into Neon the menu turns on the TV (no prompt); back, the prompt.
+  // Into Futuris the menu turns on the TV (no prompt); back, the prompt.
   const switchTheme = async (prompt) => {
     await q(page, "shell-menu-button").click();
     await page.waitForTimeout(300);
@@ -557,11 +557,11 @@ async function waitFor(fn, ms = 8000) {
     await page.locator(".ec-hold-modal-word").click({ force: true });
   };
   await switchTheme(false);
-  check("switched to Neon, through the TV", await waitFor(async () => (await q(page, "shell-anomaly").count()) > 0, 30000));
-  await page.waitForFunction(() => window.__EC_SUMMON__ && window.__EC_SUMMON__().active, null, { timeout: 30000 }).catch(() => {}); await page.evaluate(() => window.__EC_SUMMON_END__ && window.__EC_SUMMON_END__()); // (the first arrival's summons, themes/neon-summon.js: its own test)
+  check("switched to Futuris, through the TV", await waitFor(async () => (await q(page, "shell-anomaly").count()) > 0, 30000));
+  await page.waitForFunction(() => window.__EC_SUMMON__ && window.__EC_SUMMON__().active, null, { timeout: 30000 }).catch(() => {}); await page.evaluate(() => window.__EC_SUMMON_END__ && window.__EC_SUMMON_END__()); // (the first arrival's summons, themes/futuris-summon.js: its own test)
   check("...and the den has gone with Standard", await page.evaluate(() => window.__DEN_ROOM__ === false && !window.__DEN_THREE__));
   await page.waitForTimeout(1200);
-  // In Neon the menu has no way back to the den while the story's on
+  // In Futuris the menu has no way back to the den while the story's on
   // (user: no teleporting back before everything's unlocked); home as the
   // Singularity's BACK goes.
   await q(page, "shell-menu-button").click();

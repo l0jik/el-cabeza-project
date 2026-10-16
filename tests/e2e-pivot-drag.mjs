@@ -19,7 +19,7 @@ async function trial(name, from, dir, selectFirst) {
   page.on("console", (m) => { if (/DBG/.test(m.text())) console.log("   " + m.text()); });
   const errs = []; page.on("pageerror", (e) => errs.push(e.message));
   await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_LAWS__ = { cantileverPivot: true }; });
-  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
   await page.waitForTimeout(1500);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), POS);
   await page.waitForTimeout(300);

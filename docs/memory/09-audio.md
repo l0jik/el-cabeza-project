@@ -2,7 +2,7 @@
 
 Every theme's `createAudio()` interface exposes the **same full set of
 methods always** (no-ops where inapplicable) — the chassis never branches
-on "does this theme have audio." Both Standard and Neon currently have
+on "does this theme have audio." Both Standard and Futuris currently have
 `hasAudio = true`.
 
 - **Master-gain-per-subsystem is a hard rule for mute to work.** This was
@@ -17,7 +17,7 @@ on "does this theme have audio." Both Standard and Neon currently have
   the standalone single-theme builds, which pass neither, are
   unaffected). Any new independent audio subsystem must follow the same
   routing pattern from day one.
-- Neon's audio engine splits `ensureGraph()` (builds routing, doesn't
+- Futuris's audio engine splits `ensureGraph()` (builds routing, doesn't
   start the ambient bed) from `ensureStarted()` (also starts the bed) —
   needed so pre-Begin-Game sounds (Singularity reveal, Info overlay
   choir, Anomaly blip) can play without waking the ambient hum meant to

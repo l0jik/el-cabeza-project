@@ -3,7 +3,7 @@
    and turning Cantilever Pivot on with none of them ordered flashes the
    warning, jumps to them (over to the pieces panel where that's another
    one) and flashes them; a tap on the warning shows it again. Tienda's
-   order form, the gate's sheet (Cromo), Lluvia's city panels. Neon's
+   order form, the gate's sheet (Cromo), Lluvia's city panels. Futuris's
    sphere: e2e-singularity.
 
    node tests/e2e-pivot-guide.mjs */

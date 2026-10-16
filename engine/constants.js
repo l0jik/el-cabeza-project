@@ -1,9 +1,9 @@
 /* Shared board/camera/animation constants for El Cabeza's 3D engine.
    Verified byte-for-byte identical (after stripping comments) between
-   the Standard and Neon theme sources before being extracted here —
+   the Standard and Futuris theme sources before being extracted here —
    see build/scratch/ for the diff. The one genuine per-theme constant,
    EDGE_RADIUS (piece bevel radius), lives in each theme file instead,
-   since Standard and Neon deliberately use different values (0.0625 vs
+   since Standard and Futuris deliberately use different values (0.0625 vs
    0.03). */
 
 /* Board dimensions are a RUNTIME parameter, not a fixed constant — see
@@ -304,7 +304,7 @@ export function getBoardDimensions() {
    unaffected. Mutable via setActiveLaws the same way board dimensions
    are: a plain object REPLACED (not mutated) on change, so importers
    holding the live binding see the new object. Only reachable today
-   via the sphere's own LAWS menu (themes/neon-singularity.js) at
+   via the sphere's own LAWS menu (themes/futuris-singularity.js) at
    Begin Game time — see finalizeSingularityBegin. */
 export let ACTIVE_LAWS = {
   splitMovement: false,

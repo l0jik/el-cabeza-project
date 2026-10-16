@@ -45,7 +45,7 @@ No critical (data-loss, security, crash) issues were found.
   `useSetupExtras`, `renderExtraOverlays`, `dockWords`, …) lets seven
   very different worlds share one game without forking it.
 - Theme subsystems are factored into small focused modules (den-trip,
-  den-hall, den-ending, den-cards, neon-unease, pivot-guide …) that each
+  den-hall, den-ending, den-cards, futuris-unease, pivot-guide …) that each
   own their DOM, sound and teardown.
 - `tools/` makes every processed asset reproducible from its source,
   with the processing documented in each script's header.
@@ -85,7 +85,7 @@ None.
 |---|---|---|---|---|
 | M1 | `apps/unified.jsx` (hold-zone sync) | An endless rAF loop does a `querySelector`, a `getBoundingClientRect` and **four style writes every frame** for the life of Nova, invalidating layout each frame even when the title hasn't moved. | Write only when the rect changed. **[fixed]** | XS |
 | M2 | `apps/novaStory.jsx` `saveStoreGone`, `saveOwned` | Two writers replace the whole story record while every other writer merges (`patchStory`). Harmless in today's story order, but one reorder away from wiping `hallDue`/`hallFlares`/`ended`. | `saveStoreGone` merges. **[fixed]** `saveOwned(true)` stays a deliberate fresh start (a purchase always follows a cleared record). | XS |
-| M3 | Build: 5 of 7 pages unminified | Nova ships 3.9 MB of JS (1.27 MB gzip); minified it is 2.5 MB (1.11 MB gzip). Parse cost on phones scales with raw size. Tienda and Lab are already minified with no issues. | Minify all targets, then run the full e2e suite. **[fixed]** Every page and the worker now minified: Nova 2.5 MB, Standard 1.5 MB, Neon 1.4 MB, Tienda 1.6 MB, Lab 1.1 MB, Lluvia 1.1 MB, Cromo 1.0 MB, worker 24 KB (was 56 KB). | S |
+| M3 | Build: 5 of 7 pages unminified | Nova ships 3.9 MB of JS (1.27 MB gzip); minified it is 2.5 MB (1.11 MB gzip). Parse cost on phones scales with raw size. Tienda and Lab are already minified with no issues. | Minify all targets, then run the full e2e suite. **[fixed]** Every page and the worker now minified: Nova 2.5 MB, Standard 1.5 MB, Futuris 1.4 MB, Tienda 1.6 MB, Lab 1.1 MB, Lluvia 1.1 MB, Cromo 1.0 MB, worker 24 KB (was 56 KB). | S |
 | M4 | Theme interface | 43 `theme.*` hooks read by the chassis are documented only partly (ARCHITECTURE.md lists the early ones). | A table of every hook (name, when called, return shape) in ARCHITECTURE.md. | S |
 | M5 | `ARCHITECTURE.md` header | Says phase 3 "is a design sketch, not yet implemented … none of this is wired up", contradicting its own "as built" section and the code. | Correct the header. **[fixed]** | XS |
 | M6 | `README.md` | Empty. A newcomer can't find how to build, test, or where anything is. | Short README: layout, commands, test runner, docs. **[fixed]** | XS |
@@ -104,7 +104,7 @@ None.
   enough that consolidating them buys little; `poll` could join
   `tests/dock-helpers.mjs` when tests are next touched.
 - **Legacy reference sources at the root:** `el_cabeza_3d.jsx` (4.8k
-  lines) and `el-cabeza-neon-3d.html` (7.7k) are the recovered originals
+  lines) and `el-cabeza-futuris-3d.html` (7.7k) are the recovered originals
   the chassis was extracted from. They aren't built, but code comments
   cite them by path. Keep them; consider moving them to `reference/`
   together with those comments.
@@ -121,7 +121,7 @@ None.
 - **Main render loop (GOOD):** the chassis `tick()` allocates nothing per
   frame (one `clone()` at the start of a camera glide); camera damping
   is frame-rate independent; `dt` is clamped against long stalls.
-- **Theme ticks (GOOD):** neon, cromo, lluvia and tienda ticks do no DOM
+- **Theme ticks (GOOD):** futuris, cromo, lluvia and tienda ticks do no DOM
   reads or allocations. The den's `querySelector` in its tick runs only
   after every cheaper condition has failed.
 - **Covered rendering (GOOD):** the revelation scene stops the den from

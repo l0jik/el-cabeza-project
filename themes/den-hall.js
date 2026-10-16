@@ -1,6 +1,6 @@
 /* The hall (user): home from the closed Big Glutts, the game goes on; four
    moves in, the hallway doorway starts throwing out light, flashing,
-   bizarre, with slow booms like the thunder when Neon first came (the
+   bizarre, with slow booms like the thunder when Futuris first came (the
    summons). The camera goes over to look at the doorway on its own;
    "Oh no… now what?"; and a choice: Investigate, or Just keep playing
    (this day's been weird enough already), in which case it dies down and

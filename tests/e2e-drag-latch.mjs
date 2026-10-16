@@ -59,7 +59,7 @@ const flip = pageName === "el-cabeza-tienda.html" ? -1 : 1;
 // low, right turns it as from high: theta up.)
 const low = pageName === "el-cabeza-tienda.html" ? 1 : -1;
 const VIEWS = [["play view", { dollhouse: false, phi: Math.min(start.phi, 0.8), radius: start.radius, theta: start.theta }, false]];
-if (pageName !== "el-cabeza-neon.html") VIEWS.push(["Room view", { dollhouse: true, phi: 0.6, radius: 82, theta: start.theta }, true]);
+if (pageName !== "el-cabeza-futuris.html") VIEWS.push(["Room view", { dollhouse: true, phi: 0.6, radius: 82, theta: start.theta }, true]);
 for (const [name, state, room] of VIEWS) {
   console.log(`\n${name}`);
   const reset = async () => { await cam(state); await page.waitForTimeout(500); };

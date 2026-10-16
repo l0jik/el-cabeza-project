@@ -71,13 +71,13 @@ since radius/phi can change independently afterward):
   can't really move around in the room at all... panning feels far, far
   too restrictive", and asked, the user chose to let the den and the store
   look around: zoom closer, pan anywhere over the board and out into the
-  room, the board may leave the screen, Reset view brings it back; Neon
+  room, the board may leave the screen, Reset view brings it back; Futuris
   keeps its limits. A theme sets `freeCamera` (standard.js `{ zoomMin:
   4.5, reach: 70, yMin: -8, yMax: 30 }`, tienda.js `{ zoomMin: 4.5,
   reach: 60, yMin: -14, yMax: 30 }`): the per-frame clamp is then only a
   reach (the target within `reach` of the board's middle across, between
   yMin and yMax up and down, inside the room's walls), and pinch/wheel
-  zoom go in to `zoomMin` instead of ZOOM_MIN. Every other theme (Neon,
+  zoom go in to `zoomMin` instead of ZOOM_MIN. Every other theme (Futuris,
   Cromo, Lluvia, the Lab's) keeps the 50%/75% clamp above unchanged.
   A room may also let the camera further out than ZOOM_MAX_FOR_BOARD
   (`freeCamera.zoomMax`, the larger of the two wins; the store's is 82,
@@ -86,7 +86,7 @@ since radius/phi can change independently afterward):
 
 Other camera facts: near plane raised `0.1 → 1` (fixes a depth-sort
 flicker during rotation, 10x tighter near:far ratio); max pitch capped at
-`1.25` rad (was `1.45`) specifically to stay clear of a Neon
+`1.25` rad (was `1.45`) specifically to stay clear of a Futuris
 translucent-piece depth-sort artifact at grazing angles (§7, not fully
 fixed at the rendering level, this is the accepted mitigation). Pre-game
 camera auto-fits between masthead and dock (bisects on vertical gap AND

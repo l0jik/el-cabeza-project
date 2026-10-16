@@ -29,7 +29,7 @@ const LAB = [
 
 export const WORLDS = [
   { id: "den", name: "The Den, 1975", line: "Home. The fire, the records, the set.", nova: "standard" },
-  { id: "neon", name: "Neon", line: "The board in light, at the edge of the Singularity.", nova: "neon" },
+  { id: "futuris", name: "Futuris", line: "The board in light, at the edge of the Singularity.", nova: "futuris" },
   // (User: "everyone's favorite department store...just like the day you
   // found the game"; the clerk scene's narration calls it the same.)
   { id: "store", name: "Big Glutts", line: "Everyone's favorite department store, just like the day you found the game.", nova: "tienda" },
@@ -148,7 +148,8 @@ export function saveLastWorld(id) {
   try { if (id && WORLDS.some((w) => w.id === id)) window.localStorage.setItem(LAST_WORLD_KEY, id); } catch (e) { /* this visit only */ }
 }
 export function lastWorld() {
-  try { const id = window.localStorage.getItem(LAST_WORLD_KEY); return WORLDS.find((w) => w.id === id) || null; } catch (e) { return null; }
+  // (Futuris was Neon: a world kept under the old name is the same one.)
+  try { const kept = window.localStorage.getItem(LAST_WORLD_KEY); const id = kept === "neon" ? "futuris" : kept; return WORLDS.find((w) => w.id === id) || null; } catch (e) { return null; }
 }
 /* `continueWorld`: a world to offer first, on its own ("Continue in
    Orinoco"), above the rest. */

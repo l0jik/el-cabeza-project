@@ -19,7 +19,7 @@
   `requestAnimationFrame`** as the draw — these canvases have no
   `preserveDrawingBuffer`.
 - The masthead title is deliberately split into per-letter `<span>`s —
-  several Neon effects (scanline `background-clip: text`, phosphor
+  several Futuris effects (scanline `background-clip: text`, phosphor
   ghosting, per-letter flash/desync, raster tear) address individual
   glyphs and depend on this structure; don't collapse it back to a plain
   text node. At very small sizes (the relocated badge) the scanline's
@@ -33,7 +33,7 @@
   effects must animate a separate **inner** ref (`titleFxRef`), never the
   outer positioned wrapper, or a glitch pulse visibly snaps the corner
   badge to full size mid-game.
-- The Neon dock-piece "trapezoidal double image" fix (§7's depth-only
+- The Futuris dock-piece "trapezoidal double image" fix (§7's depth-only
   pre-pass) is currently only applied to the dock preview piece — if
   translucent pieces are ever rendered spinning/tumbling somewhere else,
   this same fix will likely be needed there too.

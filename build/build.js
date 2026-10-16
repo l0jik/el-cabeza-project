@@ -45,19 +45,19 @@ const DEN_RECORDS = {
   "el-cabeza-trip-dusk.jpg": "assets/den/trip/glutts-dusk.jpg",
   // The other realities' pictures (themes/realities.js: the den's set after
   // the story, and the realities menu; tools/channel_shots.mjs).
-  ...Object.fromEntries(["den", "neon", "store", "lluvia", "cromo", "plano", "luna", "noir", "ciudad", "parrish-orinoco", "parrish-watermark", "lab-swiss", "lab-bauhaus", "lab-destijl", "lab-elementarism", "lab-brutalist",
+  ...Object.fromEntries(["den", "futuris", "store", "lluvia", "cromo", "plano", "luna", "noir", "ciudad", "parrish-orinoco", "parrish-watermark", "lab-swiss", "lab-bauhaus", "lab-destijl", "lab-elementarism", "lab-brutalist",
     "lab-newTypography", "lab-corporateSwiss", "lab-neoBrutalist", "lab-minimalMono", "lab-ultimateFusion"].map((id) => [`el-cabeza-channel-${id}.jpg`, `assets/den/channels/${id}.jpg`])),
 };
 
 // The Singularity's first visit, after the ring: the user's industrial
-// drone, looped (tools/neon_sphere_drone.py; themes/neon-unease.js createDrone).
-const SPHERE_FILES = { "el-cabeza-neon-sphere-drone.mp3": "assets/neon/sphere-drone.mp3" };
-DEN_RECORDS["el-cabeza-neon-sphere-drone.mp3"] = SPHERE_FILES["el-cabeza-neon-sphere-drone.mp3"];
+// drone, looped (tools/futuris_sphere_drone.py; themes/futuris-unease.js createDrone).
+const SPHERE_FILES = { "el-cabeza-futuris-sphere-drone.mp3": "assets/futuris/sphere-drone.mp3" };
+DEN_RECORDS["el-cabeza-futuris-sphere-drone.mp3"] = SPHERE_FILES["el-cabeza-futuris-sphere-drone.mp3"];
 
 // Beside every page: ABOUT's original-game cue (chassis ORIGINAL_CUE_URL).
 const COMMON_FILES = { "el-cabeza-original-cue.mp3": "assets/original-cue.mp3" };
-// Beside the pages with Neon's Singularity: the lost hand (neon-singularity.js).
-const LOST_HAND = { "el-cabeza-lost-hand-wire.webp": "assets/neon/lost-hand-wire.webp", "el-cabeza-lost-hand-skin.webp": "assets/neon/lost-hand-skin.webp" };
+// Beside the pages with Futuris's Singularity: the lost hand (futuris-singularity.js).
+const LOST_HAND = { "el-cabeza-lost-hand-wire.webp": "assets/futuris/lost-hand-wire.webp", "el-cabeza-lost-hand-skin.webp": "assets/futuris/lost-hand-skin.webp" };
 Object.assign(SPHERE_FILES, LOST_HAND);
 Object.assign(DEN_RECORDS, LOST_HAND);
 
@@ -71,7 +71,7 @@ const targets = [
   // The den's records (themes/standard.js DEN_TRACKS), files beside the
   // page like Tienda's reels: fetched when played. Nova's den reads the same.
   { name: "standard", entry: "apps/standard.jsx", title: "El Cabeza", files: DEN_RECORDS },
-  { name: "neon", entry: "apps/neon.jsx", title: "Neon Cabeza", files: SPHERE_FILES },
+  { name: "futuris", entry: "apps/futuris.jsx", title: "Futuris Cabeza", files: SPHERE_FILES },
   { name: "cromo", entry: "apps/cromo.jsx", title: "Cromo Cabeza" },
   // Plano: the game drawn as a blueprint, its city alive round the board.
   { name: "plano", entry: "apps/plano.jsx", title: "Plano Cabeza", head: '<meta name="theme-color" content="#1D4C8A">' },
@@ -221,6 +221,24 @@ writeFileSync(
 `
 );
 console.log("built dist/el-cabeza-unified.html (redirect to Nova)");
+
+/* Futuris was Neon until 2026-10-16 (user: "Change all "neon" references
+   to "futuris""), published as el-cabeza-neon.html, and that link has been
+   shared too: the same kind of page, forwarding to Futuris with any
+   ?query or #hash. */
+writeFileSync(
+  "dist/el-cabeza-neon.html",
+  `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Futuris Cabeza</title>
+<meta http-equiv="refresh" content="0; url=el-cabeza-futuris.html">
+<link rel="canonical" href="el-cabeza-futuris.html">
+<script>location.replace("el-cabeza-futuris.html" + location.search + location.hash);</script>
+</head><body style="background:#05070c;color:#eee;font-family:system-ui,sans-serif">
+<p>This world is now <a href="el-cabeza-futuris.html" style="color:#4de8ff">Futuris</a>.</p>
+</body></html>
+`
+);
+console.log("built dist/el-cabeza-neon.html (redirect to Futuris)");
 
 /* ---- the front page's versions (front/*.html; the pictures the pages
    use, assets/front/*.webp and *.svg, under dist/front/). Each version

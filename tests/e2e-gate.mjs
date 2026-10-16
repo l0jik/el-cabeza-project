@@ -87,9 +87,9 @@ console.log("Cromo: back to Cabeza Nova after a Standard Cabeza game");
 // ...and on Nova's phone layout (the bar), in its menu.
 console.log("Nova on a phone, the bar: Cabeza Nova in the menu after a Standard Cabeza game");
 {
-  const { p, ctx, errs } = await open("el-cabeza-nova.html?world=neon", { viewport: { width: 390, height: 844 } });
+  const { p, ctx, errs } = await open("el-cabeza-nova.html?world=futuris", { viewport: { width: 390, height: 844 } });
   await p.evaluate(() => localStorage.setItem("el-cabeza:nova-layout", "bar"));
-  await p.goto(DIST + "el-cabeza-nova.html?world=neon");
+  await p.goto(DIST + "el-cabeza-nova.html?world=futuris");
   await gateOn(p);
   await p.locator('[data-testid="gate-standard"]').click();
   await poll(() => p.evaluate(() => window.__EC_TEST_ARMED__ === true), 6000);
@@ -345,16 +345,16 @@ console.log("Lluvia");
 }
 
 console.log("Nova's places");
-for (const [world, name] of [["neon", "neon"], ["tienda", "store"], ["standard", "den"]]) {
+for (const [world, name] of [["futuris", "futuris"], ["tienda", "store"], ["standard", "den"]]) {
   const { p, ctx, errs } = await open(`el-cabeza-nova.html?world=${world}`);
   check(`${name}: from another page, the gate there`, !!(await gateOn(p)) && (await p.locator('[data-testid="reality-gate"]').getAttribute("data-world")) === name);
   await p.waitForTimeout(1500); await shot(p, name);
-  if (name === "neon") {
+  if (name === "futuris") {
     await p.locator('[data-testid="gate-nova"]').click();
-    await p.waitForTimeout(700); await shot(p, "neon-sheet");
+    await p.waitForTimeout(700); await shot(p, "futuris-sheet");
     await p.locator('[data-testid="gate-sheet-back"]').click();
     await p.locator('[data-testid="gate-standard"]').click();
-    check("neon: Standard begins", !!(await poll(() => p.evaluate(() => window.__EC_TEST_ARMED__ === true), 6000)));
+    check("futuris: Standard begins", !!(await poll(() => p.evaluate(() => window.__EC_TEST_ARMED__ === true), 6000)));
   }
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();

@@ -11,14 +11,14 @@ predates all of it, so cross-check anything load-bearing against
 
 ## What this is
 
-A third path alongside Standard and Neon, reached the same way both of
+A third path alongside Standard and Futuris, reached the same way both of
 those are reached today — through the same chassis+theme architecture
 (`ARCHITECTURE.md`) — but discovered rather than offered. The product
-philosophy, stated directly: Standard is the on-ramp, Neon is the fuller
+philosophy, stated directly: Standard is the on-ramp, Futuris is the fuller
 game, Singularity is the reward for a player patient/curious enough to go
 looking for it — "the ultimate version," for players who want to extract
 the most out of the game. It stays a **secret**, found the same way
-Neon's existing Anomaly→Singularity reveal already works today — this is
+Futuris's existing Anomaly→Singularity reveal already works today — this is
 not a visible, permanent menu option.
 
 Two halves: **Singularity** (the trigger + cinematic transition into a
@@ -99,7 +99,7 @@ distinct from a broad accretion-disk glow) should look like.
 
 - **After the transition settles, the halo becomes a subtly pulsing
   "photon ring"** — slow, breathing intensity oscillation on the rim
-  shader's own uniform (same "breathing" feel as Neon's existing turn-halo
+  shader's own uniform (same "breathing" feel as Futuris's existing turn-halo
   pulse, just driven by a shader uniform instead of a CSS custom property,
   since this is a real 3D object, not DOM).
 - **The overall mood once settled: peaceful, almost trance-like** — calm,
@@ -129,7 +129,7 @@ node), and Phase 3's sphere (a real `ShaderMaterial` Fresnel rim/"photon
 ring" term with a breathing pulse uniform, a `THREE.Points` starfield,
 and drag-rotate physics ported from the dock-piece pattern — decaying to
 a still, calm rest rather than a continuous wander) all exist in
-`themes/neon-singularity.js`, wired into `themes/neon.js` at the
+`themes/futuris-singularity.js`, wired into `themes/futuris.js` at the
 `commitSingularity`/`useSetupExtras`/`renderExtraOverlays` seams. See
 `PROJECT_MEMORY.md` for the exact architecture (the `three.current`
 bridge object that lets a React hook trigger animation living inside the
@@ -163,7 +163,7 @@ hard constraint: a roll must land square-aligned**, a clean whole-cell
 footprint, never resting at an angle. Practically, this becomes an
 enumeration rule at the data level: for the classic five, an "orientation"
 is a `{w,h}` rectangle (already how `PIECE_ORIENTATIONS` works today —
-see `themes/neon.js`). For an irregular piece, each orientation instead
+see `themes/futuris.js`). For an irregular piece, each orientation instead
 needs its own **footprint mask** (which specific cells it actually
 covers, since an L-shape or arch's footprint isn't a filled rectangle) —
 orientations that wouldn't land squarely simply never get enumerated as
@@ -368,7 +368,7 @@ part of TOPOLOGIES' first version.
   (Singularity's cinematic + sphere menu) or its *rules* (MATTER/LAWS/
   TOPOLOGIES). What the board, pieces, lighting, and ambient design
   actually look like once a match is underway — Standard's warm wood and
-  Neon's cyberpunk-CRT both have a distinct visual identity; this mode's
+  Futuris's cyberpunk-CRT both have a distinct visual identity; this mode's
   own in-game look hasn't been discussed at all yet.
 - TOPOLOGIES' non-rectangular board shape idea (see above).
 - Anything about how MATTER/LAWS/TOPOLOGIES toggle state is actually

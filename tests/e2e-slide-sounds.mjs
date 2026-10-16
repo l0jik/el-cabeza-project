@@ -10,7 +10,7 @@
    keeps its own sounds for every move, a start and a landing, the
    Cabeza's too (user: "I do not want all worlds to have the exact same
    piece noises, only the ones that use the wooden pieces"): the City,
-   Neon, the Lab here, and Parrish, though its pieces are the wooden set
+   Futuris, the Lab here, and Parrish, though its pieces are the wooden set
    (user: "Parrish should keep its own sounds"): there every move, the
    Cabeza's steps and a slid block's too, is heard landing on its note. A
    roll starts and lands everywhere.
@@ -47,7 +47,7 @@ const WORLDS = [
   ["the store", "tienda", true, true, true, true],
   ["Parrish", "parrish?look=orinoco", false, false, true, false],
   ["the City", "ciudad", false, false, false, false],
-  ["Neon", "neon", false, false, false, false],
+  ["Futuris", "futuris", false, false, false, false],
   ["the Lab", "lab", false, false, false, false],
 ];
 

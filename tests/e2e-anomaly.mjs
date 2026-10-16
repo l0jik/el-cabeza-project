@@ -11,7 +11,7 @@ import { openDockPanel } from "./dock-helpers.mjs";
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });
 let failures = 0;
 const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
-const FILE = "file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html";
+const FILE = "file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html";
 
 const dark = [
   { id: "dark-cabeza", type: "cabeza", row: 0, col: 0, w: 1, h: 1, z: 1 },

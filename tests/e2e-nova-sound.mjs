@@ -1,11 +1,11 @@
-/* Nova's sound menu, in Neon (theme.soundChannels: Ambience / Pieces /
+/* Nova's sound menu, in Futuris (theme.soundChannels: Ambience / Pieces /
    Interface):
-   1. Desktop (Neon's page, the same theme Nova switches to): the dock's
+   1. Desktop (Futuris's page, the same theme Nova switches to): the dock's
       speaker opens the menu; Ambience off silences the bed and leaves the
       pieces and the interface; Pieces off silences the game's own sounds;
       the choice holds across a reload; Escape closes the menu.
    2. Nova on a phone: Standard (the den) offers All sounds, The room,
-      Music (the stereo) and Pieces; after the switch to Neon the menu shows All sounds and Neon's
+      Music (the stereo) and Pieces; after the switch to Futuris the menu shows All sounds and Futuris's
       three channels, and each one switches on its own. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
@@ -22,13 +22,13 @@ async function waitFor(fn, ms = 8000) {
 
 // ---- 1. desktop ----
 {
-  console.log("Neon, desktop");
+  console.log("Futuris, desktop");
   const ctx = await browser.newContext({ viewport: { width: 1000, height: 820 } });
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
-  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
   await page.waitForTimeout(1500);
   await openDockPanel(page);
   await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
@@ -86,7 +86,7 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "shell-menu-button").click();
   await page.waitForTimeout(300);
   check("Standard (the den): All sounds, The room, Music and Pieces", (await q(page, "shell-menu-sound").count()) === 1 && (await q(page, "shell-menu-sound-room").count()) === 1 && (await q(page, "shell-menu-sound-stereo").count()) === 1 && (await q(page, "shell-menu-sound-pieces").count()) === 1);
-  // Into Neon: at home the menu's switch turns on the TV.
+  // Into Futuris: at home the menu's switch turns on the TV.
   await page.evaluate(() => { const w = window.__DEN_TV__ && window.__DEN_TV__().lureWaited; if (window.__DEN_LURE_SKIP__) window.__DEN_LURE_SKIP__(w == null ? 25400 : 400 - w); }); // (just past the set's 25 s wait, not on to its blast, which holds everything till the set's tapped: den-fx.js lure)
   await q(page, "shell-menu-switch-theme").click();
   // (The first press, the first time home, only goes over to watch: den-fx.js lure.)
@@ -97,11 +97,11 @@ async function waitFor(fn, ms = 8000) {
     await q(page, "shell-menu-switch-theme").click();
   }
   await waitFor(async () => (await q(page, "shell-anomaly").count()) > 0, 30000);
-  await page.waitForFunction(() => window.__EC_SUMMON__ && window.__EC_SUMMON__().active, null, { timeout: 30000 }).catch(() => {}); await page.evaluate(() => window.__EC_SUMMON_END__ && window.__EC_SUMMON_END__()); // (the first arrival's summons, themes/neon-summon.js: its own test)
+  await page.waitForFunction(() => window.__EC_SUMMON__ && window.__EC_SUMMON__().active, null, { timeout: 30000 }).catch(() => {}); await page.evaluate(() => window.__EC_SUMMON_END__ && window.__EC_SUMMON_END__()); // (the first arrival's summons, themes/futuris-summon.js: its own test)
   await page.waitForTimeout(800);
   await q(page, "shell-menu-button").click();
   await page.waitForTimeout(400);
-  check("Neon: All sounds and the three channels", (await q(page, "shell-menu-sound").getAttribute("aria-label")) === "All sounds volume"
+  check("Futuris: All sounds and the three channels", (await q(page, "shell-menu-sound").getAttribute("aria-label")) === "All sounds volume"
     && (await page.locator('[data-testid^="shell-menu-sound-"]').count()) === 3);
   const sw = q(page, "shell-menu-sound-ambience");
   await sw.scrollIntoViewIfNeeded();

@@ -1,11 +1,11 @@
-/* The summons' sound (Nova's first arrival in Neon; the user's pick "C6"
+/* The summons' sound (Nova's first arrival in Futuris; the user's pick "C6"
    from the sound mock-ups): the Monks' Hum (10G: an E minor hum from E1,
    five notes x three voices, the top two 6 dB down, no whistle) pitched
    down 7 semitones, fading in from silence and growing steadily louder
    over the build (gain = build^2) and never moving in pitch; and under it
    the lower, muffled thunder (9H: a dull thump and a low rumble, one hit
    with a long dark reverb, no sweep). When it claps is the scene's
-   (neon-summon.js): on a growing share of its beats, each clap bringing
+   (futuris-summon.js): on a growing share of its beats, each clap bringing
    a shock wave.
 
    Two mixes, chosen by device (summonMixFor):
@@ -20,7 +20,7 @@
 
    It plays at the soundscape's interface channel level (the sound
    menu's slider and mute apply) but on a way out of its own, outside
-   master (themes/neon.js summonOutput), and is levelled to the mock-up
+   master (themes/futuris.js summonOutput), and is levelled to the mock-up
    page: that page ran at 0.716 into its output; the interface path is
    sfxOut 1.25 x master 7.08, so the same level needs 0.716 / 8.85.
 
@@ -43,7 +43,7 @@ const LAST_TAIL_S = 10;
    own: measured, the reverbs went from 8% of a desktop core's real time to
    about 30%, which a phone's audio thread can't keep up with while the
    wormhole loads its GPU, so its sound drops out; this way about 10%
-   (with neon.js's own reverbs lightened the same way). */
+   (with futuris.js's own reverbs lightened the same way). */
 const LAST_TAIL_PHONE_S = 5.5;
 const TO_GAME = 0.716 / (1.25 * Math.pow(10, 17 / 20));
 const dB = (x) => Math.pow(10, x / 20);
@@ -176,7 +176,7 @@ export function createSummonSound(out, { mix = "full" } = {}) {
     get ctx() { return ctx; },
     // tau: the summons' own clock (seconds since it began) right now.
     // rate: how fast the summons' build clock runs against real time
-    // (neon-summon.js BUILD); its moments land in real seconds.
+    // (futuris-summon.js BUILD); its moments land in real seconds.
     start(tau, when = ctx.currentTime, rate = 1) {
       if (started) return;
       started = true; t0 = when - tau / rate;
@@ -194,7 +194,7 @@ export function createSummonSound(out, { mix = "full" } = {}) {
       hum.gain.linearRampToValueAtTime(b * b, when + 0.1);
       thBed.gain.setTargetAtTime(0.08 + 0.07 * k, when, 0.4);
     },
-    // A clap of thunder (the scene decides when: neon-summon.js, where it
+    // A clap of thunder (the scene decides when: futuris-summon.js, where it
     // brings a shock wave with it).
     hit(strength, when = ctx.currentTime) {
       if (!started || ended) return;

@@ -1,10 +1,10 @@
-## Tienda: everything Neon's Singularity offers, in the store's terms (user request)
+## Tienda: everything Futuris's Singularity offers, in the store's terms (user request)
 
-"Make sure everything implemented in Neon Singularity is fully implemented
+"Make sure everything implemented in Futuris Singularity is fully implemented
 in a thematic way in Tienda." Inventory against the sphere, and where each
 lives now:
 
-| Singularity (Neon) | Tienda |
+| Singularity (Futuris) | Tienda |
 |---|---|
 | MATTER: 11 pieces, counts 0–4 (Cabeza 1–2), Arco Chico/Alto/Ancho, 3-D models | Order form 1 · Pieces: same 11 with catalog numbers/prices, Arco size row (`tienda-arco-*`), wood photographs + 3-D viewer (the size's model) |
 | LAWS + warnings + "i" to rules cards | 2 · Rules: every law, "How it works ›" (`tienda-law-KEY-info`, opens the MOVES card over the form), warnings with a ☞ (`shove-opa-needs-three`, `law-warning-cantileverPivot`). Shoving has no settings any more. |
@@ -21,10 +21,10 @@ lives now:
   `missingCount` + `missingSpots` + `holeSpot` (spot + 180° mirror; `random`
   flag), `normalizeSelections` (old saves, `size` → rows/cols),
   `effective` defaults check, `fillSpots`/`randomizeSpots`/`refreshSpots`/
-  `spotProblem` (ported from Neon's fillPairedSpots etc.), `lawsForEngine`,
+  `spotProblem` (ported from Futuris's fillPairedSpots etc.), `lawsForEngine`,
   `lawWarnings`, `variantsOf(sel, labels)` (Tienda: RULES/PIECES/BOARD),
   `applySelections` honours hand spots (pieces set out round them; a
-  clash with the classic opening randomizes it, as Neon does).
+  clash with the classic opening randomizes it, as Futuris does).
   `piecesFit` counts marked home-row squares. Tests:
   tests/rules-selections.smoke.mjs; e2e-tienda "everything the Singularity
   offers" pass (laptop).

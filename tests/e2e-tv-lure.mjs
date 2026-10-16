@@ -6,7 +6,7 @@
    been tapped: "!!", any sheet put away, the head turned to the set and
    held there, nothing but a tap on it doing anything. A tap on it (or the
    menu's Turn on the TV, the same press) takes the camera over to watch (still off, stirring more often); a tap anywhere
-   else goes back; a second tap on it turns it on, into Neon.
+   else goes back; a second tap on it turns it on, into Futuris.
    The test moves the lure's clock on (__DEN_LURE_SKIP__).
 
    node tests/e2e-tv-lure.mjs [--shots DIR] */
@@ -133,7 +133,7 @@ await poll(async () => (await tv()).focus > 0.95, 8000, 100);
 await page.waitForTimeout(500);
 await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 check("the second tap turns it on", !!(await poll(async () => (await tv()).phase !== "off", 3000, 100)), JSON.stringify(await tv()));
-check("...into Neon", await poll(() => page.evaluate(() => !window.__DEN_TV__ && !!document.querySelector(".ec-title") && /Chakra/.test(getComputedStyle(document.querySelector(".ec-title")).fontFamily)), 30000));
+check("...into Futuris", await poll(() => page.evaluate(() => !window.__DEN_TV__ && !!document.querySelector(".ec-title") && /Chakra/.test(getComputedStyle(document.querySelector(".ec-title")).fontFamily)), 30000));
 check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
 
 // The look round's thought, half the time (user): who's messing with what's

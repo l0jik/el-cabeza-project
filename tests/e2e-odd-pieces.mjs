@@ -1,5 +1,5 @@
 /* MATTER's odd-shaped pieces — the Codo (a 3-cube L) and the Arco (an
-   arch) — in the real game: Neon, where MATTER lives. Positions are placed through the test-only hooks
+   arch) — in the real game: Futuris, where MATTER lives. Positions are placed through the test-only hooks
    (window.__EC_TEST_HOOKS__: __EC_TEST_SET_PIECES__ / __EC_TEST_MOVE__ /
    __EC_TEST_PIECES__ / __EC_TEST_SCREEN_POS__ in chassis/ElCabeza3D.jsx),
    then moves play through the same path a click uses: the roll
@@ -18,7 +18,7 @@ import { openDockPanel } from "./dock-helpers.mjs";
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });
 let failures = 0;
 const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
-const FILE = "file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html";
+const FILE = "file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html";
 
 // Standing: two cubes on the board, one on top of the west one.
 const STANDING = "0,0,0;0,0,1;1,0,0";

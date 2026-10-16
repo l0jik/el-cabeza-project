@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 import { openDockPanel, waitForDockCorner, reopenDockPanelFromCorner } from "./dock-helpers.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const file = path.join(__dirname, "..", "dist", "el-cabeza-neon.html");
+const file = path.join(__dirname, "..", "dist", "el-cabeza-futuris.html");
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });
 const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
@@ -58,7 +58,7 @@ for (let i = 0; i < 5; i++) {
 }
 console.log("halo intensity samples over ~20s:", haloSamples);
 
-await page.screenshot({ path: "/tmp/neon-after-20s.png" });
+await page.screenshot({ path: "/tmp/futuris-after-20s.png" });
 console.log("errors after 20s of real gameplay + ambient scheduling:", errors.length);
 errors.forEach((e) => console.log("   " + e));
 

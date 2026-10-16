@@ -3,14 +3,14 @@
 **"Cabeza [the_system]"** — a proposed **third theme** (not a separate
 project) with new game mechanics, explicitly meant to slot into the
 existing chassis+theme architecture. The user's own understanding of
-this (confirmed correct) was: a new visual theme alongside Standard/Neon,
+this (confirmed correct) was: a new visual theme alongside Standard/Futuris,
 same underlying framework, with some new rules/mechanics — possibly
-related in spirit to Neon's Singularity easter egg. Three concrete
+related in spirit to Futuris's Singularity easter egg. Three concrete
 questions were asked and **not yet answered**:
 
 1. Is the working name final, or a placeholder?
 2. What's the visual identity/mood (distinct from Standard's warm-wood
-   and Neon's cyberpunk-CRT)?
+   and Futuris's cyberpunk-CRT)?
 3. What are the actual new mechanic(s)?
 
 **Do not start implementing this without getting those three answered

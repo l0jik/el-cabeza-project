@@ -77,7 +77,7 @@ three rolls south. What was wrong, and what changed (engine/ai.js):
 - **Openings**: a shuffled opening could let the first move crush a
   Cabeza (a standing 2x3 rolls three rows at a time; 2 of 30 openings in
   these rules). generateAnomalySetup now rejects those (cabezaInDanger,
-  under the laws in force: Neon's sphere now sets the laws before the
+  under the laws in force: Futuris's sphere now sets the laws before the
   pieces, like rules-selections.js).
 Tests: tests/ai-threats.smoke.mjs (three-roll threats, walk home, the
 one-turn decision judged by every Dark reply, the opening guard);

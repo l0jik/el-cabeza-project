@@ -528,7 +528,7 @@ export function createAudio() {
       car: car ? { n: car.n, rate: +car.eng.playbackRate.value.toFixed(3), gain: +car.out.gain.value.toFixed(4), revving: ctx.currentTime < car.revUntil } : null,
       levels: { ...levels },
     }),
-    // Neon-only effects; the chassis calls every audio method unconditionally.
+    // Futuris-only effects; the chassis calls every audio method unconditionally.
     playFlicker: noop, playArc: noop, playGlitch: noop,
     playSingularityOpen: noop, playSingularityClose: noop, playSingularityBell: noop, playSingularityDismiss: noop,
     startSingularityHum: noop, updateSingularityHum: noop, stopSingularityHum: noop,

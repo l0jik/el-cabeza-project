@@ -15,7 +15,7 @@ const dist = (f) => "file://" + path.join(ROOT, "dist", f);
 const SHOTS = [
   ["den", dist("el-cabeza-standard.html?quality=high"), 7000, { cam: { theta: 0.42, phi: 1.02, radius: 15.5, snap: true } }],
   ["den-low", dist("el-cabeza-standard.html?quality=high"), 7000, { cam: { theta: 0.9, phi: 1.3, radius: 13, snap: true } }],
-  ["neon", dist("el-cabeza-neon.html?quality=high"), 7000],
+  ["futuris", dist("el-cabeza-futuris.html?quality=high"), 7000],
   ["store", dist("el-cabeza-tienda.html?quality=high"), 7000, { click: '[data-testid="tienda-open-box"]', after: 9000, cam: { theta: 0.3, phi: 1.1, radius: 12, snap: true } }],
   ["cromo", dist("el-cabeza-cromo.html?quality=high"), 7000],
   ["plano", dist("el-cabeza-plano.html?quality=high"), 7000],

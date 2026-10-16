@@ -2,12 +2,12 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import ElCabeza3D from "../chassis/ElCabeza3D.jsx";
 import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js";
-import * as neonTheme from "../themes/neon.js";
+import * as futurisTheme from "../themes/futuris.js";
 import { realitiesCorner } from "../themes/reality-gate.js";
 
 // After the story: back to the other realities (the corner button;
 // themes/reality-gate.js). Nova's own places are the realities' versions.
-const theme = { ...neonTheme, cornerAction: realitiesCorner("neon") };
+const theme = { ...futurisTheme, cornerAction: realitiesCorner("futuris") };
 
 applyBootstrapBoardSize();
 applyBootstrapLaws();

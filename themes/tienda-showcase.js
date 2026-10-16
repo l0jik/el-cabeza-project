@@ -7,7 +7,7 @@
    it any way; try it in walnut or in olive ash (Dark's wood and
    Light's); tap outside it and it goes back into its photograph.
 
-   The same pattern as Neon's MATTER models (piece-showcase.js, whose
+   The same pattern as Futuris's MATTER models (piece-showcase.js, whose
    poses it shares): all the photographs come from one short-lived WebGL
    context, and the viewer holds its own context only while it's open.
    The wood is the board's wood (tienda.js woodMaterial): the same grain

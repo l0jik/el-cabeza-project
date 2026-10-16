@@ -12,7 +12,7 @@ Block, 2×3 Block, Codo, Arco, Rayo, Zeta.
 - **Data model:** `MATTER_NEW_PIECES` and `selections.matter.newPieces`
   are gone. The blocks are `roster.block1x3` / `roster.block2x3` (0–4,
   default 0). `normalizeSelections` → `migrateRoster` turns an old saved
-  ticked box into a count of 1. `buildRosterFromSelections` (neon.js)
+  ticked box into a count of 1. `buildRosterFromSelections` (futuris.js)
   reads the counts.
 - **Models** (`themes/piece-showcase.js`):
   - Each type in its first starting pose, built from the engine

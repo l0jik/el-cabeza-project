@@ -4,7 +4,7 @@
    at the end of the pieces list, for this), and they flash too: what's
    expected, shown. A tap on the warning shows it again. Shared by every
    menu that sets the rules (Tienda's order form, the gate's sheet,
-   Lluvia's city panels, Neon's sphere); each says where its warning and
+   Lluvia's city panels, Futuris's sphere); each says where its warning and
    rows are, and how to get to its pieces if they're on another panel.
    The colour is the menu's own (--ec-guide on any ancestor). */
 import React from "react";

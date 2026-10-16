@@ -21,7 +21,7 @@ import {
 } from "../engine/constants.js";
 import { createInitialPieces, pickBlackHoleSquares, pickMissingSquares } from "../engine/rules.js";
 import { findBestAiTurn, generateTurns, AI_DIFFICULTY, lastSearchInfo, placeKey } from "../engine/ai.js";
-import { generateAnomalySetup } from "../themes/neon.js";
+import { generateAnomalySetup } from "../themes/futuris.js";
 
 const [scenario = "classic", darkTier = "medium", lightTier = "medium", gamesArg = "4", scaleArg = "1"] = process.argv.slice(2);
 const GAMES = Number(gamesArg);

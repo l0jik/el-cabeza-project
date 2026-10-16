@@ -109,7 +109,7 @@ console.log("A save made: the file, and the cloud");
 
 console.log("Restored from the code, on another browser and page");
 {
-  const { ctx, page, errs } = await open({ page: "neon" });
+  const { ctx, page, errs } = await open({ page: "futuris" });
   const before = await keys(page);
   check("a fresh browser: none of the keys", !("el-cabeza:last-world" in before) && !("elcabeza.ciudad.time" in before));
   check("the sheet opens", await openSheet(page));
