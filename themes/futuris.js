@@ -3226,6 +3226,7 @@ export function useSetupExtras({
   aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
   busy, aiThinking, triggerBeginGame, setBlackHoles, setMissingSquares,
   isPlaying, currentVariants, setCurrentVariants, applyBoardResize,
+  startByHand, onStartByHand, ownHalf, onToggleOwnHalf,
 }) {
   const [singularityRevealed, setSingularityRevealed] = React.useState(false);
   const singularityTapRef = React.useRef([]); // masthead tap timestamps
@@ -3263,6 +3264,8 @@ export function useSetupExtras({
   const singularityCinematic = useSingularityPhase({
     three, audio, aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty,
     AI_DIFFICULTY, busy, aiThinking, triggerBeginGame, applyMatterRoster,
+    // The setup's Starting position (MATTER's Setup offers it).
+    startByHand, onStartByHand, ownHalf, onToggleOwnHalf,
     // Black Hole Squares LAW: finalizeSingularityBegin needs the
     // current pieces (to place holes on empty squares) and the
     // chassis's own React setter (to make the placement it computes

@@ -3011,6 +3011,21 @@ function renderCategoryOverlay(t) {
         sel.matter.randomizeStart,
         () => { sel.matter.randomizeStart = !sel.matter.randomizeStart; s.labelsDirty = true; s.bump(); },
         "matter-randomize-start"
+      ),
+      // Set out by hand (user: "is set out by hand in every relevant menu
+      // now?"): the setup's Starting position, the same the dock and the
+      // worlds' menus set; Begin then sets your pieces out first.
+      s.startCtl && renderCheckboxRow(
+        { key: "setOutByHand", label: "Set Out By Hand", blurb: "Place your pieces yourself before the game; the other side mirrors yours." },
+        s.startCtl.byHand,
+        () => { s.startCtl.set(!s.startCtl.byHand); s.bump(); },
+        "matter-by-hand"
+      ),
+      s.startCtl && s.startCtl.byHand && renderCheckboxRow(
+        { key: "setOutHalf", label: "Anywhere In My Half", blurb: "Your pieces can go anywhere up to the middle of the board, not just your back three rows." },
+        s.startCtl.half,
+        () => { s.startCtl.toggleHalf(); s.bump(); },
+        "matter-by-hand-half"
       )
     );
   } else if (category === "configurations") {
@@ -3855,6 +3870,8 @@ export function useSingularityPhase({
   three, audio,
   aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
   busy, aiThinking, triggerBeginGame, applyMatterRoster,
+  // The setup's Starting position, the chassis's (MATTER's Setup).
+  startByHand, onStartByHand, ownHalf, onToggleOwnHalf,
   // Black Hole Squares LAW — see finalizeSingularityBegin below.
   pieces, setBlackHoles,
   // Missing Squares TOPOLOGIES option — same reasoning, see
@@ -3893,6 +3910,8 @@ export function useSingularityPhase({
   if (bridge) {
     bridge.singularity = bridge.singularity || {};
     bridge.singularity.bump = () => bumpRef.current();
+    // (For MATTER's Setup, outside this hook: the Starting position.)
+    bridge.singularity.startCtl = onStartByHand ? { byHand: !!startByHand, set: onStartByHand, half: !!ownHalf, toggleHalf: onToggleOwnHalf } : null;
   }
 
   // startCollapse (below) is what actually wires the bridge object onto

@@ -365,6 +365,24 @@ const rowKeys = await page.locator('[data-testid^="matter-row-"]').evaluateAll((
 check("MATTER lists every piece type as the same kind of row (15, each Arco size its own)",
   rowKeys.join(",") === "cabeza,turrito,flaco,chato,opa,block1x3,block2x3,arcoChico,arcoAlto,arcoAncho,codo,hombro,cruce,rayo,zeta", rowKeys.join(","));
 check("no checkbox rows are left for pieces", (await page.locator('[data-testid^="matter-piece-"]').count()) === 0);
+{
+  // Set out by hand in MATTER's Setup too (user: "is set out by hand in
+  // every relevant menu now?"), under Randomized Start.
+  const byHand = page.locator('[data-testid="matter-by-hand"]');
+  check("Set Out By Hand under Randomized Start, unticked", (await byHand.count()) === 1 && (await byHand.getAttribute("data-checked")) === "false"
+    && (await page.locator('[data-testid="matter-by-hand-half"]').count()) === 0);
+  await byHand.scrollIntoViewIfNeeded();
+  await byHand.click();
+  await page.waitForTimeout(200);
+  check("...ticked: Anywhere In My Half under it, kept as the setup's", (await byHand.getAttribute("data-checked")) === "true"
+    && (await page.locator('[data-testid="matter-by-hand-half"]').count()) === 1 && await page.evaluate(() => localStorage.getItem("el-cabeza:start-position") === "hand"));
+  await byHand.click();
+  await page.waitForTimeout(200);
+  check("...and unticked again", (await byHand.getAttribute("data-checked")) === "false");
+  // (Back to the top of the list, as the checks below expect it.)
+  await page.locator('[data-testid="category-overlay"]').evaluate((el) => { el.scrollTop = 0; });
+  await page.waitForTimeout(400);
+}
 check("each row's still is a rendered 3D image",
   (await page.locator('[data-testid^="matter-view-"] img').count()) === 15);
 // More below (user: the newest pieces, at the list's foot, seemed not to

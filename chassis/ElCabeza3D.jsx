@@ -3136,12 +3136,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const winFoeNote = status === "finished" && winner && aiPlayer && !replaying
     ? `${winner === aiPlayer ? "The" : "Against the"} ${(AI_DIFFICULTY[aiDifficulty] || {}).label || "chosen"} AI`
     : null;
+  // Set out by hand's two choices (see "Set out by hand" below), here so
+  // the theme's own menus can be handed them.
+  const [startByHand, setStartByHand] = useState(loadStartByHand);
+  const [ownHalf, setOwnHalf] = useState(loadOwnHalf);
+  const toggleStartByHand = (on) => { setStartByHand(on); saveStartByHand(on); };
+  const toggleOwnHalf = () => { const on = !ownHalf; setOwnHalf(on); saveOwnHalf(on); };
   const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({
     awaitingBegin, pieces, setPieces, audio: audioRef.current, three,
     aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
     // (Begin, from a world's own menus: with By hand chosen, the set-out
-    // first.)
+    // first; and the choice itself, so those menus offer it too: the
+    // store's order form, Lluvia's panels, Futuris's sphere.)
     busy, aiThinking, triggerBeginGame: beginOrSetOut,
+    startByHand, onStartByHand: toggleStartByHand, ownHalf, onToggleOwnHalf: toggleOwnHalf,
     // Back to the setup, a game in play set aside (New Game's own reset;
     // the den's order paper, tienda-overlay.js).
     resetToSetup: () => handleReset(),
@@ -3688,10 +3696,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      players too, the user's pick). The banner's Begin checks nothing's
      on the bench and no Cabeza can be crushed on the first move, keeps
      the set-out for Same as last time, and begins as Begin always has. */
-  const [startByHand, setStartByHand] = useState(loadStartByHand);
-  const [ownHalf, setOwnHalf] = useState(loadOwnHalf);
-  const toggleStartByHand = (on) => { setStartByHand(on); saveStartByHand(on); };
-  const toggleOwnHalf = () => { const on = !ownHalf; setOwnHalf(on); saveOwnHalf(on); };
+  // (startByHand and ownHalf, and their toggles, are declared above the
+  // theme's setupExtras, which hands them to a world's own menus.)
   // The set-out under way, or null: { so (engine/placement.js's), start
   // (as it began: Standard), hist (Undo), chosen (an id), note (the
   // banner's: { kind, ... }), danger (ids ringed in red), before (the

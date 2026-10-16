@@ -212,6 +212,20 @@ for (const size of [SIZES[2], SIZES[7]]) {
   for (let i = 0; i < 12 && (await viewer.count()); i++) await page.waitForTimeout(250);
   const formStays = (await page.locator('[data-testid="tienda-order"]').count()) === 1;
   check("tapping outside puts it back; the order form stays", (await viewer.count()) === 0 && formStays, `viewer ${await viewer.count()}, form ${formStays}`);
+  {
+    // Set out by hand on the order form too (user: "is set out by hand in
+    // every relevant menu now?"), under the pieces.
+    const byHand = page.locator('[data-testid="tienda-by-hand-input"]');
+    check("Set out by hand on the order form, unmarked", (await byHand.count()) === 1 && !(await byHand.isChecked()) && (await page.locator('[data-testid="tienda-by-hand-settings"]').count()) === 0);
+    await page.locator('[data-testid="tienda-by-hand"]').scrollIntoViewIfNeeded();
+    await press('[data-testid="tienda-by-hand"]');
+    await page.waitForTimeout(200);
+    check("...marked: where your pieces may go, kept as the setup's", (await byHand.isChecked()) && (await page.locator('[data-testid="tienda-by-hand-rows"]').getAttribute("aria-pressed")) === "true"
+      && await page.evaluate(() => localStorage.getItem("el-cabeza:start-position") === "hand"));
+    await press('[data-testid="tienda-by-hand"]');
+    await page.waitForTimeout(200);
+    check("...and cleared again", !(await byHand.isChecked()));
+  }
 
   // Pieces that won't fit the width: said plainly, and fixable.
   await press('[data-testid="tienda-piece-opa-inc"]');

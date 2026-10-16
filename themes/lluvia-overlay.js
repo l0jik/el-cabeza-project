@@ -62,7 +62,7 @@ const ICON = {
 const column = { position: "absolute", left: "50%", transform: "translateX(-50%)", width: "min(100%, 460px)", boxSizing: "border-box" };
 const termButton = (extra) => ({ height: 38, background: "rgba(255,179,71,0.08)", border: "1px solid rgba(255,179,71,0.5)", borderRadius: 3, color: "#ffcf8a", font: "400 22px 'VT323', monospace", cursor: "pointer", ...extra });
 
-function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo }) {
+function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = null }) {
   const total = totalOf(sel);
   // Pivot on with no Codo, Rayo or Zeta: the warning flashes, then over to
   // MATTER, where the three flash (pivot-guide.js).
@@ -163,6 +163,21 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo }) {
       // here, under Missing squares, user; their place is rolled.)
       flag("holes", HOLES_LAW.name, !!sel.laws.blackHoleSquares, (s) => toggleLaw(s, "blackHoleSquares")),
       flag("random", "Randomized start"),
+      // Set out by hand (user: "is set out by hand in every relevant menu
+      // now?"): the setup's Starting position, not the order's, so it
+      // flips the chassis's own choice, as the dock's Start does.
+      ...(start ? [
+        h("button", {
+          key: "byhand", type: "button", "data-testid": "lluvia-topo-byhand", "aria-pressed": start.on ? "true" : "false",
+          onClick: () => { sound("key"); start.set(!start.on); },
+          style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: 52, background: "transparent", border: "none", borderTop: "1px solid rgba(255,179,71,0.12)", cursor: "pointer", ...TERM, fontSize: 22, color: "#ffe2b0" },
+        }, h("span", null, "Set out by hand"), h("span", { style: { color: start.on ? "#fff27a" : "#7a6040" } }, start.on ? "[ ON ]" : "[OFF ]")),
+        ...(start.on ? [h("button", {
+          key: "byhalf", type: "button", "data-testid": "lluvia-topo-byhalf", "aria-pressed": start.half ? "true" : "false",
+          onClick: () => { sound("key"); start.toggleHalf(); },
+          style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: 52, background: "transparent", border: "none", borderTop: "1px solid rgba(255,179,71,0.12)", cursor: "pointer", ...TERM, fontSize: 22, color: "#ffe2b0", paddingLeft: 14 },
+        }, h("span", null, "Anywhere in my half"), h("span", { style: { color: start.half ? "#fff27a" : "#7a6040" } }, start.half ? "[ ON ]" : "[OFF ]"))] : []),
+      ] : []),
     ];
   }
   return h("div", {
@@ -283,7 +298,8 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose,
       h("button", { type: "button", "data-testid": "lluvia-begin", disabled: tooMany, onClick: begin, style: { height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", border: `2px solid ${AMBER}`, borderRadius: 4, background: "rgba(255,179,71,0.12)", color: AMBER, cursor: tooMany ? "not-allowed" : "pointer", opacity: tooMany ? 0.5 : 1, boxShadow: "0 0 22px rgba(255,179,71,0.35)" } },
         h("span", { style: { fontFamily: SAIRA_X, fontWeight: 800, fontSize: 26, letterSpacing: "0.12em" } }, tooMany ? "TOO MANY PIECES" : "BEGIN THE GAME"), ICON.arrow)),
     panel && h("div", { style: { position: "absolute", inset: 0, pointerEvents: "auto" }, onPointerDown: closePanel },
-      h(Panel, { panel, sel, change, onClose: closePanel, sound, pieceLook, onGoTo: (k) => { ctlRef.current && ctlRef.current.select(k); setPanel(k); } })));
+      h(Panel, { panel, sel, change, onClose: closePanel, sound, pieceLook, onGoTo: (k) => { ctlRef.current && ctlRef.current.select(k); setPanel(k); },
+        start: x && x.onStartByHand ? { on: !!x.startByHand, set: x.onStartByHand, half: !!x.ownHalf, toggleHalf: x.onToggleOwnHalf } : null })));
 
   return h("div", {
     "data-testid": "lluvia-overlay",

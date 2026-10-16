@@ -1802,6 +1802,15 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
             h("span", null, "Pieces per side"),
             h("span", null, over ? `${total} — ${MAX_PIECES} is the most a side can have` : `${total} of ${MAX_PIECES}`)),
           fitNote,
+          // Set out by hand (user: "is set out by hand in every relevant
+          // menu now?"): the setup's Starting position, as the dock and the
+          // worlds' menus set it; Place order then sets your pieces out first.
+          x && x.onStartByHand && check("by-hand", !!x.startByHand, "Set out by hand", "Place your pieces yourself before the game; the other side mirrors yours.", () => x.onStartByHand(!x.startByHand)),
+          x && x.onStartByHand && x.startByHand && h("div", { className: "td-sub", "data-testid": "tienda-by-hand-settings" },
+            h("span", { className: "td-sub-h" }, "Pieces in"),
+            h("div", { className: "td-seg", role: "group", "aria-label": "Where your pieces may be set out" },
+              h("button", { type: "button", "aria-pressed": x.ownHalf ? "false" : "true", "data-testid": "tienda-by-hand-rows", onClick: () => { click(); if (x.ownHalf) x.onToggleOwnHalf(); } }, "Back 3 rows"),
+              h("button", { type: "button", "aria-pressed": x.ownHalf ? "true" : "false", "data-testid": "tienda-by-hand-half", onClick: () => { click(); if (!x.ownHalf) x.onToggleOwnHalf(); } }, "My half"))),
         ),
         !classic && sec("Rules", "check each one you want", lawRows),
         // The board's size (and cut squares) wait for the Singularity; the
