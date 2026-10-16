@@ -77,7 +77,9 @@ every Arco in the game.
   there is sheltered.
 - Openings (`PIECE_ORIENTATIONS`): upright across the row. The Chico and
   Ancho can also lie flat as a U, opening north or south. The Alto is too
-  deep for the 2-row home band, so it always starts upright.
+  deep for the 2-row home band, so it always starts upright. Placed by
+  hand, every way it can stand (engine/placement.js `setOutPoses`): 12
+  each, lengthwise too, opening sideways, upside down, on its end.
 - The summary and variants read "Arco Alto" etc. (`rosterItemLabel`).
 - A piece inside an upright Arco blocks the Arco from tipping sideways,
   because its leg would sweep through it. It can still roll along its

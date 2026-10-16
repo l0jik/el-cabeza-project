@@ -260,8 +260,11 @@ Place pieces manually (the setup's Starting position: Standard, or Manual)
 is the chassis's, in every world: the rules are `engine/placement.js`
 (the rows a side may use, the 180° mirror, a piece set on another of
 yours swapping into the squares it left if it fits there, or the other
-to the bench; turning; Anywhere in my half; a safe start; Same as last
-time), and `chassis/set-out.js` keeps the choices, places the bench (a
+to the bench; turning, through every way a piece can stand
+(`setOutPoses`: a cube-built piece's every turn from `shapes.js`
+`allPosesOf`, not the shuffle's few `PIECE_ORIENTATIONS`, which must fit
+two rows); Anywhere in my half; a safe start; Same as last time), and
+`chassis/set-out.js` keeps the choices, places the bench (a
 tray past the setting side's edge of the board) and draws the board's
 marks, the same in every world as the check alert's are. The bench's
 pieces are built with the theme's own `buildPieceVisual`, in a group of

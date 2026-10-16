@@ -1,14 +1,16 @@
 /* Placing the pieces manually (engine/placement.js): the rows a side
    may use, the mirror, a piece set down where another stands (swapped
    when it fits the squares just left, or to the bench), Put it back,
-   turning, the half switch, missing squares, a safe start, and Same as
-   last time for either side.
+   turning (every way round a piece can stand), the half switch, missing
+   squares, a safe start, and Same as last time for either side.
 
    node tests/placement.smoke.mjs */
 import { setBoardDimensions, setMissingSquares, setBlackHoles, setActiveLaws } from "../engine/constants.js";
 import { initialPiecesFor } from "../engine/rules.js";
 import { piecesClash } from "../engine/shapes.js";
-import { zoneRows, startSetOut, targets, place, putBack, turn, setHalf, readiness, keep, restore, canRestore, mirrorOf } from "../engine/placement.js";
+import { zoneRows, startSetOut, targets, place, putBack, turn, setHalf, readiness, keep, restore, canRestore, mirrorOf, setOutPoses, turnsWhileSettingOut } from "../engine/placement.js";
+import { PIECE_ORIENTATIONS } from "../engine/anomaly.js";
+import { parseVox, voxKey } from "../engine/shapes.js";
 
 let fails = 0;
 const check = (name, ok, extra = "") => { console.log(`  ${ok ? "ok  " : "FAIL"} ${name}${!ok && extra ? "  " + extra : ""}`); if (!ok) fails++; };
@@ -117,6 +119,63 @@ setBoardDimensions(12, 10);
 check("not onto a different board", !canRestore(saved, startSetOut(initialPiecesFor(12, 10), "dark"), 12, 10));
 setBoardDimensions(10, 10);
 check("not onto a different roster", !canRestore(saved, startSetOut(initialPiecesFor(10, 10).filter((p) => !/turrito/.test(p.id)), "dark")));
+
+console.log("every way round it can stand");
+{
+  // (User, a video of placing an Arco Ancho: "it is not showing all
+  // possible placement iterations ... there are other possible positions
+  // that are not being offered". Turn had only the shuffle's three.)
+  const key = (o) => `${o.w}x${o.h}x${o.z}:${o.vox ? voxKey(parseVox(o.vox)) : ""}`;
+  const ancho = setOutPoses("arcoAncho");
+  check("the Arco Ancho: all 12 ways round, the shuffle's first", ancho.length === 12 && new Set(ancho.map(key)).size === 12 && key(ancho[0]) === key(PIECE_ORIENTATIONS.arcoAncho[0]));
+  check("...standing lengthwise toward the other side among them, and opening sideways", ancho.some((o) => o.w === 1 && o.h === 4 && o.z === 2) && ancho.some((o) => o.w === 2 && o.h === 4 && o.z === 1));
+  check("...its quarter turn next (standing across, then lengthwise)", ancho[1].w === 1 && ancho[1].h === 4 && ancho[1].z === 2);
+  check("every shuffle pose is one of them, for every piece", Object.entries(PIECE_ORIENTATIONS).every(([t, l]) => l.every((o) => setOutPoses(t).some((q) => key(q) === key(o)))));
+  check("no start balanced on one cube: the Codo's 8, the Hombro's 4, the Cruce's 6, the Rayo's 8", setOutPoses("codo").length === 8 && setOutPoses("hombro").length === 4 && setOutPoses("cruce").length === 6 && setOutPoses("rayo").length === 8
+    && ["codo", "hombro", "cruce", "rayo"].every((t) => setOutPoses(t).every((o) => parseVox(o.vox).filter((c) => c[2] === 0).length >= 2)));
+  check("...but the Zeta's own, as drawn, and those turned a quarter (12 in all)", setOutPoses("zeta").length === 12);
+  check("the Arco Chico and Alto 12 each; boxes as they were", setOutPoses("arcoChico").length === 12 && setOutPoses("arcoAlto").length === 12 && setOutPoses("flaco").length === 3 && setOutPoses("block2x3").length === 6 && setOutPoses("turrito").length === 1);
+  check("a Cabeza and a Turrito don't turn", !turnsWhileSettingOut({ type: "cabeza" }) && !turnsWhileSettingOut({ type: "turrito" }) && turnsWhileSettingOut({ type: "arcoAncho" }));
+
+  // The video's board: 13 across, 14 long, anywhere in my half (7 rows).
+  setBoardDimensions(14, 13);
+  const o0 = PIECE_ORIENTATIONS.arcoAncho[0];
+  const roster = [
+    { id: "dark-cabeza", type: "cabeza", owner: "dark", row: 0, col: 8, w: 1, h: 1, z: 1 },
+    { id: "dark-arco", type: "arcoAncho", owner: "dark", row: 0, col: 2, w: o0.w, h: o0.h, z: o0.z, vox: o0.vox },
+  ];
+  const cycle = (half) => {
+    let s = startSetOut(roster.map((p) => ({ ...p })), "dark", half);
+    const seen = [key(at(s, "dark-arco"))];
+    let ok = true;
+    for (let i = 0; i < 14; i++) {
+      s = turn(s, "dark-arco");
+      if (!s) { ok = false; break; }
+      const a = at(s, "dark-arco");
+      if (!a || !mirroredWell(s) || !noClash(s) || s.bench.length) ok = false;
+      seen.push(key(a));
+      if (key(a) === seen[0]) break;
+    }
+    return { ok, seen };
+  };
+  const inHalf = cycle(true);
+  check("anywhere in my half: Turn goes through all 12 and back round", inHalf.ok && inHalf.seen.length === 13 && new Set(inHalf.seen).size === 12, String(inHalf.seen.length));
+  const inRows = cycle(false);
+  check("in the back three rows: the 8 that fit (none 4 rows deep), and back round", inRows.ok && inRows.seen.length === 9 && new Set(inRows.seen).size === 8, String(inRows.seen.length));
+  // Turned lengthwise where a black hole is: under its span it stands
+  // over it (only its feet are on the board)...
+  setBlackHoles([{ row: 2, col: 2 }, { row: 11, col: 10 }]);
+  let s = turn(startSetOut(roster.map((p) => ({ ...p })), "dark", true), "dark-arco");
+  let a = s && at(s, "dark-arco");
+  check("turned lengthwise with a black hole under its span: it stands over it", !!a && a.w === 1 && a.h === 4 && a.row === 0 && a.col === 2 && mirroredWell(s) && noClash(s), JSON.stringify(a));
+  // ...under a foot, it stands at the nearest place it can instead.
+  setBlackHoles([{ row: 3, col: 2 }, { row: 10, col: 10 }]);
+  s = turn(startSetOut(roster.map((p) => ({ ...p })), "dark", true), "dark-arco");
+  a = s && at(s, "dark-arco");
+  check("...with one under a foot: moved to the nearest place it can stand", !!a && a.w === 1 && a.h === 4 && !(a.row === 0 && a.col === 2) && Math.abs(a.row) + Math.abs(a.col - 2) <= 1 && mirroredWell(s) && noClash(s), JSON.stringify(a));
+  setBlackHoles([]);
+  setBoardDimensions(10, 10);
+}
 
 console.log("Light setting out (the player on Light's side)");
 let lo = startSetOut(initialPiecesFor(10, 10), "light");

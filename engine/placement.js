@@ -16,7 +16,7 @@
    chassis (ElCabeza3D.jsx, the set-out banner) draws and drives it. */
 
 import { BOARD_ROWS, BOARD_COLS, MISSING_SQUARES, BLACK_HOLES, withFullTurn } from "./constants.js";
-import { piecesClash, groundCellsOf, maskAt, mirrorVox, parseVox, voxKey } from "./shapes.js";
+import { piecesClash, groundCellsOf, maskAt, mirrorVox, parseVox, voxKey, allPosesOf, quarterTurnedPose } from "./shapes.js";
 import { PIECE_ORIENTATIONS } from "./anomaly.js";
 import { cabezaInDanger } from "./ai.js";
 
@@ -161,33 +161,100 @@ export function putBack(so, id) {
   return mirrored({ ...so, bench: so.bench.filter((q) => q !== p) }, [...own(so), copy(p)]);
 }
 
-// The poses a piece may start in (engine/anomaly.js), and the next one
-// after its own.
-function nextPose(p) {
-  const list = PIECE_ORIENTATIONS[p.type] || [];
-  if (list.length < 2) return null;
-  const i = list.findIndex((o) => samePose(o, p));
-  return list[(i + 1) % list.length];
+/* Every way a piece may be set out (user: placing pieces manually "is not
+   showing all possible placement iterations"). A box: its poses as the
+   shuffle has them (anomaly.js), already every way round. A piece built
+   of cubes: every way it can be turned (shapes.js allPosesOf), not only
+   the few the shuffle uses, which had to fit two rows (the Arco Ancho had
+   3 of its 12: never lengthwise toward the other side, opening sideways
+   or upside down). Not balanced on one cube, as no start is, but for the
+   Zeta's own ways of standing so (the shuffle's, as the user drew it),
+   and theirs turned a quarter. Ordered for Turn: a way of standing's
+   quarter turns one after another, the shuffle's ways first in its
+   order, then the next way of standing. */
+const posesByType = new Map();
+export function setOutPoses(type) {
+  if (posesByType.has(type)) return posesByType.get(type);
+  const curated = PIECE_ORIENTATIONS[type] || [];
+  let list = curated;
+  if (curated.length && curated[0].vox) {
+    const all = allPosesOf(curated[0].vox);
+    const byKey = new Map(all.map((o) => [o.vox, o]));
+    // Each pose's four quarter turns, as one way of standing.
+    const ring = (o) => {
+      const out = [o];
+      for (let k = quarterTurnedPose(o.vox).vox; k !== o.vox && out.length < 4; k = quarterTurnedPose(k).vox) out.push(byKey.get(k));
+      return out;
+    };
+    const curatedKeys = curated.map((o) => voxKey(parseVox(o.vox)));
+    const done = new Set();
+    const ordered = [];
+    const addRing = (o) => { if (done.has(o.vox)) return; ring(o).forEach((q) => { if (!done.has(q.vox)) { done.add(q.vox); ordered.push(q); } }); };
+    curatedKeys.forEach((k) => addRing(byKey.get(k)));
+    const curatedRings = new Set(ordered.map((o) => o.vox));
+    // (The rest, steadiest first, each from its way across the row.)
+    all.filter((o) => !done.has(o.vox) && o.ground >= 2)
+      .sort((a, b) => b.ground - a.ground || a.h - b.h || (a.vox < b.vox ? -1 : 1))
+      .forEach(addRing);
+    list = ordered.filter((o) => o.ground >= 2 || curatedRings.has(o.vox)).map(({ w, h, z, vox }) => ({ w, h, z, vox }));
+  }
+  posesByType.set(type, list);
+  return list;
+}
+// Can it be turned at all while setting out?
+export const turnsWhileSettingOut = (p) => !!p && setOutPoses(p.type).length > 1;
+
+// Every anchor a piece in pose `q` may stand at (as targets(), any pose).
+function anchorsFor(so, q) {
+  const [r0, r1] = zoneRows(so.side, so.half);
+  const out = [];
+  for (let row = r0; row + q.h <= r1; row++) {
+    for (let col = 0; col + q.w <= BOARD_COLS; col++) if (fitsZone({ ...q, row, col }, so.side, so.half)) out.push({ row, col });
+  }
+  return out;
 }
 
-/* Piece `id` on the board turned to its next pose where it stands (kept
-   inside its rows, moved back in if it would reach out of them); what it
-   now covers swaps into the squares it left if it fits, or goes to the
-   bench. Null if it has only one pose or can't stand near there turned. */
+/* Piece `id` on the board turned to its next way round, where it stands
+   (kept inside its rows, moved back in if it would reach out of them; if
+   a missing square or a black hole is under it there, to the nearest spot
+   it can stand, one clear of your other pieces if as near). A way round
+   that can't stand anywhere in its rows (too deep for the back three, too
+   wide for the board) is passed over. What it now covers swaps into the
+   squares it left if it fits, or goes to the bench. Null if it has only
+   one way round, or none other can stand. */
 export function turn(so, id) {
   const mine = own(so);
   const p = mine.find((q) => q.id === id);
   if (!p) return null;
-  const pose = nextPose(p);
-  if (!pose) return null;
+  const list = setOutPoses(p.type);
+  if (list.length < 2) return null;
   const [r0, r1] = zoneRows(so.side, so.half);
-  const turned = { ...p, w: pose.w, h: pose.h, z: pose.z };
-  delete turned.vox;
-  if (pose.vox) turned.vox = pose.vox;
-  turned.row = Math.max(r0, Math.min(turned.row, r1 - turned.h));
-  turned.col = Math.max(0, Math.min(turned.col, BOARD_COLS - turned.w));
-  if (!fitsZone(turned, so.side, so.half)) return null;
-  return settle(so, mine.filter((q) => q.id !== id), turned, squaresLeft(p, turned), [...so.bench]);
+  // (From its own way round, or, if it stands some other way, the first.)
+  const at = list.findIndex((o) => samePose(o, p));
+  const others = mine.filter((q) => q.id !== id);
+  for (let step = 1; step <= list.length - (at < 0 ? 0 : 1); step++) {
+    const pose = list[(at + step) % list.length];
+    const turned = { ...p, w: pose.w, h: pose.h, z: pose.z };
+    delete turned.vox;
+    if (pose.vox) turned.vox = pose.vox;
+    if (turned.h > r1 - r0 || turned.w > BOARD_COLS) continue;
+    turned.row = Math.max(r0, Math.min(turned.row, r1 - turned.h));
+    turned.col = Math.max(0, Math.min(turned.col, BOARD_COLS - turned.w));
+    if (!fitsZone(turned, so.side, so.half)) {
+      // (Its middle stays as near where it was as it can.)
+      const midR = p.row + p.h / 2, midC = p.col + p.w / 2;
+      let best = null, bestD = Infinity;
+      for (const a of anchorsFor(so, turned)) {
+        const q = { ...turned, row: a.row, col: a.col };
+        const d = Math.hypot(a.row + turned.h / 2 - midR, a.col + turned.w / 2 - midC) + (others.some((o) => piecesClash(q, o)) ? 0.5 : 0);
+        if (d < bestD) { bestD = d; best = a; }
+      }
+      if (!best) continue;
+      turned.row = best.row; turned.col = best.col;
+    }
+    return settle(so, others, turned, squaresLeft(p, turned), [...so.bench]);
+  }
+  return null;
 }
 
 /* With `half` switched (on: up to the middle; off: the back three rows

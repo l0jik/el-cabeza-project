@@ -626,6 +626,42 @@ export function contactArea(piece) {
   return piece.vox ? parseVox(piece.vox).filter(([, , l]) => l === 0).length : piece.w * piece.h;
 }
 
+/* Every distinct way a cube-built piece can be turned: its cubes in all
+   24 turns a solid has (turned over too, but never reflected: no piece
+   becomes its mirror image), each set back against the corner, the same
+   pose found twice kept once. [{ w, h, z, vox, ground }], vox canonical
+   (voxKey), `ground` how many cubes it stands on. In first-found order. */
+const quarterUp = ([x, y, l]) => [-y, x, l]; // a quarter turn about the vertical
+const quarterAcross = ([x, y, l]) => [x, -l, y]; // tipped over toward a row
+const quarterAlong = ([x, y, l]) => [l, y, -x]; // tipped over toward a column
+function settled(cubes) {
+  const mx = Math.min(...cubes.map((c) => c[0])), my = Math.min(...cubes.map((c) => c[1])), ml = Math.min(...cubes.map((c) => c[2]));
+  return cubes.map(([x, y, l]) => [x - mx, y - my, l - ml]);
+}
+function poseFromCubes(cubes) {
+  const c = settled(cubes);
+  return {
+    w: Math.max(...c.map((q) => q[0])) + 1, h: Math.max(...c.map((q) => q[1])) + 1, z: Math.max(...c.map((q) => q[2])) + 1,
+    vox: voxKey(c), ground: c.filter((q) => q[2] === 0).length,
+  };
+}
+export function allPosesOf(vox) {
+  const out = new Map();
+  const queue = [parseVox(vox).map((c) => c.slice())];
+  while (queue.length) {
+    const cubes = queue.shift();
+    const pose = poseFromCubes(cubes);
+    if (out.has(pose.vox)) continue;
+    out.set(pose.vox, pose);
+    queue.push(cubes.map(quarterUp), cubes.map(quarterAcross), cubes.map(quarterAlong));
+  }
+  return [...out.values()];
+}
+// A pose given a quarter turn about the vertical, where it stands.
+export function quarterTurnedPose(vox) {
+  return poseFromCubes(parseVox(vox).map(quarterUp));
+}
+
 /* The same shape turned 180° about the vertical axis (x -> w-1-x,
    y -> h-1-y, levels unchanged) — how Light's copy of a piece mirrors
    Dark's in a rotationally symmetric opening (see generateAnomalySetup

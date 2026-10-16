@@ -22,7 +22,7 @@ import {
 } from "../engine/geometry.js";
 import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmPoint, maskAt } from "../engine/shapes.js";
 import {
-  startSetOut, place as setOutPlace, putBack as setOutPutBack, turn as setOutTurn, setHalf as setOutSetHalf,
+  startSetOut, place as setOutPlace, putBack as setOutPutBack, turn as setOutTurn, setHalf as setOutSetHalf, turnsWhileSettingOut,
   readiness as setOutReadiness, keep as setOutKeep, restore as setOutRestore, canRestore as setOutCanRestore,
   otherSide as setOutOther, targets as setOutTargets,
 } from "../engine/placement.js";
@@ -31,7 +31,6 @@ import {
   benchSpots, setOutCorners, nearestAnchor, freeAnchors, anchorOnto, buildSetOutMarks, keepSame,
   pieceName as setOutPieceName, SET_OUT_ACCENT,
 } from "./set-out.js";
-import { PIECE_ORIENTATIONS } from "../engine/anomaly.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo } from "./RulesCards.jsx";
 import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
@@ -3822,7 +3821,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }
   const setOutFind = (s, id) => (s && id ? s.so.pieces.find((p) => p.id === id) || s.so.bench.find((p) => p.id === id) || null : null);
   const setOutOnBench = (s, id) => !!(s && id && s.so.bench.some((p) => p.id === id));
-  const turnsOf = (p) => !!p && (PIECE_ORIENTATIONS[p.type] || []).length > 1;
+  // (Every way round it can stand, not only the shuffle's: placement.js setOutPoses.)
+  const turnsOf = (p) => turnsWhileSettingOut(p);
   const setOutCue = (name, p) => { try { const a = audioRef.current; if (a[name]) a[name](p ? cubeCount(p) : undefined); } catch (e) { /* audio not started */ } };
   // A piece set down: the world's knock as it lands (where the pieces are
   // wood the Cabeza only ever slides: its slide, or nothing).

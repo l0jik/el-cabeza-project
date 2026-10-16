@@ -335,8 +335,30 @@ console.log("Cabeza Nova: Place pieces manually");
   check("...My half", !!(await poll(async () => (await p.locator('[data-testid="gate-by-hand-half"]').getAttribute("aria-pressed")) === "true", 3000)));
   check("...kept as the setup's Starting position", await p.evaluate(() => localStorage.getItem("el-cabeza:start-position") === "hand" && localStorage.getItem("el-cabeza:set-out-half") === "1"));
   await shot(p, "sheet-by-hand");
+  // (An Arco Ancho in the order too: user, a video placing one by hand,
+  // "it is not showing all possible placement iterations".)
+  await p.locator('[data-testid="gate-count-arcoAncho-plus"]').click();
   await p.locator('[data-testid="gate-play"]').click();
   check("Play sets your pieces out first", !!(await poll(async () => (await p.locator('[data-testid="set-out-banner"]').count()) > 0, 20000)));
+  {
+    // Turn goes through every way it can stand: the 12 an Arco Ancho has
+    // (lengthwise toward the other side, opening sideways, upside down,
+    // on its end), not the shuffle's 3.
+    const arco = await poll(() => p.evaluate(() => { const s = window.__EC_TEST_SET_OUT__; const a = s && s.pieces.find((q) => q.owner === s.side && q.type === "arcoAncho"); return a && a.id; }), 8000);
+    await p.waitForTimeout(1500);
+    const at0 = await p.evaluate((i) => window.__EC_TEST_SCREEN_POS__(i), arco);
+    await p.mouse.click(at0.x, at0.y);
+    await p.waitForTimeout(400);
+    check("...the Arco Ancho chosen", (await p.evaluate(() => window.__EC_TEST_SET_OUT__.chosen)) === arco, arco);
+    const pose = () => p.evaluate((i) => { const s = window.__EC_TEST_SET_OUT__; const a = s.pieces.find((q) => q.id === i) || s.bench.find((q) => q.id === i); return a ? `${a.w}x${a.h}x${a.z}:${(a.vox || "").split(";").sort().join(";")}` : null; }, arco);
+    const seen = [await pose()];
+    for (let i = 0; i < 12; i++) {
+      await p.locator('[data-testid="set-out-turn"]').click();
+      await p.waitForTimeout(350);
+      seen.push(await pose());
+    }
+    check(`...Turn goes through all 12 ways it can stand, and back round (${new Set(seen).size})`, new Set(seen).size === 12 && seen[12] === seen[0] && seen.some((k) => /^1x4x2/.test(k)), seen.join(" | "));
+  }
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }
