@@ -44,11 +44,15 @@ rim, the front-page mock-ups of NOVA as a neon sign.
 
 ## Open reminders (from the user; not done yet)
 
-- None open. The last, the disclaimer (user, 2026-10-08), is in since
-  2026-10-14: the foot of ABOUT in every world (Recent rounds, "The
-  disclaimer"). What was said about rights along the way (mechanics and
-  names not copyrightable, AI-made parts, the Orinoco Flow clips) is kept
-  in docs/memory/00-open-reminders.md.
+- **Revisit a Trusted Web Activity** (user, 2026-10-16: "Remind me to
+  revisit this later: Trusted Web Activity"): the Android app as the
+  website in a Chrome shell, about 1 MB from the Play Store instead of
+  about 46-48 MB bundled. Bring it up again when an app build, the
+  Play Store or a domain for the site comes up, or when the user asks
+  what's open. What it needs: docs/memory/00-open-reminders.md.
+- (Done: the disclaimer, user 2026-10-08, in since 2026-10-14 at the foot
+  of ABOUT in every world; what was said about rights along the way is
+  kept in docs/memory/00-open-reminders.md.)
 
 ## Topics (`docs/memory/`)
 
@@ -387,3 +391,4 @@ rim, the front-page mock-ups of NOVA as a neon sign.
   What's left: audio is 37.7 MB of the 44.1 MB download (the Parrish songs 11.3, the tapes 8.8, the store's reels 5.3), the scripts 1.9, the spot's video 2.7, pictures 1.6. Further: AAC for an iOS build (iOS plays it natively; the test Chromium can't, so it would be a second set of files), or the worlds' music fetched on first visit instead of shipped.
 - Elementarism deleted (user: "Completely remove the Elementarism theme. Delete it."): the Lab's fourth direction, gone with everything only it used: its spec (themes/lab/specs.js), HUD stylesheet and chrome (css.js), voice (audio.js), the vector move marker and the diagonal planes under the board (scene.js), the brushed diagonal plate and the diamond mark (paint.js), the diagonal selection frame and the landing streak (ambient.js), the slice curtain and its sound note (apps/lab.jsx), its side names and points glow, its line in the realities menu and so its channel on the den's set (realities.js), its channel picture (assets/den/channels/lab-elementarism.jpg; build.js and tools/channel_shots.mjs no longer list it). The Lab is nine directions, renumbered 01-09 (Brutalism is 04 now); the number keys jump 1-9. A link to ?theme=elementarism or the choice saved from before opens Swiss (initialId falls back; e2e-lab checks it); a saved last reality of lab-elementarism reads as none (realities.js). The realities menu has 20 (e2e-ending). docs/memory/history keeps it.
 - An Android app (user: "What about an app on the Android Play Store?"): `npm run size -- --android` (tools/app_size.mjs leaves out the H.264 spot there; Android's WebView plays the smaller VP9 copy, den-commercial.js passing over a missing source): 42.9 MB zipped from 46.2 MB of files, about 46-48 MB to download with a WebView wrapper (Capacitor's runtime and AndroidX, a few MB), far under Google Play's 200 MB for an app's base download. Or a Trusted Web Activity: the site itself in a Chrome shell, about 1 MB to download, the game fetched from the site as it's played (online first; the site has to prove it's the app's with a file at its domain's root, /.well-known/assetlinks.json, which a github.io project site can't serve: a custom domain or the l0jik.github.io site would). Android also plays AAC and Opus, so an Android-only sound set could shed more of the 37.7 MB of MP3s.
+- A reminder (user: "Remind me to revisit this later: Trusted Web Activity"): kept under Open reminders at the top of this file, what a TWA would need in docs/memory/00-open-reminders.md.
