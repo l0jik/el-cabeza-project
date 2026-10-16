@@ -4426,7 +4426,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   useLayoutEffect(() => {
     if (!pieceCardShown || typeof document === "undefined") return undefined;
     const measure = () => {
-      const sel = '[data-testid="focus-corner"], [data-testid="room-view-corner"], [data-testid="action-corner"], [data-testid="dock-corner"], [data-testid="how-to-play"], [data-fullscreen-toggle], [data-testid="turn-buttons-float"]';
+      // (On a desktop the now-playing strip too, so the card sits above it;
+      // on a phone the strip is the pause chip at the top of the column, and
+      // it's the chip that climbs above the card, below.)
+      const sel = '[data-testid="focus-corner"], [data-testid="room-view-corner"], [data-testid="action-corner"], [data-testid="dock-corner"], [data-testid="how-to-play"], [data-fullscreen-toggle], [data-testid="turn-buttons-float"]' + (cornerStack ? "" : ', [data-testid="music-chip"]');
       let top = Infinity;
       document.querySelectorAll(sel).forEach((el) => {
         const r = el.getBoundingClientRect();
@@ -4441,7 +4444,24 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [pieceCardShown, selectedId, stopHereFloat, undoMoveFloat]);
+  }, [pieceCardShown, selectedId, stopHereFloat, undoMoveFloat, cornerStack]);
+  /* On a phone the pause chip, at the top of the corner's column, climbs
+     above the piece card while the card shows (user: the chip lay on the
+     card's top corner), measured from the card as it shows and as it moves,
+     and slides back down when the card goes. */
+  const [musicChipLift, setMusicChipLift] = useState(0);
+  useLayoutEffect(() => {
+    if (!cornerStack || shell || !pieceCardShown || typeof document === "undefined") { setMusicChipLift(0); return undefined; }
+    const measure = () => {
+      const card = document.querySelector('[data-testid="piece-card"]');
+      const r = card && card.getBoundingClientRect();
+      const want = r && r.height ? Math.round(window.innerHeight - r.top + 8) : 0;
+      setMusicChipLift(Math.max(0, want - musicChipBottom));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [cornerStack, shell, pieceCardShown, selectedId, pieceCardBottom, musicChipBottom]);
 
   /* ------------------------- scene setup ------------------------- */
   useEffect(() => {
@@ -11321,7 +11341,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               // on a phone before a game (user). A firmer shadow sets it
               // in front.
               zIndex: Math.max(cornerControlsZ, 16),
-              ...(shell ? { left: 12, bottom: "calc(var(--ec-shell-bottom, 72px) + 8px)" } : { left: 18, bottom: musicChipBottom }),
+              ...(shell ? { left: 12, bottom: "calc(var(--ec-shell-bottom, 72px) + 8px)" } : { left: 18, bottom: musicChipBottom + musicChipLift }),
               width: folded ? 30 : musicChipCompact ? Math.min(MUSIC_CHIP_W, viewportW - 36) : MUSIC_CHIP_W,
               boxSizing: "border-box", height: musicChipCompact ? 30 : 32, overflow: "hidden",
               display: "flex", alignItems: "center", gap: 6, padding: folded ? "0 1px" : "0 10px 0 2px",
@@ -11329,7 +11349,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               boxShadow: "0 4px 14px rgba(0,0,0,0.38), 0 1px 3px rgba(0,0,0,0.3)", color: COLORS.charcoal,
               fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12,
               opacity: hidden ? 0 : focusMode ? 0.4 : musicPaused ? 1 : 0.92,
-              pointerEvents: hidden ? "none" : "auto", transition: "opacity 0.5s ease, width 0.28s ease",
+              pointerEvents: hidden ? "none" : "auto", transition: "opacity 0.5s ease, width 0.28s ease, bottom 0.3s ease",
             }}
           >
             <style>{'html.ec-shell-menu-open [data-testid="music-chip"] { opacity: 0 !important; pointer-events: none !important; }'}</style>
