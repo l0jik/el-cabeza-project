@@ -193,17 +193,39 @@ user's setup without Punto and game 1's roster; colours alternating;
 4-2-1, as light 4-1-2). Its thinking, turn-weighted: 4.1 s a turn on
 average against 3.1 s, at most 7.8 s against 7.3 s. CI for de0c2fb:
 Deploy #777 and Browser tests #97 (all eight shards) green.
-Still open: two of the three losses were walks home, game 12 (batch C,
-start position recorded, aisim/an/replay12.mjs) after the light Cabeza
-went through a black hole into dark's half (in at (9,9), out at (4,2)).
-The net check counts only crush threats on Hard's own Cabeza; a reply
-that brings theirs within a turn of its goal row with no answer isn't
-seen. Counting it is cheap (endingLine when their Cabeza ends within
-turnBudget() rows of its goal and the reply touched its way there, and
-those replies tried first); in game 12 the check had already found a
-net two turns before the walk, so whether that alone would have saved
-it wasn't settled (an exact look at one turn of that game takes over
-ten minutes: generateTurns is about 0.24 s there).
+Walk home seen coming (user: "Teach Hard to see the walk-home coming";
+two of those three losses were walks home, game 12 after the light Cabeza
+went through a black hole into dark's half, in at (9,9), out at (4,2)):
+- opponentNet counts a walk home as a threat: their Cabeza ending a reply
+  within maxStepsFor("cabeza") rows of its goal row (nearHome), looked at
+  only when such a Cabeza exists (walkers: within two turns' steps of
+  home, or a turn's steps from a hole) and only when the reply moved it or
+  a piece in a box around its way home; then endingLine(opp) says whether
+  it can walk in. Replies that bring a Cabeza near home are tried first.
+- cabezaRouteCost routes through black holes: a step onto a hole lands
+  one square past the far hole, back along the way it came, and costs a
+  whole turn's steps (HOLE_STEPS_MAX = 6 caps it; ROUTE_RING is fixed at
+  HOLE_STEPS_MAX + ATTACKED_STEP_COST + 2 so Punto's short first turn never
+  reallocates the ring), so a Cabeza beside a hole whose far side is near
+  home is that much nearer to the evaluation.
+- hasAnswer got fast enough for the net check's 2.5 s: the turns that met
+  earlier threats (answers, ANSWERS_KEPT = 8) are tried first by
+  answerHolds (each step replayed as the rules allow it now), and a turn
+  of ours that ends the game (endingLine(me)) answers anything; in game
+  12's late positions the check had taken 3 to 34 s; the net two turns
+  before the walk is now found in 1.2 s.
+Checked: tests/ai-net.smoke.mjs sections 5 (Light's Cabeza beside a hole
+whose far side is a step from home reads nearer home through it, but not
+home this turn) and 6 (four rows out on an open board, a reply that
+brings it within a turn of home is a net; seven rows out it isn't); game
+12 again from turn 84 (aisim/an/cont12.mjs, the changed Hard as dark
+against the same opponent): it now wins by a crush at turn 94 instead of
+losing to the walk; 12 games of the changed Hard against the Hard before
+it (aisim/sim2.mjs, the user's setup, colours alternating,
+scratchpad/aisim/w2-a and w2-b): 9 wins and 2 losses over the first 11
+(both losses crushes, none a walk home; the twelfth still playing when
+this was written), 5-1 as dark, 4-1 as light. Thinking: about 4.2 s a
+turn on average against 3.7 s, at most 7.2 s against 7.7 s.
 
 Game 2, Hard won (played before de0c2fb was live, so the old Hard). Its
 Cabeza went into the black hole at (4,10) on its 32nd turn (C:

@@ -776,12 +776,26 @@ const MOBILITY_VALUE = 1.5;
    a wall of blocks no longer reads as "nearly home", and a block that
    closes or threatens its route gains real value. A small Dijkstra over
    the board with a bucket queue (every cost is a small integer).
-   `blocked`/`attacked` are Uint8Arrays indexed row * BOARD_COLS + col. */
+   `blocked`/`attacked` are Uint8Arrays indexed row * BOARD_COLS + col.
+   Black holes (user: "Teach Hard to see the walk-home coming"; a reported
+   game and a test game were both lost to a Cabeza that dropped into one
+   and came out deep in the other half, past every block in its way): a
+   step onto a hole isn't a step onto that square but out one square
+   past the far hole, back along the way it came (rules.js), if that
+   square is free, and its walking is over for the turn, so it costs a
+   whole turn's steps. A route through a hole can then be shorter than
+   any on foot, and the side whose home it leads to sees it coming.
+   (A route that ends a turn's walk early can't come out at or under a
+   turn's steps unless it drops straight onto the goal row, so walksHome
+   below stays exact about what a Cabeza can do this turn.) */
 // Reused across calls (this runs at every leaf of every search): the
-// distance table plus a ring of ATTACKED_STEP_COST + 2 buckets — every
-// edge costs 1 or 1 + ATTACKED_STEP_COST, so no pending entry is ever
-// further ahead than that. Resized when the board size changes.
-const ROUTE_RING = ATTACKED_STEP_COST + 2;
+// distance table plus a ring of buckets longer than the dearest edge (a
+// hole's whole turn, at most HOLE_STEPS_MAX, plus an attacked square), so
+// no pending entry is ever a lap ahead. Resized when the board size
+// changes (the ring is fixed, so the opening turn's shorter walk under
+// Punto never resizes it).
+const HOLE_STEPS_MAX = 6;
+const ROUTE_RING = HOLE_STEPS_MAX + ATTACKED_STEP_COST + 2;
 let routeDist = null;
 let routeBuckets = null;
 let routeCounts = null;
@@ -790,11 +804,17 @@ function cabezaRouteCost(cabeza, goalRow, blocked, attacked) {
   const cols = BOARD_COLS;
   const n = rows * cols;
   const unreachable = 2 * rows + 4;
+  const turnSteps = Math.min(maxStepsFor("cabeza"), HOLE_STEPS_MAX);
+  const ring = ROUTE_RING;
   if (!routeDist || routeDist.length !== n) {
     routeDist = new Int16Array(n);
-    routeBuckets = Array.from({ length: ROUTE_RING }, () => new Int32Array(n * 8 + 1));
-    routeCounts = new Int32Array(ROUTE_RING);
+    // (Every edge can push once: eight a square, and a hole's two.)
+    routeBuckets = Array.from({ length: ring }, () => new Int32Array(n * 8 + 8));
+    routeCounts = new Int32Array(ring);
   }
+  const holes = BLACK_HOLES.length === 2 ? BLACK_HOLES : null;
+  const hole0 = holes ? holes[0].row * cols + holes[0].col : -1;
+  const hole1 = holes ? holes[1].row * cols + holes[1].col : -1;
   const dist = routeDist;
   dist.fill(0x7fff);
   routeCounts.fill(0);
@@ -803,11 +823,11 @@ function cabezaRouteCost(cabeza, goalRow, blocked, attacked) {
   routeBuckets[0][routeCounts[0]++] = startIdx;
   let pending = 1;
   for (let d = 0; pending > 0 && d < unreachable; d++) {
-    const slot = d % ROUTE_RING;
+    const slot = d % ring;
     const bucket = routeBuckets[slot];
     // Entries pushed onto this slot while it's being read belong to a
-    // later lap of the ring only if cost >= ROUTE_RING, which never
-    // happens, so reading up to the live count is safe.
+    // later lap of the ring only if cost >= ring, which never happens,
+    // so reading up to the live count is safe.
     for (let i = 0; i < routeCounts[slot]; i++) {
       const idx = bucket[i];
       pending--;
@@ -822,12 +842,23 @@ function cabezaRouteCost(cabeza, goalRow, blocked, attacked) {
           if (!dr && !dc) continue;
           const nc = c + dc;
           if (nc < 0 || nc >= cols) continue;
-          const ni = nr * cols + nc;
+          let ni = nr * cols + nc;
+          let cost = 1;
+          if (ni === hole0 || ni === hole1) {
+            // Into the hole: out past the far one, the turn's walk spent.
+            const far = ni === hole0 ? holes[1] : holes[0];
+            const er = far.row - dr;
+            const ec = far.col - dc;
+            if (er < 0 || er >= rows || ec < 0 || ec >= cols) continue;
+            ni = er * cols + ec;
+            if (ni === hole0 || ni === hole1) continue;
+            cost = turnSteps;
+          }
           if (blocked[ni]) continue;
-          const nd = d + 1 + (attacked[ni] ? ATTACKED_STEP_COST : 0);
+          const nd = d + cost + (attacked[ni] ? ATTACKED_STEP_COST : 0);
           if (nd < dist[ni]) {
             dist[ni] = nd;
-            const ns = nd % ROUTE_RING;
+            const ns = nd % ring;
             routeBuckets[ns][routeCounts[ns]++] = ni;
             pending++;
           }
@@ -1640,33 +1671,57 @@ function checkOneTurnChoice(pieces, player, rootScores, deadline, weights) {
 
 /* Hard's look one turn further at a one-turn search's choice (netGuard):
    with our turn played (applied to `pieces`), can the opponent make a
-   threat on our Cabeza that no turn of ours answers? The reported game
-   was lost to exactly this: Hard's Cabeza stepped into a pocket within
-   reach of a Turrito that had come through a black hole; each turn it
-   then had held for one more turn, until the reply that closed the net.
+   threat that no turn of ours answers? The reported game was lost to
+   exactly this: Hard's Cabeza stepped into a pocket within reach of a
+   Turrito that had come through a black hole; each turn it then had
+   held for one more turn, until the reply that closed the net.
    true (netted), false, or null if it ran out of time (stopAt). The
-   threats looked for are a single block's (cabezaInDanger, as the
+   threats looked for: a single block's crush (cabezaInDanger, as the
    evaluation sees them), worked out only for the blocks a reply could
-   have changed; an answer is any turn after which the opponent has no
-   game-ending line at all (endingLine). The caller has checked the
-   position has none now. */
+   have changed; and their Cabeza brought within a turn of its goal row
+   with a way there (user: "Teach Hard to see the walk-home coming"; a
+   reported game and a test game were lost that way, each time a Cabeza
+   out of a black hole deep in the other half), looked at only when the
+   reply moved it or something on its way. An answer is any turn after
+   which the opponent has no game-ending line at all (endingLine). The
+   caller has checked the position has none now. */
 function opponentNet(pieces, me, stopAt) {
   const opp = opponentOf(me);
   const cabezas = pieces.filter((p) => p.type === "cabeza" && p.owner === me);
   if (!cabezas.length) return true;
   const pts = turnBudget();
   const holes = ACTIVE_LAWS.blackHoleSquares && BLACK_HOLES.length === 2;
-  // Nothing of theirs within two turns' reach: no net closes in one.
   const reachOf = (q) => pts * spanOf(q);
-  if (!pieces.some((q) => q.owner === opp && q.type !== "cabeza" && ((holes && canDrop(q)) || cabezas.some((c) => boxDist(q, c.row, c.col) <= 2 * reachOf(q) + 1)))) return false;
+  // Their Cabeza's walk home: a turn's steps from the goal row, and how
+  // near one has to start to get there in one turn (two turns' steps, or
+  // a step from a hole, which can put it anywhere past the far one).
+  const homeSteps = maxStepsFor("cabeza");
+  const goal = GOAL_ROW[opp];
+  const nearHome = (c) => Math.abs(goal - c.row) <= homeSteps;
+  const walkers = pieces.some((c) => c.type === "cabeza" && c.owner === opp &&
+    (Math.abs(goal - c.row) <= 2 * homeSteps || (holes && BLACK_HOLES.some((h) => boxDist(c, h.row, h.col) <= homeSteps))));
+  // Nothing of theirs within two turns' reach and no Cabeza of theirs
+  // that could come near home: no net closes in one.
+  if (!walkers && !pieces.some((q) => q.owner === opp && q.type !== "cabeza" && ((holes && canDrop(q)) || cabezas.some((c) => boxDist(q, c.row, c.col) <= 2 * reachOf(q) + 1)))) return false;
   const replies = generateTurns(pieces, opp);
-  // The likeliest nets first: the replies that end nearest our Cabeza.
+  // Where a reply leaves their Cabeza, if it moves one.
+  const cabezaEnd = (r) => {
+    let at = null;
+    const steps = r.steps ? r.steps.map((st) => ({ piece: st.piece, move: st.move })) : r.moves.map((m) => ({ piece: r.piece, move: m }));
+    for (const { piece, move } of steps) if (piece.type === "cabeza" && piece.owner === opp) at = move.candidate;
+    return at;
+  };
+  // The likeliest nets first: a Cabeza of theirs brought within a turn of
+  // home, then the replies that end nearest our Cabeza.
   const nearness = (r) => {
+    if (walkers) { const at = cabezaEnd(r); if (at && nearHome(at)) return -1; }
     let best = Infinity;
     for (const b of turnBoxes(r)) for (const c of cabezas) best = Math.min(best, boxDist(b, c.row, c.col));
     return best;
   };
   const order = replies.map((r) => ({ r, d: nearness(r) })).sort((a, b) => a.d - b.d);
+  // The turns of ours that met a threat so far (hasAnswer tries them first).
+  const answers = [];
   for (const { r } of order) {
     if (performance.now() > stopAt) return null;
     if (r.endsGame) return true;
@@ -1698,7 +1753,18 @@ function opponentNet(pieces, me, stopAt) {
         if (blockTurnReach(pieces, b, maxStepsFor(b.type), live, null, null, true)) { threatened = true; break; }
       }
     }
-    const netted = threatened && !hasAnswer(pieces, me, stopAt);
+    if (!threatened && walkers) {
+      // A walk home next turn: only where the reply moved their Cabeza
+      // or something between it and its goal row (nothing else changed
+      // since there was no line at all).
+      for (const c of pieces) {
+        if (c.type !== "cabeza" || c.owner !== opp || !nearHome(c)) continue;
+        const way = { row: Math.min(c.row, goal), col: c.col - homeSteps, h: Math.abs(goal - c.row) + 1, w: 2 * homeSteps + 1 };
+        if (!boxes.some((x) => boxesNear(x, way))) continue;
+        if (endingLine(pieces, opp)) { threatened = true; break; }
+      }
+    }
+    const netted = threatened && !hasAnswer(pieces, me, stopAt, answers);
     undoTurn(pieces, r, undos);
     if (netted) return true;
   }
@@ -1710,11 +1776,29 @@ function opponentNet(pieces, me, stopAt) {
    tried first (cheap, and usually it); then every turn that touches a
    line the opponent has (endingLine: one that's left alone still
    stands). Out of time counts as answered: a net is only claimed when
-   it's shown. */
-function hasAnswer(pieces, me, stopAt) {
+   it's shown. `answers` (opponentNet's): the turns that met earlier
+   threats, as [{ id, dir }] steps, tried before anything else: most
+   replies make the same threat as one before with some other piece moved
+   elsewhere, and the same answer meets it (in a test game's late
+   positions the check took 3 to 34 s, nearly all of it here, against
+   the 2.5 s it's given). Each is played again move by move as the turn
+   rules allow it now, or not at all. */
+function hasAnswer(pieces, me, stopAt, answers = null) {
   const opp = opponentOf(me);
+  if (answers) {
+    for (let i = 0; i < answers.length; i++) {
+      if (!answerHolds(pieces, me, opp, answers[i])) continue;
+      if (i) answers.unshift(answers.splice(i, 1)[0]);
+      return true;
+    }
+  }
+  // A turn of ours that ends the game first answers anything (the same
+  // as any of generateTurns' turns with endsGame, found far sooner).
+  if (endingLine(pieces, me)) return true;
+  const remember = (steps) => { if (answers) { answers.unshift(steps); if (answers.length > ANSWERS_KEPT) answers.pop(); } };
   for (const cab of pieces.filter((p) => p.type === "cabeza" && p.owner === me)) {
     const tried = new Set();
+    const path = [];
     let found = false;
     const walk = (left) => {
       const moves = legalCabezaSteps(pieces, cab);
@@ -1723,12 +1807,14 @@ function hasAnswer(pieces, me, stopAt) {
         if (m.crushes) continue;
         if (m.candidate.row === GOAL_ROW[me]) { found = true; return; }
         const u = applyMove(pieces, cab, m);
+        path.push({ id: cab.id, dir });
         const key = cab.row * 1000 + cab.col;
         if (!tried.has(key)) {
           tried.add(key);
-          if (!cabezaInDanger(pieces, me) && !endingLine(pieces, opp)) found = true;
+          if (!cabezaInDanger(pieces, me) && !endingLine(pieces, opp)) { found = true; remember(path.slice()); }
         }
         if (!found && left - 1 >= 1 && !m.teleports) walk(left - 1);
+        path.pop();
         undoMove(pieces, cab, u);
         if (found) return;
       }
@@ -1748,13 +1834,52 @@ function hasAnswer(pieces, me, stopAt) {
     const line = cabezaInDanger(pieces, me) ? null : endingLine(pieces, opp);
     const answered = !line && !cabezaInDanger(pieces, me);
     undoTurn(pieces, t, undos);
-    if (answered) return true;
+    if (answered) {
+      remember(t.steps ? t.steps.map((st) => ({ id: st.piece.id, dir: st.dir })) : t.dirs.map((d) => ({ id: t.piece.id, dir: d })));
+      return true;
+    }
     if (line) {
       const reg = lineRegion(line);
       if (!turnTouches(t, reg, pieces)) lines.push(reg);
     }
   }
   return false;
+}
+const ANSWERS_KEPT = 8;
+
+/* A turn of ours, as [{ id, dir }] steps, played again in this position
+   (hasAnswer's earlier answers): does it leave the opponent no line that
+   ends the game, and our Cabeza out of a single block's reach? Each step
+   must be legal now under the turn's rules as endingLine walks them (the
+   points left, Split Movement's pieces, a black hole ending it); if one
+   isn't, it's no answer here. A turn that wins outright answers. */
+function answerHolds(pieces, me, opp, steps) {
+  const budget = turnBudget();
+  const split = !!ACTIVE_LAWS.splitMovement;
+  const cap = split ? maxPiecesPerTurn() : 1;
+  const undo = [];
+  const moved = [];
+  let used = 0;
+  let ok = true;
+  let won = false;
+  for (let i = 0; i < steps.length; i++) {
+    const q = pieces.find((p) => p.id === steps[i].id);
+    const left = budget - used;
+    if (!q || q.owner !== me || left <= 0) { ok = false; break; }
+    const fresh = !moved.includes(q);
+    if (fresh && moved.length >= cap) { ok = false; break; }
+    const m = legalMovesFor(pieces, q, Math.min(left, maxStepsFor(q.type) - (split ? used : 0)))[steps[i].dir];
+    if (!m || (m.teleports && i < steps.length - 1)) { ok = false; break; }
+    if ((m.crushes && m.crushes.type === "cabeza" && m.crushes.owner === opp && crushEndsGame(pieces, m.crushes)) ||
+      (!m.crushes && q.type === "cabeza" && m.candidate.row === GOAL_ROW[me])) won = true;
+    undo.push([q, applyMove(pieces, q, m)]);
+    if (fresh) moved.push(q);
+    used += moveCost(m);
+    if (won) break;
+  }
+  const holds = ok && (won || (!cabezaInDanger(pieces, me) && !endingLine(pieces, opp)));
+  for (let i = undo.length - 1; i >= 0; i--) undoMove(pieces, undo[i][0], undo[i][1]);
+  return holds;
 }
 
 /* A turn that wins by force: after it the opponent's Cabeza is in reach

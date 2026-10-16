@@ -10,10 +10,16 @@
      turn of its answers, the reply after), and the retreat that holds
      does not: opponentNet, the look one turn further Hard now takes;
    - a Cabeza beside one black hole is in reach of a one-square piece that
-     can drop into the other (the threat walk used to cut it as too far). */
+     can drop into the other (the threat walk used to cut it as too far);
+   - a Cabeza beside a black hole whose far side is near its goal row is
+     that much nearer home to the evaluation (its route goes through it);
+   - the look one turn further sees a walk home coming: a reply that
+     brings the other Cabeza within a turn of its goal row with nothing
+     able to stop it is a net (user: "Teach Hard to see the walk-home
+     coming"), and one still two turns out is not. */
 import { setBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, setOpeningTurn, maxStepsFor, moveCost, GOAL_ROW } from "../engine/constants.js";
 import { legalMovesFor, applyShoves } from "../engine/rules.js";
-import { generateTurns, endingLine, cabezaInDanger, cabezaThreats, _netCheck } from "../engine/ai.js";
+import { generateTurns, endingLine, cabezaInDanger, cabezaThreats, evaluatePosition, _netCheck } from "../engine/ai.js";
 import { decodeReplay, VANILLA_LAWS } from "../engine/replay.js";
 
 let failures = 0;
@@ -116,6 +122,47 @@ function after(board, tu) {
   check("rolling east into the hole crushes the Cabeza beside the other (the rules)", !!(direct && direct.crushes && direct.crushes.id === "light-cabeza"));
   check("cabezaInDanger sees it", cabezaInDanger(copy(board), "light"));
   check("...and so does the check alert's list", cabezaThreats(board, "light").some((x) => x.attacker === "dark-turrito"));
+}
+
+// 5. A route through a black hole: Light's Cabeza (home is row 0) beside
+// the hole at (8,1); stepping west into it brings it out at (1,9), one
+// step from home. On foot it's eight rows away.
+{
+  setBoardDimensions(10, 10);
+  setActiveLaws({ ...VANILLA_LAWS, threeActions: true, blackHoleSquares: true });
+  setMissingSquares([]);
+  const board = [
+    { id: "dark-cabeza", type: "cabeza", owner: "dark", row: 0, col: 0, w: 1, h: 1, z: 1 },
+    { id: "light-cabeza", type: "cabeza", owner: "light", row: 8, col: 2, w: 1, h: 1, z: 1 },
+  ];
+  setBlackHoles([]);
+  const onFoot = evaluatePosition(copy(board), "dark", undefined, "dark");
+  setBlackHoles([{ row: 8, col: 1 }, { row: 1, col: 8 }]);
+  const west = legalMovesFor(board, board[1], 3).W;
+  check("(the rules: west into the hole, out at (1,9))", !!(west && west.teleports && west.candidate.row === 1 && west.candidate.col === 9));
+  const throughHole = evaluatePosition(copy(board), "dark", undefined, "dark");
+  check("the evaluation sees Light's Cabeza nearer home through the hole", throughHole < onFoot - 36, `${throughHole} vs ${onFoot}`);
+  check("...but not home this turn (the hole ends its walk)", !endingLine(copy(board), "light"));
+  setBlackHoles([]);
+}
+
+// 6. A walk home seen coming: Light's Cabeza four rows from home on an
+// open board, nothing of Dark's anywhere near. Light walks three rows;
+// then nothing Dark has can stop the last step.
+{
+  setBoardDimensions(10, 10);
+  setActiveLaws({ ...VANILLA_LAWS, threeActions: true });
+  setBlackHoles([]);
+  setMissingSquares([]);
+  const near = [
+    { id: "dark-cabeza", type: "cabeza", owner: "dark", row: 0, col: 9, w: 1, h: 1, z: 1 },
+    { id: "dark-turrito", type: "turrito", owner: "dark", row: 9, col: 0, w: 1, h: 1, z: 1 },
+    { id: "light-cabeza", type: "cabeza", owner: "light", row: 4, col: 4, w: 1, h: 1, z: 1 },
+  ];
+  check("(no walk home this turn: four rows, three steps)", !endingLine(copy(near), "light"));
+  check("a reply that brings it within a turn of home, unanswerable, is a net", _netCheck.opponentNet(copy(near), "dark", performance.now() + 60000) === true);
+  const far = near.map((p) => (p.id === "light-cabeza" ? { ...p, row: 7 } : { ...p }));
+  check("...and seven rows out, two turns away still, it isn't", _netCheck.opponentNet(copy(far), "dark", performance.now() + 60000) === false);
 }
 
 console.log(failures ? `\nAI NET CHECKS FAILED (${failures})` : "\nAI NET CHECKS PASSED");
