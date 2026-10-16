@@ -207,19 +207,34 @@ import("../themes/rules-selections.js").then(async (m) => {
     check("...never beside the first set's", !touching);
     const first = h.holeSpots[0];
     check("a hole beside the other set's is refused", m.spotProblem(h, "hole", first.row, first.col + (first.col < 9 ? 1 : -1), [first]) === "near");
-    // A picker's tap: with two sets a rolled spot gives way first, else the one marked first.
+    // A picker's tap moves the hole of the set its buttons are on (user:
+    // the dashed ring that marked a rolled one, the one a tap moved first,
+    // "is confusing"), each set in its place in the list (its colour).
     h.holeSpots = [{ row: 3, col: 2, random: false }, { row: 2, col: 6, random: true }];
-    let tap = m.holeSpotsAfterTap(h, 4, 7);
-    check("a tap with two sets takes the rolled spot's place", tap.spots && tap.spots.length === 2 && tap.spots[0].row === 3 && tap.spots[1].row === 4 && !tap.spots[1].random, JSON.stringify(tap));
+    let tap = m.holeSpotsAfterTap(h, 4, 7, 2);
+    check("a tap with Set 2 chosen moves Set 2's hole, Set 1's kept in its place", tap.spots && tap.spots.length === 2 && tap.spots[0].row === 3 && tap.spots[1].row === 4 && !tap.spots[1].random, JSON.stringify(tap));
     h.holeSpots = tap.spots;
-    tap = m.holeSpotsAfterTap(h, 2, 6);
-    check("...then the one marked first gives way", tap.spots && tap.spots[0].row === 4 && tap.spots[1].row === 2, JSON.stringify(tap));
-    check("...and a square beside the one kept is refused, said why", m.holeSpotsAfterTap(h, 4, 6).problem === "near" && !!m.SPOT_PROBLEMS.near);
+    tap = m.holeSpotsAfterTap(h, 2, 6, 1);
+    check("...with Set 1 chosen, Set 1's, Set 2's kept in its place", tap.spots && tap.spots[0].row === 2 && tap.spots[1].row === 4, JSON.stringify(tap));
+    check("...a square beside the other set's hole is refused, said why", m.holeSpotsAfterTap(h, 4, 6, 1).problem === "near" && !!m.SPOT_PROBLEMS.near);
+    check("...but a set's own hole may move next door", !!m.holeSpotsAfterTap(h, 4, 6, 2).spots);
+    h.holeSpots = [{ row: 3, col: 2, random: true }, { row: 2, col: 6, random: false }];
+    m.fillSpots(h, "hole", true);
+    check("re-rolled: a hand-placed Set 2 keeps its place (and colour)", h.holeSpots.length === 2 && h.holeSpots[0].random && h.holeSpots[1].row === 2 && h.holeSpots[1].col === 6 && !h.holeSpots[1].random, JSON.stringify(h.holeSpots));
+    // Exit from any hole (user: "a toggle switch that allows them to exit
+    // from any of the three other black holes on the board").
+    check("Exit from any hole: off to start with", h.holeAnyExit === false && m.lawsForEngine(h).holeAnyExit === false);
+    h.holeAnyExit = true;
+    check("...on: to the engine with two sets, and in the summary", m.lawsForEngine(h).holeAnyExit === true && /2 sets, exit from any hole/.test(JSON.stringify(m.variantsOf(h))) && /any of the other three/.test(m.holeSetsText(h)));
+    check("...kept through a save; an older save has it off", m.normalizeSelections(JSON.parse(JSON.stringify(h))).holeAnyExit === true && m.normalizeSelections({ laws: {} }).holeAnyExit === false);
+    check("...and how two sets work said otherwise: the other half", /either hole on the other half/.test(m.holeSetsText({ ...h, holeAnyExit: false })));
     const one = m.defaultSelections(); one.laws.blackHoleSquares = true; one.holeSpots = [{ row: 3, col: 2, random: false }];
     tap = m.holeSpotsAfterTap(one, 3, 3);
     check("with one set the hole simply moves, even next door", tap.spots && tap.spots.length === 1 && tap.spots[0].col === 3, JSON.stringify(tap));
     m.setHoleSets(h, 1);
     check("back to one set: the spot marked by hand stays", h.holeSpots.length === 1 && !h.holeSpots[0].random, JSON.stringify(h.holeSpots));
+    check("...and Exit from any hole goes nowhere with one set", m.lawsForEngine(h).holeAnyExit === false && !/exit from any hole/.test(JSON.stringify(m.variantsOf(h))) && /A hole and its partner/.test(m.holeSetsText(h)));
+    h.holeAnyExit = false;
     m.setHoleSets(h, 2);
     h.holeSpots = [{ row: 3, col: 2, random: false }, { row: 2, col: 6, random: false }];
     const x2 = { applyBoardResize: (r, c) => setBoardDimensions(r, c) };

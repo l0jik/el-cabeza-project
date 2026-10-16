@@ -49,6 +49,9 @@ export const VANILLA_LAWS = {
   // (Punto travels in the code's law list like any law; a code
   // from before it has none, and its first turn replays at full length.)
   punto: false,
+  // (As does where two sets' holes let out: a code from before it has
+  // none, and its pieces come out on the far half, as they did.)
+  holeAnyExit: false,
 };
 const LAW_KEYS = Object.keys(VANILLA_LAWS).filter((k) => k !== "shoveOnRolls" && k !== "shoveOwn");
 

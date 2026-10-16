@@ -417,11 +417,52 @@ for (const size of [SIZES[2], SIZES[7]]) {
   // set again keeps that one.
   await press('[data-testid="tienda-hole-sets-2"]');
   const where2 = await txt('[data-testid="tienda-hole-where"]');
-  check("Black holes, two sets: a second rolled, the hand-placed one kept, and it says what that does", (where2.match(/O row/g) || []).length === 2 && where2.startsWith(`O row ${pickRow + 1}, col ${pickCol + 1}`)
-    && /either hole on the far side/.test(await txt('[data-testid="tienda-hole-sets-note"]')), where2);
+  // (How they work, said under Sets, user: "an explanation on the setup
+  // page for the two black holes, how they work".)
+  check("Black holes, two sets: a second rolled, the hand-placed one kept, and it says how they work", (where2.match(/O row/g) || []).length === 2 && where2.startsWith(`O row ${pickRow + 1}, col ${pickCol + 1}`)
+    && /either hole on the other half, you choose which, the normal way/.test(await txt('[data-testid="tienda-hole-sets-note"]')), where2);
+  // The box under two sets (user: "a toggle switch that allows them to
+  // exit from any of the three other black holes on the board").
+  check("...with Exit from any hole to mark, unmarked", (await count('[data-testid="tienda-hole-any"]')) === 1 && !(await page.locator('[data-testid="tienda-hole-any-input"]').isChecked()));
+  await press('[data-testid="tienda-hole-any"]');
+  check("...marked, the words say any of the other three", (await page.locator('[data-testid="tienda-hole-any-input"]').isChecked()) && /any of the other three/.test(await txt('[data-testid="tienda-hole-sets-note"]')));
+  // The picker with two sets (user: the dashed ring "is confusing"): no
+  // ring; buttons over the board say which set a mark moves, the other
+  // pair faded; a mark moves that set's hole.
+  await press('[data-testid="tienda-hole-select"]');
+  await page.waitForTimeout(500);
+  const pk = await page.evaluate(() => ({
+    rings: document.querySelectorAll('[data-testid="tienda-picker"] .mk.bh.rolled').length,
+    aim1: document.querySelector('[data-testid="tienda-hole-aim-1"]')?.getAttribute("aria-pressed"),
+    idle2: document.querySelectorAll('[data-testid="tienda-picker"] .mk.bh.idle[data-set="2"]').length,
+    idle1: document.querySelectorAll('[data-testid="tienda-picker"] .mk.bh.idle[data-set="1"]').length,
+  }));
+  check("...the picker: no dashed rings, Set 1 chosen, Set 2's pair faded", pk.rings === 0 && pk.aim1 === "true" && pk.idle2 === 2 && pk.idle1 === 0, JSON.stringify(pk));
+  await press('[data-testid="tienda-hole-aim-2"]');
+  const far = await page.evaluate(() => {
+    const cells = [...document.querySelectorAll('[data-testid="tienda-picker"] .td-cell')];
+    const one = cells.filter((b) => b.querySelector('.mk.bh[data-set="1"]')).map((b) => [+b.dataset.row, +b.dataset.col]);
+    const c = cells.find((b) => !b.querySelector(".mk") && !b.classList.contains("banned") && +b.dataset.row > 2 && +b.dataset.row < 7
+      && one.every(([r, cc]) => Math.max(Math.abs(r - +b.dataset.row), Math.abs(cc - +b.dataset.col)) > 2));
+    return c ? c.dataset.testid : null;
+  });
+  await press(`[data-testid="${far}"]`);
+  await page.waitForTimeout(300);
+  const moved = await page.evaluate((id) => ({
+    two: !!document.querySelector(`[data-testid="${id}"] .mk.bh[data-set="2"]`),
+    ones: document.querySelectorAll('[data-testid="tienda-picker"] .mk.bh[data-set="1"]').length,
+    idle1: document.querySelectorAll('[data-testid="tienda-picker"] .mk.bh.idle[data-set="1"]').length,
+  }), far);
+  check("...Set 2 chosen, a mark moves its hole there; Set 1's pair stays, faded now", moved.two && moved.ones === 2 && moved.idle1 === 2, JSON.stringify({ far, ...moved }));
+  await press('[data-testid="tienda-picker-done"]');
+  for (let i = 0; i < 30 && (await count('[data-testid="tienda-picker"]')); i++) await page.waitForTimeout(200);
+  const [farRow, farCol] = far.split("-").slice(2).map(Number);
+  const where3 = await txt('[data-testid="tienda-hole-where"]');
+  check("...Done: Set 1's hole kept first, Set 2's where it was marked", where3.startsWith(`O row ${pickRow + 1}, col ${pickCol + 1} · O row ${farRow + 1}, col ${farCol + 1}`), where3);
+  await press('[data-testid="tienda-hole-any"]');
   await press('[data-testid="tienda-hole-sets-1"]');
   const where1 = await txt('[data-testid="tienda-hole-where"]');
-  check("...one set again: the hand-placed one stays", (where1.match(/O row/g) || []).length === 1 && where1.startsWith(`O row ${pickRow + 1}, col ${pickCol + 1}`), where1);
+  check("...one set again: the hand-placed one stays, and no Exit from any hole", (where1.match(/O row/g) || []).length === 1 && where1.startsWith(`O row ${pickRow + 1}, col ${pickCol + 1}`) && (await count('[data-testid="tienda-hole-any"]')) === 0, where1);
   await press('[data-testid="tienda-missing"]');
   await press('[data-testid="tienda-missing-count-inc"]');
   check("Missing squares: 2 pairs rolled at once", ((await txt('[data-testid="tienda-missing-where"]')).match(/X row/g) || []).length === 2);

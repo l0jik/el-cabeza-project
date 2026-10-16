@@ -3,7 +3,10 @@
    player's piece will show the exit point at ... only the 2 that are on
    the other side of the board"): a piece beside a hole shows a marker at
    each way out, the other set's one is taken by tapping it, and Undo turn
-   puts the piece back. A slide into a hole shows its ways out too.
+   puts the piece back. A slide into a hole shows its ways out too. With
+   Exit from any hole on (user: "a toggle switch that allows them to exit
+   from any of the three other black holes on the board"), a third marker
+   at the other hole on the piece's own half, taken by tapping it.
      node tests/e2e-hole-sets.mjs (after npm run build) */
 import { chromium } from "playwright";
 
@@ -101,6 +104,26 @@ const tapPiece = async (page, id) => {
   await page.mouse.click(pos.x, pos.y);
   await page.waitForTimeout(2000);
   check("...tapping the partner's marker slides it out beside A2", JSON.stringify(await at(page, "dark-flaco")) === "[6,6]", JSON.stringify(await at(page, "dark-flaco")));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await page.close();
+}
+
+// Exit from any hole: the Cabeza beside A1 has a third way out, W of B1
+// on its own half, its own marker; tapping it takes the Cabeza there.
+{
+  const { page, errs } = await setup({ blackHoleSquares: true, holeAnyExit: true }, [
+    P("dark-cabeza", "cabeza", "dark", 3, 1, 1, 1, 1),
+    P("light-cabeza", "cabeza", "light", 9, 9, 1, 1, 1),
+    P("light-turrito", "turrito", "light", 9, 0, 1, 1, 1),
+  ]);
+  await tapPiece(page, "dark-cabeza");
+  const m = await markers(page);
+  check("Exit from any hole: three markers for the step in, E, E-x and E-y", JSON.stringify(m.E) === "[6,6]" && JSON.stringify(m["E-x"]) === "[7,2]" && JSON.stringify(m["E-y"]) === "[2,5]", JSON.stringify(m));
+  const pos = await markerPos(page, "E-y");
+  await page.mouse.click(pos.x, pos.y);
+  const turned = await (async () => { for (let i = 0; i < 30; i++) { await page.waitForTimeout(200); if ((await page.evaluate(() => (window.__EC_TEST_TURNS__ || []).length)) === 1) return true; } return false; })();
+  check("...tapping the third takes the Cabeza out of B1, on its own half, and ends the turn", turned && JSON.stringify(await at(page, "dark-cabeza")) === "[2,5]", JSON.stringify(await at(page, "dark-cabeza")));
+  check("...the turn's record says which way out (E-y)", (await page.evaluate(() => JSON.stringify(window.__EC_TEST_TURNS__[0]))).includes("E-y"));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();
 }

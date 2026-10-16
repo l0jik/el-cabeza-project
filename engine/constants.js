@@ -342,6 +342,13 @@ export let ACTIVE_LAWS = {
   // the cut came back (user). See OPENING_TURN below for how the turn is
   // marked.
   punto: false,
+  // Black Hole Squares with two sets: where a piece that drops into a
+  // hole may come out. Off (the default), either hole on the other half
+  // of the board; on, any of the three other holes, the one beside it
+  // on its own half too (user: "a toggle switch that allows them to exit
+  // from any of the three other black holes on the board"). See
+  // holeExits in rules.js.
+  holeAnyExit: false,
 };
 
 export function setActiveLaws(partial) {
@@ -535,15 +542,26 @@ export const baseDirOfSlideKey = (key) => plainKeyOf(key).slice(SLIDE_KEY_PREFIX
    player's piece will show the exit point at ... only the 2 that are on
    the other side of the board"): a piece that drops into a hole may come
    out of either hole on the far side, so the same roll, slide or step
-   is two moves. The plain key comes out of the hole's own partner (its
-   mirror, as with one set); the plain key with OTHER_EXIT_MARK on the end
-   comes out of the other set's hole (see holeExits in rules.js). Where a
-   key is read for its direction (an animation, an arrow, undo), the mark
-   is taken off first: plainKeyOf. */
-export const OTHER_EXIT_MARK = "-x";
-export const isOtherExitKey = (key) => key.endsWith(OTHER_EXIT_MARK);
-export const otherExitKey = (key) => key + OTHER_EXIT_MARK;
-export const plainKeyOf = (key) => (isOtherExitKey(key) ? key.slice(0, -OTHER_EXIT_MARK.length) : key);
+   is two moves (three with holeAnyExit: the other set's hole on its own
+   half as well). The plain key comes out of the hole's own partner (its
+   mirror, as with one set); the plain key with an exit mark on the end
+   comes out of another hole: "-x" the other set's hole on the far half,
+   "-y" the other set's hole on the near half (see holeExits in rules.js,
+   whose order the marks follow). Where a key is read for its direction
+   (an animation, an arrow, undo), the mark is taken off first:
+   plainKeyOf. */
+export const EXIT_MARKS = ["", "-x", "-y"];
+export const OTHER_EXIT_MARK = EXIT_MARKS[1];
+export const exitOfKey = (key) => {
+  for (let i = EXIT_MARKS.length - 1; i > 0; i--) if (key.endsWith(EXIT_MARKS[i])) return i;
+  return 0;
+};
+export const isOtherExitKey = (key) => exitOfKey(key) > 0;
+export const otherExitKey = (key, exit = 1) => key + EXIT_MARKS[exit];
+export const plainKeyOf = (key) => {
+  const exit = exitOfKey(key);
+  return exit ? key.slice(0, -EXIT_MARKS[exit].length) : key;
+};
 
 /* Every slide key needs its own inverse for undo's backward replay,
    derived from the plain table above so the two can't drift apart. */

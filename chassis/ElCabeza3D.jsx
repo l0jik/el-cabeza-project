@@ -9360,7 +9360,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // session settings — cleared here for a plain game (both the engine
       // module state read by rules.js/the AI worker and the chassis's own
       // React copies).
-      setActiveLaws({ splitMovement: false, splitThree: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true, shoveOwn: true, punto: false });
+      setActiveLaws({ splitMovement: false, splitThree: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true, shoveOwn: true, punto: false, holeAnyExit: false });
       setActiveBlackHoles([]);
       setBlackHoles([]);
       setActiveMissingSquares([]);
@@ -9732,7 +9732,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const topo = [];
     if (rec.rows !== bootBoardRef.current.rows || rec.cols !== bootBoardRef.current.cols) topo.push(`${rec.cols} × ${rec.rows} board`);
     if (rec.missing.length) topo.push(`Missing squares (${rec.missing.length / 2} ${rec.missing.length === 2 ? "pair" : "pairs"})`);
-    if (rec.laws.blackHoleSquares) topo.push(HOLES_LAW.name); // (with the board, as the menus set it)
+    // (With the board, as the menus set it; two sets say so.)
+    if (rec.laws.blackHoleSquares) topo.push((rec.holes || []).length > 2 ? `${HOLES_LAW.name} (2 sets${rec.laws.holeAnyExit ? ", exit from any hole" : ""})` : HOLES_LAW.name);
     if (topo.length) groups.push({ key: "topologies", label: "TOPOLOGY", items: topo });
     return groups.length ? groups : null;
   }
@@ -13392,6 +13393,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                   rows: BOARD_ROWS,
                   cols: BOARD_COLS,
                   missing: MISSING_SQUARES.length,
+                  holes: BLACK_HOLES.length,
                   newTypes: [...new Set(pieces.filter((p) => !["cabeza", "turrito", "opa", "flaco", "chato"].includes(p.type)).map((p) => PIECE_META[p.type].name))],
                 }}
               />

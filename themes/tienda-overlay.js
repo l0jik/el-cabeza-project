@@ -27,7 +27,7 @@ import React from "react";
 import {
   PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
   defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
-  pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf, holeSetsOf, setHoleSets,
+  pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf, holeSetsOf, setHoleSets, holeSetsText, HOLE_ANY_EXIT, holeAnyExitOn,
 } from "./rules-selections.js";
 import { SquarePicker, OpponentSection, CarbonCopies, ORDER_PARTS_CSS } from "./tienda-order.js";
 import { ShopCorner, StorePA, useShoppingVisit } from "./tienda-shopping.js";
@@ -1026,6 +1026,10 @@ const MORE_CSS = `
   .td-sub-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; width: 100%; }
   .td-sub-h { font: 700 11.5px/1.2 ${FRANKLIN}; letter-spacing: 0.12em; text-transform: uppercase; min-width: 7.5em; }
   .td-sub-val { font: 400 12.5px/1.35 ${COURIER}; color: #1F3A6B; flex: 1 1 12em; }
+  /* How the black holes work, as they're set, and the switch under two
+     sets: a box of the form's own, inside the settings. */
+  .td-sub-explain { margin: 0; font: 400 12.5px/1.45 ${COURIER}; color: ${INK}; max-width: 62ch; }
+  .td-sub .td-check { width: 100%; padding: 4px 0; min-height: 44px; border-bottom: none; }
   .td-small-btn { min-height: 44px; padding: 0 14px; font-size: 12px; }
   .td-info { display: inline-block; margin-top: 4px; padding: 6px 0; min-height: 32px; border: none; background: transparent; color: ${RED};
     font: 700 12px/1.2 ${COURIER}; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
@@ -1668,7 +1672,13 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
             key: n, type: "button", "aria-pressed": holeSetsOf(sel) === n ? "true" : "false", "data-testid": `tienda-hole-sets-${n}`,
             onClick: () => { click(); change((s) => setHoleSets(s, n)); },
           }, String(n)))),
-        h("span", { className: "td-sub-val", "data-testid": "tienda-hole-sets-note" }, holeSetsOf(sel) === 2 ? "A piece that drops in comes out of either hole on the far side." : "A hole and its partner.")),
+      ),
+      // How they work, as they're set (user: "an explanation on the setup
+      // page for the two black holes, how they work").
+      h("p", { className: "td-sub-explain", "data-testid": "tienda-hole-sets-note" }, holeSetsText(sel)),
+      // Two sets: out of any of the other three holes (user: "a toggle
+      // switch"; on the form, a box to mark).
+      holeSetsOf(sel) === 2 && check("hole-any", !!sel.holeAnyExit, HOLE_ANY_EXIT.name, HOLE_ANY_EXIT.note, () => change((s) => { s.holeAnyExit = !s.holeAnyExit; })),
       h("div", { className: "td-sub-row" },
         h("span", { className: "td-sub-h" }, "Where"),
         h("span", { className: "td-sub-val", "data-testid": "tienda-hole-where" }, spotsLine(sel.holeSpots, "O")),

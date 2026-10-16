@@ -1,5 +1,19 @@
 ## Open reminders (from the user), and how they ended
 
+- **Open since 2026-10-16: settle Cabeza Nova's standard rules before any
+  public launch** (user: "remind me that we cannot deploy this until a
+  firmed up set of preferred rules is established. Everything else, all
+  the modularity will be a part of the Cabeza Nova system, but we have to
+  deploy it with a preferred set of actual rules. That's considered to be
+  the standard for Cabeza Nova."). The modular setup (every law, piece,
+  board, black-hole and missing-square option) stays; the launch needs one
+  preferred rule set named as the Cabeza Nova standard, which the game
+  then offers first. Things to settle when it's taken up: which laws are
+  on and their settings (shoving's, the black holes' sets and exits), the
+  pieces each side has, the board's size, missing squares, Punto, the
+  starting position. Evidence to hand: the AI-vs-AI win rates (Punto,
+  docs/memory/03-game-ai.md) and the complexity measures.
+
 - **Open since 2026-10-16: revisit a Trusted Web Activity** (user:
   "Remind me to revisit this later: Trusted Web Activity", after the
   Android sizes: "What about an app on the Android Play Store?"). What

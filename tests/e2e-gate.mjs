@@ -234,8 +234,17 @@ console.log("Cabeza Nova: the one menu");
     // placed by hand kept; a square beside a hole of the other set is
     // refused, said why.
     await p.locator('[data-testid="gate-hole-sets-2"]').click();
-    check("two sets: Sets 2 chosen, said what it does", (await p.locator('[data-testid="gate-hole-sets-2"]').getAttribute("aria-pressed")) === "true"
-      && /either hole on the far side/.test(await p.locator('[data-testid="gate-hole-sets-2"]').locator("xpath=../..").innerText()));
+    // (How they work, said under Sets, user: "an explanation on the setup
+    // page for the two black holes, how they work".)
+    check("two sets: Sets 2 chosen, said how they work", (await p.locator('[data-testid="gate-hole-sets-2"]').getAttribute("aria-pressed")) === "true"
+      && /either hole on the other half, you choose which, the normal way/.test(await p.locator('[data-testid="gate-hole-explain"]').innerText()));
+    // The switch under two sets (user: "a toggle switch that allows them
+    // to exit from any of the three other black holes on the board").
+    check("...Exit from any hole under it, off", (await p.locator('[data-testid="gate-hole-any"]').getAttribute("aria-checked")) === "false");
+    await p.locator('[data-testid="gate-hole-any"]').click();
+    check("...on, the words say any of the other three", (await p.locator('[data-testid="gate-hole-any"]').getAttribute("aria-checked")) === "true"
+      && /any of the other three/.test(await p.locator('[data-testid="gate-hole-explain"]').innerText()));
+    await p.locator('[data-testid="gate-hole-any"]').click();
     await p.locator('[data-testid="gate-place-holes"]').click();
     await poll(open, 3000);
     // (The squares cut out show on this board too, as X. The holes are
@@ -244,6 +253,18 @@ console.log("Cabeza Nova: the one menu");
     const holeMarks = await p.evaluate(() => { const m = [...document.querySelectorAll('[data-testid="gate-picker"] .mk.bh')]; return { n: m.length, one: m.filter((el) => el.dataset.set === "1").length, two: m.filter((el) => el.dataset.set === "2").length, letters: m.filter((el) => el.textContent).length }; });
     check("...four holes on the board, the one placed by hand still there", holeMarks.n === 4 && (await markOf(b)) === "hand", `${JSON.stringify(holeMarks)}, ${b} ${await markOf(b)}`);
     check("...drawn as black holes, each set's pair in its own colour, with a key", holeMarks.one === 2 && holeMarks.two === 2 && holeMarks.letters === 0 && (await p.locator('[data-testid="gate-hole-key"]').count()) === 1, JSON.stringify(holeMarks));
+    // (No dashed ring for one placed at random, user: "The dashed ring is
+    // confusing". The buttons over the board say which set a tap moves,
+    // Set 1 first, the other pair dimmed.)
+    const aimState = () => p.evaluate(() => ({
+      rings: document.querySelectorAll('[data-testid="gate-picker"] .mk.bh.rolled').length,
+      aim: [1, 2].find((n) => document.querySelector(`[data-testid="gate-hole-aim-${n}"]`)?.getAttribute("aria-pressed") === "true") || 0,
+      idle1: document.querySelectorAll('[data-testid="gate-picker"] .mk.bh.idle[data-set="1"]').length,
+      idle2: document.querySelectorAll('[data-testid="gate-picker"] .mk.bh.idle[data-set="2"]').length,
+    }));
+    let aimed = await aimState();
+    check("...no dashed rings; Set 1 chosen to move, Set 2's pair dimmed", aimed.rings === 0 && aimed.aim === 1 && aimed.idle2 === 2 && aimed.idle1 === 0, JSON.stringify(aimed));
+    await p.locator('[data-testid="gate-hole-aim-2"]').click();
     const beside = await p.evaluate((id) => {
       const [r, c] = id.split("-").slice(2).map(Number);
       for (const [dr, dc] of [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
@@ -253,10 +274,27 @@ console.log("Cabeza Nova: the one menu");
       return null;
     }, b);
     await p.locator(`[data-testid="${beside}"]`).click();
-    check("...a square beside the hand-placed hole is refused, said why", (await markOf(beside)) === "" && /square between them/.test(await p.locator(".rg-pick-note").innerText()), `${beside}: ${await p.locator(".rg-pick-note").innerText()}`);
+    check("...Set 2 chosen: a square beside Set 1's hole is refused, said why", (await markOf(beside)) === "" && /square between them/.test(await p.locator(".rg-pick-note").innerText()), `${beside}: ${await p.locator(".rg-pick-note").innerText()}`);
+    // A square clear of Set 1's pair: Set 2's hole moves there, Set 1's
+    // stays (and is the dimmed one now).
+    const clear = await p.evaluate(() => {
+      const cells = [...document.querySelectorAll('[data-testid^="gate-cell-"]')];
+      const rc = (el) => el.dataset.testid.split("-").slice(2).map(Number);
+      const one = cells.filter((el) => el.querySelector('.mk.bh[data-set="1"]')).map(rc);
+      const c = cells.find((el) => { const [r, cc] = rc(el); return !el.querySelector(".mk") && !el.classList.contains("banned") && r > 2 && r < 7 && one.every(([a, b]) => Math.max(Math.abs(a - r), Math.abs(b - cc)) > 2); });
+      return c ? c.dataset.testid : null;
+    });
+    await p.locator(`[data-testid="${clear}"]`).click();
+    const after = await p.evaluate((id) => ({ two: !!document.querySelector(`[data-testid="${id}"] .mk.bh[data-set="2"]`), ones: document.querySelectorAll('[data-testid="gate-picker"] .mk.bh[data-set="1"]').length }), clear);
+    aimed = await aimState();
+    check("...a tap on a clear square moves Set 2's hole there; Set 1's stays, dimmed", after.two && after.ones === 2 && (await markOf(b)) === "hand" && aimed.aim === 2 && aimed.idle1 === 2 && aimed.idle2 === 0, JSON.stringify({ clear, ...after, ...aimed }));
+    await p.locator(`[data-testid="${b}"]`).click();
+    aimed = await aimState();
+    check("...a tap on a Set 1 hole chooses Set 1 again, nothing moved", aimed.aim === 1 && (await markOf(b)) === "hand" && after.two, JSON.stringify(aimed));
     await p.locator('[data-testid="gate-picker-done"]').click();
     await p.locator('[data-testid="gate-hole-sets-1"]').click();
-    check("...back to one set", (await p.locator('[data-testid="gate-hole-sets-1"]').getAttribute("aria-pressed")) === "true");
+    check("...back to one set, and no Exit from any hole", (await p.locator('[data-testid="gate-hole-sets-1"]').getAttribute("aria-pressed")) === "true" && (await p.locator('[data-testid="gate-hole-any"]').count()) === 0
+      && /A hole and its partner/.test(await p.locator('[data-testid="gate-hole-explain"]').innerText()));
   }
   check("Reset back to the classic set", await (async () => {
     await p.locator('[data-testid="gate-reset"]').click();

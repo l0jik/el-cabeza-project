@@ -238,6 +238,15 @@ tests/black-hole-sets.smoke.mjs: a Turrito beside one hole threatens a
 Cabeza beside the other set's far hole (seen with two sets, not with the
 one pair), a Cabeza beside a hole reads nearer home with the other set's
 way out, and Medium takes the way out nearer home.
+Exit from any hole (ACTIVE_LAWS.holeAnyExit, the switch under two sets):
+holeExits adds the other set's hole on the hole's own half, so holesInto
+and routeHolesFor follow it with nothing else changed; routeHolesFor's
+cache is keyed on the law as well as the holes and the board (else a
+game after a game with the other setting would route by the old exits).
+generateTurns needs nothing: the third way out is its own key ("E-y").
+Checked in black-hole-sets.smoke: the computer's turns include it, and a
+Cabeza beside a hole whose own half's partner hole is near home reads
+nearer with the switch on and as before with it off again.
 
 Game 2, Hard won (played before de0c2fb was live, so the old Hard). Its
 Cabeza went into the black hole at (4,10) on its 32nd turn (C:

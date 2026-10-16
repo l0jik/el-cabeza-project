@@ -138,7 +138,14 @@ await page.locator('[data-testid="lluvia-size-12"]').click();
   await page.locator('[data-testid="lluvia-hole-sets-2"]').click();
   await page.waitForTimeout(150);
   check("...two can be chosen, and it says what that does", (await page.locator('[data-testid="lluvia-hole-sets-2"]').getAttribute("aria-pressed")) === "true"
-    && /either hole on the far side/.test(await page.locator('[data-testid="lluvia-hole-sets"]').innerText()));
+    && /either hole on the other half/.test(await page.locator('[data-testid="lluvia-hole-explain"]').innerText()));
+  // The switch under two sets (user: "a toggle switch that allows them to
+  // exit from any of the three other black holes on the board").
+  check("...with Exit from any hole under it, off", (await page.locator('[data-testid="lluvia-topo-holeAnyExit"]').getAttribute("aria-pressed")) === "false");
+  await page.locator('[data-testid="lluvia-topo-holeAnyExit"]').click();
+  check("...on, and the words say any of the other three", (await page.locator('[data-testid="lluvia-topo-holeAnyExit"]').getAttribute("aria-pressed")) === "true"
+    && /any of the other three/.test(await page.locator('[data-testid="lluvia-hole-explain"]').innerText()));
+  await page.locator('[data-testid="lluvia-topo-holeAnyExit"]').click();
   await page.locator('[data-testid="lluvia-topo-holes"]').click();
   await page.waitForTimeout(150);
   check("...and black holes off hides it", (await page.locator('[data-testid="lluvia-hole-sets"]').count()) === 0);

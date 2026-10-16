@@ -335,7 +335,8 @@ function canDrop(p) {
 
 /* The black holes a one-square piece can drop into to come out beside
    `t`: those with a way out (rules.js holeExits) through a hole next to
-   it. One set: the other hole; two sets: either hole in the far half. */
+   it. One set: the other hole; two sets: either hole in the far half
+   (with holeAnyExit, any other hole). */
 function holesInto(t) {
   const out = [];
   for (const h of BLACK_HOLES) {
@@ -801,12 +802,14 @@ let routeDist = null;
 let routeBuckets = null;
 let routeCounts = null;
 // The holes as squares, each with where it lets out (rules.js
-// holeExits), kept while the holes and the board stay the same.
+// holeExits), kept while the holes, the board and where two sets let out
+// (holeAnyExit) stay the same.
 let routeHoles = null;
 let routeHolesKey = null;
 function routeHolesFor(rows, cols) {
   if (BLACK_HOLES.length < 2) return null;
-  if (routeHolesKey && routeHolesKey.holes === BLACK_HOLES && routeHolesKey.rows === rows && routeHolesKey.cols === cols) return routeHoles;
+  const any = !!ACTIVE_LAWS.holeAnyExit;
+  if (routeHolesKey && routeHolesKey.holes === BLACK_HOLES && routeHolesKey.rows === rows && routeHolesKey.cols === cols && routeHolesKey.any === any) return routeHoles;
   const isHole = new Uint8Array(rows * cols);
   const out = [];
   for (const h of BLACK_HOLES) {
@@ -815,7 +818,7 @@ function routeHolesFor(rows, cols) {
     out[i] = holeExits(h);
   }
   routeHoles = { isHole, out };
-  routeHolesKey = { holes: BLACK_HOLES, rows, cols };
+  routeHolesKey = { holes: BLACK_HOLES, rows, cols, any };
   return routeHoles;
 }
 function cabezaRouteCost(cabeza, goalRow, blocked, attacked) {

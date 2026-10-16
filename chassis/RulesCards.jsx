@@ -36,13 +36,28 @@ export const LAW_TEXT = {
   splitMovement: { name: "Split Movement, 2 Pieces", text: "Your actions can be shared between up to two pieces in one turn." },
   slide: { name: "Orthogonal Slide", text: "Any piece can move one open square along its row or column (north, south, east or west, not corner to corner) without tipping. A slide costs 2 actions." },
   diagonalSlide: { name: "Diagonal Slide", text: "Any piece can move one open square corner to corner without tipping, for 2 actions. On its own, or with Orthogonal Slide for all eight ways. A diagonal slide never shoves." },
-  blackHoleSquares: { name: "Black Hole Squares", text: "Two linked holes. A piece standing on one square that enters one hole comes out of the other on the same side it went in, and the turn ends. With two sets, it comes out of either hole in the other half of the board, the player's pick; a piece pushed in comes out of its hole's own partner." },
+  blackHoleSquares: { name: "Black Hole Squares", text: "Two linked holes. A piece standing on one square that enters one hole comes out of the other on the same side it went in, and the turn ends. With two sets, it comes out of either hole in the other half of the board, the player's pick (with Exit from any hole, any of the other three); a piece pushed in comes out of its hole's own partner." },
   cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube can turn a quarter turn around it, for 1 action." },
   threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 actions instead of 2." },
   splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 actions can be shared between up to three pieces in one turn, one action each." },
   shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra action. A slide pushes them one square; a roll pushes them just past where it lands. Never diagonally, even with Diagonal Slide. Nothing may be behind them." },
-  punto: { name: "Punto", text: "The side that opens has one action fewer on the game's first turn, to blunt the first strike: one action with 2 actions a turn, two with 3. Every turn after is whole." },
+  punto: { name: "Punto (komi)", text: "The side that opens has one action fewer on the game's first turn, to blunt the first strike: one action with 2 actions a turn, two with 3. Every turn after is whole." },
 };
+// Black holes as this game has them: one set, or two letting out on the
+// other half (ACTIVE_LAWS.holeAnyExit off) or anywhere (on). `holes`: how
+// many there are on the board, 2 or 4 (0: say it all).
+export function blackHoleText(laws = {}, holes = 0) {
+  const start = "A piece standing on one square that enters a hole comes out";
+  const end = "on the same side it went in, and the turn ends";
+  if (holes === 2) return `Two linked holes. ${start} of the other ${end}.`;
+  if (holes === 4) {
+    return laws.holeAnyExit
+      ? `Two sets of linked holes. ${start} of any of the other three, the player's pick, ${end}; a piece pushed in comes out of its hole's own partner.`
+      : `Two sets of linked holes. ${start} of either hole in the other half of the board, the player's pick, ${end}; a piece pushed in comes out of its hole's own partner.`;
+  }
+  return LAW_TEXT.blackHoleSquares.text;
+}
+
 // Shoving as this game plays it: its settings (chassis/shove-settings.js)
 // say whether rolls shove too (ACTIVE_LAWS.shoveOnRolls, on unless set to
 // slides only), and whether a shove, a slide's or a roll's, may push your
@@ -169,7 +184,7 @@ function GameCard({ C, game, onFocus, classic, reality }) {
         <div style={{ color: C.slate }}>{classic ? "This game plays the classic rules." : "No laws are on: this game plays the standard rules."}</div>
       ) : (
         on.map((k) => {
-          const text = k === "shoving" ? shovingText(game.laws) : LAW_TEXT[k].text;
+          const text = k === "shoving" ? shovingText(game.laws) : k === "blackHoleSquares" ? blackHoleText(game.laws, game.holes) : LAW_TEXT[k].text;
           return (
             <button
               key={k}
@@ -454,7 +469,7 @@ function tiles(C) {
     },
     {
       key: "blackHoleSquares", law: "blackHoleSquares", title: "Black hole", cost: null,
-      text: "Only a piece standing on one square can enter: a Cabeza, a Turrito, or an upright Flaco or 1×3. It comes out of the other hole on the same side it went in (here: in from the west, out to the west), and the turn ends. With two sets of holes, it may come out of either hole in the other half of the board.",
+      text: "Only a piece standing on one square can enter: a Cabeza, a Turrito, or an upright Flaco or 1×3. It comes out of the other hole on the same side it went in (here: in from the west, out to the west), and the turn ends. With two sets of holes, it may come out of either hole in the other half of the board (with Exit from any hole, any of the other three).",
       svg: (
         <>
           {panelsWith([1, 3])}
@@ -512,7 +527,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "punto", law: "punto", title: "Punto", cost: null, text: LAW_TEXT.punto.text + " One action is one roll or one Cabeza step: no Opa move, no slide.",
+      key: "punto", law: "punto", title: "Punto (komi)", cost: null, text: LAW_TEXT.punto.text + " One action is one roll or one Cabeza step: no Opa move, no slide.",
       svg: (
         <>
           <circle className="ec-rc-dot0" cx="48" cy="30" r="7" fill={ink} />

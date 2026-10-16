@@ -46,7 +46,7 @@ const lostHandWireUrl = "el-cabeza-lost-hand-wire.webp";
 const lostHandSkinUrl = "el-cabeza-lost-hand-skin.webp";
 import { createUnease, createDrone } from "./futuris-unease.js";
 import { guideToPivots } from "./pivot-guide.js";
-import { shoveNow, allLawsOn, setAllLaws } from "./rules-selections.js";
+import { shoveNow, allLawsOn, setAllLaws, HOLE_SETS_TEXT, HOLE_ANY_EXIT } from "./rules-selections.js";
 import { SHOVE_SETTINGS, DEFAULT_SHOVE, shoveOf, shoveLaws, shoveSummary } from "../chassis/shove-settings.js";
 import { sideNamesFor, sideLabel, sideDotStyle } from "./side-names.js";
 
@@ -565,7 +565,7 @@ const LAWS_ITEMS = [
   { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Hombro, Cruce, Rayo or Zeta can be) turns a quarter turn around it. Costs 1 action." },
   { key: "threeActions", label: "3 Actions Per Turn", blurb: "3 actions per turn instead of 2." },
   // (On by default: a game begun here is never the standard game.)
-  { key: "punto", label: "Punto", def: true, blurb: "The side that opens has one action fewer on the game's first turn, to blunt the first strike: one action with 2 a turn, two with 3. On unless you turn it off; the standard game has no handicap." },
+  { key: "punto", label: "Punto (Komi)", def: true, blurb: "The side that opens has one action fewer on the game's first turn, to blunt the first strike: one action with 2 a turn, two with 3. On by default unless you turn it off; the standard game has no handicap." },
   { key: "shoving", label: "Shoving", blurb: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal Slide. Anything behind them blocks. Costs 1 extra action. Choose whether rolls shove too, or only slides, and whether a shove may push your own pieces." },
 ];
 
@@ -580,11 +580,15 @@ const shovesOnRolls = (selections) => shoveOf(selections.shove).onRolls;
 function lawLabel(item, selections) {
   return item.key === "shoving" ? `Shoving (${shoveSummary(selections.shove)})` : item.label;
 }
-// What setActiveLaws gets: the law checkboxes plus Shoving's settings.
+// What setActiveLaws gets: the law checkboxes plus Shoving's settings and,
+// with two sets of black holes, where they let out.
 function lawsForEngine(selections) {
   const l = selections.laws, three = !!(l.splitThree && l.threeActions);
-  return { ...l, splitThree: three, splitMovement: !!l.splitMovement || three, ...shoveLaws(selections.shove) };
+  return { ...l, splitThree: three, splitMovement: !!l.splitMovement || three, ...shoveLaws(selections.shove), holeAnyExit: holeAnyExitOf(selections) };
 }
+// Two sets of black holes, a piece coming out of any of the other three
+// (the box under Sets), not only the two on the far half.
+const holeAnyExitOf = (selections) => !!(selections.laws.blackHoleSquares && selections.blackHole.sets === 2 && selections.blackHole.anyExit);
 
 // Footprints (col,row cells, all one layer) used only to draw the
 // small isometric icon next to each MATTER item — see renderPieceIcon.
@@ -676,8 +680,10 @@ function createDefaultSelections() {
     // the picker in renderPairedSquarePicker and buildBlackHolePlacement).
     // `sets`: one set of holes or two (user: "add the option to increase
     // the number of black hole sets to 2"); `second`, the second set's
-    // spot as { row, col, random }, or null.
-    blackHole: { manual: null, random: false, sets: 1, second: null },
+    // spot as { row, col, random }, or null; `anyExit`, with two sets, a
+    // piece comes out of any of the other three holes, not only the far
+    // half's two.
+    blackHole: { manual: null, random: false, sets: 1, second: null, anyExit: false },
     // Missing Squares placement — its own top-level field rather than
     // nested under topologies for the same reason blackHole isn't nested
     // under laws: the picker logic is generic and only visually lives
@@ -761,7 +767,8 @@ function buildVariantsSnapshot(selections) {
   const topoItems = [];
   if (rows !== DEFAULT_BOARD_DIM || cols !== DEFAULT_BOARD_DIM) topoItems.push(`${rows} × ${cols} board`);
   if (missingSquares) topoItems.push(missingSquaresLabel(selections.missingSquare.count));
-  if (selections.laws.blackHoleSquares) topoItems.push("Black Hole Squares"); // (set with the board)
+  // (Set with the board; two sets say so, as the other menus' summaries do.)
+  if (selections.laws.blackHoleSquares) topoItems.push(selections.blackHole.sets === 2 ? `Black Hole Squares (2 sets${holeAnyExitOf(selections) ? ", exit from any hole" : ""})` : "Black Hole Squares");
   if (topoItems.length) groups.push({ key: "topologies", label: "TOPOLOGY", items: topoItems });
   return groups;
 }
@@ -988,6 +995,7 @@ function normalizeSelections(saved) {
       manual: cell(src.blackHole && src.blackHole.manual), random: !!(src.blackHole && src.blackHole.random),
       sets: src.blackHole && src.blackHole.sets === 2 ? 2 : 1,
       second: src.blackHole && cell(src.blackHole.second) ? { ...cell(src.blackHole.second), random: !!src.blackHole.second.random } : null,
+      anyExit: !!(src.blackHole && src.blackHole.anyExit),
     },
     // Same key order as createDefaultSelections, so a loaded
     // configuration compares equal to the live selections it came from.
@@ -2120,6 +2128,7 @@ function setPairedSpots(sel, kind, spots) {
       ...(p ? { manual: { row: p.row, col: p.col }, random: !!p.random } : { manual: null, random: true }),
       sets,
       second: sets === 2 && q ? { row: q.row, col: q.col, random: !!q.random } : null,
+      anyExit: !!sel.blackHole.anyExit,
     };
   } else {
     sel.missingSquare = { ...sel.missingSquare, spots: spots.map((p) => ({ row: p.row, col: p.col, random: !!p.random })) };
@@ -2159,7 +2168,8 @@ function pairedRowAllowed(kind, r, rows) {
 
    fillPairedSpots keeps every still-valid spot (hand-picked first, then
    random ones unless `rerollRandom`), trims to the feature's count —
-   random spots go first — and fills any shortfall at random. */
+   random spots go first — and fills any shortfall at random, each kept
+   spot in its place in the list (a black hole's set keeps its colour). */
 function fillPairedSpots(s, kind, rerollRandom) {
   const sel = s.selections;
   const { rows, cols } = sel.topologies;
@@ -2178,8 +2188,14 @@ function fillPairedSpots(s, kind, rerollRandom) {
     if (kind === "blackHole") return !spotCells(kept, rows, cols).some((q) => holesTouch(q, p) || holesTouch(q, m));
     return missingSquaresKeepPath(spotCells([...kept, p], rows, cols), rows, cols);
   };
-  current.filter((p) => !p.random).forEach((p) => { if (kept.length < count && fits(p)) kept.push({ ...p, random: false }); });
-  if (!rerollRandom) current.filter((p) => p.random).forEach((p) => { if (kept.length < count && fits(p)) kept.push({ ...p, random: true }); });
+  const slots = new Array(count).fill(null), extra = [];
+  const take = (p, i, random) => {
+    const spot = { row: p.row, col: p.col, random };
+    kept.push(spot);
+    if (i < count && !slots[i]) slots[i] = spot; else extra.push(spot);
+  };
+  current.forEach((p, i) => { if (!p.random && kept.length < count && fits(p)) take(p, i, false); });
+  if (!rerollRandom) current.forEach((p, i) => { if (p.random && kept.length < count && fits(p)) take(p, i, true); });
   const playerSideStart = rows - Math.floor(rows / 2);
   for (let tries = 0; kept.length < count && tries < 40; tries++) {
     const pair = kind === "blackHole"
@@ -2187,9 +2203,9 @@ function fillPairedSpots(s, kind, rerollRandom) {
       : pickMissingSquares(pieces, rows, cols, avoid, 200, spotCells(kept, rows, cols));
     if (!pair.length) break;
     const mine = pair.find((q) => q.row >= playerSideStart);
-    if (mine) kept.push({ row: mine.row, col: mine.col, random: true });
+    if (mine) take(mine, count, true);
   }
-  setPairedSpots(sel, kind, kept);
+  setPairedSpots(sel, kind, slots.map((p) => p || extra.shift() || null).filter(Boolean));
   return kept.length === count;
 }
 /* The Random button: re-rolls just the random spots, keeping hand-picked
@@ -2365,6 +2381,8 @@ function renderPairedSquarePlacementRow(t, kind) {
     // it opened with.
     if (multi) s.missingSquaresDraft = spots.map((p) => ({ ...p }));
     else s[`${k.pickerFlag}Orig`] = spots.map((p) => ({ ...p }));
+    // (Two sets: taps move the first set's hole till another's picked.)
+    if (kind === "blackHole") s.blackHoleAim = 1;
     if (s.audio && s.audio.playSingularityOpen) s.audio.playSingularityOpen();
     s.bump();
   };
@@ -2382,7 +2400,6 @@ function renderPairedSquarePlacementRow(t, kind) {
     text = `${spots[0].random ? "Placed at random" : "Placed"} on your side at ${where(spots[0])}. Its mirror on the far side is the paired ${k.pairedNoun}.`;
   } else {
     text = `Placed on your side at ${spots.map(where).join(" · ")}. Each one's mirror on the far side is its pair.`;
-    if (kind === "blackHole") text += " A piece that drops into one comes out of either hole on the far side.";
     if (spots.length < count) text += kind === "blackHole" ? ` Only ${spots.length} of ${count} found room.` : ` Only ${spots.length} of ${count} fit without walling off part of the board.`;
   }
   // One set of black holes or two (user: "add the option to increase the
@@ -2437,6 +2454,26 @@ function renderPairedSquarePlacementRow(t, kind) {
     },
     countDrum,
     setsDrum,
+    // How they work, as they're set (user: "an explanation on the setup
+    // page for the two black holes, how they work").
+    kind === "blackHole"
+      ? h(
+          "div",
+          { "data-testid": "blackhole-explain", style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, color: "#dffaff", marginBottom: 8, lineHeight: 1.5, maxWidth: "62ch" } },
+          count === 2 ? (sel.blackHole.anyExit ? HOLE_SETS_TEXT.any : HOLE_SETS_TEXT[2]) : HOLE_SETS_TEXT[1]
+        )
+      : null,
+    // Two sets: out of any of the other three holes (user: "a toggle
+    // switch that allows them to exit from any of the three other black
+    // holes on the board").
+    kind === "blackHole" && count === 2
+      ? renderCheckboxRow(
+          { key: "holeAnyExit", label: "Exit From Any Hole", blurb: HOLE_ANY_EXIT.note },
+          !!sel.blackHole.anyExit,
+          () => { sel.blackHole = { ...sel.blackHole, anyExit: !sel.blackHole.anyExit }; if (s.audio && s.audio.playSelect) s.audio.playSelect(); s.labelsDirty = true; s.bump(); },
+          "blackhole-any-exit"
+        )
+      : null,
     h(
       "div",
       { "data-testid": `${k.placementTestid}-text`, style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "rgba(207,216,220,0.8)", marginBottom: 7, lineHeight: 1.45 } },
@@ -2479,8 +2516,11 @@ function renderPairedSquarePicker(t, kind) {
   const sel = s.selections;
   const { rows, cols } = sel.topologies;
   const count = pairedCount(sel, kind);
-  // (Black holes with two sets: picked over a draft, as Missing Squares.)
+  // (Black holes with two sets: picked over a draft, as Missing Squares,
+  // a tap moving the hole of the set the buttons over the board are on.)
   const multi = kind === "missingSquare" || count > 1;
+  const holeSets = kind === "blackHole" && count === 2;
+  const aim = holeSets && s.blackHoleAim === 2 ? 2 : 1;
   const confirm = s[k.confirmFlag] || null;
   // The spots shown as chosen. Black Holes: a live confirm (a just-made
   // pick mid-flash), else the stored spot (reopened to change it) so the
@@ -2532,8 +2572,14 @@ function renderPairedSquarePicker(t, kind) {
 
   // Multi-select: the draft after adding a hand-picked spot at (r,c) — a
   // random spot gives way when the draft is already at the count — or
-  // null when every spot is already hand-picked.
+  // null when every spot is already hand-picked. Two sets of black holes:
+  // the hole of the set aimed at moves there.
   const draftWith = (r, c) => {
+    if (holeSets) {
+      const d = shown.slice(), spot = { row: r, col: c, random: false };
+      if (aim - 1 < d.length) d[aim - 1] = spot; else d.push(spot);
+      return d;
+    }
     const d = shown.slice();
     if (d.length >= count) {
       let i = -1;
@@ -2579,6 +2625,12 @@ function renderPairedSquarePicker(t, kind) {
   };
   const pick = (r, c) => {
     if (confirm) return; // a pick is already confirming and about to close
+    if (holeSets && shownAt(r, c)) {
+      // (A hole: its set is the one taps move now.)
+      s.blackHoleAim = shown.indexOf(shownAt(r, c)) + 1;
+      s.bump();
+      return;
+    }
     if (multi) {
       const at = shownAt(r, c);
       if (at && !at.random) {
@@ -2683,10 +2735,13 @@ function renderPairedSquarePicker(t, kind) {
           aspectRatio: "1 / 1",
           borderRadius: 2,
           boxSizing: "border-box",
-          // (Placed at random: a dashed edge in its ring's colour, tap to keep it.)
-          border: isRandom ? `1.5px dashed ${HOLE_RING[holeSet]}` : "1px solid rgba(102,217,255,0.4)",
+          // (Whether it was placed at random isn't drawn: a dashed edge
+          // said so, and was more puzzle than help, user. Two sets: the
+          // pair a tap doesn't move dimmed.)
+          border: "1px solid rgba(102,217,255,0.4)",
           background: `${holeDisc(HOLE_RING[holeSet])}, rgba(102,217,255,0.08)`,
           boxShadow: `0 0 10px ${HOLE_GLOW[holeSet]}`,
+          opacity: holeSets && holeSet + 1 !== aim ? 0.45 : 1,
           cursor: confirm ? "default" : selectable ? "pointer" : "default",
         } : {
           aspectRatio: "1 / 1",
@@ -2747,6 +2802,23 @@ function renderPairedSquarePicker(t, kind) {
         },
       },
       h("h3", { style: overlayTitleStyle }, k.title),
+      // (Two sets: which set a tap moves, the buttons in its colours.)
+      holeSets
+        ? h("div", { "data-testid": `${k.pickerTestid}-key`, role: "group", "aria-label": "The set a tap moves", style: { display: "flex", alignItems: "center", justifyContent: "center", flexWrap: "wrap", gap: 8, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(207,216,220,0.8)" } },
+          h("span", null, "A tap moves"),
+          ...[0, 1].map((i) => h("button", {
+            key: i, type: "button", "data-testid": `${k.pickerTestid}-aim-${i + 1}`, "aria-pressed": aim === i + 1 ? "true" : "false",
+            onClick: () => { s.blackHoleAim = i + 1; s.bump(); },
+            style: {
+              display: "inline-flex", alignItems: "center", gap: 8, minHeight: 36, padding: "0 12px", borderRadius: 4, cursor: "pointer",
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase",
+              border: `1px solid ${aim === i + 1 ? HOLE_RING[i] : "rgba(102,217,255,0.35)"}`,
+              background: aim === i + 1 ? `${HOLE_RING[i]}33` : "transparent",
+              boxShadow: aim === i + 1 ? `0 0 10px ${HOLE_GLOW[i]}` : "none",
+              color: aim === i + 1 ? "#dffaff" : "rgba(207,216,220,0.75)",
+            },
+          }, h("i", { style: { display: "inline-block", width: 14, height: 14, borderRadius: "50%", background: holeDisc(HOLE_RING[i]), boxShadow: `0 0 6px ${HOLE_GLOW[i]}` } }), `Set ${i + 1}`)))
+        : null,
       label("Mirror · far side", "rgba(174,182,194,0.55)"),
       h(
         "div",
@@ -2761,15 +2833,9 @@ function renderPairedSquarePicker(t, kind) {
         ...cells
       ),
       label(
-        multi ? `Your side · ${handCount} of ${count} selected` : "Your side · tap a square, then Done",
+        holeSets ? "Your side · pick a set, tap a square, then Done" : multi ? `Your side · ${handCount} of ${count} selected` : "Your side · tap a square, then Done",
         confirm ? "rgba(142,243,255,0.5)" : "#8ef3ff"
       ),
-      // (Two sets: which colour is which.)
-      kind === "blackHole" && count === 2
-        ? h("div", { "data-testid": `${k.pickerTestid}-key`, style: { display: "flex", justifyContent: "center", gap: 16, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(207,216,220,0.8)" } },
-          ...[0, 1].map((i) => h("span", { key: i, style: { display: "inline-flex", alignItems: "center", gap: 6 } },
-            h("i", { style: { display: "inline-block", width: 14, height: 14, borderRadius: "50%", background: holeDisc(HOLE_RING[i]), boxShadow: `0 0 6px ${HOLE_GLOW[i]}` } }), `Set ${i + 1}`)))
-        : null,
       multi
         ? h(
             "div",
@@ -2783,9 +2849,11 @@ function renderPairedSquarePicker(t, kind) {
               },
             },
             h("style", null, "@keyframes ecBlockedPulse{0%{background:rgba(255,70,70,0.55);box-shadow:0 0 18px rgba(255,90,90,0.9);transform:scale(1.04)}100%{background:rgba(255,70,70,0.08);box-shadow:none;transform:scale(1)}}"),
-            handCount >= count
-              ? `All ${count} are selected — tap one to remove it first, or press Random.`
-              : `Tap up to ${count}; tap one again to remove it. Any left open are placed at random when you press Done. Dashed squares were placed at random — tap one to keep it.${kind === "blackHole" ? " A hole and its partner share a colour." : ""}`
+            holeSets
+              ? "Pick a set, then tap a square on your side: its black hole moves there, its mirror on the far side with it. A hole and its partner share a colour."
+              : handCount >= count
+                ? `All ${count} are selected — tap one to remove it first, or press Random.`
+                : `Tap up to ${count}; tap one again to remove it. Any left open are placed at random when you press Done. Dashed squares were placed at random — tap one to keep it.`
           )
         : null,
       backRowsBanned
@@ -3398,7 +3466,7 @@ function renderSummaryPanel(setupExtras) {
     .filter((p) => p.default > 0 || sel.matter.roster[p.key] > 0)
     .map((p) => `${sel.matter.roster[p.key]} ${rosterItemLabel(p, sel)}`)
     .join(" · ");
-  const boardLine = `${sel.topologies.rows} × ${sel.topologies.cols}${sel.topologies.missingSquares ? `, ${missingSquaresLabel(sel.missingSquare.count)}` : ""}${sel.laws.blackHoleSquares ? (sel.blackHole.sets === 2 ? ", Black Hole Squares (2 sets)" : ", Black Hole Squares") : ""}`;
+  const boardLine = `${sel.topologies.rows} × ${sel.topologies.cols}${sel.topologies.missingSquares ? `, ${missingSquaresLabel(sel.missingSquare.count)}` : ""}${sel.laws.blackHoleSquares ? (sel.blackHole.sets === 2 ? `, Black Hole Squares (2 sets${holeAnyExitOf(sel) ? ", exit from any hole" : ""})` : ", Black Hole Squares") : ""}`;
   const lineStyle = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: "rgba(207,216,220,0.85)", lineHeight: 1.7 };
   const tagStyle = { color: "#66d9ff", letterSpacing: "0.08em" };
 

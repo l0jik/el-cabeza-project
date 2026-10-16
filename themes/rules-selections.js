@@ -71,7 +71,11 @@ export const LAW_OPTIONS = [
   { key: "splitThree", name: "Split movement, 3 pieces", note: "Spend a turn's 3 actions on up to three pieces, one action each. Brings 3 actions per turn." },
   // (User: the first player's handicap, not standard Cabeza's, as a toggle,
   // on by default for anything other than the standard game: `def`.)
-  { key: "punto", name: "Punto", def: true, note: "The side that opens has one action fewer on the game's first turn, to blunt the first strike: one action with 2 a turn, two with 3. On unless you turn it off; the standard game has no handicap." },
+  // (Named with Go's word for making up for moving first, komi, user:
+  // "Behind punto, maybe you can also in parentheses put whatever the
+  // Japanese version of that they use in Go"; on by default in every
+  // Cabeza Nova menu, the standard game never using it.)
+  { key: "punto", name: "Punto (komi)", def: true, note: "The side that opens has one action fewer on the game's first turn, to blunt the first strike: one action with 2 a turn, two with 3. On by default unless you turn it off; the standard game has no handicap." },
 ];
 // The laws the menus list under Rules, and the one they set with the board.
 export const RULE_LAWS = LAW_OPTIONS.filter((l) => !l.board);
@@ -102,6 +106,8 @@ export const clampDim = (v) => Math.max(MIN_BOARD_DIM, Math.min(MAX_BOARD_DIM, M
      missingSpots: [{row, col, random}]   one square of each missing pair,
      holeSets: 1..2,                      sets of black holes,
      holeSpots: [{row, col, random}]      one hole of each set,
+     holeAnyExit: bool,                   two sets: out of any other hole,
+                                          not only the far half's two
      random: bool }                       a shuffled start
    Each spot's partner is its 180° mirror. A spot marked random was rolled
    by the menu (and re-rolls when the board changes size); the others were
@@ -114,7 +120,7 @@ export function defaultSelections() {
   return {
     counts, laws, shove: { ...DEFAULT_SHOVE },
     rows: DEFAULT_BOARD_DIM, cols: DEFAULT_BOARD_DIM,
-    missing: false, missingCount: 1, missingSpots: [], holeSets: 1, holeSpots: [],
+    missing: false, missingCount: 1, missingSpots: [], holeSets: 1, holeSpots: [], holeAnyExit: false,
     random: false,
   };
 }
@@ -146,7 +152,7 @@ export function normalizeSelections(sel) {
     out.counts[p.key] = Math.max(p.min, Math.min(p.max, Math.round(v)));
   });
   out.laws = { ...d.laws };
-  // (A law a save doesn't know of keeps its default: Punto is on unless turned off.)
+  // (A law a save doesn't know of keeps its default: Punto is on by default.)
   LAW_OPTIONS.forEach((l) => { out.laws[l.key] = sel.laws && typeof sel.laws[l.key] === "boolean" ? sel.laws[l.key] : !!l.def; });
   // (One Split movement at a time: three pieces wins.)
   if (out.laws.splitThree) out.laws.splitMovement = false;
@@ -167,6 +173,7 @@ export function normalizeSelections(sel) {
   out.holeSets = sel.holeSets === 2 ? 2 : 1;
   out.holeSpots = (Array.isArray(sel.holeSpots) ? sel.holeSpots : [sel.holeSpot]).map(spotOf).filter(Boolean).slice(0, out.holeSets);
   delete out.holeSpot;
+  out.holeAnyExit = !!sel.holeAnyExit;
   out.random = !!out.random;
   return out;
 }
@@ -177,6 +184,7 @@ function effective(sel) {
   if (!e.laws.shoving) e.shove = { ...DEFAULT_SHOVE };
   if (!e.missing) { e.missingCount = 1; e.missingSpots = []; }
   if (!e.laws.blackHoleSquares) { e.holeSets = 1; e.holeSpots = []; }
+  if (e.holeSets !== 2) e.holeAnyExit = false;
   e.missingSpots = (e.missingSpots || []).map((p) => ({ row: p.row, col: p.col }));
   e.holeSpots = (e.holeSpots || []).map((p) => ({ row: p.row, col: p.col }));
   return e;
@@ -204,6 +212,22 @@ export const missingCellsOf = (sel) => (missingOn(sel) ? spotCells(sel.missingSp
 export const holeCellsOf = (sel) => (holesOn(sel) ? spotCells(sel.holeSpots, sel.rows, sel.cols) : []);
 // How many sets of black holes, and their spots, as a selection holds them.
 export const holeSetsOf = (sel) => (sel.holeSets === 2 ? 2 : 1);
+// Two sets of black holes, a piece coming out of any of the three other
+// holes (the switch under Sets), not only the two on the far half.
+export const holeAnyExitOn = (sel) => !!(sel.laws.blackHoleSquares && holeSetsOf(sel) === 2 && sel.holeAnyExit);
+/* How the holes work, under Sets in every menu (user: "an explanation on
+   the setup page for the two black holes, how they work"), worded once
+   here. Coming out "the normal way": one square past the hole, on the
+   side the piece went in from, as with one set. */
+export const HOLE_SETS_TEXT = {
+  1: "A hole and its partner. A piece that goes into one comes out of the other, one square past it on the side it went in from, and its turn ends.",
+  2: "Two pairs, one hole of each on each half of the board (a pair shares a colour). A piece that goes into a hole on one half comes out of either hole on the other half, you choose which, the normal way: one square past it on the side it went in from.",
+  any: "Two pairs (a pair shares a colour). A piece that goes into a hole comes out of any of the other three, you choose which, the one on its own half too, the normal way: one square past it on the side it went in from.",
+};
+export const holeSetsText = (sel) => (holeSetsOf(sel) === 1 ? HOLE_SETS_TEXT[1] : sel.holeAnyExit ? HOLE_SETS_TEXT.any : HOLE_SETS_TEXT[2]);
+// The switch under two sets (user: "a toggle switch that allows them to
+// exit from any of the three other black holes on the board").
+export const HOLE_ANY_EXIT = { name: "Exit from any hole", note: "Off: out of the two holes on the other half. On: out of any of the other three." };
 // Black holes never sit in either side's back two rows; missing squares
 // may, but never wall the board off.
 export const holeRowAllowed = (row, rows) => blackHoleRowAllowed(row, rows);
@@ -251,18 +275,26 @@ export function fillSpots(sel, kind, reroll = false) {
     const m = mirrorCell(p.row, p.col, rows, cols);
     return !(p.random && (occupied(pieces, p.row, p.col) || occupied(pieces, m.row, m.col)));
   };
-  current.filter((p) => !p.random).forEach((p) => { if (kept.length < count && fits(p)) kept.push({ row: p.row, col: p.col, random: false }); });
-  if (!reroll) current.filter((p) => p.random).forEach((p) => { if (kept.length < count && fits(p)) kept.push({ row: p.row, col: p.col, random: true }); });
+  // (Each spot kept in its place in the list, a new one rolled into a
+  // place left empty: a black hole's set keeps its colour in the pickers.)
+  const slots = new Array(count).fill(null), extra = [];
+  const take = (p, i, random) => {
+    const spot = { row: p.row, col: p.col, random };
+    kept.push(spot);
+    if (i < count && !slots[i]) slots[i] = spot; else extra.push(spot);
+  };
+  current.forEach((p, i) => { if (!p.random && kept.length < count && fits(p)) take(p, i, false); });
+  if (!reroll) current.forEach((p, i) => { if (p.random && kept.length < count && fits(p)) take(p, i, true); });
   for (let tries = 0; kept.length < count && tries < 40; tries++) {
     const pair = kind === "hole"
       ? pickBlackHoleSquares(pieces, rows, cols, avoid, 200, spotCells(kept, rows, cols))
       : pickMissingSquares(pieces, rows, cols, avoid, 200, spotCells(kept, rows, cols));
     if (!pair.length) break;
-    const spot = { row: pair[0].row, col: pair[0].col, random: true };
-    if (!spotProblem(sel, kind, spot.row, spot.col, kept)) kept.push(spot);
+    if (!spotProblem(sel, kind, pair[0].row, pair[0].col, kept)) take(pair[0], count, true);
   }
-  if (kind === "hole") sel.holeSpots = kept;
-  else sel.missingSpots = kept;
+  const placed = slots.map((p) => p || extra.shift() || null).filter(Boolean);
+  if (kind === "hole") sel.holeSpots = placed;
+  else sel.missingSpots = placed;
   return sel;
 }
 // The Random button: re-rolls the random spots, keeping hand-placed ones,
@@ -287,17 +319,19 @@ export function setHoleSets(sel, n) {
 
 /* A tap on a free square in a picker of the black holes' place: the spots
    after it, or the problem with that square ({ problem }). With one set
-   the hole moves there; with two it takes the place of a rolled one, or
-   else of the one marked first (user: "press the square, see the one
-   you've pressed, and then click done to confirm"). */
-export function holeSpotsAfterTap(sel, row, col) {
+   the hole moves there; with two, the hole of the set the picker's
+   buttons are on (`set`, 1 or 2; user: "press the square, see the one
+   you've pressed, and then click done to confirm"). Each set keeps its
+   place in the list, and so its colour. */
+export function holeSpotsAfterTap(sel, row, col, set = 1) {
   const list = sel.holeSpots.slice();
-  if (list.length >= holeSetsOf(sel)) {
-    const i = list.findIndex((p) => p.random);
-    list.splice(i >= 0 ? i : 0, 1);
-  }
-  const problem = spotProblem(sel, "hole", row, col, list);
-  return problem ? { problem } : { spots: [...list, { row, col, random: false }] };
+  const i = Math.min(Math.max(0, (set | 0) - 1), holeSetsOf(sel) - 1);
+  const rest = list.filter((_, j) => j !== i);
+  const problem = spotProblem(sel, "hole", row, col, rest);
+  if (problem) return { problem };
+  const spot = { row, col, random: false };
+  if (i < list.length) list[i] = spot; else list.push(spot);
+  return { spots: list };
 }
 // What a picker says of a square a spot can't go on.
 export const SPOT_PROBLEMS = {
@@ -393,12 +427,12 @@ export function setShove(sel, key, value) {
 // What actually shoves with the rules as they're set, for the line under
 // Shoving's settings (the chassis's words). It changes as Slide is ticked.
 export const shoveNow = (sel) => shoveNowFor(sel.shove, sel.laws);
-// What the engine gets: the laws (a diagonal slide only with Slide) and
-// Shoving's setting.
+// What the engine gets: the laws (a diagonal slide only with Slide),
+// Shoving's setting and, with two sets of black holes, where they let out.
 export function lawsForEngine(sel) {
   const l = sel.laws;
   const three = !!(l.splitThree && l.threeActions);
-  return { ...l, diagonalSlide: !!l.diagonalSlide, splitThree: three, splitMovement: !!l.splitMovement || three, ...shoveLaws(sel.shove) };
+  return { ...l, diagonalSlide: !!l.diagonalSlide, splitThree: three, splitMovement: !!l.splitMovement || three, ...shoveLaws(sel.shove), holeAnyExit: holeAnyExitOn(sel) };
 }
 // Pieces that can ever stand balanced on one cube (so can pivot).
 export const PIVOT_CAPABLE = ["codo", "hombro", "cruce", "rayo", "zeta"];
@@ -448,7 +482,7 @@ export function variantsOf(sel, labels = {}) {
   if (sel.rows !== DEFAULT_BOARD_DIM || sel.cols !== DEFAULT_BOARD_DIM) topo.push(`${boardLabel(sel)} board`);
   if (sel.missing) topo.push(`Missing squares (${sel.missingCount} ${sel.missingCount === 1 ? "pair" : "pairs"})`);
   // (With the board, as the menus set it; two sets say so.)
-  if (sel.laws.blackHoleSquares) topo.push(holeSetsOf(sel) === 2 ? `${HOLES_LAW.name} (2 sets)` : HOLES_LAW.name);
+  if (sel.laws.blackHoleSquares) topo.push(holeSetsOf(sel) === 2 ? `${HOLES_LAW.name} (2 sets${holeAnyExitOn(sel) ? ", exit from any hole" : ""})` : HOLES_LAW.name);
   if (topo.length) groups.push({ key: "topologies", label: L.topologies, items: topo });
   return groups.length ? groups : null;
 }

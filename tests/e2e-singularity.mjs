@@ -819,12 +819,13 @@ if (state.activeCategory === "laws") {
   check("reopening the picker reopens it editable (not stuck confirming)",
     (await page.locator('[data-testid="blackhole-picker-cancel"]').count()) > 0 &&
       (await page.locator('[data-testid="blackhole-confirm"]').count()) === 0);
-  const reopenBg = await page.evaluate((id) => {
+  // (Drawn as a black hole: user, they were "kind of hard to see".)
+  const reopen = await page.evaluate((id) => {
     const el = document.querySelector(`[data-testid="${id}"]`);
-    return el ? getComputedStyle(el).backgroundColor : null;
+    return el ? { set: el.dataset.holeSet, bg: el.style.background } : null;
   }, `bh-cell-${m[1]}-${m[2]}`);
-  check("the previously-placed cell is highlighted as the current selection on reopen",
-    reopenBg === "rgb(7, 8, 11)", `bg=${reopenBg}`);
+  check("the previously-placed cell is shown as the current black hole on reopen",
+    !!reopen && reopen.set === "1" && /radial-gradient/.test(reopen.bg), JSON.stringify(reopen));
   // Random in the picker moves the hole where you can see it; Cancel puts
   // the hand-picked spot back.
   await page.locator('[data-testid="blackhole-picker-random"]').click();
@@ -864,18 +865,52 @@ if (state.activeCategory === "laws") {
   await page.waitForTimeout(200);
   state = await sphereState();
   const bh2 = state.selections.blackHole;
-  check("Sets 2: a second black-hole spot, the hand-placed one kept, said what it does",
+  // (How they work, said under Sets, user: "an explanation on the setup
+  // page for the two black holes, how they work".)
+  check("Sets 2: a second black-hole spot, the hand-placed one kept, said how they work",
     bh2.sets === 2 && !!bh2.second && bh2.manual.row === Number(m[1]) && bh2.manual.col === Number(m[2]) &&
-      /either hole on the far side/.test(await page.locator('[data-testid="blackhole-placement-text"]').innerText()),
+      /either hole on the other half, you choose which, the normal way/.test(await page.locator('[data-testid="blackhole-explain"]').innerText()),
     JSON.stringify(bh2));
+  // The box under two sets (user: "a toggle switch that allows them to
+  // exit from any of the three other black holes on the board").
+  check("...Exit From Any Hole under it, off", (await page.locator('[data-testid="blackhole-any-exit"]').getAttribute("data-checked")) === "false");
+  await page.locator('[data-testid="blackhole-any-exit"]').click();
+  await page.waitForTimeout(150);
+  check("...on: kept in the selections, the words say any of the other three",
+    (await sphereState()).selections.blackHole.anyExit === true && /any of the other three/.test(await page.locator('[data-testid="blackhole-explain"]').innerText()));
+  await page.locator('[data-testid="blackhole-any-exit"]').click();
+  await page.waitForTimeout(150);
   await page.locator('[data-testid="blackhole-place-btn"]').click();
   await page.waitForTimeout(250);
+  // (No dashed edge for one placed at random, user: "The dashed ring is
+  // confusing". Buttons over the board say which set a tap moves, Set 1
+  // first, the other pair dimmed; with Set 2 chosen, a square beside Set
+  // 1's hole, the hand-placed one, is barred.)
+  const holeCells = () => page.evaluate(() => [...document.querySelectorAll('[data-testid="blackhole-picker"] [data-hole-set]')].map((el) => ({ set: el.dataset.holeSet, dashed: /dashed/.test(el.style.border), dim: el.style.opacity === "0.45" })));
+  let hc = await holeCells();
+  check("...the picker: four holes, no dashed edges, Set 1 chosen, Set 2's pair dimmed",
+    hc.length === 4 && hc.every((c) => !c.dashed) && hc.every((c) => c.dim === (c.set === "2")) &&
+      (await page.locator('[data-testid="blackhole-picker-aim-1"]').getAttribute("aria-pressed")) === "true", JSON.stringify(hc));
+  await page.locator('[data-testid="blackhole-picker-aim-2"]').click();
+  await page.waitForTimeout(150);
   const bhCols = (await sphereState()).selections.topologies.cols;
   const nearCell = `bh-cell-${m[1]}-${Number(m[2]) + (Number(m[2]) < bhCols - 1 ? 1 : -1)}`;
-  check("...the picker shows both, a square beside the hand-placed one barred",
-    (await page.locator('[data-testid="blackhole-picker"] [data-chosen]').count()) === 2 &&
+  hc = await holeCells();
+  check("...Set 2 chosen: both still shown, Set 1's dimmed, a square beside the hand-placed one barred",
+    (await page.locator('[data-testid="blackhole-picker"] [data-chosen]').count()) === 2 && hc.every((c) => c.dim === (c.set === "1")) &&
       (await page.locator(`[data-testid="${nearCell}"]`).getAttribute("data-wall-blocked")) === "true",
-    `${nearCell}: ${await page.locator(`[data-testid="${nearCell}"]`).getAttribute("data-wall-blocked")}`);
+    `${nearCell}: ${await page.locator(`[data-testid="${nearCell}"]`).getAttribute("data-wall-blocked")} ${JSON.stringify(hc)}`);
+  const clearCell = await page.evaluate(() => {
+    const cells = [...document.querySelectorAll('[data-testid="blackhole-picker"] [data-selectable="true"]')].filter((el) => !el.dataset.holeSet);
+    const one = [...document.querySelectorAll('[data-testid="blackhole-picker"] [data-hole-set="1"]')].map((el) => el.dataset.testid.split("-").slice(2).map(Number));
+    const c = cells.find((el) => { const [r, cc] = el.dataset.testid.split("-").slice(2).map(Number); return one.every(([a, b]) => Math.max(Math.abs(a - r), Math.abs(b - cc)) > 2); });
+    return c ? c.dataset.testid : null;
+  });
+  await page.locator(`[data-testid="${clearCell}"]`).click();
+  await page.waitForTimeout(150);
+  check("...a tap on a clear square moves Set 2's hole there, Set 1's kept",
+    (await page.locator(`[data-testid="${clearCell}"]`).getAttribute("data-hole-set")) === "2" &&
+      (await page.locator(`[data-testid="bh-cell-${m[1]}-${m[2]}"]`).getAttribute("data-hole-set")) === "1", clearCell);
   await page.locator('[data-testid="blackhole-picker-cancel"]').click();
   await page.waitForTimeout(200);
   await page.locator('[data-testid="blackhole-sets-dec"]').click();

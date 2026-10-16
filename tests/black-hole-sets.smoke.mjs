@@ -3,12 +3,15 @@
    point at ... only the 2 that are on the other side of the board"):
    where a piece dropping into a hole may come out, the second way out as
    its own move key, shoves, placement, a replay code and the computer.
+   And the switch under two sets (user: "a toggle switch that allows them
+   to exit from any of the three other black holes on the board"): the
+   third way out, its key, a replay code and the computer.
      node tests/black-hole-sets.smoke.mjs */
 import {
   legalMovesFor, holeExits, pickBlackHoleSets, holesTouch, blackHoleRowAllowed, createInitialPieces,
 } from "../engine/rules.js";
 import {
-  setActiveLaws, setBlackHoles, setBoardDimensions, plainKeyOf, isOtherExitKey, otherExitKey, baseDirOfSlideKey,
+  setActiveLaws, setBlackHoles, setBoardDimensions, plainKeyOf, isOtherExitKey, otherExitKey, baseDirOfSlideKey, exitOfKey,
 } from "../engine/constants.js";
 import { encodeReplay, decodeReplay, checkReplay, VANILLA_LAWS } from "../engine/replay.js";
 import { generateTurns, findBestAiTurn, AI_DIFFICULTY, cabezaThreats, evaluatePosition } from "../engine/ai.js";
@@ -146,6 +149,64 @@ const t0 = Date.now();
 const best = await findBestAiTurn([runner, P("dc", "cabeza", 0, 0, 1, 1, 1, "dark")], "light", { ...AI_DIFFICULTY.medium, timeBudgetMs: 600 });
 const took = JSON.stringify(best && (best.steps || best.dirs));
 check("it plays a two-set game, and takes the way out nearer home", !!best && /-x/.test(took), `${took} in ${Date.now() - t0} ms`);
+
+console.log("exit from any hole (the switch under two sets)");
+setActiveLaws({ ...LAWS_OFF, blackHoleSquares: true, holeAnyExit: true });
+setBlackHoles(FOUR);
+check("into A1: out of A2, B2, or B1 on its own half, last", ex(A1) === "6,7 7,3 2,6", ex(A1));
+check("into B2: out of B1, A1, or A2", ex(B2) === "2,6 3,2 6,7", ex(B2));
+moves = legalMovesFor([cab], cab);
+check("a Cabeza stepping E into A1: E (A2), E-x (B2) and E-y, W of B1", at(moves.E) === "6,6" && at(moves["E-x"]) === "7,2" && at(moves["E-y"]) === "2,5" && moves["E-y"].teleports, JSON.stringify(Object.keys(moves)));
+check("...and only that step has more ways out", Object.keys(moves).filter(isOtherExitKey).sort().join() === "E-x,E-y", Object.keys(moves).join());
+moves = legalMovesFor([tur], tur);
+check("a Turrito rolling E into A1: all three", at(moves.E) === "6,6" && at(moves["E-x"]) === "7,2" && at(moves["E-y"]) === "2,5");
+moves = legalMovesFor([tur, P("by", "turrito", 2, 5, 1, 1, 1)], tur);
+check("...B1's way out taken by its own side's piece: not that one", !moves["E-y"] && !!moves.E && !!moves["E-x"]);
+setActiveLaws({ ...LAWS_OFF, blackHoleSquares: true, holeAnyExit: true, slide: true });
+moves = legalMovesFor([flaco], flaco);
+check("a standing Flaco slides into A1: slide-E-y too", moves["slide-E-y"] && moves["slide-E-y"].isSlide && moves["slide-E-y"].teleports && at(moves["slide-E-y"]) === "2,5", JSON.stringify(Object.keys(moves)));
+check("the third way's key reads through its mark", plainKeyOf("SE-y") === "SE" && baseDirOfSlideKey("slide-E-y") === "E" && exitOfKey("N-y") === 2 && exitOfKey("N-x") === 1 && exitOfKey("N") === 0 && otherExitKey("N", 2) === "N-y" && isOtherExitKey("W-y"));
+setBlackHoles([A1, A2]);
+check("one set: the other hole only, switch or no", ex(A1) === "6,7");
+setBlackHoles(FOUR);
+setActiveLaws({ ...LAWS_OFF, blackHoleSquares: true });
+moves = legalMovesFor([tur], tur);
+check("switched off: no third way", !moves["E-y"] && !!moves["E-x"]);
+{
+  const anyRec = {
+    rows: 10, cols: 10, laws: { ...LAWS_OFF, blackHoleSquares: true, holeAnyExit: true }, holes: FOUR, missing: [],
+    start: [cab, P("lc", "cabeza", 9, 9, 1, 1, 1, "light")], opener: "dark",
+    turns: [[{ pieceId: "c", dir: "E-y" }], [{ pieceId: "lc", dir: "W" }]], winner: null,
+  };
+  const back2 = decodeReplay(encodeReplay(anyRec));
+  check("a replay code keeps the switch", back2 && back2.laws.holeAnyExit === true && back2.turns[0][0].dir === "E-y");
+  const played2 = checkReplay(back2);
+  const out2 = played2.final && played2.final.pieces.find((p) => p.id === "c");
+  check("...and plays the third way out: the Cabeza out of B1", played2.ok && out2 && out2.row === 2 && out2.col === 5, JSON.stringify({ ok: played2.ok, out2 }));
+  const off = checkReplay({ ...back2, laws: { ...back2.laws, holeAnyExit: false } });
+  check("...which the switch off doesn't allow", !off.ok);
+  check("a code from before the switch: off", decodeReplay(encodeReplay({ ...anyRec, laws: { ...LAWS_OFF, blackHoleSquares: true }, turns: [] })).laws.holeAnyExit === false);
+}
+{
+  // The computer: the third way among its turns, and its sense of a
+  // Cabeza's way home follows the switch (its cache of where holes let
+  // out with it). Light's Cabeza beside a top-half hole whose own half's
+  // partner hole is two rows from home: nearer with the switch.
+  setActiveLaws({ ...LAWS_OFF, blackHoleSquares: true, holeAnyExit: true });
+  const anyTurns = generateTurns([cab, P("lc", "cabeza", 9, 9, 1, 1, 1, "light")], "dark");
+  check("its turns include the third way out", anyTurns.some((t) => (t.dirs || []).some((d) => exitOfKey(d) === 2) || (t.steps || []).some((st) => exitOfKey(st.dir) === 2)), String(anyTurns.length));
+  const H = [{ row: 4, col: 1 }, { row: 5, col: 8 }, { row: 2, col: 7 }, { row: 7, col: 2 }];
+  setBlackHoles(H);
+  const board = [P("dc", "cabeza", 0, 9, 1, 1, 1), P("lc", "cabeza", 4, 0, 1, 1, 1, "light")];
+  const val = () => evaluatePosition(board.map((p) => ({ ...p })), "dark", undefined, "dark");
+  setActiveLaws({ ...LAWS_OFF, blackHoleSquares: true });
+  const off1 = val();
+  setActiveLaws({ ...LAWS_OFF, blackHoleSquares: true, holeAnyExit: true });
+  const on = val();
+  setActiveLaws({ ...LAWS_OFF, blackHoleSquares: true });
+  const off2 = val();
+  check("Light's Cabeza reads nearer home with the switch, and as before without it", on < off1 && off2 === off1, `${on} / ${off1} / ${off2}`);
+}
 
 setBlackHoles([]);
 setActiveLaws({ ...LAWS_OFF });

@@ -140,7 +140,10 @@ function sideOf(sq) {
    hole. Two sets: either hole on the far side of the board (user: "only
    the 2 that are on the other side of the board, obviously"), the hole's
    own partner (its mirror) first: the plain move key's way out. The other
-   set's is the key with OTHER_EXIT_MARK (constants.js). */
+   set's is the key with the "-x" exit mark (constants.js). With
+   holeAnyExit, the other set's hole on the same half as well, last: "-y"
+   (user: "a toggle switch that allows them to exit from any of the three
+   other black holes on the board"). */
 export function holeExits(hole) {
   if (BLACK_HOLES.length <= 2) {
     const other = otherBlackHole(hole);
@@ -148,7 +151,8 @@ export function holeExits(hole) {
   }
   const far = BLACK_HOLES.filter((b) => b !== hole && sideOf(b) !== sideOf(hole));
   const mate = far.find((b) => b.row === BOARD_ROWS - 1 - hole.row && b.col === BOARD_COLS - 1 - hole.col);
-  return mate ? [mate, ...far.filter((b) => b !== mate)] : far;
+  const ways = mate ? [mate, ...far.filter((b) => b !== mate)] : far;
+  return ACTIVE_LAWS.holeAnyExit ? [...ways, ...BLACK_HOLES.filter((b) => b !== hole && !far.includes(b))] : ways;
 }
 
 /* Missing Squares TOPOLOGIES option: MISSING_SQUARES is either [] (off)
@@ -234,10 +238,11 @@ function pieceOccupancyVerdict(pieces, candidate) {
   return { legal: false, crushes: null };
 }
 
-/* `exit`: which of the far holes a piece entering one comes out of (see
-   holeExits): 0, the partner, as with one set, or 1, the other set's.
-   A hole entry's verdict says how many ways out there are (`ways`), legal
-   or not, so a caller knows to ask for the second. */
+/* `exit`: which hole a piece entering one comes out of (see holeExits):
+   0, the partner, as with one set; 1, the other set's on the far half;
+   2 (holeAnyExit), the other set's on the near half. A hole entry's
+   verdict says how many ways out there are (`ways`), legal or not, so a
+   caller knows to ask for the others. */
 export function evaluateBlockLanding(pieces, candidate, travelDir, exit = 0) {
   if (!inBounds(candidate)) return { legal: false, crushes: null };
   if (overlapsMissingSquare(candidate)) return { legal: false, crushes: null };
@@ -494,12 +499,12 @@ export function legalRolls(pieces, piece) {
     const verdict = evaluateBlockLanding(pieces, candidate, STEP_DIRS[dir]);
     const move = rollMove(pieces, piece, dir, candidate, verdict, sweep);
     if (move) out[dir] = move;
-    // Two sets of black holes: out of the far side's other hole is a
-    // move of its own (otherExitKey).
-    if (verdict.ways > 1) {
-      const other = evaluateBlockLanding(pieces, candidate, STEP_DIRS[dir], 1);
+    // Two sets of black holes: coming out of each of the other ways out
+    // is a move of its own (otherExitKey).
+    for (let exit = 1; exit < (verdict.ways || 0); exit++) {
+      const other = evaluateBlockLanding(pieces, candidate, STEP_DIRS[dir], exit);
       if (other.legal && !(sweep && rollSweepClashes(pieces, piece, dir, other.crushes))) {
-        out[otherExitKey(dir)] = { candidate: { ...candidate, row: other.teleportsTo.row, col: other.teleportsTo.col }, crushes: other.crushes, teleports: true };
+        out[otherExitKey(dir, exit)] = { candidate: { ...candidate, row: other.teleportsTo.row, col: other.teleportsTo.col }, crushes: other.crushes, teleports: true };
       }
     }
   }
@@ -530,8 +535,8 @@ function rollMove(pieces, piece, dir, candidate, verdict, sweep) {
    cellsOf generalizes the emptiness check across any w x h, not just
    the single cell a 1x1 Cabeza needs; for a 1x1 candidate the two are
    the same check. */
-/* `exit` 1: the way out of the other set's hole (two sets; see holeExits),
-   null unless the candidate drops into a hole. */
+/* `exit` 1 or 2: the way out of another hole than the partner (two sets;
+   see holeExits), null unless the candidate drops into a hole. */
 function translatedCandidate(pieces, piece, dr, dc, allowShove = false, exit = 0) {
   const candidate = { ...piece, row: piece.row + dr, col: piece.col + dc };
   if (!inBounds(candidate)) return null;
@@ -558,9 +563,14 @@ function translatedCandidate(pieces, piece, dr, dc, allowShove = false, exit = 0
   return null;
 }
 
-/* Two sets of black holes: is the square a 1x1 piece steps or slides onto
-   a hole? (Only then is there a second way out to ask about.) */
-const holeAhead = (piece, dr, dc) => BLACK_HOLES.length > 2 && piece.w === 1 && piece.h === 1 && !!blackHoleAt(piece.row + dr, piece.col + dc);
+/* Two sets of black holes: how many ways out the hole a 1x1 piece steps
+   or slides onto has, 0 when it isn't a hole. (Only then are there other
+   ways out to ask about, 1 to ways - 1.) */
+const holeWaysAhead = (piece, dr, dc) => {
+  if (BLACK_HOLES.length <= 2 || piece.w !== 1 || piece.h !== 1) return 0;
+  const hole = blackHoleAt(piece.row + dr, piece.col + dc);
+  return hole ? holeExits(hole).length : 0;
+};
 
 export function legalCabezaSteps(pieces, piece) {
   const out = {};
@@ -571,8 +581,10 @@ export function legalCabezaSteps(pieces, piece) {
         ? { candidate: move.candidate, crushes: move.crushes, teleports: true }
         : { candidate: move.candidate, crushes: null };
     }
-    const other = holeAhead(piece, dr, dc) && translatedCandidate(pieces, piece, dr, dc, false, 1);
-    if (other) out[otherExitKey(dir)] = { candidate: other.candidate, crushes: other.crushes, teleports: true };
+    for (let exit = 1, ways = holeWaysAhead(piece, dr, dc); exit < ways; exit++) {
+      const other = translatedCandidate(pieces, piece, dr, dc, false, exit);
+      if (other) out[otherExitKey(dir, exit)] = { candidate: other.candidate, crushes: other.crushes, teleports: true };
+    }
   }
   return out;
 }
@@ -607,8 +619,10 @@ export function legalSlideSteps(pieces, piece) {
           ? { candidate: move.candidate, crushes: null, isSlide: true, shoves: move.shoves }
           : { candidate: move.candidate, crushes: null, isSlide: true };
     }
-    const other = holeAhead(piece, dr, dc) && translatedCandidate(pieces, piece, dr, dc, false, 1);
-    if (other) out[otherExitKey(dir)] = { candidate: other.candidate, crushes: other.crushes, isSlide: true, teleports: true };
+    for (let exit = 1, ways = holeWaysAhead(piece, dr, dc); exit < ways; exit++) {
+      const other = translatedCandidate(pieces, piece, dr, dc, false, exit);
+      if (other) out[otherExitKey(dir, exit)] = { candidate: other.candidate, crushes: other.crushes, isSlide: true, teleports: true };
+    }
   }
   return out;
 }
