@@ -2468,7 +2468,7 @@ function renderPairedSquarePlacementRow(t, kind) {
     // holes on the board").
     kind === "blackHole" && count === 2
       ? renderCheckboxRow(
-          { key: "holeAnyExit", label: "Exit From Any Other Singularity", blurb: HOLE_ANY_EXIT.note },
+          { key: "holeAnyExit", label: "Exit From Any Other Singularity", blurb: h(React.Fragment, null, HOLE_ANY_EXIT.off, h("br"), HOLE_ANY_EXIT.on) },
           !!sel.blackHole.anyExit,
           () => { sel.blackHole = { ...sel.blackHole, anyExit: !sel.blackHole.anyExit }; if (s.audio && s.audio.playSelect) s.audio.playSelect(); s.labelsDirty = true; s.bump(); },
           "blackhole-any-exit"

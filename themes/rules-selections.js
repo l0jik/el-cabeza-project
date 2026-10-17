@@ -233,9 +233,15 @@ export const holeSetsText = (sel) => (holeSetsOf(sel) === 1 ? HOLE_SETS_TEXT[1] 
 // worded as the user put it: "Rewrite to say "exit from any other
 // singularity". Off = Can only exit from singularities on opponent's half
 // of the board. On = Can exit from any other singularity on the board."
-// The engine's rule is the other half from the one gone into, which is
-// the opponent's for a singularity on your own half.)
-export const HOLE_ANY_EXIT = { name: "Exit from any other singularity", note: "Off: can only exit from singularities on the opponent's half of the board. On: can exit from any other singularity on the board." };
+// and then, of "opponent's half": "I'd rather it say "the other half"."
+// The engine's rule is the other half from the one gone into.) Off and
+// On are two lines, On starting its own in every menu (user, "On: can"
+// ringed: "Red, circled area should start a new line.").
+export const HOLE_ANY_EXIT = {
+  name: "Exit from any other singularity",
+  off: "Off: can only exit from singularities on the other half of the board.",
+  on: "On: can exit from any other singularity on the board.",
+};
 // Black holes never sit in either side's back two rows; missing squares
 // may, but never wall the board off.
 export const holeRowAllowed = (row, rows) => blackHoleRowAllowed(row, rows);

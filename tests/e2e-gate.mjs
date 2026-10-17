@@ -241,6 +241,11 @@ console.log("Cabeza Nova: the one menu");
     // The switch under two sets (user: "a toggle switch that allows them
     // to exit from any of the three other black holes on the board").
     check("...Exit from any hole under it, off", (await p.locator('[data-testid="gate-hole-any"]').getAttribute("aria-checked")) === "false");
+    // Off, then On on a line of its own (user: "I'd rather it say "the
+    // other half"." and "Red, circled area should start a new line.").
+    check("...its words: Off, the other half; On on a new line",
+      /^Off: can only exit from singularities on the other half of the board\.\nOn: can exit from any other singularity on the board\.$/.test((await p.locator('[data-testid="gate-hole-any-note"]').innerText()).trim()),
+      await p.locator('[data-testid="gate-hole-any-note"]').innerText());
     await p.locator('[data-testid="gate-hole-any"]').click();
     check("...on, the words say any of the other three", (await p.locator('[data-testid="gate-hole-any"]').getAttribute("aria-checked")) === "true"
       && /any of the other three/.test(await p.locator('[data-testid="gate-hole-explain"]').innerText()));

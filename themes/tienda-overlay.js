@@ -1678,7 +1678,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
       h("p", { className: "td-sub-explain", "data-testid": "tienda-hole-sets-note" }, holeSetsText(sel)),
       // Two sets: out of any of the other three holes (user: "a toggle
       // switch"; on the form, a box to mark).
-      holeSetsOf(sel) === 2 && check("hole-any", !!sel.holeAnyExit, HOLE_ANY_EXIT.name, HOLE_ANY_EXIT.note, () => change((s) => { s.holeAnyExit = !s.holeAnyExit; })),
+      holeSetsOf(sel) === 2 && check("hole-any", !!sel.holeAnyExit, HOLE_ANY_EXIT.name, h(React.Fragment, null, HOLE_ANY_EXIT.off, h("br"), HOLE_ANY_EXIT.on), () => change((s) => { s.holeAnyExit = !s.holeAnyExit; })),
       h("div", { className: "td-sub-row" },
         h("span", { className: "td-sub-h" }, "Where"),
         h("span", { className: "td-sub-val", "data-testid": "tienda-hole-where" }, spotsLine(sel.holeSpots, "O")),

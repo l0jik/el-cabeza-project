@@ -424,6 +424,10 @@ for (const size of [SIZES[2], SIZES[7]]) {
   // The box under two sets (user: "a toggle switch that allows them to
   // exit from any of the three other black holes on the board").
   check("...with Exit from any hole to mark, unmarked", (await count('[data-testid="tienda-hole-any"]')) === 1 && !(await page.locator('[data-testid="tienda-hole-any-input"]').isChecked()));
+  // Off, then On on a line of its own (user: "Red, circled area should
+  // start a new line.").
+  check("...its words: Off, the other half; On on a new line",
+    /the other half of the board\.\nOn: can exit from any other singularity on the board\./.test(await txt('[data-testid="tienda-hole-any"]')), await txt('[data-testid="tienda-hole-any"]'));
   await press('[data-testid="tienda-hole-any"]');
   check("...marked, the words say any of the other three", (await page.locator('[data-testid="tienda-hole-any-input"]').isChecked()) && /any of the other three/.test(await txt('[data-testid="tienda-hole-sets-note"]')));
   // The picker with two sets (user: the dashed ring "is confusing"): no
@@ -489,7 +493,8 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await press('[data-testid="tienda-picker-done"]');
   await page.waitForTimeout(400);
   const where = await txt('[data-testid="tienda-missing-where"]');
-  check(`...Done keeps it (${where})`, (where.match(/X row/g) || []).length === 2 && /X row \d+, col \d+(?! \(random\))/.test(where));
+  // (\b: a random "col 10 (random)" must not read as a hand-marked "col 1".)
+  check(`...Done keeps it (${where})`, (where.match(/X row/g) || []).length === 2 && /X row \d+, col \d+\b(?! \(random\))/.test(where));
   check("the board diagram shows the marks (4 X, 2 O)", (await count('.td-diagram-mark')) === 6);
 
   // Who's playing, and a carbon copy.
@@ -515,7 +520,7 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await shot("10-form-bottom");
 
   // Placing it: the stamp, then that game.
-  const handSpot = (where.match(/X row (\d+), col (\d+)(?! \(random\))/) || []).slice(1).map((n) => +n - 1);
+  const handSpot = (where.match(/X row (\d+), col (\d+)\b(?! \(random\))/) || []).slice(1).map((n) => +n - 1);
   await page.locator('[data-testid="tienda-order-place"]').click({ timeout: 30000 });
   check("placing the order stamps it filled", (await attr('[data-testid="tienda-order"]', "data-filled")) === "true" && (await count('[data-testid="tienda-order-stamp"]')) === 1);
   await page.waitForTimeout(5000);

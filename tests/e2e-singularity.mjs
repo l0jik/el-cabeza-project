@@ -874,6 +874,11 @@ if (state.activeCategory === "laws") {
   // The box under two sets (user: "a toggle switch that allows them to
   // exit from any of the three other black holes on the board").
   check("...Exit From Any Other Singularity under it, off", (await page.locator('[data-testid="blackhole-any-exit"]').getAttribute("data-checked")) === "false");
+  // Off, then On on a line of its own (user: "Red, circled area should
+  // start a new line.").
+  check("...its words: Off, the other half; On on a new line",
+    /the other half of the board\.\nOn: can exit from any other singularity on the board\./.test(await page.locator('[data-testid="blackhole-any-exit"]').innerText()),
+    await page.locator('[data-testid="blackhole-any-exit"]').innerText());
   await page.locator('[data-testid="blackhole-any-exit"]').click();
   await page.waitForTimeout(150);
   check("...on: kept in the selections, the words say any of the other three",

@@ -691,7 +691,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
       // Two sets: out of any of the other three holes, not only the far
       // half's two (user: "a toggle switch").
       holeSetsOf(sel) === 2 && h("div", { className: "rg-row" },
-        h("span", { className: "rg-name" }, HOLE_ANY_EXIT.name, h("span", { className: "rg-note" }, HOLE_ANY_EXIT.note)),
+        h("span", { className: "rg-name" }, HOLE_ANY_EXIT.name, h("span", { className: "rg-note", "data-testid": "gate-hole-any-note" }, HOLE_ANY_EXIT.off, h("br"), HOLE_ANY_EXIT.on)),
         h(Switch, { on: !!sel.holeAnyExit, label: HOLE_ANY_EXIT.name, testid: "gate-hole-any", onClick: () => change((n) => { n.holeAnyExit = !n.holeAnyExit; }) })),
       h("div", { className: "rg-row" },
         h("span", { className: "rg-note" }, sel.holeSpots.length && sel.holeSpots.every((p) => !p.random) ? "Placed by hand." : sel.holeSpots.some((p) => !p.random) ? "Placed by hand and at random." : "Placed at random."),
