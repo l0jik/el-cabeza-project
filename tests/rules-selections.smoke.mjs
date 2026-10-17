@@ -56,7 +56,12 @@ check(`a tight order on a 10-wide board is set out as ordered, every time (${asO
 import("../themes/rules-selections.js").then(async (m) => {
   const { getBoardDimensions, ACTIVE_LAWS } = await import("../engine/constants.js");
   const s = m.defaultSelections();
-  check("15 piece types (each Arco size its own; the Hombro and Cruce too), up to 4 each (Cabeza 1-2)", m.PIECE_OPTIONS.length === 15 && m.PIECE_OPTIONS.every((p) => p.max === (p.key === "cabeza" ? 2 : 4)));
+  // (No cap on a side's pieces but whether they fit, user: "drop it, so
+  // the only limit is whether the pieces fit, with a short note that big
+  // armies weaken the computer": a kind goes as high as two home rows of
+  // the widest board hold, the Cabeza one or two.)
+  check("15 piece types (each Arco size its own; the Hombro and Cruce too), up to 40 each (Cabeza 1-2)", m.PIECE_OPTIONS.length === 15 && m.MAX_OF_A_KIND === 40 && m.PIECE_OPTIONS.every((p) => p.max === (p.key === "cabeza" ? 2 : m.MAX_OF_A_KIND)));
+  check("...no cap on the whole army, and a note for a big one", !("MAX_PIECES" in m) && m.BIG_ARMY === 10 && /^Big armies weaken the computer/.test(m.BIG_ARMY_NOTE));
   {
     const { PIECE_META: PIECE_TYPES } = await import("../engine/constants.js");
     const offered = m.PIECE_OPTIONS.map((p) => m.pieceTypeOf(p.key));
@@ -152,7 +157,7 @@ import("../themes/rules-selections.js").then(async (m) => {
   check("the summary uses the theme's words and names Shoving", labelled[0].label === "RULES" && labelled[0].items.includes("Shoving (slides and rolls)"));
   check("an old save keeps its slides-only choice and drops the push distance", (() => { const n = m.normalizeSelections({ laws: { shoving: true }, shove: { far: true, onRolls: false } }); return n.shove.onRolls === false && !("far" in n.shove); })());
   check("a save without the setting shoves on rolls too", m.normalizeSelections({ laws: { shoving: true } }).shove.onRolls === true);
-  check("an old save normalises (size → rows × cols, counts clamped)", (() => { const n = m.normalizeSelections({ size: 12, counts: { opa: 9 } }); return n.rows === 12 && n.cols === 12 && n.counts.opa === 4 && n.missingSpots.length === 0; })());
+  check("an old save normalises (size → rows × cols, counts clamped)", (() => { const n = m.normalizeSelections({ size: 12, counts: { opa: 9, flaco: 99 } }); return n.rows === 12 && n.cols === 12 && n.counts.opa === 9 && n.counts.flaco === m.MAX_OF_A_KIND && n.missingSpots.length === 0; })());
   // The two Split movements (user): one or the other; three pieces brings 3 actions.
   {
     const t = m.defaultSelections();

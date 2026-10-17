@@ -19,26 +19,33 @@ import { generateAnomalySetup, packHomeBand } from "../engine/anomaly.js";
 /* ------------------------------------------------------------ the choices */
 
 // Pieces per side: min, max and the classic game's count (as Futuris's MATTER).
+// No cap on a side's pieces but whether they fit, set out in two home
+// rows (piecesFit; user, of "11 pieces a side: 10 at most": "drop it, so
+// the only limit is whether the pieces fit, with a short note that big
+// armies weaken the computer"). A kind's counter goes as high as two home
+// rows of the widest board could ever hold; the Cabeza stays one or two,
+// a rule of the game.
+export const MAX_OF_A_KIND = 2 * MAX_BOARD_DIM;
 export const PIECE_OPTIONS = [
   { key: "cabeza", name: "Cabeza", min: 1, max: 2, def: 1 },
-  { key: "turrito", name: "Turrito", min: 0, max: 4, def: 1 },
-  { key: "flaco", name: "Flaco", min: 0, max: 4, def: 1 },
-  { key: "chato", name: "Chato", min: 0, max: 4, def: 1 },
-  { key: "opa", name: "Opa", min: 0, max: 4, def: 1 },
-  { key: "block1x3", name: "1×3 Block", min: 0, max: 4, def: 0 },
-  { key: "block2x3", name: "2×3 Block", min: 0, max: 4, def: 0 },
+  { key: "turrito", name: "Turrito", min: 0, max: MAX_OF_A_KIND, def: 1 },
+  { key: "flaco", name: "Flaco", min: 0, max: MAX_OF_A_KIND, def: 1 },
+  { key: "chato", name: "Chato", min: 0, max: MAX_OF_A_KIND, def: 1 },
+  { key: "opa", name: "Opa", min: 0, max: MAX_OF_A_KIND, def: 1 },
+  { key: "block1x3", name: "1×3 Block", min: 0, max: MAX_OF_A_KIND, def: 0 },
+  { key: "block2x3", name: "2×3 Block", min: 0, max: MAX_OF_A_KIND, def: 0 },
   // (The Arco in each of its three sizes, each its own row, user; any mix.)
-  { key: "arcoChico", name: "Arco Chico", note: "3 wide, 2 tall", min: 0, max: 4, def: 0 },
-  { key: "arcoAlto", name: "Arco Alto", note: "3 wide, 3 tall", min: 0, max: 4, def: 0 },
-  { key: "arcoAncho", name: "Arco Ancho", note: "4 wide, 2 tall", min: 0, max: 4, def: 0 },
+  { key: "arcoChico", name: "Arco Chico", note: "3 wide, 2 tall", min: 0, max: MAX_OF_A_KIND, def: 0 },
+  { key: "arcoAlto", name: "Arco Alto", note: "3 wide, 3 tall", min: 0, max: MAX_OF_A_KIND, def: 0 },
+  { key: "arcoAncho", name: "Arco Ancho", note: "4 wide, 2 tall", min: 0, max: MAX_OF_A_KIND, def: 0 },
   // The pieces that can pivot (Codo, Hombro, Cruce, Rayo, Zeta) together at the end,
   // so the pivot warning can point at one place (user).
-  { key: "codo", name: "Codo", min: 0, max: 4, def: 0 },
+  { key: "codo", name: "Codo", min: 0, max: MAX_OF_A_KIND, def: 0 },
   // (The Codo's family, with a fourth cube at its corner, user.)
-  { key: "hombro", name: "Hombro", note: "A Codo with a cube standing on its corner", min: 0, max: 4, def: 0 },
-  { key: "cruce", name: "Cruce", note: "4 cubes in a T", min: 0, max: 4, def: 0 },
-  { key: "rayo", name: "Rayo", min: 0, max: 4, def: 0 },
-  { key: "zeta", name: "Zeta", min: 0, max: 4, def: 0 },
+  { key: "hombro", name: "Hombro", note: "A Codo with a cube standing on its corner", min: 0, max: MAX_OF_A_KIND, def: 0 },
+  { key: "cruce", name: "Cruce", note: "4 cubes in a T", min: 0, max: MAX_OF_A_KIND, def: 0 },
+  { key: "rayo", name: "Rayo", min: 0, max: MAX_OF_A_KIND, def: 0 },
+  { key: "zeta", name: "Zeta", min: 0, max: MAX_OF_A_KIND, def: 0 },
 ];
 // The Arco's three sizes (each a piece of its own above; an older save's
 // one Arco count and size, `arco` and `arcoSize`, is read as that size's).
@@ -91,7 +98,14 @@ export const shoveShown = () => SHOVE_SETTINGS;
 // (across, the width of a home row), each MIN_BOARD_DIM to MAX_BOARD_DIM.
 // SIZES are square quick picks.
 export const SIZES = [8, 10, 12];
-export const MAX_PIECES = 10;
+// Past BIG_ARMY a side the menus say what it costs (BIG_ARMY_NOTE): the
+// computer thinks for the same time, so it sees fewer turns ahead, and
+// with every rule on its turns grow slower (measured mid-game on a
+// desktop, every rule on, Easy: 10 a side about 0.5 s; 30-40 a side on
+// 20 x 20, 1.5-4 s; a crowded 28 a side on 14 x 14, 4-9 s; Hard 4-13 s
+// with those; slower on a phone).
+export const BIG_ARMY = 10;
+export const BIG_ARMY_NOTE = "Big armies weaken the computer: it sees fewer turns ahead in its thinking time, and its turns can take longer.";
 export const DEFAULT_BOARD_DIM = 10;
 export const MAX_MISSING_PAIRS = 5;
 // Sets of black holes (user: "add the option to increase the number of

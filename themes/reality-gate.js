@@ -31,7 +31,7 @@ import { makeRoundedBox, makePolycubeSmooth } from "../engine/geometry.js";
 import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constants.js";
 import { POSES, PieceViewer } from "./piece-showcase.js";
 import {
-  PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
+  PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, SIZES, BIG_ARMY, BIG_ARMY_NOTE, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
   defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, lawWarnings, piecesFit, minColsFor,
   beginCustomGame, fillSpots, randomizeSpots, refreshSpots, spotProblem, mirrorCell, missingCellsOf, holeCellsOf, boardLabel, clampDim, pieceTypeOf,
   holeSetsOf, setHoleSets, holeSpotsAfterTap, SPOT_PROBLEMS, holeSetsText, HOLE_ANY_EXIT,
@@ -577,7 +577,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
   const inspect = usePieceInspect(world, pieceLook);
   const [picker, setPicker] = React.useState(null); // null | "missing" | "hole"
   const change = (fn) => setSel((s) => { const n = cloneSelections(s); fn(n); return n; });
-  const total = totalPieces(sel), tooMany = total > MAX_PIECES;
+  const total = totalPieces(sel), bigArmy = total > BIG_ARMY;
   const fits = piecesFit(sel);
   const narrowest = fits ? null : minColsFor(sel);
   const warnings = lawWarnings(sel);
@@ -589,7 +589,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
   const locked = !!(busy || aiThinking);
   const names = sideNamesFor(world); // what this world calls its two sides
   const resize = (rows, cols) => change((n) => { n.rows = clampDim(rows); n.cols = clampDim(cols); refreshSpots(n); });
-  const canPlay = !tooMany && fits && total > 0 && sel.counts.cabeza > 0;
+  const canPlay = fits && total > 0 && sel.counts.cabeza > 0;
 
   // Each side with a dot of its pieces' colour, and what that colour is
   // where the name doesn't say (user): "Computer plays Photon (dark)".
@@ -613,9 +613,10 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
             picOf(p.key) ? h("img", { src: picOf(p.key), alt: "", "data-testid": `gate-pic-${p.key}` }) : null),
           h("span", { className: "rg-name" }, p.name, p.def ? h("span", { className: "rg-note" }, "In the classic game") : p.note ? h("span", { className: "rg-note" }, p.note) : null)),
         h(Stepper, { value: sel.counts[p.key], min: p.min, max: p.max, label: p.name, testid: `gate-count-${p.key}`, onChange: (v) => change((n) => { n.counts[p.key] = v; }) })))),
-    h("div", { className: `rg-total${tooMany ? " bad" : ""}`, "data-testid": "gate-total" },
-      tooMany ? `${total} pieces a side: ${MAX_PIECES} at most.` : `${total} ${total === 1 ? "piece" : "pieces"} a side (up to ${MAX_PIECES}).`),
-    !fits && !tooMany && h("div", { className: "rg-warn", "data-testid": "gate-fit" },
+    // As many as fit (BIG_ARMY_NOTE once it's a big army).
+    h("div", { className: "rg-total", "data-testid": "gate-total" }, `${total} ${total === 1 ? "piece" : "pieces"} a side.`),
+    bigArmy && h("div", { className: "rg-note", "data-testid": "gate-big-army" }, BIG_ARMY_NOTE),
+    !fits && h("div", { className: "rg-warn", "data-testid": "gate-fit" },
       narrowest ? `These pieces need a board at least ${narrowest} wide. Widen it below.` : "These pieces won't set out on any board. Take some off."));
 
   // Every law at once, first thing in the sheet (user: "a switch ... at

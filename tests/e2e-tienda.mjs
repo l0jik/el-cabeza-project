@@ -174,7 +174,7 @@ for (const size of [SIZES[2], SIZES[7]]) {
     diag: document.querySelector('[data-testid="tienda-law-diagonalSlide-input"]').checked,
   }));
   check("Diagonal slide stands on its own (Orthogonal slide stays off)", !laws.slide && laws.diag, JSON.stringify(laws));
-  check("a Rayo makes six pieces a side", (await page.locator('[data-testid="tienda-piece-total"]').innerText()).includes("6 of"));
+  check("a Rayo makes six pieces a side", (await page.locator('[data-testid="tienda-piece-total"] span').last().innerText()) === "6");
 
   // The board: any width and length, not just the square sizes.
   await press('[data-testid="tienda-size-12"]');
@@ -328,12 +328,18 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await press('[data-testid="tienda-lid-order"]');
   await page.waitForTimeout(1500);
 
-  // Pieces: the 1×3 and 2×3 Blocks, counts to 4, the Arco's three sizes.
+  // Pieces: the 1×3 and 2×3 Blocks, counts past 4, the Arco's three sizes.
   await press('[data-testid="tienda-piece-block1x3-inc"]');
   await press('[data-testid="tienda-piece-block2x3-inc"]');
-  for (let i = 0; i < 3; i++) await press('[data-testid="tienda-piece-turrito-inc"]');
-  check("the Blocks are on the form, and a count goes to 4", (await txt('[data-testid="tienda-piece-block1x3"] output')) === "1" && (await txt('[data-testid="tienda-piece-turrito"] output')) === "4" && (await page.locator('[data-testid="tienda-piece-turrito-inc"]').isDisabled()));
-  for (let i = 0; i < 3; i++) await press('[data-testid="tienda-piece-turrito-dec"]');
+  for (let i = 0; i < 4; i++) await press('[data-testid="tienda-piece-turrito-inc"]');
+  // (No cap but whether they fit, user: "drop it, so the only limit is
+  // whether the pieces fit, with a short note that big armies weaken the
+  // computer": a count goes past 4, the army past 10, with the note.)
+  check("the Blocks are on the form, and a count goes past 4", (await txt('[data-testid="tienda-piece-block1x3"] output')) === "1" && (await txt('[data-testid="tienda-piece-turrito"] output')) === "5" && !(await page.locator('[data-testid="tienda-piece-turrito-inc"]').isDisabled()));
+  check("...11 a side: no cap, and a note that big armies weaken the computer",
+    (await page.locator('[data-testid="tienda-piece-total"] span').last().innerText()) === "11" && /^Big armies weaken the computer/.test(await txt('[data-testid="tienda-big-army"]')));
+  for (let i = 0; i < 4; i++) await press('[data-testid="tienda-piece-turrito-dec"]');
+  check("...seven again, no note", (await page.locator('[data-testid="tienda-piece-total"] span').last().innerText()) === "7" && (await count('[data-testid="tienda-big-army"]')) === 0);
   // (Each Arco size its own line, user: any mix.)
   check("the Arco Chico, Alto and Ancho each have their own line, and no size switch", (await count('[data-testid="tienda-piece-arcoChico"]')) === 1 && (await count('[data-testid="tienda-piece-arcoAlto"]')) === 1 && (await count('[data-testid="tienda-piece-arcoAncho"]')) === 1 && (await count('[data-testid="tienda-arco-size"]')) === 0);
   await press('[data-testid="tienda-piece-arcoAlto-inc"]');

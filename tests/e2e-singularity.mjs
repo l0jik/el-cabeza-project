@@ -504,6 +504,24 @@ check("the Arco Alto counts on its own", state.selections.matter.roster.arcoAlto
 await page.locator('[data-testid="roster-arcoAlto-dec"]').click();
 await page.waitForTimeout(120);
 state = await sphereState();
+// No cap but whether they fit (user: "drop it, so the only limit is
+// whether the pieces fit, with a short note that big armies weaken the
+// computer"): past 10, the note; too many for the board, it says so.
+for (let i = 0; i < 5; i++) await page.locator('[data-testid="roster-turrito-inc"]').click();
+await page.waitForTimeout(150);
+check("12 a side: no cap, a note that big armies weaken the computer",
+  (await page.locator('[data-testid="matter-total"]').getAttribute("data-total")) === "12" && (await page.locator('[data-testid="matter-total"]').innerText()) === "12" &&
+    /^Big armies weaken the computer/.test(await page.locator('[data-testid="matter-big-army"]').innerText()) && (await page.locator('[data-testid="matter-fit"]').count()) === 0,
+  await page.locator('[data-testid="matter-total"]').innerText());
+for (let i = 0; i < 8; i++) await page.locator('[data-testid="roster-opa-inc"]').click();
+await page.waitForTimeout(150);
+check("...nine Opas won't fit 10 wide: it says how wide it must be",
+  /won't fit in two home rows \d+ squares wide: they need a board at least \d+ wide|won't fit on any board/.test(await page.locator('[data-testid="matter-fit"]').innerText()), await page.locator('[data-testid="matter-fit"]').innerText().catch(() => "none"));
+for (let i = 0; i < 8; i++) await page.locator('[data-testid="roster-opa-dec"]').click();
+for (let i = 0; i < 5; i++) await page.locator('[data-testid="roster-turrito-dec"]').click();
+await page.waitForTimeout(150);
+state = await sphereState();
+check("...back to seven: no note, no warning", (await page.locator('[data-testid="matter-big-army"]').count()) === 0 && (await page.locator('[data-testid="matter-fit"]').count()) === 0 && state.selections.matter.roster.turrito === 1 && state.selections.matter.roster.opa === 1, JSON.stringify(state.selections.matter.roster));
 
 // ---- clicking outside the overlay closes it, returning control to
 // sphere rotation, without discarding the edits just made ----

@@ -177,11 +177,9 @@ function makeSoftGlowTexture() {
 // types are wired to anything real yet — L-Pentomino and Arch stay
 // selectable but inert (see futuris-singularity.js's own MATTER copy)
 // since they'd need a non-convex collision system that doesn't exist.
-// Enforces SINGULARITY_DESIGN.md's "max 10 pieces per side" cap by
-// trimming non-Cabeza counts (starting from the roster's own tail)
-// if the sphere's independent per-wheel maximums ever combine past
-// it — no single wheel can exceed 10 alone, but several sitting near
-// their own max at once could.
+// No cap on how many (SINGULARITY_DESIGN.md's "max 10 pieces per side"
+// dropped, user: "drop it, so the only limit is whether the pieces fit"):
+// the sphere won't begin until they fit (futuris-singularity.js matterFits).
 function buildRosterFromSelections(matterSelections) {
   if (!matterSelections) return null;
   const roster = [];
@@ -206,12 +204,6 @@ function buildRosterFromSelections(matterSelections) {
     if (count > 0) roster.push({ type, count });
   });
 
-  let total = roster.reduce((sum, r) => sum + r.count, 0);
-  for (let i = roster.length - 1; total > 10 && i >= 0; i--) {
-    const entry = roster[i];
-    const floor = entry.type === "cabeza" ? 1 : 0; // at least 1 Cabeza always required
-    while (total > 10 && entry.count > floor) { entry.count--; total--; }
-  }
   return roster.filter((r) => r.count > 0);
 }
 

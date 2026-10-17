@@ -205,6 +205,12 @@ cost scales with branching factor (piece count), not board size, and
 today's fixed five-a-side is already tuned against real depth/time
 budgets (up to 4.3s at Hard difficulty). Board size, by contrast, barely
 affects AI cost, since pieces move by rolling, not by scanning the grid.
+*(Dropped 2026-10-17: no cap on a side's pieces but whether they fit in
+two home rows, each kind up to 40, the Cabeza still 1-2; the menus note
+past 10 that big armies weaken the computer. User: "drop it, so the only
+limit is whether the pieces fit, with a short note that big armies weaken
+the computer". Measured since: board size does matter, about five times
+the possible turns on 19×19 as on 10×10 with the same ten pieces.)*
 
 **Win condition with 2 Cabezas**: reaching the opposite end with *either*
 Cabeza is an instant win, regardless of whether the player's second

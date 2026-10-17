@@ -22,7 +22,7 @@
 
 import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
 import React from "react";
-import { PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, SIZES, MAX_PIECES, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, holeSetsOf, setHoleSets, holeSetsText, HOLE_ANY_EXIT } from "./rules-selections.js";
+import { PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, SIZES, BIG_ARMY, BIG_ARMY_NOTE, piecesFit, minColsFor, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, holeSetsOf, setHoleSets, holeSetsText, HOLE_ANY_EXIT } from "./rules-selections.js";
 import { SHOVE_SETTINGS, shoveOf } from "../chassis/shove-settings.js";
 import { LLUVIA } from "./lluvia-city.js";
 import { bus } from "./lluvia-bus.js";
@@ -86,7 +86,7 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = 
   if (panel === "matter") {
     body = [
       h("div", { key: "t", style: { display: "flex", justifyContent: "space-between", fontSize: 18, padding: "4px 0 8px", color: "#a8783a" } },
-        h("span", null, "PIECES PER SIDE"), h("span", { "data-testid": "lluvia-matter-total", style: { color: total > MAX_PIECES ? "#ff5a5a" : "#fff27a" } }, `${total} / ${MAX_PIECES}`)),
+        h("span", null, "PIECES PER SIDE"), h("span", { "data-testid": "lluvia-matter-total", style: { color: piecesFit(sel) ? "#fff27a" : "#ff5a5a" } }, String(total))),
       ...PIECES.map(([k, name, sign, min, max]) => {
         const n = sel.counts[k];
         const set = (v) => { sound("key"); change((s) => { s.counts[k] = Math.max(min, Math.min(max, v)); }); };
@@ -100,6 +100,11 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = 
           h("span", { style: { textAlign: "center", fontSize: 24, color: "#fff27a" } }, String(n)),
           h("button", { type: "button", "aria-label": `More ${name}`, "data-testid": `lluvia-matter-${k}-inc`, onClick: () => set(n + 1), style: termButton() }, "+"));
       }),
+      // As many as fit in two home rows (the board's width is in
+      // TOPOLOGIES), and the note once it's a big army.
+      !piecesFit(sel) && h("div", { key: "fit", "data-testid": "lluvia-fit", style: { padding: "10px 0 2px", fontSize: 18, lineHeight: 1.25, color: "#ff5a5a" } },
+        minColsFor(sel) ? `WON'T FIT IN TWO HOME ROWS ${sel.cols} WIDE. NEEDS ${minColsFor(sel)}: WIDEN IT IN TOPOLOGIES.` : "WON'T FIT ON ANY BOARD. TAKE SOME OUT."),
+      total > BIG_ARMY && h("div", { key: "big", "data-testid": "lluvia-big-army", style: { padding: "10px 0 2px", fontSize: 17, lineHeight: 1.25, color: "#a8783a" } }, BIG_ARMY_NOTE),
     ];
   } else if (panel === "laws") {
     const warnings = lawWarnings(sel);
@@ -267,7 +272,7 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose,
     setTimeout(() => { then && then(); onClose(); }, 650);
   };
   const begin = () => {
-    if (totalOf(sel) > MAX_PIECES) return;
+    if (!piecesFit(sel)) return;
     sound("begin");
     leave(() => beginCityGame(sel, x, (s) => x.reopenCity && x.reopenCity(s)));
   };
@@ -281,7 +286,7 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose,
     else if (diff === "medium") x.setAiDifficulty && x.setAiDifficulty("hard");
     else { x.setAiDifficulty && x.setAiDifficulty("easy"); x.selectOpponent && x.selectOpponent(null); }
   };
-  const total = totalOf(sel), tooMany = total > MAX_PIECES;
+  const total = totalOf(sel), wontFit = !piecesFit(sel);
   const lawsOn = LAWS.filter(([k]) => sel.laws[k]).length;
 
   const ready = phase === "ready" && h("div", { key: "ready", style: { position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(5,4,10,0.7) 0%, rgba(5,4,10,0.1) 40%, rgba(5,4,10,0.85) 80%)" } },
@@ -315,13 +320,13 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose,
       h("button", { type: "button", "aria-label": muted ? "Sound off" : "Sound on", onClick: () => { const m = !muted; setMuted(m); ctlRef.current && ctlRef.current.setMuted(m); }, style: { width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", color: "#b9b2c8", cursor: "pointer" } }, muted ? ICON.mute : ICON.sound)),
     !panel && h("div", { style: { ...column, bottom: 0, pointerEvents: "auto", display: "flex", flexDirection: "column", gap: 10, padding: "40px 14px 16px", background: "linear-gradient(180deg, rgba(5,4,10,0) 0%, rgba(5,4,10,0.92) 36%)" } },
       h("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 } },
-        signButton("matter", "MATTER", `${total} pieces`, "rgba(35,230,255,0.7)", "rgba(35,230,255,0.07)", "#c8f8ff", tooMany ? "#ff5a5a" : "#7fdcef"),
+        signButton("matter", "MATTER", `${total} pieces`, "rgba(35,230,255,0.7)", "rgba(35,230,255,0.07)", "#c8f8ff", wontFit ? "#ff5a5a" : "#7fdcef"),
         signButton("laws", "LAWS", `${lawsOn} ${lawsOn === 1 ? "law" : "laws"}`, "rgba(255,61,187,0.7)", "rgba(255,61,187,0.07)", "#ffd0ef", "#ef8fcf"),
         signButton("topologies", "TOPOLOGIES", `${sel.cols}×${sel.rows}`, "rgba(255,179,71,0.7)", "rgba(255,179,71,0.07)", "#ffe2b0", "#d9a45e")),
       h("button", { type: "button", "data-testid": "lluvia-opponent", onClick: cycleOpponent, style: { height: 40, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", background: "rgba(5,4,10,0.6)", border: "1px solid rgba(185,178,200,0.35)", borderRadius: 3, color: "#d9d2e6", font: `600 14px ${SAIRA}`, letterSpacing: "0.1em", cursor: "pointer" } },
         h("span", { style: { color: "#8d86a0" } }, "OPPONENT"), h("span", null, vsAi ? `CPU · ${diff.toUpperCase()}` : "HUMAN · PASS AND PLAY")),
-      h("button", { type: "button", "data-testid": "lluvia-begin", disabled: tooMany, onClick: begin, style: { height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", border: `2px solid ${AMBER}`, borderRadius: 4, background: "rgba(255,179,71,0.12)", color: AMBER, cursor: tooMany ? "not-allowed" : "pointer", opacity: tooMany ? 0.5 : 1, boxShadow: "0 0 22px rgba(255,179,71,0.35)" } },
-        h("span", { style: { fontFamily: SAIRA_X, fontWeight: 800, fontSize: 26, letterSpacing: "0.12em" } }, tooMany ? "TOO MANY PIECES" : "BEGIN THE GAME"), ICON.arrow)),
+      h("button", { type: "button", "data-testid": "lluvia-begin", disabled: wontFit, onClick: begin, style: { height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", border: `2px solid ${AMBER}`, borderRadius: 4, background: "rgba(255,179,71,0.12)", color: AMBER, cursor: wontFit ? "not-allowed" : "pointer", opacity: wontFit ? 0.5 : 1, boxShadow: "0 0 22px rgba(255,179,71,0.35)" } },
+        h("span", { style: { fontFamily: SAIRA_X, fontWeight: 800, fontSize: 26, letterSpacing: "0.12em" } }, wontFit ? "PIECES WON'T FIT" : "BEGIN THE GAME"), ICON.arrow)),
     panel && h("div", { style: { position: "absolute", inset: 0, pointerEvents: "auto" }, onPointerDown: closePanel },
       h(Panel, { panel, sel, change, onClose: closePanel, sound, pieceLook, onGoTo: (k) => { ctlRef.current && ctlRef.current.select(k); setPanel(k); },
         start: x && x.onStartByHand ? { on: !!x.startByHand, set: x.onStartByHand, half: !!x.ownHalf, toggleHalf: x.onToggleOwnHalf } : null })));

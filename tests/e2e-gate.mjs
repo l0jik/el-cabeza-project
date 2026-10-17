@@ -181,6 +181,18 @@ console.log("Cabeza Nova: the one menu");
     check("...the sheet still up", (await p.locator('[data-testid="gate-sheet"]').count()) === 1);
   }
   await p.locator('[data-testid="gate-opponent-human"]').click();
+  // No cap but whether they fit (user: "drop it, so the only limit is
+  // whether the pieces fit, with a short note that big armies weaken the
+  // computer").
+  for (let i = 0; i < 6; i++) await p.locator('[data-testid="gate-count-turrito-plus"]').click();
+  check("11 pieces a side: no cap, a note that big armies weaken the computer, Play still on",
+    (await p.locator('[data-testid="gate-total"]').innerText()) === "11 pieces a side." && /^Big armies weaken the computer/.test(await p.locator('[data-testid="gate-big-army"]').innerText())
+      && !(await p.locator('[data-testid="gate-play"]').isDisabled()), await p.locator('[data-testid="gate-total"]').innerText());
+  for (let i = 0; i < 6; i++) await p.locator('[data-testid="gate-count-flaco-plus"]').click();
+  check("...17 won't fit 10 wide: the board they need, and no Play",
+    /at least 11 wide/.test(await p.locator('[data-testid="gate-fit"]').innerText()) && (await p.locator('[data-testid="gate-play"]').isDisabled()));
+  for (let i = 0; i < 6; i++) { await p.locator('[data-testid="gate-count-flaco-minus"]').click(); await p.locator('[data-testid="gate-count-turrito-minus"]').click(); }
+  check("...back to five, and no note", (await p.locator('[data-testid="gate-total"]').innerText()) === "5 pieces a side." && (await p.locator('[data-testid="gate-big-army"]').count()) === 0);
   await p.locator('[data-testid="gate-count-codo-plus"]').click();
   await p.locator('[data-testid="gate-law-slide"]').click();
   await p.locator('[data-testid="gate-size-12"]').click();

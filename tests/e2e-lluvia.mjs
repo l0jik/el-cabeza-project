@@ -57,7 +57,21 @@ await page.mouse.click(8, 8);
 check("...and a tap outside puts it back, the panel still open", !!(await (async () => { for (let i = 0; i < 20; i++) { if ((await page.locator('[data-testid="piece-viewer"]').count()) === 0) return true; await page.waitForTimeout(200); } return false; })()) && (await page.locator('[data-testid="lluvia-panel-matter"]').count()) === 1);
 await page.locator('[data-testid="lluvia-matter-rayo-inc"]').click();
 await page.waitForTimeout(150);
-check("...a Rayo is added (6 pieces)", (await page.locator('[data-testid="lluvia-matter-total"]').textContent()).startsWith("6 /"));
+check("...a Rayo is added (6 pieces)", (await page.locator('[data-testid="lluvia-matter-total"]').textContent()) === "6");
+// No cap but whether they fit (user: "drop it, so the only limit is
+// whether the pieces fit, with a short note that big armies weaken the
+// computer").
+for (let i = 0; i < 5; i++) await page.locator('[data-testid="lluvia-matter-turrito-inc"]').click();
+await page.waitForTimeout(150);
+check("...11 pieces: no cap, and a note that big armies weaken the computer",
+  (await page.locator('[data-testid="lluvia-matter-total"]').textContent()) === "11" && /^Big armies weaken the computer/.test(await page.locator('[data-testid="lluvia-big-army"]').textContent()));
+for (let i = 0; i < 8; i++) await page.locator('[data-testid="lluvia-matter-opa-inc"]').click();
+await page.waitForTimeout(150);
+check("...nine Opas won't fit 10 wide: it says so", /WON'T FIT/.test(await page.locator('[data-testid="lluvia-fit"]').textContent()));
+for (let i = 0; i < 8; i++) await page.locator('[data-testid="lluvia-matter-opa-dec"]').click();
+for (let i = 0; i < 5; i++) await page.locator('[data-testid="lluvia-matter-turrito-dec"]').click();
+await page.waitForTimeout(150);
+check("...back to six: no note, no warning", (await page.locator('[data-testid="lluvia-big-army"]').count()) === 0 && (await page.locator('[data-testid="lluvia-fit"]').count()) === 0);
 await shot(page, "4-matter");
 await page.locator('[data-testid="lluvia-panel-close"]').click();
 await page.locator('[data-testid="lluvia-open-laws"]').click();

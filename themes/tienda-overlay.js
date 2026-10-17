@@ -25,7 +25,7 @@
 import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
 import React from "react";
 import {
-  PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
+  PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, BIG_ARMY, BIG_ARMY_NOTE, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
   defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
   pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf, holeSetsOf, setHoleSets, holeSetsText, HOLE_ANY_EXIT, holeAnyExitOn,
 } from "./rules-selections.js";
@@ -986,7 +986,6 @@ const CSS = `
   .td-qty output { width: 2.2em; height: 44px; display: flex; align-items: center; justify-content: center; font: 700 22px/1 ${COURIER}; color: #1F3A6B;
     border-bottom: 1.5px solid ${INK}; }
   .td-total { display: flex; justify-content: space-between; gap: 10px; padding: 8px 4px; font: 700 13px/1.3 ${COURIER}; }
-  .td-total.over { color: ${RED}; }
   .td-check { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 4px; border-bottom: 1px solid rgba(46,33,24,0.3); cursor: pointer; min-height: 52px; }
   .td-check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
   /* (Under .td-check: the notes' .td-check span outranked a bare .td-box,
@@ -1552,7 +1551,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   const change = (fn) => setSel((s) => { const n = cloneSelections(s); fn(n); onChange && onChange(n); return n; });
   const replace = (n0) => { const n = classic ? classicSelections(n0) : normalizeSelections(storeSelections(n0)); setSel(n); onChange && onChange(n); };
   const click = () => { audio && audio.playSelect && audio.playSelect(); };
-  const total = totalPieces(sel), over = total > MAX_PIECES;
+  const total = totalPieces(sel), bigArmy = total > BIG_ARMY;
   const fits = piecesFit(sel), need = fits ? null : minColsFor(sel);
   const warnings = lawWarnings(sel);
   // Pivot on with no Codo, Rayo or Zeta: the warning flashes, then the
@@ -1784,7 +1783,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   React.useEffect(() => { if (!waiting) setNudge(0); }, [waiting]);
   const place = () => {
     if (waiting) { click(); setNudge((n) => n + 1); return; }
-    if (over || !fits || filled) return;
+    if (!fits || filled) return;
     setFilled(true);
     audio && audio.playOrderFilled && audio.playOrderFilled();
     const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1822,9 +1821,11 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
             () => { pivotHush.hush(); change((s) => setAllLaws(s, !allLawsOn(s))); })),
         sec("Pieces", "quantity for each side — the other side gets the same",
           pieceRows,
-          h("div", { className: `td-total${over ? " over" : ""}`, "data-testid": "tienda-piece-total" },
+          // As many as fit (the note once it's a big army).
+          h("div", { className: "td-total", "data-testid": "tienda-piece-total" },
             h("span", null, "Pieces per side"),
-            h("span", null, over ? `${total} — ${MAX_PIECES} is the most a side can have` : `${total} of ${MAX_PIECES}`)),
+            h("span", null, String(total))),
+          bigArmy && h("div", { className: "td-form-note", "data-testid": "tienda-big-army" }, BIG_ARMY_NOTE),
           fitNote,
           // Place pieces manually (user: "is set out by hand in every relevant
           // menu now?"): the setup's Starting position, as the dock and the
@@ -1857,7 +1858,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
           h("button", { type: "button", className: "td-btn td-plain" + (where === "guided" ? " td-locked" : ""), "data-testid": "tienda-order-cancel", onClick: onCancel, disabled: filled, "aria-disabled": where === "guided" ? "true" : undefined }, "Cancel"),
           h("button", { type: "button", className: "td-btn td-plain" + (where === "guided" ? " td-locked" : ""), "data-testid": "tienda-order-standard", onClick: standard, disabled: filled, "aria-disabled": where === "guided" ? "true" : undefined }, "Standard"),
           h("button", {
-            type: "button", "data-testid": "tienda-order-place", disabled: over || !fits || filled, onClick: place,
+            type: "button", "data-testid": "tienda-order-place", disabled: !fits || filled, onClick: place,
             className: `td-btn td-primary${btnGlow ? " td-sing-glow" : ""}${waiting ? " td-wait" : ""}`,
             "aria-disabled": waiting ? "true" : undefined, "data-waiting": waiting ? "true" : "false",
           }, where === "guided" ? "Order it at Big Glutts \u203a" : "Place order & play"),

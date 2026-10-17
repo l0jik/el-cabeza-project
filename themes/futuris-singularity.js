@@ -46,7 +46,8 @@ const lostHandWireUrl = "el-cabeza-lost-hand-wire.webp";
 const lostHandSkinUrl = "el-cabeza-lost-hand-skin.webp";
 import { createUnease, createDrone } from "./futuris-unease.js";
 import { guideToPivots } from "./pivot-guide.js";
-import { shoveNow, allLawsOn, setAllLaws, HOLE_SETS_TEXT, HOLE_ANY_EXIT } from "./rules-selections.js";
+import { shoveNow, allLawsOn, setAllLaws, HOLE_SETS_TEXT, HOLE_ANY_EXIT, BIG_ARMY, BIG_ARMY_NOTE, MAX_OF_A_KIND } from "./rules-selections.js";
+import { packHomeBand } from "../engine/anomaly.js";
 import { SHOVE_SETTINGS, DEFAULT_SHOVE, shoveOf, shoveLaws, shoveSummary } from "../chassis/shove-settings.js";
 import { sideNamesFor, sideLabel, sideDotStyle } from "./side-names.js";
 
@@ -628,33 +629,59 @@ const PIECE_FOOTPRINTS = {
 // `detail` is the row's one-line description.
 const MATTER_ROSTER = [
   { key: "cabeza", label: "Cabeza", min: 1, max: 2, default: 1, icon: "cabeza", view: "cabeza", detail: "The one to protect. Steps one square any way." },
-  { key: "turrito", label: "Turrito", min: 0, max: 4, default: 1, icon: "turrito", view: "turrito", detail: "1 cube. Rolls one square." },
-  { key: "flaco", label: "Flaco", min: 0, max: 4, default: 1, icon: "flaco", view: "flaco", detail: "2 cubes long. Tips up to stand, and back down." },
-  { key: "chato", label: "Chato", min: 0, max: 4, default: 1, icon: "chato", view: "chato", detail: "A 1×2 slab, 2 tall." },
-  { key: "opa", label: "Opa", min: 0, max: 4, default: 1, icon: "opa", view: "opa", detail: "The big 2×2×2 cube. Rolls two squares; 2 actions." },
-  { key: "block1x3", label: "1×3 Block", min: 0, max: 4, default: 0, icon: "block1x3", view: "block1x3", detail: "3 cubes in a row." },
-  { key: "block2x3", label: "2×3 Block", min: 0, max: 4, default: 0, icon: "block2x3", view: "block2x3", detail: "A 2×3 slab of 6 cubes." },
+  { key: "turrito", label: "Turrito", min: 0, max: MAX_OF_A_KIND, default: 1, icon: "turrito", view: "turrito", detail: "1 cube. Rolls one square." },
+  { key: "flaco", label: "Flaco", min: 0, max: MAX_OF_A_KIND, default: 1, icon: "flaco", view: "flaco", detail: "2 cubes long. Tips up to stand, and back down." },
+  { key: "chato", label: "Chato", min: 0, max: MAX_OF_A_KIND, default: 1, icon: "chato", view: "chato", detail: "A 1×2 slab, 2 tall." },
+  { key: "opa", label: "Opa", min: 0, max: MAX_OF_A_KIND, default: 1, icon: "opa", view: "opa", detail: "The big 2×2×2 cube. Rolls two squares; 2 actions." },
+  { key: "block1x3", label: "1×3 Block", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "block1x3", view: "block1x3", detail: "3 cubes in a row." },
+  { key: "block2x3", label: "2×3 Block", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "block2x3", view: "block2x3", detail: "A 2×3 slab of 6 cubes." },
   // The Arco (an arch — see engine/constants.js), in each of its three
   // sizes, each its own row (user): any mix of them in a game.
-  { key: "arcoChico", label: "Arco Chico", min: 0, max: 4, default: 0, icon: "arch", view: "arcoChico", detail: "5 cubes · 3 wide, 2 tall · opening 1 wide. A Cabeza in its opening is sheltered." },
-  { key: "arcoAlto", label: "Arco Alto", min: 0, max: 4, default: 0, icon: "arch", view: "arcoAlto", detail: "7 cubes · 3 wide, 3 tall · opening 1 wide, 2 tall. A Cabeza in its opening is sheltered." },
-  { key: "arcoAncho", label: "Arco Ancho", min: 0, max: 4, default: 0, icon: "arch", view: "arcoAncho", detail: "6 cubes · 4 wide, 2 tall · opening 2 wide. A Cabeza in its opening is sheltered." },
+  { key: "arcoChico", label: "Arco Chico", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "arch", view: "arcoChico", detail: "5 cubes · 3 wide, 2 tall · opening 1 wide. A Cabeza in its opening is sheltered." },
+  { key: "arcoAlto", label: "Arco Alto", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "arch", view: "arcoAlto", detail: "7 cubes · 3 wide, 3 tall · opening 1 wide, 2 tall. A Cabeza in its opening is sheltered." },
+  { key: "arcoAncho", label: "Arco Ancho", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "arch", view: "arcoAncho", detail: "6 cubes · 4 wide, 2 tall · opening 2 wide. A Cabeza in its opening is sheltered." },
   // (The pieces that can pivot, together at the end: the pivot warning
   // points at them, user.)
   // The Codo: MATTER's first odd-shaped piece (a 3-cube L — see
   // engine/shapes.js).
-  { key: "codo", label: "Codo", min: 0, max: 4, default: 0, icon: "codo", view: "codo", detail: "3 cubes in an L. Its overhang can shelter a Cabeza." },
+  { key: "codo", label: "Codo", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "codo", view: "codo", detail: "3 cubes in an L. Its overhang can shelter a Cabeza." },
   // The Codo's family: a fourth cube at its corner, standing up (the
   // Hombro) or flat out the back (the Cruce, a T).
-  { key: "hombro", label: "Hombro", min: 0, max: 4, default: 0, icon: "hombro", view: "hombro", detail: "4 cubes: a Codo with one standing on its corner." },
-  { key: "cruce", label: "Cruce", min: 0, max: 4, default: 0, icon: "cruce", view: "cruce", detail: "4 cubes in a T." },
+  { key: "hombro", label: "Hombro", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "hombro", view: "hombro", detail: "4 cubes: a Codo with one standing on its corner." },
+  { key: "cruce", label: "Cruce", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "cruce", view: "cruce", detail: "4 cubes in a T." },
   // The Rayo (4-cube S/Z) and the Zeta (5-cube Z).
-  { key: "rayo", label: "Rayo", min: 0, max: 4, default: 0, icon: "rayo", view: "rayo", detail: "4 cubes in an S." },
-  { key: "zeta", label: "Zeta", min: 0, max: 4, default: 0, icon: "zeta", view: "zeta", detail: "5 cubes in a Z." },
+  { key: "rayo", label: "Rayo", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "rayo", view: "rayo", detail: "4 cubes in an S." },
+  { key: "zeta", label: "Zeta", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "zeta", view: "zeta", detail: "5 cubes in a Z." },
 ];
-// How many pieces a side may field; extras beyond it are dropped from the
-// end of the roster at game start (themes/futuris.js, buildRosterFromSelections).
-const MAX_PIECES_PER_SIDE = 10;
+// No cap on a side's pieces but whether they fit (user, of "11 pieces a
+// side: 10 at most": "drop it, so the only limit is whether the pieces
+// fit, with a short note that big armies weaken the computer"): MATTER's
+// pieces must set out in a side's two home rows on the chosen board, round
+// any missing squares marked there, as the other worlds' menus ask it
+// (rules-selections.js piecesFit). Only a roster of MATTER's own is
+// placed that way (finalizeSingularityBegin); the original five fit any board.
+function matterFits(sel, cols = sel.topologies.cols) {
+  if (!isCategoryActive("matter", sel)) return true;
+  const roster = MATTER_ROSTER.map((p) => ({ type: p.key, count: sel.matter.roster[p.key] || 0 })).filter((r) => r.count > 0);
+  const rows = sel.topologies.rows, keys = new Set();
+  if (sel.topologies.missingSquares) {
+    sel.missingSquare.spots.forEach((s) => [[s.row, s.col], [rows - 1 - s.row, sel.topologies.cols - 1 - s.col]].forEach(([r, c]) => {
+      if (c < 0 || c >= cols) return;
+      if (r < 2) keys.add(r * cols + c);
+      if (r >= rows - 2) keys.add((rows - 1 - r) * cols + (cols - 1 - c));
+    }));
+  }
+  return !!packHomeBand(roster, cols, [...keys]);
+}
+// The narrowest board MATTER's pieces fit, or null for none.
+function matterMinCols(sel) {
+  for (let c = MIN_BOARD_DIM; c <= MAX_BOARD_DIM; c++) if (matterFits(sel, c)) return c;
+  return null;
+}
+const matterFitText = (sel) => {
+  const need = matterMinCols(sel);
+  return need ? `These pieces won't fit in two home rows ${sel.topologies.cols} squares wide: they need a board at least ${need} wide (TOPOLOGY).` : "These pieces won't fit on any board. Take some out.";
+};
 
 // The roster's names for the summary / variants.
 function rosterItemLabel(p) {
@@ -3155,7 +3182,7 @@ function renderCategoryOverlay(t) {
     const viewOf = (p) => p.view;
     ensureThumbs(MATTER_ROSTER.map(viewOf));
     const total = MATTER_ROSTER.reduce((n, p) => n + sel.matter.roster[p.key], 0);
-    const over = total > MAX_PIECES_PER_SIDE;
+    const fits = matterFits(sel);
     body = h(
       "div",
       { style: { display: "flex", flexDirection: "column" } },
@@ -3163,9 +3190,11 @@ function renderCategoryOverlay(t) {
         "div",
         { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "0 2px 4px" } },
         h("div", { style: { ...sectionLabelStyle, margin: 0 } }, "Pieces per side"),
-        h("div", { "data-testid": "matter-total", "data-total": String(total), style: { ...sectionLabelStyle, margin: 0, color: over ? "#ffb454" : "rgba(223,250,255,0.85)" } }, `${total} of ${MAX_PIECES_PER_SIDE}`)
+        h("div", { "data-testid": "matter-total", "data-total": String(total), style: { ...sectionLabelStyle, margin: 0, color: fits ? "rgba(223,250,255,0.85)" : "#ffb454" } }, String(total))
       ),
-      over && h("div", { "data-testid": "matter-over", style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, color: "#ffcf8a", margin: "0 2px 6px" } }, `A side fields at most ${MAX_PIECES_PER_SIDE}: the last ${total - MAX_PIECES_PER_SIDE} won't be placed.`),
+      // As many as fit (the note once it's a big army).
+      !fits && h("div", { "data-testid": "matter-fit", style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, color: "#ffcf8a", margin: "0 2px 6px" } }, matterFitText(sel)),
+      total > BIG_ARMY && h("div", { "data-testid": "matter-big-army", style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, lineHeight: 1.4, color: "rgba(207,216,220,0.75)", margin: "0 2px 6px" } }, BIG_ARMY_NOTE),
       ...MATTER_ROSTER.map((p) => renderRosterRow(t, p, viewOf(p))),
       h("div", { style: { ...sectionLabelStyle, marginTop: 14 } }, "Setup"),
       renderCheckboxRow(
@@ -3471,6 +3500,7 @@ function renderSummaryPanel(setupExtras) {
 
   const lawsOn = LAWS_ITEMS.filter((i) => !i.board && sel.laws[i.key]);
   const piecesChanged = MATTER_ROSTER.some((p) => sel.matter.roster[p.key] !== p.default);
+  const fits = matterFits(sel);
   // An optional piece that's off (a default of 0, still at 0 — the Codo)
   // is left out rather than listed as "0 Codo".
   const rosterLine = MATTER_ROSTER
@@ -3509,18 +3539,20 @@ function renderSummaryPanel(setupExtras) {
     ),
     h("div", { style: { ...lineStyle, textAlign: "center" } }, h("span", { style: tagStyle }, "OPPONENT")),
     renderOpponentAiPicker(setupExtras),
+    !fits && h("div", { "data-testid": "summary-fit", style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, lineHeight: 1.4, color: "#ffcf8a", marginTop: 14 } }, matterFitText(sel)),
     h(
       "button",
       {
         type: "button",
         "data-testid": "singularity-begin-game",
+        disabled: !fits,
         onClick: finalizeSingularityBegin,
         style: {
           marginTop: 18, width: "100%",
           fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 14,
           letterSpacing: "0.12em", textTransform: "uppercase",
           color: "#04141c", background: "linear-gradient(135deg,#8ef3ff,#4de8ff)",
-          border: "none", borderRadius: 4, padding: "13px 0", cursor: "pointer",
+          border: "none", borderRadius: 4, padding: "13px 0", cursor: fits ? "pointer" : "not-allowed", opacity: fits ? 1 : 0.45,
           boxShadow: "0 0 24px rgba(77,232,255,0.45)",
         },
       },
@@ -4283,6 +4315,10 @@ export function useSingularityPhase({
   // real menu" rather than also building the rules/board-resize
   // engines behind them.
   function finalizeSingularityBegin() {
+    // (Only pieces that fit: Begin is off until they do, matterFits.)
+    const t0 = three && three.current;
+    const sel0 = t0 && t0.singularity && t0.singularity.selections;
+    if (sel0 && !matterFits(sel0)) return;
     // Marks the game about to start as Singularity-originated — read by
     // themes/futuris.js's own board-FX tick (applySingularityBoardPalette)
     // for as long as this game is active, and cleared only by the chassis's
