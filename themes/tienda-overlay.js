@@ -883,6 +883,14 @@ const CSS = `
     box-shadow: inset 0 -16px 24px -14px rgba(160,112,48,0.32);
   }
   .td-form .td-primary { background-color: #9A3B30; text-shadow: none; }
+  /* (That red outranked .td-primary:disabled, so a button that couldn't
+     order still looked ready, and lit: user, "the button at the bottom is
+     highlighted, but when you click on it, nothing happens".) */
+  .td-form .td-primary:disabled, .td-form .td-primary.td-off, .td-form .td-primary.td-off:hover { background-color: #9C8E7C; border-color: #7A6C5A; box-shadow: none; }
+  .td-fit.td-flash { animation: tdFitFlash 1.3s ease-out; }
+  @keyframes tdFitFlash { 0%, 35% { background: rgba(163,63,51,0.3); box-shadow: 0 0 0 4px rgba(163,63,51,0.35); } 100% { background: rgba(163,63,51,0.06); box-shadow: 0 0 0 0 rgba(163,63,51,0); } }
+  @media (prefers-reduced-motion: reduce) { .td-fit.td-flash { animation: none; } }
+  .td-fit-link { padding: 0; border: none; background: none; font: inherit; font-weight: 700; color: ${RED}; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-align: left; }
   .td-form .td-photo-btn img { filter: sepia(0.28) saturate(0.82) contrast(0.94) brightness(1.02); }
   /* Special orders at the catalog's foot: faded type until they open. */
   .td-special { display: block; margin: 16px 4px 6px; padding: 10px 0 2px; border-top: 1px dashed rgba(46,33,24,0.35);
@@ -1781,9 +1789,22 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   }, [where]);
   React.useEffect(() => { if (!nudge) return undefined; const id = setTimeout(() => setNudge(0), 3800); return () => clearTimeout(id); }, [nudge]);
   React.useEffect(() => { if (!waiting) setNudge(0); }, [waiting]);
+  // Pieces that won't fit: a tap on the order button brings the warning
+  // under Pieces into view and flashes it, rather than doing nothing (user,
+  // in the story with 15 pieces on 10 x 10: "the button at the bottom is
+  // highlighted, but when you click on it, nothing happens. Something is
+  // blocking you from clicking on that button").
+  const showFit = () => {
+    const el = document.querySelector('[data-testid="tienda-fit-warning"]');
+    if (!el) return;
+    const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ block: "center", behavior: reduced ? "auto" : "smooth" });
+    el.classList.remove("td-flash"); void el.offsetWidth; el.classList.add("td-flash");
+  };
   const place = () => {
     if (waiting) { click(); setNudge((n) => n + 1); return; }
-    if (!fits || filled) return;
+    if (!fits) { click(); showFit(); return; }
+    if (filled) return;
     setFilled(true);
     audio && audio.playOrderFilled && audio.playOrderFilled();
     const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1853,14 +1874,15 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
         ),
       ),
       h("div", { className: "td-foot" },
-        h("div", { className: "td-foot-total", "data-testid": "tienda-order-summary" }, summary, h("br"), h("b", null, !fits ? "Won't fit this board — see Pieces" : where === "guided" ? "Special order: at your Big Glutts, Games Dept." : where === "home" ? "Delivered to your home" : "No charge — in-store demonstration")),
+        h("div", { className: "td-foot-total", "data-testid": "tienda-order-summary" }, summary, h("br"), !fits ? h("button", { type: "button", className: "td-fit-link", "data-testid": "tienda-fit-link", onClick: () => { click(); showFit(); } }, "Won't fit this board — see Pieces ›") : h("b", null, where === "guided" ? "Special order: at your Big Glutts, Games Dept." : where === "home" ? "Delivered to your home" : "No charge — in-store demonstration")),
         h("div", { className: "td-foot-btns" },
           h("button", { type: "button", className: "td-btn td-plain" + (where === "guided" ? " td-locked" : ""), "data-testid": "tienda-order-cancel", onClick: onCancel, disabled: filled, "aria-disabled": where === "guided" ? "true" : undefined }, "Cancel"),
           h("button", { type: "button", className: "td-btn td-plain" + (where === "guided" ? " td-locked" : ""), "data-testid": "tienda-order-standard", onClick: standard, disabled: filled, "aria-disabled": where === "guided" ? "true" : undefined }, "Standard"),
           h("button", {
-            type: "button", "data-testid": "tienda-order-place", disabled: !fits || filled, onClick: place,
-            className: `td-btn td-primary${btnGlow ? " td-sing-glow" : ""}${waiting ? " td-wait" : ""}`,
-            "aria-disabled": waiting ? "true" : undefined, "data-waiting": waiting ? "true" : "false",
+            type: "button", "data-testid": "tienda-order-place", disabled: filled, onClick: place,
+            // (Greyed and unlit while the pieces won't fit; a tap shows why.)
+            className: `td-btn td-primary${!fits ? " td-off" : ""}${btnGlow && fits ? " td-sing-glow" : ""}${waiting ? " td-wait" : ""}`,
+            "aria-disabled": waiting || !fits ? "true" : undefined, "data-waiting": waiting ? "true" : "false", "data-fits": fits ? "true" : "false",
           }, where === "guided" ? "Order it at Big Glutts \u203a" : "Place order & play"),
         ),
         nudge ? h("p", { key: nudge, className: "td-nudge", role: "alert", "data-testid": "tienda-order-nudge" }, "Be sure to order some new special pieces first \u2014 or new rules, or a new board.") : null,

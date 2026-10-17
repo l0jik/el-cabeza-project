@@ -229,6 +229,18 @@ console.log("\ndesktop: the store, the purchase, home");
   await q(page, "tienda-piece-turrito-inc").click();
   check("an order made: the button's ready", (await q(page, "tienda-order-place").getAttribute("data-waiting")) === "false");
   check("...and, a tap having landed elsewhere, lit in the Singularity's blue", /td-sing-glow/.test(await q(page, "tienda-order-place").getAttribute("class")));
+  // Too many to fit the board: the button greyed and unlit, and a tap on
+  // it shows why (user, here: "the button at the bottom is highlighted,
+  // but when you click on it, nothing happens").
+  for (let i = 0; i < 4; i++) await q(page, "tienda-piece-opa-inc").click();
+  const placeOff = q(page, "tienda-order-place");
+  check("pieces that won't fit: the button greyed and unlit", (await placeOff.getAttribute("aria-disabled")) === "true" && /td-off/.test(await placeOff.getAttribute("class")) && !/td-sing-glow/.test(await placeOff.getAttribute("class")), await placeOff.getAttribute("class"));
+  await placeOff.scrollIntoViewIfNeeded();
+  await placeOff.click({ force: true }); // (aria-disabled, but a tap still reaches it: that's the point)
+  await page.waitForTimeout(800);
+  check("...a tap on it shows the warning under Pieces, nothing stamped", /td-flash/.test(await q(page, "tienda-fit-warning").getAttribute("class")) && !(await has(page, "tienda-order-stamp")));
+  for (let i = 0; i < 4; i++) await q(page, "tienda-piece-opa-dec").click();
+  check("...fewer again: the button ready and lit", (await placeOff.getAttribute("aria-disabled")) === null && /td-sing-glow/.test(await placeOff.getAttribute("class")));
   // The first time through, anything on the form can be chosen (user:
   // rules and board layouts too); Cancel and Standard don't work, and the
   // order stays as it is.
