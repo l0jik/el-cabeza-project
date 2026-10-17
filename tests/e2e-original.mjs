@@ -83,13 +83,34 @@ const theme = (page) => page.evaluate(() => {
   check("the den's ABOUT: the disclaimer last, under the sound credits", tail[0] === "info-sound-credits" && tail[1] === "info-disclaimer", JSON.stringify(tail));
   await page.mouse.click(6, 6);
   await page.waitForTimeout(500);
-  // Hold the masthead, then confirm CONNECT: over to Futuris.
+  // Hold the masthead, then confirm CONNECT: over to Futuris. The hold
+  // is the invisible zone kept over the title each frame (apps/unified.jsx):
+  // pressed only once it's there, on top, under the pointer (on a slow
+  // runner the frame that puts it there can come late; CI, 2026-10-17,
+  // the hold never began and CONNECT never came).
+  await page.evaluate(() => document.fonts && document.fonts.ready);
+  let spot = null;
+  for (let i = 0; i < 40 && !spot; i++) {
+    spot = await page.evaluate(() => {
+      const zone = document.querySelector(".ec-masthead-hold-zone");
+      const title = document.querySelector(".ec-title");
+      if (!zone || !title) return null;
+      const t = title.getBoundingClientRect(), z = zone.getBoundingClientRect();
+      const x = t.left + t.width / 2, y = t.top + t.height / 2;
+      if (!t.width || x < z.left || x > z.right || y < z.top || y > z.bottom) return null;
+      return document.elementFromPoint(x, y) === zone ? { x, y } : null;
+    });
+    if (!spot) await page.waitForTimeout(250);
+  }
+  const under = spot ? "" : await page.evaluate(() => { const t = document.querySelector(".ec-title"); if (!t) return "no title"; const r = t.getBoundingClientRect(); const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return el ? `${el.tagName.toLowerCase()}.${el.className}` : "nothing"; });
+  check("the masthead's hold zone is over the title, on top", !!spot, under);
   const box = await page.locator("h1").first().boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const at = spot || { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.mouse.move(at.x, at.y);
   await page.mouse.down();
   await page.waitForTimeout(4400);
   await page.mouse.up();
-  await page.waitForTimeout(400);
+  await page.locator(".ec-hold-modal-word").waitFor({ state: "attached", timeout: 10000 }).catch(() => {});
   await page.locator(".ec-hold-modal-word").click({ force: true });
   await page.waitForTimeout(3500);
   check("holding the masthead and confirming switches to Futuris", (await theme(page)) === "futuris");
