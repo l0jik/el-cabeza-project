@@ -77,9 +77,10 @@ import("../themes/rules-selections.js").then(async (m) => {
   }
   s.laws.shoving = true;
   // The line under the setting says what actually shoves (user).
-  check("with Slide off, the line says only rolls shove", /only rolls shove/.test(m.shoveNow({ ...s, laws: { ...s.laws, slide: false } })));
-  check("...with Slide on, slides and rolls both", /slides and rolls both shove/.test(m.shoveNow({ ...s, laws: { ...s.laws, slide: true } })));
-  check("...on slides only, only slides", /only slides shove/.test(m.shoveNow({ ...s, shove: { onRolls: false } })));
+  // (No "Right now", and "can", user: "Only slides can shove...".)
+  check("with Slide off, the line says only rolls can shove", /^Only rolls can shove:/.test(m.shoveNow({ ...s, laws: { ...s.laws, slide: false } })));
+  check("...with Slide on, slides and rolls both", /^Slides and rolls can both shove\./.test(m.shoveNow({ ...s, laws: { ...s.laws, slide: true } })));
+  check("...on slides only, only slides", /^Only slides can shove\. A roll into a piece is just blocked\.$/.test(m.shoveNow({ ...s, shove: { onRolls: false } })), m.shoveNow({ ...s, shove: { onRolls: false } }));
   {
     const lone = m.toggleLaw(m.cloneSelections(m.defaultSelections()), "diagonalSlide");
     check("Diagonal slide stands on its own: Orthogonal slide stays off", lone.laws.diagonalSlide && !lone.laws.slide && m.lawsForEngine(lone).diagonalSlide === true);
@@ -113,7 +114,7 @@ import("../themes/rules-selections.js").then(async (m) => {
   s.shove = { onRolls: false, own: false };
   s.laws.slide = true;
   check("with slides only: opponents' only reaches the engine", m.lawsForEngine(s).shoveOwn === false && m.lawsForEngine(s).shoveOnRolls === false);
-  check("...the line says so", /only slides shove/.test(m.shoveNow(s)) && /only your opponent's pieces/.test(m.shoveNow(s)), m.shoveNow(s));
+  check("...the line says so", /Only slides can shove/.test(m.shoveNow(s)) && /only your opponent's pieces/.test(m.shoveNow(s)), m.shoveNow(s));
   check("...the summary too", m.variantsOf(s)[0].items.includes("Shoving (slides only, only opponents)"), JSON.stringify(m.variantsOf(s)[0].items));
   check("...a game that isn't the default one", !m.isDefaultSelections(s));
   check("...and it survives a save", m.normalizeSelections(m.cloneSelections(s)).shove.own === false);

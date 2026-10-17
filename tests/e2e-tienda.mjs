@@ -364,7 +364,7 @@ for (const size of [SIZES[2], SIZES[7]]) {
   check("...the choice there with slides only too", (await count('[data-testid="tienda-shove-own-on"]')) === 1 && (await count('[data-testid="tienda-shove-own-off"]')) === 1);
   // (User: Slides only turns Slide on, so it never stands without it.)
   check("Slides only ticks the Slide rule with it (no nothing-can-shove warning)", (await attr('[data-testid="tienda-shove-onRolls-off"]', "aria-pressed")) === "true" && (await page.evaluate(() => document.querySelector('[data-testid="tienda-law-slide-input"]').checked)) && (await count('[data-testid="shove-needs-slide"]')) === 0);
-  check("...and the line under it now says only slides shove", /only slides shove/.test(await page.locator('[data-testid="tienda-shove-now"]').innerText()));
+  check("...and the line under it now says only slides can shove", /Only slides can shove/.test(await page.locator('[data-testid="tienda-shove-now"]').innerText()));
   await press('[data-testid="tienda-law-slide"]');
   check("...and Slide off puts Shoving back on slides and rolls", (await attr('[data-testid="tienda-shove-onRolls-on"]', "aria-pressed")) === "true");
   await press('[data-testid="tienda-law-slide"]');
@@ -451,9 +451,14 @@ for (const size of [SIZES[2], SIZES[7]]) {
   check("...Set 2 chosen: the line says so (blue pencil)", /^Now placing Set 2 \(blue pencil\)/.test(await txt('[data-testid="tienda-hole-status"]')), await txt('[data-testid="tienda-hole-status"]'));
   const far = await page.evaluate(() => {
     const cells = [...document.querySelectorAll('[data-testid="tienda-picker"] .td-cell')];
+    const rows = Math.max(...cells.map((b) => +b.dataset.row)) + 1, cols = Math.max(...cells.map((b) => +b.dataset.col)) + 1;
     const one = cells.filter((b) => b.querySelector('.mk.bh[data-set="1"]')).map((b) => [+b.dataset.row, +b.dataset.col]);
-    const c = cells.find((b) => !b.querySelector(".mk") && !b.classList.contains("banned") && +b.dataset.row > 2 && +b.dataset.row < 7
-      && one.every(([r, cc]) => Math.max(Math.abs(r - +b.dataset.row), Math.abs(cc - +b.dataset.col)) > 2));
+    const gap = (b) => Math.min(...one.map(([r, cc]) => Math.max(Math.abs(r - +b.dataset.row), Math.abs(cc - +b.dataset.col))));
+    // The open square farthest from Set 1's pair (hatched ones are in the
+    // back rows or beside it). Not "more than two squares off": with Set
+    // 1 rolled across the middle there may be no such square.
+    const c = cells.filter((b) => !b.querySelector(".mk") && !b.classList.contains("banned") && !b.classList.contains("piece")
+      && !(+b.dataset.row * 2 === rows - 1 && +b.dataset.col * 2 === cols - 1) && gap(b) > 1).sort((a, b) => gap(b) - gap(a))[0];
     return c ? c.dataset.testid : null;
   });
   await press(`[data-testid="${far}"]`);

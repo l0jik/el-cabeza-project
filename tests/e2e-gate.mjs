@@ -146,7 +146,7 @@ console.log("Cabeza Nova: the one menu");
     await p.locator('[data-testid="gate-shove-slides"]').click();
     check("...the choice there with slides only too, still chosen, the line saying both",
       (await p.locator('[data-testid="gate-shove-opponents"][aria-pressed="true"]').count()) === 1 &&
-      /only slides shove/i.test(await p.locator('[data-testid="gate-shove-now"]').textContent()) && /only your opponent's pieces/.test(await p.locator('[data-testid="gate-shove-now"]').textContent()));
+      /^Only slides can shove\./.test(await p.locator('[data-testid="gate-shove-now"]').textContent()) && /only your opponent's pieces/.test(await p.locator('[data-testid="gate-shove-now"]').textContent()));
     await p.locator('[data-testid="gate-shove-rolls"]').click();
     await p.locator('[data-testid="gate-shove-all"]').click();
     await all.click();
@@ -295,7 +295,12 @@ console.log("Cabeza Nova: the one menu");
       const cells = [...document.querySelectorAll('[data-testid^="gate-cell-"]')];
       const rc = (el) => el.dataset.testid.split("-").slice(2).map(Number);
       const one = cells.filter((el) => el.querySelector('.mk.bh[data-set="1"]')).map(rc);
-      const c = cells.find((el) => { const [r, cc] = rc(el); return !el.querySelector(".mk") && !el.classList.contains("banned") && r > 2 && r < 7 && one.every(([a, b]) => Math.max(Math.abs(a - r), Math.abs(b - cc)) > 2); });
+      const rows = Math.max(...cells.map((el) => rc(el)[0])) + 1, cols = Math.max(...cells.map((el) => rc(el)[1])) + 1;
+      const gap = (el) => { const [r, cc] = rc(el); return Math.min(...one.map(([a, b]) => Math.max(Math.abs(a - r), Math.abs(b - cc)))); };
+      // The open square farthest from Set 1's pair (with that pair rolled
+      // across the middle, none may be more than two squares off).
+      const c = cells.filter((el) => { const [r, cc] = rc(el); return !el.querySelector(".mk") && !el.classList.contains("banned") && !(r * 2 === rows - 1 && cc * 2 === cols - 1) && gap(el) > 1; })
+        .sort((a, b) => gap(b) - gap(a))[0];
       return c ? c.dataset.testid : null;
     });
     await p.locator(`[data-testid="${clear}"]`).click();

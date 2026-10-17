@@ -476,7 +476,7 @@ export function lawWarnings(sel) {
 /* ------------------------------------------------------------ the summary */
 
 // "Shoving (slides and rolls)", "Shoving (slides only)" and, set to the
-// opponent's pieces, "Shoving (slides only, only opponents')", for the
+// opponent's pieces, "Shoving (slides only, only opponents)", for the
 // summary.
 export const shovingName = (sel) => `Shoving (${shoveSummary(sel.shove)})`;
 const pieceName = (p) => p.name;

@@ -42,20 +42,20 @@ export function shoveLaws(saved) {
 export const shoveFromLaws = (laws = {}) => ({ onRolls: laws.shoveOnRolls !== false, own: laws.shoveOwn !== false });
 
 // Each setting with the name of what's chosen: [["Shoves on", "Slides
-// only"], ["Shoves push", "Only opponents'"]] (the corner menu's lines).
+// only"], ["Shoves push", "Only opponents"]] (the corner menu's lines).
 export function shoveChosen(saved) {
   const s = shoveOf(saved);
   return SHOVE_SETTINGS.map((st) => [st.name, st.options.find((o) => o.value === s[st.key]).name]);
 }
 
 // For a summary: "slides and rolls", "slides only", "slides and rolls,
-// only opponents'", "slides only, only opponents'".
+// only opponents", "slides only, only opponents".
 export function shoveSummary(saved) {
   const s = shoveOf(saved);
   return `${s.onRolls ? "slides and rolls" : "slides only"}${s.own ? "" : ", only opponents"}`;
 }
 
-// The sentence for "Only opponents'", wherever a setting's described.
+// The sentence for "Only opponents", wherever a setting's described.
 export const OWN_BLOCKS = "A shove pushes only your opponent's pieces: one of your own in the way blocks the move.";
 
 /* What actually shoves with the rules as they're set, for the line under
@@ -66,17 +66,19 @@ export const OWN_BLOCKS = "A shove pushes only your opponent's pieces: one of yo
    Futuris's sphere its own), and the buttons show it when they move, so
    the line no longer warns of it (user, of "Turning Orthogonal slide off
    switches this back to Slides and rolls": "a bit opaque ... we should
-   take it out"; its twin "Choosing Slides only turns it on" went too). */
+   take it out"; its twin "Choosing Slides only turns it on" went too).
+   No "Right now", and "can" (user, "only slides shove" ringed: "Only
+   slides can shove..."), in each of its forms. */
 export function shoveNow(saved, laws = {}) {
   const s = shoveOf(saved);
   // (And never on a diagonal, user: said while Diagonal slide is on.)
   const diag = laws.diagonalSlide ? " Diagonal slides never shove." : "";
   const own = s.own ? "" : ` ${OWN_BLOCKS}`;
   if (!s.onRolls)
-    return `Right now only slides shove.${diag} A roll into a piece is just blocked.${own}`;
+    return `Only slides can shove.${diag} A roll into a piece is just blocked.${own}`;
   if (!laws.slide)
     return laws.diagonalSlide
-      ? `Right now only rolls shove: Orthogonal slide is off, and diagonal slides never shove.${own}`
-      : `Right now only rolls shove: Orthogonal slide is off, so there are no slides to shove with.${own}`;
-  return `Right now slides and rolls both shove.${diag}${own}`;
+      ? `Only rolls can shove: Orthogonal slide is off, and diagonal slides never shove.${own}`
+      : `Only rolls can shove: Orthogonal slide is off, so there are no slides to shove with.${own}`;
+  return `Slides and rolls can both shove.${diag}${own}`;
 }

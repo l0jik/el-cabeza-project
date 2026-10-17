@@ -917,7 +917,10 @@ if (state.activeCategory === "laws") {
   const clearCell = await page.evaluate(() => {
     const cells = [...document.querySelectorAll('[data-testid="blackhole-picker"] [data-selectable="true"]')].filter((el) => !el.dataset.holeSet);
     const one = [...document.querySelectorAll('[data-testid="blackhole-picker"] [data-hole-set="1"]')].map((el) => el.dataset.testid.split("-").slice(2).map(Number));
-    const c = cells.find((el) => { const [r, cc] = el.dataset.testid.split("-").slice(2).map(Number); return one.every(([a, b]) => Math.max(Math.abs(a - r), Math.abs(b - cc)) > 2); });
+    const gap = (el) => { const [r, cc] = el.dataset.testid.split("-").slice(2).map(Number); return Math.min(...one.map(([a, b]) => Math.max(Math.abs(a - r), Math.abs(b - cc)))); };
+    // The open square farthest from Set 1's pair (with that pair rolled
+    // across the middle, none may be more than two squares off).
+    const c = cells.filter((el) => gap(el) > 1).sort((a, b) => gap(b) - gap(a))[0];
     return c ? c.dataset.testid : null;
   });
   await page.locator(`[data-testid="${clearCell}"]`).click();
@@ -965,7 +968,7 @@ if (state.activeCategory === "laws") {
   await page.waitForTimeout(150);
   state = await sphereState();
   check("...the choice still there with slides only, and kept", (await page.locator('[data-testid="shove-own-off"]').getAttribute("aria-pressed")) === "true" && state.selections.shove.own === false &&
-    /only slides shove/i.test(await page.locator('[data-testid="shove-now"]').innerText()) && /only your opponent's pieces/.test(await page.locator('[data-testid="shove-now"]').innerText()));
+    /only slides can shove/i.test(await page.locator('[data-testid="shove-now"]').innerText()) && /only your opponent's pieces/.test(await page.locator('[data-testid="shove-now"]').innerText()));
   check("...Slides only can be chosen, and brings Slide with it (user)", state.selections.shove.onRolls === false && state.selections.laws.slide === true && (await page.locator('[data-testid="shove-needs-slide"]').count()) === 0, JSON.stringify(state.selections.laws));
   await page.locator('[data-testid="shove-own-on"]').click();
   await page.waitForTimeout(150);
