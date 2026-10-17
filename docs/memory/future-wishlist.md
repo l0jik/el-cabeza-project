@@ -7,14 +7,14 @@
   user's to send. When they arrive: bundle each as an asset and list it in
   themes/standard.js `DEN_TRACKS` ({ id, title, artist, medium: "record"
   | "8track", url }). See "The den, round 2" below.
-- **REMIND THE USER: a city-block version (asked to be reminded,
-  2026-09-27).** Every piece is a building, or a row of buildings when it
-  lies flat, in a foggy, rainy future-noir city (think Blade Runner, or
-  the PC game Dystopika). When a piece rolls or turns it becomes a
-  different building on the block. Not started; flesh it out with the
-  user first. Related: Lluvia (themes/lluvia*.js) is already a rainy
-  neon city round the board, so ask whether this grows out of Lluvia or
-  is a version of its own.
+- **A city-block version (done: user, 2026-10-17: "Mark this as
+  completed: The city-block version").** Met by the city worlds built
+  since, where every piece is a building on the block: Noir (rain, fog,
+  1940s tenements), The City and Plano's blueprint city. Was: "REMIND THE
+  USER" (2026-09-27): every piece a building, or a row of buildings when
+  it lies flat, in a foggy, rainy future-noir city (think Blade Runner,
+  or the PC game Dystopika); a piece that rolls or turns becomes a
+  different building on the block.
 - **Online play against another human.** GitHub Pages only serves static
   files, so this needs a small backend: a relay (WebSocket) service, or
   peer-to-peer WebRTC with a tiny signalling server. Invite by link or
