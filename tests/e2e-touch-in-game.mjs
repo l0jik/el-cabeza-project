@@ -6,9 +6,11 @@
    (theta down); finger up tilts toward the horizon (phi up), down toward
    overhead. Every step of each drag must go the way the first did.
 
-   Before Begin the store keeps its own ways (a drag turns it one way
-   wherever it begins; up and down the other way): checked on Big Glutts'
-   page.
+   Before Begin too (user, of the story's first visit to the store: "the
+   XY spin axis is reversed"): checked on the store's pages, the story's
+   first visit and Big Glutts'; the store's own ways (a drag turns it one
+   way wherever it begins; up and down the other way) are a mouse's
+   (e2e-drag-latch).
 
    And a drag carries on when the handlers are bound again mid-drag, as
    each step the computer takes binds them (the first drag in Parrish,
@@ -26,7 +28,7 @@ const WORLDS = [
   ["Futuris", `${D}/el-cabeza-futuris.html`, {}],
   ["Standard", `${D}/el-cabeza-standard.html`, {}],
   ["Nova den", `${D}/el-cabeza-nova.html`, DEN_SEED],
-  ["Nova's store (the story's first visit)", `${D}/el-cabeza-nova.html`, {}],
+  ["Nova's store (the story's first visit)", `${D}/el-cabeza-nova.html`, {}, { storeWays: true }],
   ["Big Glutts' page", `${D}/el-cabeza-tienda.html`, {}, { storeWays: true }],
   ["Lluvia", `${D}/el-cabeza-lluvia.html`, {}],
   ["Cromo", `${D}/el-cabeza-cromo.html`, {}],
@@ -122,14 +124,14 @@ for (const [name, url, seed, opts = {}] of WORLDS) {
   const fmt = (s, k) => JSON.stringify(s.map((v) => +v[k].toFixed(3)));
 
   if (opts.storeWays) {
-    // Before Begin: the store's own ways.
+    // Before Begin: Futuris's way too.
     const armed = await page.evaluate(() => window.__EC_TEST_ARMED__);
     check("before Begin (no game under way)", armed === false, String(armed));
     const d = await fourDrags();
     check(`before Begin, begun high, right: theta up (${d.where})`, steady(d.high, 0, 1), fmt(d.high, 0));
-    check("before Begin, begun low, right: the store's one way, theta up as from high", steady(d.low, 0, 1), fmt(d.low, 0));
-    check("before Begin, finger up: the store's own way, toward overhead", steady(d.up, 1, -1), fmt(d.up, 1));
-    check("before Begin, finger down: toward the horizon", steady(d.down, 1, 1), fmt(d.down, 1));
+    check("before Begin, begun low, right: theta down, as Futuris's", steady(d.low, 0, -1), fmt(d.low, 0));
+    check("before Begin, finger up: toward the horizon (phi up)", steady(d.up, 1, 1), fmt(d.up, 1));
+    check("before Begin, finger down: toward overhead (phi down)", steady(d.down, 1, -1), fmt(d.down, 1));
   }
 
   // Begin: the phone bar's button, else the dock's.

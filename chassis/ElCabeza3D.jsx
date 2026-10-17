@@ -439,13 +439,9 @@ function glowShows(glow, ground) {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
-export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTouchTilt = false, invertTilt = false }) {
-  // (Touch drags tilt the other way up and down: Nova's first scene, the
-  // store before the game's bought, user. Read at each touch-down.)
-  const invertTouchTiltRef = useRef(invertTouchTilt);
-  invertTouchTiltRef.current = invertTouchTilt;
-  // Up and down the other way for every pointer (a page's choice: Big
-  // Glutts, user).
+export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTilt = false }) {
+  // Up and down the other way for a mouse (a page's choice: Big Glutts,
+  // user; a finger always goes Futuris's way, grabLatch).
   const invertTiltRef = useRef(invertTilt);
   invertTiltRef.current = invertTilt;
   const C = carry && typeof carry === "object" ? carry : null;
@@ -7434,14 +7430,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // the far side: theme.dragTurnOneWay, the store's, user: begun below
       // the middle, where its low view is mostly table and floor, it felt
       // reversed.)
-      // A finger once a game's begun turns and tilts as Futuris's does in
-      // every world (user: "that is the correct way they should all be
-      // when playing the game"): the page's own ways (the store's one-way
-      // turn, its tilt the other way) are for before Begin. The Room view
-      // keeps its own tilt.
-      const futurisWay = pointerType === "touch" && !awaitingBeginRef.current;
+      // A finger turns and tilts as Futuris's does in every world, before a
+      // game as in one (user: "that is the correct way they should all be
+      // when playing the game"; then, of the story's first visit to the
+      // store, before any game: "the XY spin axis is reversed"). The page's
+      // own ways (the store's one-way turn, Big Glutts' tilt the other way)
+      // are a mouse's. The Room view keeps its own tilt.
+      const futurisWay = pointerType === "touch";
       grab.theta = ((theme.dragTurnOneWay && !futurisWay) || clientY - rect.top < mid) ? 1 : -1;
-      grab.phi = (cam.current.dollhouse ? 1 : -1) * (futurisWay ? 1 : (pointerType === "touch" && invertTouchTiltRef.current ? -1 : 1) * (invertTiltRef.current ? -1 : 1));
+      grab.phi = (cam.current.dollhouse ? 1 : -1) * (futurisWay ? 1 : invertTiltRef.current ? -1 : 1);
     }
     /* Stays false until cumulative pointer travel since the down event
        crosses DRAG_DEAD_ZONE_PX — see onMove. Every touch carries a few

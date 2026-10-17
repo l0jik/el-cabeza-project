@@ -818,12 +818,10 @@ function UnifiedApp() {
             carry={carry}
             carryRef={carryRef}
             mobileShell={mobileShell}
-            // (The first scene, the store before the game's bought: a
-            // touch tilts the other way up and down, user.)
-            invertTouchTilt={themeName === "tienda" && !readOwned()}
             // (Big Glutts once it's bought, as the switcher opens it: up
-            // and down the other way, touch and mouse, user; the story's
-            // first visit keeps its own, above.)
+            // and down the other way for a mouse, user. A finger goes
+            // Futuris's way everywhere, the story's first visit to the
+            // store too, user: "the XY spin axis is reversed".)
             invertTilt={themeName === "tienda" && readOwned()}
             initialMuted={muted}
             onMutedChange={(m) => {
