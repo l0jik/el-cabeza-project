@@ -607,3 +607,92 @@ note (a top-level `- ` entry or a `### ` heading) in it, to grep or skim.
 - Corner piece, every world (user: "I think the lunar one also has the
 - City Hall rotunda, ten more (user: "Give me 10 different City Hall
 - Hold to end (user: "Let's go with solution D", the end-turn page): with
+
+## [19.md](19.md) (314 lines, 86 entries)
+
+- The City's Cabeza is the glass dome (user: "The cabeza for city maps
+- Shoving's pieces choice for every shove (user, the Cabeza Nova menu:
+- e2e-hold-to-end's short press and drag (CI run 47, the City): on a
+- The Cabeza's moves make no tap, roll or landing sound in any world
+- e2e-singularity's triple tap on the bare sphere (CI run 49, shard 1):
+- The City, named and in the switcher (user: "Name = The City / Side names
+- Place pieces manually (user: "a toggle(?) / way to manually place pieces
+- The pieces' close-ups (the setup menus' 3D blow-up, "drag to turn"):
+- Replays (user, a phone in the City: "the rules button is blocking the
+- ...then on a phone the speeds opened UNDER the stepped-down tab (z 40)
+- Piece sounds, only the wooden worlds alike (user: "I do not want all
+- City lots go on elsewhere (user: "whenever one of those is destroyed,
+- City move markers, five to choose from (user: white ones "hard to see";
+- City gridlock and horns (user: "gridlock traffic sound with honking ...
+- City markers by the hour and far night lights (user: "Do the yellow & black construction tape with the orange cones ... Night can have
+- Parrish keeps its own sounds (user: "Parrish should keep its own sounds"; supersedes round A's note above that Parrish was a woodPieces
+- CI run 60 shard 3, e2e-lab (not caused by the Parrish commit: the Lab bundle was byte-identical to green run 59's). After the ten
+- Black holes by hand: tap, see it, Done (user: "you select the square and it immediately closes that choice menu. That shouldn't happen.
+- Shoving's line: the two link sentences gone (user, of "Turning Orthogonal slide off switches this back to Slides and rolls": "a bit
+- Rules tab and City clock dimmed till wanted (user: "Dim the circled buttons ... a tap or hover before a click on a mouse will raise them
+- Check alert holds the turn (user's video: Check Alert on, their Cabeza's third step (3 actions) took it into a Slate tower's reach, the
+- City quieter, fewer morning birds, cones only round a crush (user: "The ambient city noises should be reduced 30%. Reduce frequency of
+- Minimal Mono's sounds (user: "seem like they are way too low. What is the percentage ... does this sound volume setting match with other
+- The single link (user: "what's left to work on right now. When are we going to consolidate everything into a single link to where it's
+- The disclaimer (user: "put the disclaimer at the bottom of the About tab. Use your best judgment, given all the information that I've
+- Online play (user: "implement online play against another person (it needs a small server)-- Use placeholder information until actual
+- The City on Nova's page (user: "start the in-place version"; The City first, as offered). build/build.js: Nova's target has `split:
+- "Back to the store" removed (user, of the den's dock link circled on the phone: "Remove it entirely, there is no reason to keep it, is
+- CI run 66 shard 6, e2e-corner-menu, the City by touch: "a second tap opens the dial" failed (the test took 1188 s on that runner; here
+- The server on Cloudflare (user, of where to host it: "I don't want to have to pay any money, but I want it to all work"; answered that of
+- CI run 68 shard 6: e2e-gate's City block expected the City's own page (the switcher's card now switches in place on Nova's page: the
+- The front page, ten ways (user: "Make 10 versions of the front page ... anything that's rendered in the front page image has to be per
+- NOVA in pieces (user, marking four pieces on the flat-lay: "Nova can be spelled using the ones marked with red"): front-10: N a Rayo
+- The front page, twenty more (user: "20 New versions ... absolute refinement. retro future. I mean, this is from the 70s, yet there's a
+- NOVA in pieces, as the user set it (user: "one of the S shape or Z shape pieces on its side at an angle. That would make an N. A cabeza
+- Luna's corner-menu tab shorter (user, phone screenshot: "Make the mission rules button smaller for Luna. I think you can put rules
+- NOVA's head larger, the Codo its V (user, on front-10's lettering: "make the cabeza larger in this image, and the Codo is the 'V'").
+- The front page, twenty more, each a bridge (user, with the logo set again: "use this as further inspiration to create 20 more. Now, we're
+- The game's complexity measured (user: "What is this game's game-tree complexity compared to Go, assuming all new rules are turned on and
+- The Punto LAW (user: "create a chassis level rule that the first player always gets one less action per turn on their first turn", after
+- Punto's effect measured (user: "Rerun the first-player win rate with Punto on"): Medium vs Medium, colours alternating, 16 games a cell,
+- Punto as a ramp (user: "on a three action game, the first player gets one action, the second player gets two action, and then the first
+- The pieces as model files (user: "I need to download whichever of these you have: front_pieces.mjs ... The original 3D model files (.glb,
+- Punto at 64 games, 19×19, ten pieces, all laws, Medium vs Medium, first player's wins: off 47-17 (73% ±11), one-cut 39-25 (61% ±12), ramp
+- Punto on the standard game at Hard (24 games, Hard vs Hard, no Punto): the first player 17-7, the reverse of Medium's 17-31; the Punto-on
+- Black hole squares set with the board (user: "Move black hole squares settings in the settings menu underneath the board section. It just
+- Punto, the whole table (first player's wins, colours alternating, computer vs computer; scratchpad complexity/punto-table.py tallies it
+- Solving, a start (user: "compute the small endgame tables, and run a bounded proof from the standard opening answering a narrow question
+- Punto back to the one-action cut (user: "Switch Punto back to the one-action cut", on the measurements: the ramp did nothing at either
+- Dock panel's foot in the Parrish looks (user, with a Watermark picture: "The bottom of the box should be extended down a little bit
+- Phone: the corner column under Undo move / End turn (user, Watermark on a phone: "How can we correct the theme switcher button showing up
+- Win placard: whom they beat (user, Watermark: "In small text underneath Ash wins, it should say against medium AI or whatever the case
+- Measuring Nova on a phone after the story: back in the den with the story ended (`el-cabeza:story` `{ended: true}`, no ?world, ?switcher
+- The pause chip off the piece card (user: "Yes, move the pause chip off the piece card"). The chip is the den's (theme.music, Nova's and
+- Hard from the user's win (user: "I just won against the Hard AI . Here's the game moves. Analyze and see if you can improve the Hard AI
+- The user's loss to Hard (user: "Hard AI just won against me:", with the log and replay code): played before de0c2fb went live (Deploy
+- Neon is Futuris (user: "Change all "neon" references to "void"", then "Instead, change all neon references to "O". Would this create any
+- Place pieces manually in the Cabeza Nova sheet (user, a phone in Nova after the story, the sheet's Board section in hand: "Where in the
+- Place pieces manually in every world's own setup menu (user: "is set out by hand in every relevant menu now?"; it wasn't: only the Nova
+- Hard sees a walk home coming (user: "Teach Hard to see the walk-home coming"): the net check one turn further counts a reply that brings
+- Two sets of black holes (user: "add the option to increase the number of black hole sets to 2. When a black hole is entered, if 2 sets is
+- Place pieces manually: the name everywhere for what was "Set out by hand" (user: "Globally, change all references to "set out by hand" to
+- The app's size for iOS (user: "If I were to build this for the iOS, what would the current download size for it be at this point?"):
+- Shrinking the iOS download (user: "shrink the iOS download size"): from 70.0 MB installed / 56.3 MB to download (the 2026-10-16 measure,
+- Elementarism deleted (user: "Completely remove the Elementarism theme. Delete it."): the Lab's fourth direction, gone with everything
+- An Android app (user: "What about an app on the Android Play Store?"): `npm run size -- --android` (tools/app_size.mjs leaves out the
+- A reminder (user: "Remind me to revisit this later: Trusted Web Activity"): kept under Open reminders at the top of this file, what a TWA
+- Black holes easy to see when placed by hand (user: "When manually placing the black holes, they're kind of hard to see. I don't know. We
+- Black holes said, a switch, and the dashed ring gone (user: "There should also be an explanation on the setup page for the two black
+- A reminder (user: "Also, new paragraph, remind me that we cannot deploy this until a firmed up set of preferred rules is established.
+- Punto's wording and name (user, on a screenshot of the Nova sheet with "On unless you" ringed: "This red circle section should be
+- Placing pieces manually, every way a piece can stand (user, a video in the Lab placing an Arco Ancho, My half on, a 13 × 14 board with
+- Exit from any hole, said plainly (user: "To be clear, this any hole exit switch, what I meant was it. If you go into a black hole and you
+- Placing the singularities, which pair a tap places (user, same message: "The placement of the black holes needs to be more clear and
+- Menu rows never overlap (user, a screenshot of the Lab's Brutalism sheet, "Back 3 rows" over "Pieces in": "button is overlapping the
+- "Black hole" is "singularity" in every word a player reads (user, on the switch: "circled in red: Rewrite to say "exit from any other
+- Brutalism's stray "piece" (user, a video in the Lab's Brutalism look: "Why is that piece just sitting out there outside of the board?"):
+- "Only opponents", no apostrophe (user, a screenshot of the Nova sheet's Shoving choices with "Only opponents'" ringed: "While
+- The switch's Off says "the other half" (user, told that "opponent's half" is exact only for a singularity on your own half: "Yes, I'd
+- The Shoving line without "Right now" (user, a screenshot of the Nova sheet with Slides only and Only opponents chosen, "only slides
+- Two random test failures fixed (found running e2e-tienda locally): the two-sets picker checks in e2e-gate, e2e-tienda and e2e-singularity
+- Why "10 at most" (user, of the Nova sheet's "11 pieces a side: 10 at most.": "Why 10 at most? When was this established and why?"):
+- No cap on a side's pieces but whether they fit (user: "drop it, so the only limit is whether the pieces fit, with a short note that big
+- The city-block version reminder closed (user: "Mark this as completed: The city-block version"): docs/memory/future-wishlist.md marks it
+- The order button that did nothing (user, in the story's special order after the TV spot, 15 pieces on 10 × 10, a phone screenshot: "the
+- A finger turns and tilts Futuris's way before a game too (user: "In a brand new story, when you first show up at the store, the XY spin

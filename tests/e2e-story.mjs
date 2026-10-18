@@ -128,6 +128,11 @@ console.log("\ndesktop: the store, the purchase, home");
   check("the dock's panel opens again", await openDockPanel(page));
   check("...where the game is only tried: Try a Game", (await page.locator('[data-testid="dock-panel"] button', { hasText: "Try a Game" }).count()) === 1 && (await page.locator('[data-testid="dock-panel"] button', { hasText: "Begin Game" }).count()) === 0);
   await page.locator('[data-testid="dock-panel"] button', { hasText: "Try a Game" }).first().click();
+  // (A new player's first game is walked through, chassis/FirstGameTour.jsx:
+  // its welcome comes up, skipped here; e2e-first-game-tour goes through it.)
+  check("a new player's first game: the tour's welcome", await poll(async () => (await has(page, "tour-card")) && /Welcome to your first game/.test(await q(page, "tour-card").innerText()), 10000));
+  await q(page, "tour-skip").click();
+  await poll(async () => !(await has(page, "tour-card")), 5000);
   check("a game begins", await poll(() => has(page, "tienda-price-tag"), 10000));
   check("...its price tag, not the rules menu", !(await has(page, "corner-menu")) && /El Cabeza/i.test(await q(page, "tienda-price-tag").innerText()) && /7\.97/.test(await q(page, "tienda-price-tag").innerText()));
   check("...with the ten classic pieces", await page.evaluate(() => { const p = window.__EC_TEST_PIECES__ || []; return p.length === 10 && p.every((x) => ["cabeza", "turrito", "flaco", "chato", "opa"].includes(x.type)); }));

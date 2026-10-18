@@ -31,7 +31,8 @@ import {
   benchSpots, setOutCorners, nearestAnchor, freeAnchors, anchorOnto, buildSetOutMarks, keepSame,
   pieceName as setOutPieceName, SET_OUT_ACCENT,
 } from "./set-out.js";
-import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo } from "./RulesCards.jsx";
+import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo, pieceLesson } from "./RulesCards.jsx";
+import FirstGameTour, { tourDone, markTourDone, TOUR_CARDS } from "./FirstGameTour.jsx";
 import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
 const FOCUS_EVENT = "el-cabeza:focus";
@@ -230,6 +231,9 @@ function drawnMiddle(parts) {
 const TWO_FINGER_TAP_MAX_MS = 300; // a two-finger contact shorter than this, with barely any movement, is a tap
 const TWO_FINGER_TAP_MOVE_PX = 12; // max cumulative midpoint travel still counted as a tap, not a drag
 const TWO_FINGER_DOUBLE_TAP_MS = 400; // max gap between two taps to count as a double-tap
+// The first game's lessons look at a piece from this far off straight down
+// (radians), so it reads as itself (frameTourPiece).
+const TOUR_PHI = 0.6;
 const AI_BEAT_MS = 500; // the AI's first step comes no sooner than this after its turn comes round (see the AI turn effect)
 // The player took the page out of full screen themselves (the button or the
 // two-finger double-tap): it stays out until they put it back.
@@ -372,12 +376,14 @@ function saveHoldToEnd(on) {
   try { window.localStorage.setItem(HOLD_END_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
 }
 // With nothing saved, a theme's default opponent if it has one (the store:
-// a new player gets the computer, theme.defaultOpponent), else two players.
+// a new player gets the computer, and moves first, theme.defaultOpponent),
+// else two players.
 function loadOpponentPrefs(fallback = null) {
   const prefs = { aiPlayer: null, aiDifficulty: "medium", humanStartSide: "dark" };
   if (fallback) {
     if (fallback.aiPlayer === "dark" || fallback.aiPlayer === "light") prefs.aiPlayer = fallback.aiPlayer;
     if (Object.prototype.hasOwnProperty.call(AI_DIFFICULTY, fallback.aiDifficulty)) prefs.aiDifficulty = fallback.aiDifficulty;
+    if (fallback.humanStartSide === "dark" || fallback.humanStartSide === "light") prefs.humanStartSide = fallback.humanStartSide;
   }
   try {
     const saved = JSON.parse(window.localStorage.getItem(OPPONENT_PREFS_KEY) || "null");
@@ -3186,6 +3192,22 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       rules: rulesNow,
     },
   }) : null;
+  /* The first game, walked through (chassis/FirstGameTour.jsx; user: "We
+     need to create a first-time player walkthrough tutorial"): offered by
+     a world (theme.firstGameTour: its words, or a function of the setup
+     extras giving them or nothing; the store's, before the game's
+     bought), for a new player's first game against the computer, once
+     (TOUR_KEY). tourStep: null; a card over the board, "welcome", "turn"
+     or "board" (the computer waits while one's up); "pieces", your first
+     turn, each piece you pick told and framed; "foe", the turn after. */
+  const tourOffer = theme.firstGameTour ? (typeof theme.firstGameTour === "function" ? theme.firstGameTour(setupExtras || {}) : theme.firstGameTour) : null;
+  const tourOfferRef = useRef(null);
+  tourOfferRef.current = tourOffer;
+  const [tourStep, setTourStep] = useState(null);
+  const tourCardUp = TOUR_CARDS.includes(tourStep);
+  const tourCamRef = useRef(null); // the view before the first lesson framed a piece
+  const tourCardRef = useRef(null);
+  const tourSawMineRef = useRef(false); // your turn has come round (the computer may open)
   /* The corner menu (chassis/CornerMenu.jsx): while a game is being
      played (not through Futuris's Singularity, nor where a theme says there's
      no game), in the look the theme names (theme.cornerMenu: a look's
@@ -3671,6 +3693,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     audioRef.current.playPowerOn();
     ambientRef.current && ambientRef.current.armOnBegin();
     setGameArmed(true);
+    // A new player's first game against the computer, where the world
+    // offers it: walked through (tourStep).
+    if (tourOfferRef.current && !tourDone() && aiPlayer && !onlineRef.current && !replaying && !log.length) {
+      tourSawMineRef.current = false;
+      tourCamRef.current = null;
+      setTourStep("welcome");
+    }
     // Captures BOTH views' fixed baselines for the game that's about to
     // start, before actually applying one of them — see
     // captureViewBaselines' own comment for why this has to be eager.
@@ -4367,7 +4396,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      away, until another piece is picked or the turn moves on. */
   const [pieceCardDismissed, setPieceCardDismissed] = useState(false);
   useEffect(() => { setPieceCardDismissed(false); }, [selectedId, currentPlayer]);
-  const pieceCardShown = showGuide && isPlaying && !!selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== foeSide && !replaying && dockView !== "panel" && !pieceCardDismissed;
+  const pieceCardShown = showGuide && isPlaying && !!selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== foeSide && !replaying && dockView !== "panel" && !pieceCardDismissed && !tourStep;
   /* The card sits above whatever corner buttons a theme stacks at the
      lower left (the den's lamp, room view and full screen; user: the card
      lay over them), measured as it shows and on a resize. */
@@ -4433,6 +4462,109 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      above full screen steps aside, as the corner does under the dock
      panel (user: the Other realities planet "showing up on the undo move
      button"). Full screen, at the foot below them, stays. */
+  /* The first game's tour (tourStep, above): whose side you are; what the
+     card says of the piece you've picked, and of where your turn stands. */
+  const tourMine = aiPlayer ? (aiPlayer === "dark" ? "light" : "dark") : currentPlayer;
+  const tourFoe = tourMine === "dark" ? "light" : "dark";
+  const tourYours = tourStep === "pieces" && currentPlayer === tourMine && !!selectedPiece && selectedPiece.owner === tourMine;
+  const tourLesson = tourYours ? pieceLesson(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name, turnBudget(), sideName(tourFoe)) : null;
+  let tourStatus = null;
+  if (tourYours) {
+    const left = turnBudget() - stepsUsed;
+    const endWay = (showPoints || shell) ? "press End turn" : holdToEnd ? "hold the piece to end your turn" : "tap the piece to end your turn";
+    if (turnLocked) tourStatus = left > 0 ? `${left === 1 ? "One action" : `${left} actions`} left: move it again, or ${endWay}.` : null;
+    else tourStatus = shadowEntries.length ? `The marked squares show where it can go: ${isCoarsePointer() ? "tap" : "click"} one to move it there.` : "It can't move from where it is just now: try another piece.";
+  }
+  function restoreTourCam() {
+    const saved = tourCamRef.current;
+    tourCamRef.current = null;
+    if (!saved || awaitingBeginRef.current) return;
+    const c = cam.current;
+    c.theta = saved.theta; c.phi = saved.phi; c.radius = saved.radius; c.target.copy(saved.target);
+    if (saved.dollhouse) c.dollhouse = true;
+    glideRef.current = {};
+  }
+  function endTour() {
+    markTourDone();
+    setTourStep(null);
+    restoreTourCam();
+  }
+  /* The lesson's camera (user: "it'll kind of zoom in on it a little
+     bit"): the piece and every square it can move to now, with board round
+     them, as close as they fill three fifths of the room beside or under
+     the card (and above the turn's buttons), from a little lower than
+     straight down so the piece reads as itself; the heading kept. Where
+     it was before the first is kept, and put back when your turn's done
+     (restoreTourCam), unless a view's been chosen meanwhile (glideCamera
+     forgets it). */
+  function frameTourPiece(piece) {
+    const t = three.current;
+    const size = t.getMountSize && t.getMountSize();
+    if (!piece || !t.camera || !t.renderer || !size) return;
+    const c = cam.current;
+    if (!tourCamRef.current) tourCamRef.current = { theta: c.theta, phi: c.phi, radius: c.radius, target: c.target.clone(), dollhouse: !!c.dollhouse };
+    const left = Math.max(1, turnBudget() - (turnLocked && selectedId === piece.id ? stepsUsed : 0));
+    // A square of board round the piece and round every square it can go
+    // to, and at least four squares across, so a piece hemmed in is still
+    // seen where it stands.
+    let r0 = piece.row - 1, r1 = piece.row + piece.h + 1, c0 = piece.col - 1, c1 = piece.col + piece.w + 1;
+    let high = (piece.z || 1) * PIECE_SCALE;
+    Object.values(legalMovesFor(pieces, piece, left)).map((m) => m.candidate).filter(Boolean).forEach((b) => {
+      r0 = Math.min(r0, b.row - 1); r1 = Math.max(r1, b.row + b.h + 1);
+      c0 = Math.min(c0, b.col - 1); c1 = Math.max(c1, b.col + b.w + 1);
+      high = Math.max(high, (b.z || 1) * PIECE_SCALE);
+    });
+    const grow = (a, b) => { const d = Math.max(0, 4 - (b - a)) / 2; return [a - d, b + d]; };
+    [r0, r1] = grow(r0, r1); [c0, c1] = grow(c0, c1);
+    const x0 = c0 * SQUARE_SIZE - OFF_X, x1 = c1 * SQUARE_SIZE - OFF_X;
+    const z0 = r0 * SQUARE_SIZE - OFF_Z, z1 = r1 * SQUARE_SIZE - OFF_Z;
+    const foot = [[x0, z0], [x1, z0], [x0, z1], [x1, z1]];
+    const phi = Math.min(theme.maxPitch ?? 1.25, TOUR_PHI);
+    // The room it has: the screen less the bars and the turn's buttons, and
+    // less the card, whichever side of it is bigger (under it on a phone,
+    // beside it on a wide screen).
+    const ins = viewInsetsRef.current || { top: 0, right: 0, bottom: 0, left: 0 };
+    const all = { l: ins.left + 12, r: size.w - ins.right - 12, t: ins.top + 12, b: size.h - ins.bottom - (shell ? 12 : 104) };
+    let reg = all;
+    const cardEl = tourCardRef.current;
+    if (cardEl) {
+      const cr = cardEl.getBoundingClientRect(), top = t.renderer.domElement.getBoundingClientRect();
+      const under = { ...all, t: Math.max(all.t, cr.bottom - top.top + 10) };
+      const beside = { ...all, l: Math.max(all.l, cr.right - top.left + 12) };
+      const area = (g) => Math.max(0, g.r - g.l) * Math.max(0, g.b - g.t);
+      reg = area(beside) > area(under) ? beside : under;
+      if (reg.b - reg.t < 140 || reg.r - reg.l < 140) reg = all; // (no room either side: over the whole screen)
+    }
+    // (A little closer, not right down on it: no nearer than about three
+    // fifths of the way the camera stood before the first.)
+    const best = fitFootInRegion(c.theta, phi, foot, high, reg, 0.6, Math.max(zoomMin, 0.62 * tourCamRef.current.radius));
+    c.phi = phi; c.radius = best.r; c.target.copy(best.target); c.dollhouse = false;
+    glideRef.current = {};
+  }
+  // Each piece of yours picked in the first turn, framed; one picked once
+  // that turn's over, the tour's done (its own card says it from there).
+  useEffect(() => {
+    if (tourYours) frameTourPiece(selectedPiece);
+    else if (tourStep === "foe" && currentPlayer === tourMine && selectedPiece && selectedPiece.owner === tourMine) endTour();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourStep, selectedId]);
+  /* Its moments: your turn come round, then gone (the other side's turn,
+     the camera back where it was; its card stays until it's put away, or
+     a piece is picked on your next turn). A game ended, set aside or
+     played back ends it too. */
+  useEffect(() => {
+    if (!tourStep) return;
+    if (!isPlaying || awaitingBegin || replaying || onlineRef.current || !aiPlayer) { endTour(); return; }
+    if (tourStep === "pieces") {
+      if (currentPlayer === tourMine) tourSawMineRef.current = true;
+      else if (tourSawMineRef.current) { setTourStep("foe"); restoreTourCam(); }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourStep, currentPlayer, isPlaying, awaitingBegin, replaying, aiPlayer]);
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
+    window.__EC_TEST_TOUR__ = () => ({ step: tourStep, framed: !!tourCamRef.current, mine: tourMine });
+    window.__EC_TEST_TO_MOVE__ = () => currentPlayer; // (whose turn it is: "dark" or "light")
+  }
   const cornerColumnUnderFloats = cornerStack && (stopHereFloat || undoMoveFloat) && showPoints;
   const cornerColumnCovered = cornerControlsCovered || cornerColumnUnderFloats;
   // (The piece card's place, measured below everything at the lower left.)
@@ -7224,7 +7356,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      feeling instant and robotic. */
   useEffect(() => {
     // (A replay plays both sides itself.)
-    if (!isPlaying || busy || anim.current || awaitingBegin || replaying) return;
+    if (!isPlaying || busy || anim.current || awaitingBegin || replaying || tourCardUp) return;
     /* Online (chassis/online.js): the other player's turn, arrived down the
        line (or either side's, replayed after a reconnect), is played here
        exactly as the computer's plan below is: step by step through
@@ -7353,7 +7485,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       aiDirsRef.current = null;
       if (piece) settleTurn(piece, pendingNotation, pendingSteps);
     }
-  }, [currentPlayer, aiPlayer, isPlaying, busy, stepsUsed, pieces, aiDifficulty, pendingNotation, pendingSteps, awaitingBegin, log, selectedId, replaying, onlineTick]);
+  }, [currentPlayer, aiPlayer, isPlaying, busy, stepsUsed, pieces, aiDifficulty, pendingNotation, pendingSteps, awaitingBegin, log, selectedId, replaying, onlineTick, tourCardUp]);
 
   /* Drains a human's queued continuation (see pendingIntentRef/onUp's
      busy branch above) the instant the step it was waiting on actually
@@ -8583,6 +8715,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     cam.current.target.set(0, 0, 0);
     glideRef.current = {};
     checkCamRef.current = null;
+    tourCamRef.current = null;
   }
 
   /* Shared bisection core behind fitRadiusToBoard below: smallest
@@ -8772,6 +8905,83 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     glideCamera();
   }
 
+  /* The camera's distance and pan that bring a stretch of the board (foot:
+     its corners, board x-z; high: how tall what's on it stands) as close
+     as it fills `fill` of the region `reg` of the screen (px, the
+     canvas's own) and stays inside it, seen from heading theta and pitch
+     phi, and no closer than lo0; its middle at the region's middle, as
+     far as the pan's own limit lets it. { r, target }. Show me
+     (frameCheckShow) and the first game's lessons (frameTourPiece). */
+  function fitFootInRegion(theta, phi, foot, high, reg, fill, lo0) {
+    const t = three.current;
+    const size = t.getMountSize();
+    const n = foot.length;
+    const mx = foot.reduce((sum, q) => sum + q[0], 0) / n, mz = foot.reduce((sum, q) => sum + q[1], 0) / n;
+    const toWorld = (x, z, th) => [x * Math.cos(th) - z * Math.sin(th), x * Math.sin(th) + z * Math.cos(th)];
+    // Where the box round it all lands on the screen, the camera as
+    // tick() would place it there (a camera only borrowed: the next frame
+    // puts it back).
+    const pts = [];
+    foot.forEach(([x, z]) => pts.push([x, 0, z], [x, high, z]));
+    const cm = t.camera, v = new THREE.Vector3();
+    const boxAt = (radius, target) => {
+      const r = t.cameraDistance ? t.cameraDistance(theta, phi, radius, target, false) : radius;
+      cm.position.set(target.x, target.y + r * Math.cos(phi), target.z + r * Math.sin(phi));
+      cm.lookAt(target);
+      cm.updateMatrixWorld(true);
+      const b = { l: Infinity, r: -Infinity, t: Infinity, b: -Infinity };
+      for (const [x, y, z] of pts) {
+        const [wx, wz] = toWorld(x, z, theta);
+        v.set(wx, y, wz).project(cm);
+        const px = (v.x * 0.5 + 0.5) * size.w, py = (1 - (v.y * 0.5 + 0.5)) * size.h;
+        b.l = Math.min(b.l, px); b.r = Math.max(b.r, px); b.t = Math.min(b.t, py); b.b = Math.max(b.b, py);
+      }
+      return b;
+    };
+    // The pan's own limit (tick(): the target within groundHalfSpan of the
+    // board's centre; a theme with a room, its reach).
+    const fc = theme.freeCamera;
+    const half = (cm.fov / 2) * (Math.PI / 180);
+    const clampPan = (target, radius) => {
+      const lim = 0.98 * (fc ? fc.reach : radius * Math.tan(Math.min(half, Math.atan(Math.tan(half) * cm.aspect))));
+      const d = Math.hypot(target.x, target.z);
+      if (d > lim) { target.x *= lim / d; target.z *= lim / d; }
+      return target;
+    };
+    // The target moving the box's middle to the room's (two Newton steps,
+    // its pull on the screen measured).
+    const midOf = (b) => [(b.l + b.r) / 2, (b.t + b.b) / 2];
+    const want = [(reg.l + reg.r) / 2, (reg.t + reg.b) / 2];
+    const centred = (radius) => {
+      const [cx, cz] = toWorld(mx, mz, theta);
+      const target = clampPan(new THREE.Vector3(cx, 0, cz), radius);
+      for (let k = 0; k < 2; k++) {
+        const m0 = midOf(boxAt(radius, target));
+        const mX = midOf(boxAt(radius, target.clone().setX(target.x + 0.5)));
+        const mZ = midOf(boxAt(radius, target.clone().setZ(target.z + 0.5)));
+        const j00 = (mX[0] - m0[0]) / 0.5, j01 = (mZ[0] - m0[0]) / 0.5, j10 = (mX[1] - m0[1]) / 0.5, j11 = (mZ[1] - m0[1]) / 0.5;
+        const det = j00 * j11 - j01 * j10;
+        if (Math.abs(det) < 1e-6) break;
+        const ex = want[0] - m0[0], ey = want[1] - m0[1];
+        target.x += (ex * j11 - j01 * ey) / det;
+        target.z += (j00 * ey - j10 * ex) / det;
+        clampPan(target, radius);
+      }
+      return target;
+    };
+    // As close as it fills `fill` of the room (and stays inside it), and
+    // not so close the board round it is lost.
+    const FILL = fill;
+    let lo = lo0, hi = zoomMaxFor(), best = null;
+    for (let i = 0; i < 16; i++) {
+      const r = (lo + hi) / 2, target = centred(r), b = boxAt(r, target);
+      const ok = b.r - b.l <= FILL * (reg.r - reg.l) && b.b - b.t <= FILL * (reg.b - reg.t) && b.l >= reg.l && b.r <= reg.r && b.t >= reg.t && b.b <= reg.b;
+      if (ok) { hi = r; best = { r, target }; } else lo = r;
+    }
+    if (!best) best = { r: hi, target: centred(hi) };
+    return best;
+  }
+
   /* Show me's camera (user: "When check alerts pop up & Show Me is
      selected, move the camera to observe the animation, & when
      dismissed, return camera to original attitude"; checkCamRef keeps
@@ -8837,67 +9047,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const under = cardEl ? cardEl.getBoundingClientRect().bottom - t.renderer.domElement.getBoundingClientRect().top : 0;
     const reg = { l: ins.left + 12, r: size.w - ins.right - 12, t: Math.max(ins.top, under) + 12, b: size.h - ins.bottom - 12 };
     if (reg.b - reg.t < 160) reg.t = ins.top + 12; // (a phone on its side: no room under it)
-    // Where the box round it all lands on the screen, the camera as
-    // tick() would place it there (a camera only borrowed: the next frame
-    // puts it back).
-    const pts = [];
-    foot.forEach(([x, z]) => pts.push([x, 0, z], [x, high, z]));
-    const cm = t.camera, v = new THREE.Vector3();
-    const boxAt = (radius, target) => {
-      const r = t.cameraDistance ? t.cameraDistance(theta, phi, radius, target, false) : radius;
-      cm.position.set(target.x, target.y + r * Math.cos(phi), target.z + r * Math.sin(phi));
-      cm.lookAt(target);
-      cm.updateMatrixWorld(true);
-      const b = { l: Infinity, r: -Infinity, t: Infinity, b: -Infinity };
-      for (const [x, y, z] of pts) {
-        const [wx, wz] = toWorld(x, z, theta);
-        v.set(wx, y, wz).project(cm);
-        const px = (v.x * 0.5 + 0.5) * size.w, py = (1 - (v.y * 0.5 + 0.5)) * size.h;
-        b.l = Math.min(b.l, px); b.r = Math.max(b.r, px); b.t = Math.min(b.t, py); b.b = Math.max(b.b, py);
-      }
-      return b;
-    };
-    // The pan's own limit (tick(): the target within groundHalfSpan of the
-    // board's centre; a theme with a room, its reach).
-    const fc = theme.freeCamera;
-    const half = (cm.fov / 2) * (Math.PI / 180);
-    const clampPan = (target, radius) => {
-      const lim = 0.98 * (fc ? fc.reach : radius * Math.tan(Math.min(half, Math.atan(Math.tan(half) * cm.aspect))));
-      const d = Math.hypot(target.x, target.z);
-      if (d > lim) { target.x *= lim / d; target.z *= lim / d; }
-      return target;
-    };
-    // The target moving the box's middle to the room's (two Newton steps,
-    // its pull on the screen measured).
-    const midOf = (b) => [(b.l + b.r) / 2, (b.t + b.b) / 2];
-    const want = [(reg.l + reg.r) / 2, (reg.t + reg.b) / 2];
-    const centred = (radius) => {
-      const [cx, cz] = toWorld(mx, mz, theta);
-      const target = clampPan(new THREE.Vector3(cx, 0, cz), radius);
-      for (let k = 0; k < 2; k++) {
-        const m0 = midOf(boxAt(radius, target));
-        const mX = midOf(boxAt(radius, target.clone().setX(target.x + 0.5)));
-        const mZ = midOf(boxAt(radius, target.clone().setZ(target.z + 0.5)));
-        const j00 = (mX[0] - m0[0]) / 0.5, j01 = (mZ[0] - m0[0]) / 0.5, j10 = (mX[1] - m0[1]) / 0.5, j11 = (mZ[1] - m0[1]) / 0.5;
-        const det = j00 * j11 - j01 * j10;
-        if (Math.abs(det) < 1e-6) break;
-        const ex = want[0] - m0[0], ey = want[1] - m0[1];
-        target.x += (ex * j11 - j01 * ey) / det;
-        target.z += (j00 * ey - j10 * ex) / det;
-        clampPan(target, radius);
-      }
-      return target;
-    };
-    // As close as it fills half the room (and stays inside it), and not
-    // so close the board round it is lost.
-    const FILL = 0.5;
-    let lo = Math.max(zoomMin, 11), hi = zoomMaxFor(), best = null;
-    for (let i = 0; i < 16; i++) {
-      const r = (lo + hi) / 2, target = centred(r), b = boxAt(r, target);
-      const ok = b.r - b.l <= FILL * (reg.r - reg.l) && b.b - b.t <= FILL * (reg.b - reg.t) && b.l >= reg.l && b.r <= reg.r && b.t >= reg.t && b.b <= reg.b;
-      if (ok) { hi = r; best = { r, target }; } else lo = r;
-    }
-    if (!best) best = { r: hi, target: centred(hi) };
+    const best = fitFootInRegion(theta, phi, foot, high, reg, 0.5, Math.max(zoomMin, 11));
     c.theta = theta; c.phi = phi; c.radius = best.r; c.target.copy(best.target);
     // (Already there, a second press: no glide, so the play needn't wait.)
     const vw = c.view;
@@ -10567,6 +10717,38 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             </div>
           </div>
         </div>
+      )}
+
+      {/* The first game's tour (FirstGameTour.jsx): its cards over the
+         board as the game begins, then its card at the top through your
+         first turn (put away with the dock's panel, as the piece card is). */}
+      {tourStep && isPlaying && !awaitingBegin && !replaying && (tourCardUp || dockView !== "panel") && (
+        <FirstGameTour
+          cardRef={tourCardRef}
+          tour={{
+            step: tourStep,
+            C: COLORS,
+            display: theme.titleFontFamily || "'Fraunces', serif",
+            copy: tourOffer && typeof tourOffer === "object" ? tourOffer : null,
+            mine: sideName(tourMine),
+            foe: sideName(tourFoe),
+            mineHint: SIDE_NAMES.hint ? SIDE_NAMES.hint[tourMine] : null,
+            foeHint: SIDE_NAMES.hint ? SIDE_NAMES.hint[tourFoe] : null,
+            youFirst: currentPlayer === tourMine,
+            budget: ACTIVE_LAWS.threeActions ? 3 : 2,
+            split: ACTIVE_LAWS.splitMovement ? maxPiecesPerTurn() : 0,
+            hasOpa: pieces.some((p) => p.owner === tourMine && p.type === "opa"),
+            dots: shell ? "The bar at the foot of the screen shows how many you have left." : showPoints ? "The dots at the foot of the screen show how many you have left." : null,
+            punto: !!ACTIVE_LAWS.punto,
+            touch: isCoarsePointer(),
+            waiting: currentPlayer !== tourMine,
+            lesson: tourLesson,
+            status: tourStatus,
+            next: () => setTourStep((st) => (st === "welcome" ? "turn" : st === "turn" ? "board" : "pieces")),
+            skip: endTour,
+            finish: endTour,
+          }}
+        />
       )}
 
       {/* Piece card: while it's your turn and a piece of yours is
@@ -12702,7 +12884,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             statusText, currentPlayer, winner, aiPlayer, aiThinking,
             aiTurn: isPlaying && currentPlayer === aiPlayer,
             selectedOwn: !!selectedPiece && selectedPiece.owner === currentPlayer,
-            pieceInfo: showGuide && isPlaying && selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== foeSide && !replaying
+            pieceInfo: showGuide && isPlaying && selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== foeSide && !replaying && !tourStep
               ? { type: selectedPiece.type, ...pieceCardInfo(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name) }
               : null,
             showGuide,

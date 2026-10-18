@@ -64,7 +64,7 @@ export function blackHoleText(laws = {}, holes = 0) {
 // slides only), and whether a shove, a slide's or a roll's, may push your
 // own pieces (ACTIVE_LAWS.shoveOwn, on unless set to opponents' only).
 export function shovingText(laws = {}) {
-  const own = laws.shoveOwn === false ? " A shove pushes only the opponent's pieces: one of your own in the way blocks the move." : "";
+  const own = laws.shoveOwn === false ? " A shove pushes only the opponent's pieces: one of your own pieces in the way blocks the move." : "";
   if (laws.shoveOnRolls === false)
     return `Slides only: a piece sliding into pieces with fewer cubes than it, all together, pushes them one square along, for 1 extra action (a shoving slide costs 3), never diagonally. A roll into a piece is blocked. Nothing may be behind them.${own}`;
   return `${LAW_TEXT.shoving.text}${own}`;
@@ -436,7 +436,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "shoveRoll", law: "shoving", title: "Shove by rolling", cost: <Dots n={1} C={C} plus />, text: "A roll shoves too (unless the game is set to slides only; set to the opponent's pieces only, one of your own in the way blocks it): the pieces go just past where it lands. Here a standing Flaco tips over and pushes a Turrito two squares.",
+      key: "shoveRoll", law: "shoving", title: "Shove by rolling", cost: <Dots n={1} C={C} plus />, text: "A roll shoves too (unless the game is set to slides only; set to the opponent's pieces only, one of your own pieces in the way blocks it): the pieces go just past where it lands. Here a standing Flaco tips over and pushes a Turrito two squares.",
       svg: (
         <>
           {panels}
@@ -791,6 +791,11 @@ export function pieceCardInfo(piece, laws = {}, name = piece.type) {
       : "Lying down, it rolls one square, 1 action; rolled along its length it stands back up. " + CRUSH;
     tile = "flaco";
   }
+  return { name, text: [text, ...lawExtras(piece, laws)].join(" "), tile };
+}
+
+// What this game's laws add to a piece's moves (slides, the pivot, shoves).
+function lawExtras(piece, laws = {}) {
   const extra = [];
   if ((laws.slide || laws.diagonalSlide) && piece.type !== "cabeza") {
     const way = laws.slide ? (laws.diagonalSlide ? " one square, diagonals too," : " one square") : " one square corner to corner";
@@ -806,5 +811,35 @@ export function pieceCardInfo(piece, laws = {}, name = piece.type) {
       ? (laws.slide ? `Sliding into ${whose} (fewer cubes, all together) shoves them one square, 1 action more.` : "")
       : `Rolling or sliding into ${whose} (fewer cubes, all together) shoves them along, 1 action more.`);
   }
-  return { name, text: [text, ...extra.filter(Boolean)].join(" "), tile };
+  return extra.filter(Boolean);
+}
+
+/* The first game's lesson on a piece (chassis/FirstGameTour.jsx; user:
+   "They click on a piece and it'll say what it is ... this can move how
+   many spaces? Like if they click on the OPA ... It can only move once
+   per turn. And if they click on any other piece, it'll say, that's
+   what the name of it is, how many times it can move"): what it is, how
+   far a move takes it, how many moves a turn allows (`budget`, the
+   turn's actions; an Opa's move costs two, engine/constants.js
+   OPA_MOVE_COST), what it's for, and what this game's laws add. `foe` is
+   what the other side is called. Returns { name, what, moves, turn, aim,
+   extra }, any of them but the name possibly empty. */
+const TIMES = ["", "once", "twice", "three times", "four times"];
+export function pieceLesson(piece, laws = {}, name = piece.type, budget = 2, foe = "the other side") {
+  const t = piece.type;
+  const cost = t === "opa" ? 2 : 1;
+  const n = Math.max(1, Math.floor(budget / cost));
+  const times = TIMES[n] || `${n} times`;
+  const crush = `Roll it onto ${foe}'s Cabeza to crush it.`;
+  const rolls = `One action a roll: it can roll ${times} a turn.`;
+  const LESSON = {
+    cabeza: ["Your Cabeza", "The disc: the piece you win with.", "One square any way, corners too.", `One action a step: it can step ${times} a turn.`, `Reach ${foe}'s back row to win. It can't crush, so keep it out from under ${foe}'s blocks.`],
+    turrito: ["The Turrito", "The small cube.", "It rolls over an edge into the next square, never corner to corner.", rolls, crush],
+    opa: ["The Opa", "The big cube.", "It rolls two squares at once, over an edge.", budget > cost ? `Its move takes ${cost} of your ${budget} actions, so it moves once a turn.` : "Its move takes both your actions, so it moves once a turn.", crush],
+    chato: ["The Chato", "The flat block.", "It tips over an edge into the next squares; how far depends on how it's lying.", rolls, crush],
+    flaco: ["The Flaco", "The long block.", piece.z > 1 ? "Standing, it tips over to lie across the next two squares." : "Lying down, it rolls one square to the side; rolled along its length, it stands up.", rolls, crush],
+  };
+  const own = LESSON[t];
+  if (own) return { name: own[0], what: own[1], moves: own[2], turn: own[3], aim: own[4], extra: lawExtras(piece, laws) };
+  return { name: `The ${name}`, what: "", moves: PIECE_TEXT[t] ? PIECE_TEXT[t][0] : `Rolls over one edge, 1 action a roll. ${CRUSH}`, turn: rolls, aim: "", extra: lawExtras(piece, laws) };
 }

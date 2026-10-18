@@ -278,27 +278,30 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await press('[data-testid="tienda-open-box"]');
   await page.waitForTimeout(1200);
   await openDockPanel(page);
+  // (A new player here is Ash, moving first, against the computer as
+  // Walnut, tienda.js defaultOpponent: Ash's Cabeza two steps from its far
+  // row, row 0.)
   await page.evaluate(() => window.__EC_TEST_SET_PIECES__([
-    { id: "dark-cabeza", type: "cabeza", owner: "dark", row: 7, col: 4, w: 1, h: 1, z: 1 },
+    { id: "dark-cabeza", type: "cabeza", owner: "dark", row: 8, col: 4, w: 1, h: 1, z: 1 },
     { id: "dark-turrito", type: "turrito", owner: "dark", row: 0, col: 0, w: 1, h: 1, z: 1 },
-    { id: "light-cabeza", type: "cabeza", owner: "light", row: 1, col: 5, w: 1, h: 1, z: 1 },
+    { id: "light-cabeza", type: "cabeza", owner: "light", row: 2, col: 5, w: 1, h: 1, z: 1 },
     { id: "light-turrito", type: "turrito", owner: "light", row: 9, col: 9, w: 1, h: 1, z: 1 },
   ]));
   await page.waitForTimeout(300);
   await page.locator('button:text-matches("Begin Game|Try a Game")').first().click({ timeout: 30000 });
   await page.waitForTimeout(2500);
   if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true") { await page.mouse.click(4, Math.round(size.h * 0.4)); await page.waitForTimeout(800); }
-  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "S"));
+  await page.evaluate(() => window.__EC_TEST_MOVE__("light-cabeza", "N"));
   await page.waitForTimeout(1800);
   const pts = page.locator('[data-testid="points-counter"]');
   check("the points tag shows one point left", (await pts.count()) === 1 && (await pts.getAttribute("data-left")) === "1");
   check("...on screen", inView(await pts.boundingBox(), size));
   await shot("6-points");
-  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "S"));
+  await page.evaluate(() => window.__EC_TEST_MOVE__("light-cabeza", "N"));
   await page.waitForTimeout(5000);
   const placard = page.locator('[data-testid="victory-placard"]');
-  check("the Cabeza reaching the far row puts up the win placard", (await placard.count()) === 1 && /walnut wins/i.test(await placard.innerText())); // (Big Glutts calls Dark "Walnut", side-names.js)
-  // (The store's test game is against the Easy AI, playing Ash: whom they beat, small, under the reason.)
+  check("the Cabeza reaching the far row puts up the win placard", (await placard.count()) === 1 && /ash wins/i.test(await placard.innerText())); // (Big Glutts calls Light "Ash", side-names.js)
+  // (The store's test game is against the Easy AI, playing Walnut: whom they beat, small, under the reason.)
   check("...and whom they beat, under the reason", /against the easy ai/i.test(await placard.locator('[data-testid="victory-foe"]').innerText().catch(() => "")), await placard.innerText());
   check("...on screen", inView(await placard.boundingBox(), size, 1));
   const wound = await page.evaluate(() => window.__TIENDA_AUDIO__());
@@ -311,7 +314,7 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await page.waitForTimeout(1000);
   const tape = page.locator('[data-testid="movelog-sheet"]');
   const tb = await tape.boundingBox();
-  check("Move Log opens the register tape", (await tape.count()) === 1 && /C: S\.S/.test(await tape.innerText()));
+  check("Move Log opens the register tape", (await tape.count()) === 1 && /C: N\.N/.test(await tape.innerText()));
   check("...narrow as tape, and on screen", tb && tb.width <= 361 && inView(tb, size, 1), JSON.stringify(tb));
   await shot("8-tape");
   await page.locator('[data-testid="movelog-sheet"] button:has-text("New Game")').click({ timeout: 30000 });

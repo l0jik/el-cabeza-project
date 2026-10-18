@@ -477,12 +477,12 @@ export function lawWarnings(sel) {
       if (sel.counts.opa > 0 && !l.threeActions)
         out.push({ key: "shoving", testid: "shove-opa-needs-three", text: "An Opa's shove costs 3 actions, so Opas only shove with 3 actions per turn." });
     } else if (!l.slide) {
-      // Slides only: nothing shoves without the Slide rule...
+      // Slides only: nothing shoves without the Slide rule.
       out.push({ key: "shoving", testid: "shove-needs-slide", text: "Slides only needs Orthogonal slide. Check it, or let rolls shove too." });
-    } else if (!l.threeActions) {
-      // ...and a shoving slide costs 2 + 1.
-      out.push({ key: "shoving", testid: "shove-needs-three", text: "A shoving slide costs 3 actions, so slides only needs 3 actions per turn. Check it, or let rolls shove too." });
     }
+    // (No callout that a shoving slide, 2 + 1, needs 3 actions a turn: user,
+    // 2026-10-17, "get rid of the callout with the hand pointing at it
+    // completely"; Futuris's sphere dropped its own too.)
   }
   return out;
 }

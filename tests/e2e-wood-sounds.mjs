@@ -37,7 +37,11 @@ async function run(theme) {
   await openDockPanel(page);
   await page.locator('[data-testid="dock-panel"] button', { hasText: /begin|try a game/i }).first().click(); // (the store's says Try a Game)
   await page.waitForTimeout(theme === "tienda" ? 4000 : 2000);
-  const flaco = () => page.evaluate(() => { const p = window.__EC_TEST_PIECES__.find((q) => q.id === "dark-flaco"); return { w: p.w, h: p.h, z: p.z, row: p.row }; });
+  // The side to move rolls its Flaco toward the other (the store's new
+  // player is Ash and moves first; elsewhere Walnut opens).
+  const side = await page.evaluate(() => window.__EC_TEST_TO_MOVE__());
+  const id = `${side}-flaco`, dir = side === "dark" ? "S" : "N";
+  const flaco = () => page.evaluate((i) => { const p = window.__EC_TEST_PIECES__.find((q) => q.id === i); return { w: p.w, h: p.h, z: p.z, row: p.row }; }, id);
   const f0 = await flaco();
   // Each step polled until the piece has moved (a fixed 1.5 s missed the
   // second landing in the store under load), then a moment for its sound.
@@ -48,9 +52,9 @@ async function run(theme) {
     await page.waitForTimeout(400);
     return f;
   };
-  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "S"));
+  await page.evaluate(([i, d]) => window.__EC_TEST_MOVE__(i, d), [id, dir]);
   const f1 = await stepped(f0);
-  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "S"));
+  await page.evaluate(([i, d]) => window.__EC_TEST_MOVE__(i, d), [id, dir]);
   const f2 = await stepped(f1);
   const L = await page.evaluate(() => window.__EC_TEST_LANDINGS__);
   console.log("  flaco:", JSON.stringify([f0, f1, f2]), "landings:", JSON.stringify(L));

@@ -55,8 +55,9 @@ export function shoveSummary(saved) {
   return `${s.onRolls ? "slides and rolls" : "slides only"}${s.own ? "" : ", only opponents"}`;
 }
 
-// The sentence for "Only opponents", wherever a setting's described.
-export const OWN_BLOCKS = "A shove pushes only your opponent's pieces: one of your own in the way blocks the move.";
+// The sentence for "Only opponents", wherever a setting's described
+// ("pieces" said, user: "One of your own pieces in the way...").
+export const OWN_BLOCKS = "A shove pushes only your opponent's pieces: one of your own pieces in the way blocks the move.";
 
 /* What actually shoves with the rules as they're set, for the line under
    the settings (user: the Slide/Shoving link confused even the

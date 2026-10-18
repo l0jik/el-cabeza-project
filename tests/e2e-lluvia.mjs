@@ -110,16 +110,16 @@ check("...and all pieces or only the opponent's (all chosen)",
   (await page.locator('[data-testid="lluvia-shove-own-off"]').count()) === 1);
 await page.locator('[data-testid="lluvia-shove-own-off"]').click();
 await page.waitForTimeout(150);
-check("...only the opponent's can be chosen, and the line says so",
+check("...only the opponent's can be chosen, and the line says so (one of your own pieces in the way blocks the move)",
   (await page.locator('[data-testid="lluvia-shove-own-off"]').getAttribute("aria-pressed")) === "true" &&
-  /only your opponent's pieces/.test(await page.locator('[data-testid="lluvia-shove-now"]').innerText()));
+  /only your opponent's pieces: one of your own pieces in the way blocks the move/.test(await page.locator('[data-testid="lluvia-shove-now"]').innerText()));
 await page.locator('[data-testid="lluvia-shove-own-on"]').click();
 await page.locator('[data-testid="lluvia-shove-onRolls-off"]').click();
 await page.waitForTimeout(150);
 check("...the choice there with slides only too (user)", (await page.locator('[data-testid="lluvia-shove-own-on"]').count()) === 1 && (await page.locator('[data-testid="lluvia-shove-own-off"]').count()) === 1);
-check("...slides only can be chosen, and it says a shoving slide needs 3",
+check("...slides only can be chosen, with no callout that a shoving slide needs 3 (user: taken out)",
   (await page.locator('[data-testid="lluvia-shove-onRolls-off"]').getAttribute("aria-pressed")) === "true" &&
-  (await page.locator('[data-testid="shove-needs-three"]').count()) === 1);
+  (await page.locator('[data-testid="shove-needs-three"]').count()) === 0);
 await page.locator('[data-testid="lluvia-shove-onRolls-on"]').click();
 await page.locator('[data-testid="lluvia-law-shoving"]').click();
 await page.waitForTimeout(150);

@@ -57,6 +57,8 @@ const E2E = [
   ["e2e-nova-city.mjs"],
   // Two sets of black holes: a marker at each way out, the other set's taken by a tap.
   ["e2e-hole-sets.mjs"],
+  // A new player's first game in the store: walked through, once.
+  ["e2e-first-game-tour.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

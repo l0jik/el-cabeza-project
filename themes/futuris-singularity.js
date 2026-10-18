@@ -2285,9 +2285,10 @@ function lawWarning(key, sel) {
         return { testid: "shove-opa-needs-three", text: "An Opa's shove costs 3 actions, so Opas can only shove with 3 Actions Per Turn." };
       return null;
     }
-    // Slides only: nothing shoves without Slide, and a shoving slide costs 3.
+    // Slides only: nothing shoves without Slide. (Nothing said of a shoving
+    // slide's 3 actions: the user had that callout taken out everywhere,
+    // rules-selections.js lawWarnings.)
     if (!laws.slide) return { testid: "shove-needs-slide", text: "SLIDES ONLY requires Orthogonal Slide. Turn it on, or choose SLIDES AND ROLLS." };
-    if (!laws.threeActions) return { testid: "shove-needs-three", text: "A shoving slide costs 3 actions, so SLIDES ONLY requires 3 Actions Per Turn. Turn it on, or choose SLIDES AND ROLLS." };
   }
   return null;
 }

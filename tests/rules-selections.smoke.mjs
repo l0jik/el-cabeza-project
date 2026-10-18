@@ -98,7 +98,9 @@ import("../themes/rules-selections.js").then(async (m) => {
   check("slides only reaches the engine", m.lawsForEngine(s).shoveOnRolls === false);
   check("...and without Slide it warns that nothing can shove", m.lawWarnings(s).some((w) => w.testid === "shove-needs-slide"));
   s.laws.slide = true;
-  check("...with Slide but 2 actions a turn it warns a shoving slide needs 3", m.lawWarnings(s).some((w) => w.testid === "shove-needs-three"));
+  // (No callout that a shoving slide needs 3 actions a turn: the user had it taken out.)
+  check("...with Slide but 2 actions a turn, no callout that a shoving slide needs 3", !m.lawWarnings(s).some((w) => w.testid === "shove-needs-three"));
+  check("...and set to the opponent's pieces, the line says one of your own pieces in the way blocks the move", /one of your own pieces in the way blocks the move/.test(m.shoveNow({ ...s, shove: { onRolls: false, own: false } })));
   s.laws.threeActions = true;
   check("...which 3 actions per turn clears", !m.lawWarnings(s).some((w) => w.key === "shoving"));
   check("...and the summary says slides only", m.variantsOf(s)[0].items.includes("Shoving (slides only)"));

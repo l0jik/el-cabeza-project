@@ -333,6 +333,26 @@ export const styleSheet = `
     border-radius: 3px !important;
   }
   [data-testid="piece-card"] { border: 1px solid rgba(46,33,24,0.5) !important; }
+  /* The first game's tour (chassis/FirstGameTour.jsx): the store's
+     printed card, with the circular's red band across its head and the
+     price-tag red on its button. */
+  [data-testid="tour-card"] {
+    background-color: #ece1c6 !important; background-image: var(--tienda-paper) !important;
+    border-radius: 3px !important; border: 1px solid rgba(46,33,24,0.55) !important; overflow: hidden;
+    box-shadow: inset 0 0 0 4px #ece1c6, inset 0 0 0 5px rgba(46,33,24,0.28), 0 12px 30px rgba(20,12,6,0.45) !important;
+  }
+  [data-testid="tour-band"] {
+    margin: -18px -20px 14px !important; padding: 6px 20px !important;
+    font: 800 10px/1.3 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; letter-spacing: 0.18em !important;
+    color: ${NEWS.paper} !important; background: ${NEWS.redInk};
+  }
+  [data-testid="tour-card"]:is([data-step="pieces"], [data-step="foe"]) [data-testid="tour-band"] { margin: -12px -15px 9px !important; padding: 5px 15px !important; }
+  [data-testid="tour-title"] { font-weight: 700 !important; color: ${PERIOD.ink}; }
+  [data-testid="tour-next"], [data-testid="tour-done"] {
+    background: #A8321F !important; color: #F6EEDA !important; border: 2px solid #2E2118 !important; border-radius: 2px !important;
+    font-family: 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; font-weight: 800 !important; letter-spacing: 0.14em !important;
+    box-shadow: 3px 3px 0 #2E2118 !important;
+  }
   /* The move log is register tape: narrow, whiter paper, typed, torn off. */
   [data-testid="movelog-sheet"] {
     width: min(360px, 92vw) !important; background: #F4F0E4 !important; backdrop-filter: none !important;
@@ -692,13 +712,32 @@ export const fullscreenOnFirstTap = true;
 export const dragTurnOneWay = true;
 
 /* A new player's opponent (user: "a new player needs somebody to play
-   against ... AI on easy ... the AI always be Ash"): with nothing saved
-   on the device, the store's game is against the computer, on Easy,
-   playing Ash (light; you're Walnut, and move first). Every new player
-   starts here, and the chassis keeps the choice from then on (it's saved
-   as the page comes up), so it holds at home and everywhere after, till
-   it's changed (chassis: theme.defaultOpponent). */
-export const defaultOpponent = { aiPlayer: "light", aiDifficulty: "easy" };
+   against ... AI on easy"; then, 2026-10-17: "You get to be the ash
+   pieces, and the computer will be the walnut pieces. It just
+   automatically selects this. Automatically selects easy, and all they
+   have to do is just begin a game", "you get to move first"): with
+   nothing saved on the device, the store's game is against the computer,
+   on Easy, playing Walnut (dark); you're Ash (light), and move first.
+   Every new player starts here, and the chassis keeps the choice from
+   then on (it's saved as the page comes up), so it holds at home and
+   everywhere after, till it's changed (chassis: theme.defaultOpponent). */
+export const defaultOpponent = { aiPlayer: "dark", aiDifficulty: "easy", humanStartSide: "light" };
+
+/* The first game, walked through (chassis/FirstGameTour.jsx; user: "On a
+   brand new game, when you start a game ... They click begin a game, and
+   then a little pop-up will say, "Welcome to your first game of El
+   Cabeza." Copyright 1975"): in the story's store, before the game's
+   bought, the store's demonstration game (not at home, nor on Big
+   Glutts' own page, nor back at the store after the story). Its words:
+   the welcome, the year under it as on the box, the band over each card;
+   and its card at the top keeps below the price tag (tienda-shopping.js). */
+const FIRST_GAME_TOUR = { title: "Welcome to your first game of El Cabeza.", fine: "\u00a9 1975", band: "In-store demonstration", clear: ".td-shop-tag" };
+export function firstGameTour(x) {
+  const story = x && x.story;
+  if (!story || story.mode !== "store") return null;
+  if ((story.after && story.after()) || (story.realities && story.realities())) return null;
+  return FIRST_GAME_TOUR;
+}
 
 /* What the two sides are called here (user; themes/side-names.js). */
 import { sideNamesFor } from "./side-names.js";

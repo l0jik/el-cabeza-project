@@ -28,7 +28,9 @@ const WORLDS = [
   ["Futuris", `${D}/el-cabeza-futuris.html`, {}],
   ["Standard", `${D}/el-cabeza-standard.html`, {}],
   ["Nova den", `${D}/el-cabeza-nova.html`, DEN_SEED],
-  ["Nova's store (the story's first visit)", `${D}/el-cabeza-nova.html`, {}, { storeWays: true }],
+  // (The first game's tour taken already: its cards over the board would
+  // take the drags; e2e-first-game-tour has it.)
+  ["Nova's store (the story's first visit)", `${D}/el-cabeza-nova.html`, { "el-cabeza:first-game-tour": "done" }, { storeWays: true }],
   ["Big Glutts' page", `${D}/el-cabeza-tienda.html`, {}, { storeWays: true }],
   ["Lluvia", `${D}/el-cabeza-lluvia.html`, {}],
   ["Cromo", `${D}/el-cabeza-cromo.html`, {}],

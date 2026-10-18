@@ -104,3 +104,11 @@ in; leaving Singularity, back in the den as the set switches off.
   phone's bar); the Nova tests that expect the den set the story as owned
   in their init scripts. Test hooks: `__DEN_TV__()`, `__DEN_TV_PRESS__`.
 
+- **The first game in the store** (2026-10-17): a new player is Ash and
+  opens, against the computer as Walnut on Easy (tienda.js
+  defaultOpponent), and their first Try a Game is walked through
+  (chassis/FirstGameTour.jsx, tienda.js firstGameTour: the story's store
+  before the game's bought; once a device, `el-cabeza:first-game-tour`).
+  Tests that try a game there as a new player meet it: skip it
+  (`tour-skip`) or seed the key "done" (e2e-touch-in-game does);
+  `tests/e2e-first-game-tour.mjs` goes through it.
