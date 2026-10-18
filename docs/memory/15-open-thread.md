@@ -1,5 +1,10 @@
 ## 15. Open thread / logical next step
 
+**Dropped by the user, 2026-10-18** ("drop this one: 10. "Cabeza
+[the_system]"", from the backlog list). Kept below only as history: don't
+raise it again or start on it. What's open now is the Backlog section of
+PROJECT_MEMORY.md.
+
 **"Cabeza [the_system]"** — a proposed **third theme** (not a separate
 project) with new game mechanics, explicitly meant to slot into the
 existing chassis+theme architecture. The user's own understanding of

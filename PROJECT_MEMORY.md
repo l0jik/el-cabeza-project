@@ -83,12 +83,16 @@ built or dropped.
   City is; a walk-home warning (the check alert's kind, for "the
   computer's Cabeza can reach your back row next turn"); the computer
   faster and stronger with big armies.
-- Probably stale: "Cabeza [the_system]" (docs/memory/15-open-thread.md),
-  to confirm or drop.
 - Dropped (user, 2026-10-18: "remove this from the backlog. : Two other
   ways to place singularities: pick one up and tap where it goes, or one
   pair per row, each with its own Place button."): those two ways of
   placing singularities. Not to be offered again.
+- Dropped (user, 2026-10-18: "drop this one: 10. "Cabeza [the_system]".
+  This was an early idea for a third theme with new mechanics, and three
+  questions about it were never answered: the name, the look and the
+  mechanics. Cabeza Nova has probably covered it; tell me if I should drop
+  it."): "Cabeza [the_system]" (docs/memory/15-open-thread.md). Not to be
+  raised again.
 
 ## Topics (`docs/memory/`)
 
@@ -109,7 +113,7 @@ built or dropped.
 - [12-rejected-approaches.md](docs/memory/12-rejected-approaches.md): Failed or rejected approaches: do not retry as-is
 - [13-hard-invariants.md](docs/memory/13-hard-invariants.md): Hard invariants: don't break without a decision
 - [14-stable-baseline.md](docs/memory/14-stable-baseline.md): An old stable baseline (commit e58e182)
-- [15-open-thread.md](docs/memory/15-open-thread.md): An old open thread
+- [15-open-thread.md](docs/memory/15-open-thread.md): An old open thread ("Cabeza [the_system]"), dropped by the user 2026-10-18
 - [nova-naming.md](docs/memory/nova-naming.md): Nova naming
 - [odd-shaped-pieces.md](docs/memory/odd-shaped-pieces.md): Odd-shaped pieces: the shape system, Codo, Arco, Shoving
 - [everything-in-the-open.md](docs/memory/everything-in-the-open.md): Everything out in the open (no hidden gestures)
