@@ -337,17 +337,18 @@ export const styleSheet = `
      printed card, with the circular's red band across its head and the
      price-tag red on its button. */
   [data-testid="tour-card"] {
-    background-color: #ece1c6 !important; background-image: var(--tienda-paper) !important;
+    background-color: #ece1c6 !important; background-image: var(--tienda-paper) !important; padding: 12px 15px 11px !important;
     border-radius: 3px !important; border: 1px solid rgba(46,33,24,0.55) !important; overflow: hidden;
     box-shadow: inset 0 0 0 4px #ece1c6, inset 0 0 0 5px rgba(46,33,24,0.28), 0 12px 30px rgba(20,12,6,0.45) !important;
   }
   [data-testid="tour-band"] {
-    margin: -18px -20px 14px !important; padding: 6px 20px !important;
+    margin: -12px -15px 9px !important; padding: 5px 15px !important;
     font: 800 10px/1.3 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; letter-spacing: 0.18em !important;
     color: ${NEWS.paper} !important; background: ${NEWS.redInk};
   }
-  [data-testid="tour-card"]:is([data-step="pieces"], [data-step="foe"]) [data-testid="tour-band"] { margin: -12px -15px 9px !important; padding: 5px 15px !important; }
   [data-testid="tour-title"] { font-weight: 700 !important; color: ${PERIOD.ink}; }
+  /* Its labels over the board, in the circular's bold type. */
+  .ec-tour-tag { font: 800 10.5px/1.25 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; letter-spacing: 0.12em !important; border-radius: 2px !important; }
   [data-testid="tour-next"], [data-testid="tour-done"] {
     background: #A8321F !important; color: #F6EEDA !important; border: 2px solid #2E2118 !important; border-radius: 2px !important;
     font-family: 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; font-weight: 800 !important; letter-spacing: 0.14em !important;

@@ -54,7 +54,9 @@ const WORLDS = [
 for (const [name, page0, quiet, hasSlide, counted, computer] of WORLDS) {
   console.log(name);
   const ctx = await browser.newContext({ viewport: { width: 1100, height: 820 } });
-  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_LAWS__ = { slide: true, threeActions: true }; window.__EC_TEST_MOVE_SOUNDS__ = []; window.__EC_TEST_LANDINGS__ = []; try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.clear(); } } catch (e) { /* none */ } });
+  // (The store's sides as they were, Walnut opening, against the computer's
+  // Ash: a new player's are the other way round, and Walnut moves here first.)
+  await ctx.addInitScript((store) => { window.__EC_TEST_HOOKS__ = true; window.__EC_LAWS__ = { slide: true, threeActions: true }; window.__EC_TEST_MOVE_SOUNDS__ = []; window.__EC_TEST_LANDINGS__ = []; try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.clear(); if (store) localStorage.setItem("el-cabeza:opponent", JSON.stringify({ aiPlayer: "light", aiDifficulty: "easy", humanStartSide: "dark" })); } } catch (e) { /* none */ } }, page0 === "tienda");
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));

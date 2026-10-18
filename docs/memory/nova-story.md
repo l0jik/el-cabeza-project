@@ -109,6 +109,12 @@ in; leaving Singularity, back in the den as the set switches off.
   defaultOpponent), and their first Try a Game is walked through
   (chassis/FirstGameTour.jsx, tienda.js firstGameTour: the story's store
   before the game's bought; once a device, `el-cabeza:first-game-tour`).
-  Tests that try a game there as a new player meet it: skip it
-  (`tour-skip`) or seed the key "done" (e2e-touch-in-game does);
-  `tests/e2e-first-game-tour.mjs` goes through it.
+  Since 2026-10-18 each card lights up what it speaks of (rings on the
+  board, the goal row lit, labels and arrows over the screen) and a tap
+  on a piece picks nothing while a card's up. Tests that try a game there
+  as a new player meet it: skip it (`tour-skip`) or seed the key "done"
+  (e2e-touch-in-game does); `tests/e2e-first-game-tour.mjs` goes through
+  it. Tests of how pieces move on Big Glutts' own page that play Walnut
+  first seed the store's old sides (`el-cabeza:opponent` { aiPlayer:
+  "light", aiDifficulty: "easy", humanStartSide: "dark" }: e2e-outline,
+  e2e-outside-dismiss, e2e-slide-sounds).

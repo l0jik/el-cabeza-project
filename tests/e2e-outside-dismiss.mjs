@@ -29,6 +29,9 @@ async function startGame(theme, laws) {
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   await page.addInitScript((l) => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true; if (l) window.__EC_LAWS__ = l; }, laws || null);
+  // (The store's sides as they were, Walnut opening, against the computer's
+  // Ash: a new player's are the other way round, and this plays Walnut.)
+  if (theme === "tienda") await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:opponent", JSON.stringify({ aiPlayer: "light", aiDifficulty: "easy", humanStartSide: "dark" })); } catch (e) { /* none */ } });
   await page.goto(`file:///home/user/el-cabeza-project/dist/el-cabeza-${theme}.html`);
   await page.waitForTimeout(2500);
   if (OPENING[theme]) { await page.locator(`[data-testid="${OPENING[theme]}"]`).click(); await page.waitForTimeout(1200); }

@@ -32,7 +32,7 @@ import {
   pieceName as setOutPieceName, SET_OUT_ACCENT,
 } from "./set-out.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo, pieceLesson } from "./RulesCards.jsx";
-import FirstGameTour, { tourDone, markTourDone, TOUR_CARDS } from "./FirstGameTour.jsx";
+import FirstGameTour, { TourMarks, tourDone, markTourDone, TOUR_CARDS, TOUR_TONES } from "./FirstGameTour.jsx";
 import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
 const FOCUS_EVENT = "el-cabeza:focus";
@@ -232,8 +232,10 @@ const TWO_FINGER_TAP_MAX_MS = 300; // a two-finger contact shorter than this, wi
 const TWO_FINGER_TAP_MOVE_PX = 12; // max cumulative midpoint travel still counted as a tap, not a drag
 const TWO_FINGER_DOUBLE_TAP_MS = 400; // max gap between two taps to count as a double-tap
 // The first game's lessons look at a piece from this far off straight down
-// (radians), so it reads as itself (frameTourPiece).
+// (radians), so it reads as itself (frameTourPiece); its view of the whole
+// board, a little less (frameTourBoard).
 const TOUR_PHI = 0.6;
+const TOUR_BOARD_PHI = 0.45;
 const AI_BEAT_MS = 500; // the AI's first step comes no sooner than this after its turn comes round (see the AI turn effect)
 // The player took the page out of full screen themselves (the button or the
 // two-finger double-tap): it stays out until they put it back.
@@ -3205,9 +3207,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   tourOfferRef.current = tourOffer;
   const [tourStep, setTourStep] = useState(null);
   const tourCardUp = TOUR_CARDS.includes(tourStep);
-  const tourCamRef = useRef(null); // the view before the first lesson framed a piece
+  // (While a card's up a tap on the board picks nothing: it's being shown.)
+  const tourCardUpRef = useRef(false);
+  tourCardUpRef.current = tourCardUp;
+  const tourCamRef = useRef(null); // the view before the tour first turned the board
   const tourCardRef = useRef(null);
   const tourSawMineRef = useRef(false); // your turn has come round (the computer may open)
+  const tourFoeBeforeRef = useRef(null); // the other side's pieces as its turn began
   /* The corner menu (chassis/CornerMenu.jsx): while a game is being
      played (not through Futuris's Singularity, nor where a theme says there's
      no game), in the look the theme names (theme.cornerMenu: a look's
@@ -3697,6 +3703,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // offers it: walked through (tourStep).
     if (tourOfferRef.current && !tourDone() && aiPlayer && !onlineRef.current && !replaying && !log.length) {
       tourSawMineRef.current = false;
+      tourFoeBeforeRef.current = null;
       tourCamRef.current = null;
       setTourStep("welcome");
     }
@@ -4468,13 +4475,238 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const tourFoe = tourMine === "dark" ? "light" : "dark";
   const tourYours = tourStep === "pieces" && currentPlayer === tourMine && !!selectedPiece && selectedPiece.owner === tourMine;
   const tourLesson = tourYours ? pieceLesson(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name, turnBudget(), sideName(tourFoe)) : null;
+  const tourLeft = turnBudget() - stepsUsed;
   let tourStatus = null;
   if (tourYours) {
-    const left = turnBudget() - stepsUsed;
     const endWay = (showPoints || shell) ? "press End turn" : holdToEnd ? "hold the piece to end your turn" : "tap the piece to end your turn";
-    if (turnLocked) tourStatus = left > 0 ? `${left === 1 ? "One action" : `${left} actions`} left: move it again, or ${endWay}.` : null;
-    else tourStatus = shadowEntries.length ? `The marked squares show where it can go: ${isCoarsePointer() ? "tap" : "click"} one to move it there.` : "It can't move from where it is just now: try another piece.";
+    if (turnLocked) tourStatus = tourLeft > 0 ? `${tourLeft === 1 ? "One action" : `${tourLeft} actions`} left: move it again, or ${endWay}.` : null;
+    else tourStatus = shadowEntries.length ? `The arrows show every square it can reach: ${isCoarsePointer() ? "tap" : "click"} one to move it there.` : "It can't move from where it is just now: try another piece.";
   }
+  /* What it lights up as it speaks (user: "Highlight the pieces as
+     they're explained. Arrows to indicate stuff will be helpful"): on the
+     board (tour3d, drawn into tourGroup below), a ring round each piece
+     named, pulsing where it asks you to look, yours yellow and the other
+     side's red, and the row you win on lit green. Over the screen (tour2d,
+     FirstGameTour.jsx's TourMarks), a label by what's named with an arrow
+     to it, an arrow for a move, a ring round a button it points out, and
+     arrows round the board where it says the board turns. (A move's arrow
+     is drawn on the screen, not the board: one up the board, seen from
+     behind, was edge on, a stick.) Each card in turn: both sides; your
+     Cabeza, an arrow to the row you win on; the other side's Cabeza; your
+     blocks, named; the actions' lights; the board turning. Your first
+     turn: the pieces that can move, named (those that can't, said so); a
+     piece picked, an arrow to each square it can reach (and End turn,
+     once it's moved and has an action left). The other side's turn: what
+     it moved, an arrow from where it stood. */
+  const tourShown = !!tourStep && isPlaying && !awaitingBegin && !replaying && dockView !== "panel";
+  const tourCanGo = React.useMemo(
+    () => (tourStep === "pieces" ? new Set(pieces.filter((p) => p.owner === tourMine && Object.keys(legalMovesFor(pieces, p, Math.max(1, turnBudget()))).length).map((p) => p.id)) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tourStep, pieces, tourMine],
+  );
+  const t3 = { rings: [], band: null };
+  const t2 = { tags: [], arrows: [], boxes: [], orbit: null, avoid: ['[data-testid="points-counter"]', '[data-testid="stop-here-float"]', '[data-testid="undo-move-float"]', '[data-testid="shell-points"]', '[data-testid="corner-menu-tab"]', ...(tourOffer && tourOffer.clear ? [tourOffer.clear] : [])] };
+  const tourBlocks = [], tourBoxed = [], tourMoved = [];
+  if (tourStep) {
+    const mineP = pieces.filter((p) => p.owner === tourMine), foeP = pieces.filter((p) => p.owner === tourFoe);
+    const nameOf = (p) => (PIECE_META[p.type] ? PIECE_META[p.type].name : p.type);
+    const at = (p) => ({ id: p.id, type: p.type, row: p.row, col: p.col, w: p.w, h: p.h, z: p.z });
+    const ring = (p, tone, more) => t3.rings.push({ ...at(p), tone, ...more });
+    const tag = (key, where, text, tone, side) => t2.tags.push({ key, at: where, text, tone, ...(side ? { side } : {}) });
+    const myCab = mineP.find((p) => p.type === "cabeza"), foeCab = foeP.find((p) => p.type === "cabeza");
+    const blocks = mineP.filter((p) => p.type !== "cabeza").sort((a, b) => cubeCount(a) - cubeCount(b));
+    blocks.forEach((p) => tourBlocks.push(nameOf(p)));
+    const goalRow = GOAL_ROW[tourMine];
+    if (tourStep === "welcome") {
+      mineP.forEach((p) => ring(p, "mine", { pulse: true }));
+      foeP.forEach((p) => ring(p, "foe"));
+      tag("mine", { pieces: mineP.map((p) => p.id) }, `${sideName(tourMine)} · you`, "mine");
+      tag("foe", { pieces: foeP.map((p) => p.id) }, `${sideName(tourFoe)} · the computer`, "foe");
+    } else if (tourStep === "goal") {
+      t3.band = { row: goalRow, tone: "goal" };
+      tag("goal", { row: goalRow }, `${sideName(tourFoe)}'s back row · your goal`, "goal");
+      if (myCab) {
+        ring(myCab, "mine", { pulse: true });
+        t2.arrows.push({ key: "path", from: { piece: myCab.id }, to: { box: { type: "square", row: goalRow, col: myCab.col, w: 1, h: 1, z: 0 } }, tone: "goal", bend: 0.08 });
+        tag("cabeza", { piece: myCab.id }, "Your Cabeza", "mine");
+      }
+    } else if (tourStep === "crush") {
+      if (foeCab) { ring(foeCab, "foe", { pulse: true }); tag("foe-cabeza", { piece: foeCab.id }, `${sideName(tourFoe)}'s Cabeza · crush it`, "foe"); }
+      if (myCab) { ring(myCab, "mine"); tag("cabeza", { piece: myCab.id }, "Yours · keep it safe", "mine"); }
+    } else if (tourStep === "blocks") {
+      blocks.forEach((p) => { ring(p, "mine", { pulse: true }); tag(p.id, { piece: p.id }, nameOf(p), "mine"); });
+    } else if (tourStep === "turn") {
+      const sel = shell ? '[data-testid="shell-points"]' : '[data-testid="points-counter"]';
+      t2.boxes.push({ key: "actions", sel, tone: "mine" });
+      tag("actions", { el: sel }, `${ACTIVE_LAWS.threeActions ? 3 : 2} actions a turn`, "mine", "above");
+    } else if (tourStep === "board") {
+      t2.orbit = { tone: "mine", mouse: !isCoarsePointer() };
+      tag("orbit", { orbit: true }, isCoarsePointer() ? "Drag to turn · pinch to zoom" : "Drag to turn · scroll to zoom", "mine");
+    } else if (tourStep === "pieces" && currentPlayer === tourMine) {
+      if (tourYours) {
+        ring(selectedPiece, "mine");
+        shadowEntries.forEach(([dir, m]) => { if (m.candidate) t2.arrows.push({ key: `move-${dir}`, from: { piece: selectedPiece.id }, to: { box: { ...at(selectedPiece), row: m.candidate.row, col: m.candidate.col, w: m.candidate.w, h: m.candidate.h, z: m.candidate.z } }, tone: "mine", bend: 0.2 }); });
+        if (turnLocked && tourLeft > 0) {
+          const sel = shell ? '[data-testid="shell-end-turn"]' : '[data-testid="stop-here-float"]';
+          t2.boxes.push({ key: "end", sel, tone: "mine" });
+          tag("end", { el: sel }, "Or end your turn here", "mine", "above");
+        }
+      } else if (!selectedId) {
+        mineP.forEach((p) => {
+          const go = !!tourCanGo && tourCanGo.has(p.id);
+          ring(p, go ? "mine" : "dim", { pulse: go });
+          tag(p.id, { piece: p.id }, go ? nameOf(p) : `${nameOf(p)} · boxed in`, go ? "mine" : "dim");
+          if (!go) tourBoxed.push(p.type === "cabeza" ? "your Cabeza" : `the ${nameOf(p)}`);
+        });
+      }
+    } else if (tourStep === "foe" && currentPlayer === tourMine && tourFoeBeforeRef.current) {
+      tourFoeBeforeRef.current.forEach((b) => {
+        const now = foeP.find((p) => p.id === b.id);
+        if (!now || (now.row === b.row && now.col === b.col && now.w === b.w && now.h === b.h && now.z === b.z)) return;
+        tourMoved.push(nameOf(now));
+        ring(b, "foe", { faint: true });
+        ring(now, "foe", { pulse: true });
+        t2.arrows.push({ key: `moved-${now.id}`, from: { box: at(b) }, to: { piece: now.id }, tone: "foe", bend: 0.18, trimEnd: true });
+        tag(now.id, { piece: now.id }, `${sideName(tourFoe)}'s ${nameOf(now)}`, "foe");
+      });
+    }
+  }
+  const tour3dSig = tourShown ? JSON.stringify(t3) : "";
+  const tour2dSig = tourShown ? JSON.stringify(t2) : "";
+  const tour2d = React.useMemo(() => (tour2dSig ? JSON.parse(tour2dSig) : null), [tour2dSig]);
+  // Where what it names is on the screen, as the camera has it (TourMarks
+  // asks at each frame; the canvas's own place read once a frame, sync()).
+  const tourPiecesRef = useRef(pieces);
+  tourPiecesRef.current = pieces;
+  const tourGeo = React.useMemo(() => {
+    const v = new THREE.Vector3();
+    let cr = null;
+    const ready = () => { const t = three.current; return !!(t.boardGroup && t.camera && t.renderer); };
+    const toScreen = (x, y, z) => {
+      const t = three.current;
+      v.set(x, y, z);
+      t.boardGroup.localToWorld(v);
+      v.project(t.camera);
+      if (v.z > 1) return null; // (behind the camera)
+      return { x: cr.left + ((v.x + 1) / 2) * cr.width, y: cr.top + ((1 - v.y) / 2) * cr.height };
+    };
+    const geo = {
+      sync() { cr = ready() ? three.current.renderer.domElement.getBoundingClientRect() : null; },
+      rect(at) {
+        if (at.el) {
+          const e = document.querySelector(at.el);
+          if (!e) return null;
+          const r = e.getBoundingClientRect();
+          return r.width && r.height ? { l: r.left, t: r.top, r: r.right, b: r.bottom } : null;
+        }
+        if (!cr || !ready()) return null;
+        const box = { l: Infinity, t: Infinity, r: -Infinity, b: -Infinity };
+        const add = (x, y, z) => { const p = toScreen(x, y, z); if (!p) return; box.l = Math.min(box.l, p.x); box.r = Math.max(box.r, p.x); box.t = Math.min(box.t, p.y); box.b = Math.max(box.b, p.y); };
+        const addBox = (x0, x1, z0, z1, h) => { for (const x of [x0, x1]) for (const z of [z0, z1]) { add(x, 0, z); if (h) add(x, h, z); } };
+        const tall = (p) => (p.type === "square" ? 0 : PIECE_META[p.type] && PIECE_META[p.type].shape === "disc" ? DISC_H * CABEZA_SCALE : (p.z || 1) * PIECE_SCALE);
+        const addPiece = (p) => {
+          const c = pieceCenter(p);
+          const disc = PIECE_META[p.type] && PIECE_META[p.type].shape === "disc";
+          const hw = disc ? (DISC_DIAM * CABEZA_SCALE) / 2 : (p.w * PIECE_SCALE) / 2, hd = disc ? hw : (p.h * PIECE_SCALE) / 2;
+          addBox(c.x - hw, c.x + hw, c.z - hd, c.z + hd, tall(p));
+        };
+        const ids = at.pieces || (at.piece ? [at.piece] : null);
+        if (ids) ids.forEach((id) => { const p = tourPiecesRef.current.find((q) => q.id === id); if (p) addPiece(p); });
+        else if (at.box) addPiece(at.box);
+        else if (at.row != null) {
+          // (Up to the top of the tallest piece standing on it: a label
+          // set off it clears them.)
+          const high = Math.max(0, ...tourPiecesRef.current.filter((p) => p.row <= at.row && at.row < p.row + p.h).map(tall));
+          addBox(-OFF_X, BOARD_COLS * SQUARE_SIZE - OFF_X, at.row * SQUARE_SIZE - OFF_Z, (at.row + 1) * SQUARE_SIZE - OFF_Z, high);
+        }
+        return Number.isFinite(box.l) ? box : null;
+      },
+      center() { return cr && ready() ? toScreen((BOARD_COLS * SQUARE_SIZE) / 2 - OFF_X, 0, (BOARD_ROWS * SQUARE_SIZE) / 2 - OFF_Z) : null; },
+      corners() {
+        if (!cr || !ready()) return null;
+        const x0 = -OFF_X, x1 = BOARD_COLS * SQUARE_SIZE - OFF_X, z0 = -OFF_Z, z1 = BOARD_ROWS * SQUARE_SIZE - OFF_Z;
+        const q = [[x0, z0], [x1, z0], [x0, z1], [x1, z1]].map(([x, z]) => toScreen(x, 0, z));
+        return q.every(Boolean) ? q : null;
+      },
+    };
+    return geo;
+  }, []);
+  const tourSubscribe = useCallback((f) => {
+    const hooks = three.current.frameHooks;
+    if (!hooks) return () => {};
+    const run = (now) => { tourGeo.sync(); f(now); };
+    hooks.add(run);
+    return () => hooks.delete(run);
+  }, [tourGeo]);
+  // The board's marks, drawn (and the pulsing ones pulsed, at each frame).
+  useEffect(() => {
+    const t = three.current;
+    if (!t.tourGroup) return undefined;
+    const group = t.tourGroup;
+    clearFeatureGroup(group);
+    if (!tour3dSig) return undefined;
+    const v = JSON.parse(tour3dSig);
+    const pulsing = [];
+    const mat = (tone, opacity, pulse, hex) => {
+      // (Not tone-mapped: the marks keep their own bright colours.)
+      const m = new THREE.MeshBasicMaterial({ color: hex || TOUR_TONES[tone] || TOUR_TONES.mine, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+      if (pulse) pulsing.push({ m, base: opacity });
+      return m;
+    };
+    const HALO = 0x160e06;
+    const rr = (hw, hd, r) => {
+      r = Math.max(0, Math.min(r, hw, hd));
+      const sh = new THREE.Shape();
+      sh.moveTo(-hw + r, -hd);
+      sh.lineTo(hw - r, -hd); sh.quadraticCurveTo(hw, -hd, hw, -hd + r);
+      sh.lineTo(hw, hd - r); sh.quadraticCurveTo(hw, hd, hw - r, hd);
+      sh.lineTo(-hw + r, hd); sh.quadraticCurveTo(-hw, hd, -hw, hd - r);
+      sh.lineTo(-hw, -hd + r); sh.quadraticCurveTo(-hw, -hd, -hw + r, -hd);
+      return sh;
+    };
+    // A flat band round a footprint (half hw by hd, corners r), from o0 to
+    // o1 beyond its edge; round a disc, a ring.
+    const loop = (hw, hd, r, o0, o1, disc) => {
+      let g;
+      if (disc) g = new THREE.RingGeometry(hw + o0, hw + o1, 64);
+      else { const sh = rr(hw + o1, hd + o1, r + o1); sh.holes.push(rr(hw + o0, hd + o0, r + o0)); g = new THREE.ShapeGeometry(sh, 8); }
+      g.rotateX(-Math.PI / 2);
+      return g;
+    };
+    const flat = (geo, m, order) => { const mesh = new THREE.Mesh(geo, m); mesh.renderOrder = order; return mesh; };
+    v.rings.forEach((s) => {
+      const disc = PIECE_META[s.type] && PIECE_META[s.type].shape === "disc";
+      const hw = disc ? (DISC_DIAM * CABEZA_SCALE) / 2 : (s.w * PIECE_SCALE) / 2, hd = disc ? hw : (s.h * PIECE_SCALE) / 2;
+      const c = pieceCenter(s);
+      const holder = new THREE.Group();
+      holder.position.set(c.x, 0.03, c.z);
+      const f = s.faint ? 0.45 : 1;
+      holder.add(
+        flat(loop(hw, hd, 0.12, 0.16, 0.42, disc), mat(s.tone, 0.24 * f, s.pulse), 4), // its glow
+        flat(loop(hw, hd, 0.12, 0.035, 0.195, disc), mat(s.tone, 0.6 * f, false, HALO), 5), // a dark edge either side
+        flat(loop(hw, hd, 0.12, 0.06, 0.17, disc), mat(s.tone, 0.96 * f, s.pulse), 6),
+      );
+      holder.userData = { kind: "tour-ring", pieceId: s.id, tone: s.tone, faint: !!s.faint, pulse: !!s.pulse };
+      group.add(holder);
+    });
+    if (v.band) {
+      const S = SQUARE_SIZE, W = BOARD_COLS * S;
+      const holder = new THREE.Group();
+      holder.position.set(W / 2 - OFF_X, 0.025, (v.band.row + 0.5) * S - OFF_Z);
+      holder.add(
+        flat(new THREE.PlaneGeometry(W - 0.12, S - 0.12).rotateX(-Math.PI / 2), mat(v.band.tone, 0.38, true), 4),
+        flat(loop(W / 2 - 0.16, S / 2 - 0.16, 0.1, 0, 0.13, false), mat(v.band.tone, 0.6, false, HALO), 5),
+        flat(loop(W / 2 - 0.14, S / 2 - 0.14, 0.1, 0, 0.09, false), mat(v.band.tone, 0.96, false), 6),
+      );
+      holder.userData = { kind: "tour-band", row: v.band.row };
+      group.add(holder);
+    }
+    const still = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const pulse = (now) => { const k = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(now / 230)); pulsing.forEach(({ m, base }) => { m.opacity = base * k; }); };
+    const hooks = t.frameHooks;
+    if (pulsing.length && !still && hooks) hooks.add(pulse);
+    return () => { if (hooks) hooks.delete(pulse); clearFeatureGroup(group); };
+  }, [tour3dSig]);
   function restoreTourCam() {
     const saved = tourCamRef.current;
     tourCamRef.current = null;
@@ -4484,19 +4716,62 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (saved.dollhouse) c.dollhouse = true;
     glideRef.current = {};
   }
-  function endTour() {
+  // Over: the camera back where it was before the tour turned the board,
+  // unless the tour ends with a piece of yours picked (keepView: it's
+  // looking where you're playing).
+  function endTour(keepView) {
     markTourDone();
     setTourStep(null);
+    tourFoeBeforeRef.current = null;
+    if (keepView) tourCamRef.current = null;
     restoreTourCam();
+  }
+  /* The room the tour's camera has: the screen less the bars and the
+     turn's buttons, and less the card, whichever side of it is bigger
+     (under it on a phone, beside it on a wide screen); `margin` more off
+     its top and foot where there's room, for the labels. */
+  function tourRegion(size, margin = 0) {
+    const t = three.current;
+    const ins = viewInsetsRef.current || { top: 0, right: 0, bottom: 0, left: 0 };
+    const all = { l: ins.left + 12, r: size.w - ins.right - 12, t: ins.top + 12, b: size.h - ins.bottom - (shell ? 12 : 104) };
+    let reg = all;
+    const cardEl = tourCardRef.current;
+    if (cardEl) {
+      const cr = cardEl.getBoundingClientRect(), top = t.renderer.domElement.getBoundingClientRect();
+      const under = { ...all, t: Math.max(all.t, cr.bottom - top.top + 10) };
+      const beside = { ...all, l: Math.max(all.l, cr.right - top.left + 12) };
+      const area = (g) => Math.max(0, g.r - g.l) * Math.max(0, g.b - g.t);
+      reg = area(beside) > area(under) ? beside : under;
+      if (reg.b - reg.t < 140 || reg.r - reg.l < 140) reg = all; // (no room either side: over the whole screen)
+    }
+    if (margin && reg.b - reg.t > 2 * margin + 200) reg = { ...reg, t: reg.t + margin, b: reg.b - margin };
+    return reg;
+  }
+  /* The tour's view of the whole board (each card; your turn before a
+     piece is picked; the other side's turn): from your side, a little
+     lower than straight down so the pieces read as themselves, as big as
+     it goes in the room the card leaves. Where the camera was before is
+     kept, and put back when the tour's over (restoreTourCam), unless a
+     view's been chosen meanwhile (glideCamera forgets it). */
+  function frameTourBoard() {
+    const t = three.current;
+    const size = t.getMountSize && t.getMountSize();
+    if (!t.camera || !t.renderer || !size) return;
+    const c = cam.current;
+    if (!tourCamRef.current) tourCamRef.current = { theta: c.theta, phi: c.phi, radius: c.radius, target: c.target.clone(), dollhouse: !!c.dollhouse };
+    const x0 = -OFF_X, x1 = BOARD_COLS * SQUARE_SIZE - OFF_X, z0 = -OFF_Z, z1 = BOARD_ROWS * SQUARE_SIZE - OFF_Z;
+    const high = Math.max(PIECE_SCALE, ...pieces.map((p) => (p.z || 1) * PIECE_SCALE));
+    const theta = tourMine === "dark" ? Math.PI : 0;
+    const phi = Math.min(theme.maxPitch ?? 1.25, TOUR_BOARD_PHI);
+    const best = fitFootInRegion(theta, phi, [[x0, z0], [x1, z0], [x0, z1], [x1, z1]], high, tourRegion(size, 26), 0.97, zoomMin);
+    c.theta = theta; c.phi = phi; c.radius = best.r; c.target.copy(best.target); c.dollhouse = false;
+    glideRef.current = {};
   }
   /* The lesson's camera (user: "it'll kind of zoom in on it a little
      bit"): the piece and every square it can move to now, with board round
-     them, as close as they fill three fifths of the room beside or under
-     the card (and above the turn's buttons), from a little lower than
-     straight down so the piece reads as itself; the heading kept. Where
-     it was before the first is kept, and put back when your turn's done
-     (restoreTourCam), unless a view's been chosen meanwhile (glideCamera
-     forgets it). */
+     them, as close as they fill three fifths of the room the card leaves,
+     from a little lower than straight down so the piece reads as itself;
+     the heading kept. */
   function frameTourPiece(piece) {
     const t = three.current;
     const size = t.getMountSize && t.getMountSize();
@@ -4514,55 +4789,59 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       c0 = Math.min(c0, b.col - 1); c1 = Math.max(c1, b.col + b.w + 1);
       high = Math.max(high, (b.z || 1) * PIECE_SCALE);
     });
+    // (The arcs over it reach a little higher.)
+    high += 0.9;
     const grow = (a, b) => { const d = Math.max(0, 4 - (b - a)) / 2; return [a - d, b + d]; };
     [r0, r1] = grow(r0, r1); [c0, c1] = grow(c0, c1);
     const x0 = c0 * SQUARE_SIZE - OFF_X, x1 = c1 * SQUARE_SIZE - OFF_X;
     const z0 = r0 * SQUARE_SIZE - OFF_Z, z1 = r1 * SQUARE_SIZE - OFF_Z;
     const foot = [[x0, z0], [x1, z0], [x0, z1], [x1, z1]];
     const phi = Math.min(theme.maxPitch ?? 1.25, TOUR_PHI);
-    // The room it has: the screen less the bars and the turn's buttons, and
-    // less the card, whichever side of it is bigger (under it on a phone,
-    // beside it on a wide screen).
-    const ins = viewInsetsRef.current || { top: 0, right: 0, bottom: 0, left: 0 };
-    const all = { l: ins.left + 12, r: size.w - ins.right - 12, t: ins.top + 12, b: size.h - ins.bottom - (shell ? 12 : 104) };
-    let reg = all;
-    const cardEl = tourCardRef.current;
-    if (cardEl) {
-      const cr = cardEl.getBoundingClientRect(), top = t.renderer.domElement.getBoundingClientRect();
-      const under = { ...all, t: Math.max(all.t, cr.bottom - top.top + 10) };
-      const beside = { ...all, l: Math.max(all.l, cr.right - top.left + 12) };
-      const area = (g) => Math.max(0, g.r - g.l) * Math.max(0, g.b - g.t);
-      reg = area(beside) > area(under) ? beside : under;
-      if (reg.b - reg.t < 140 || reg.r - reg.l < 140) reg = all; // (no room either side: over the whole screen)
-    }
     // (A little closer, not right down on it: no nearer than about three
-    // fifths of the way the camera stood before the first.)
-    const best = fitFootInRegion(c.theta, phi, foot, high, reg, 0.6, Math.max(zoomMin, 0.62 * tourCamRef.current.radius));
+    // fifths of the way the camera stood before the tour.)
+    const best = fitFootInRegion(c.theta, phi, foot, high, tourRegion(size), 0.6, Math.max(zoomMin, 0.62 * tourCamRef.current.radius));
     c.phi = phi; c.radius = best.r; c.target.copy(best.target); c.dollhouse = false;
     glideRef.current = {};
   }
-  // Each piece of yours picked in the first turn, framed; one picked once
-  // that turn's over, the tour's done (its own card says it from there).
+  // Each step's view, a frame on (the card in its place first): the board,
+  // or the piece you've picked in your first turn (again after each move
+  // it makes). A piece of yours picked once that turn's over, the tour's
+  // done (its own card says it from there).
   useEffect(() => {
-    if (tourYours) frameTourPiece(selectedPiece);
-    else if (tourStep === "foe" && currentPlayer === tourMine && selectedPiece && selectedPiece.owner === tourMine) endTour();
+    if (!tourStep) return undefined;
+    if (tourStep === "foe" && currentPlayer === tourMine && selectedPiece && selectedPiece.owner === tourMine) { endTour(true); return undefined; }
+    if (!tourShown) return undefined;
+    const raf = requestAnimationFrame(() => {
+      if (tourYours) frameTourPiece(selectedPiece);
+      else if (!(tourStep === "pieces" && selectedId)) frameTourBoard();
+    });
+    return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tourStep, selectedId]);
+  }, [tourStep, tourShown, selectedId, tourYours && turnLocked ? stepsUsed : -1]);
   /* Its moments: your turn come round, then gone (the other side's turn,
-     the camera back where it was; its card stays until it's put away, or
-     a piece is picked on your next turn). A game ended, set aside or
-     played back ends it too. */
+     its pieces as it begins kept, to show what it moved; its card stays
+     until it's put away, or a piece is picked on your next turn). A game
+     ended, set aside or played back ends it too. */
   useEffect(() => {
     if (!tourStep) return;
     if (!isPlaying || awaitingBegin || replaying || onlineRef.current || !aiPlayer) { endTour(); return; }
     if (tourStep === "pieces") {
       if (currentPlayer === tourMine) tourSawMineRef.current = true;
-      else if (tourSawMineRef.current) { setTourStep("foe"); restoreTourCam(); }
+      else if (tourSawMineRef.current) {
+        tourFoeBeforeRef.current = pieces.filter((p) => p.owner === tourFoe).map((p) => ({ ...p }));
+        setTourStep("foe");
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourStep, currentPlayer, isPlaying, awaitingBegin, replaying, aiPlayer]);
   if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-    window.__EC_TEST_TOUR__ = () => ({ step: tourStep, framed: !!tourCamRef.current, mine: tourMine });
+    window.__EC_TEST_TOUR__ = () => ({
+      step: tourStep,
+      framed: !!tourCamRef.current,
+      saved: tourCamRef.current ? { theta: tourCamRef.current.theta, phi: tourCamRef.current.phi, radius: tourCamRef.current.radius } : null,
+      mine: tourMine,
+      marks: tourShown ? { rings: t3.rings.map((r) => ({ id: r.id, tone: r.tone, pulse: !!r.pulse, faint: !!r.faint })), band: t3.band, arrows: t2.arrows.map((a) => ({ key: a.key, tone: a.tone })), tags: t2.tags.map((g) => g.text), boxes: t2.boxes.map((b) => b.key), orbit: t2.orbit } : null,
+    });
     window.__EC_TEST_TO_MOVE__ = () => currentPlayer; // (whose turn it is: "dark" or "light")
   }
   const cornerColumnUnderFloats = cornerStack && (stopHereFloat || undoMoveFloat) && showPoints;
@@ -5061,6 +5340,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // The check alert's marks (a ring round a Cabeza in check, a line round
     // each piece that has it in reach): own group, keyed on checkThreats.
     const checkGroup = new THREE.Group();
+    // The first game's tour's marks on the board (rings round the pieces
+    // it speaks of, the row you win on, arcs for moves): own group, keyed
+    // on the tour's step (tour3d).
+    const tourGroup = new THREE.Group();
 
     // Slide LAW gesture cue — a single arrow lit up on the selected
     // piece while the player is dragging it toward a legal slide (see
@@ -5109,9 +5392,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const boardGroup = new THREE.Group();
     const grid = theme.makeGrid();
     grid.name = "ec-grid"; // so resizeBoardPlate can find/replace it
-    boardGroup.add(slab, slabEdges, topRing, grid, pieceGroup, ghostGroup, holeGroup, missingGroup, checkGroup, slideArrowGroup, slideBlockGroup);
+    boardGroup.add(slab, slabEdges, topRing, grid, pieceGroup, ghostGroup, holeGroup, missingGroup, checkGroup, tourGroup, slideArrowGroup, slideBlockGroup);
     scene.add(boardGroup);
 
+    const frameHooks = new Set();
     three.current = {
       scene,
       camera,
@@ -5122,8 +5406,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       holeGroup,
       missingGroup,
       checkGroup,
+      tourGroup,
       slideArrowGroup,
       slideBlockGroup,
+      // Functions run at each frame, the camera placed and before it's
+      // drawn (the first game's tour keeps its words on the board by one).
+      frameHooks,
       raycaster: new THREE.Raycaster(),
       pointer: new THREE.Vector2(),
       // Exposed so theme code reached later (the singularity board
@@ -5850,6 +6138,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       const shadowDrawn = shadowsChanged ? shadowsChanged(scene, now) : true;
       if (shadowsChanged && shadowDrawn) renderer.shadowMap.needsUpdate = true;
       if (governor) governor.govern(now);
+
+      if (frameHooks.size) {
+        camera.updateMatrixWorld();
+        frameHooks.forEach((f) => f(now));
+      }
 
       // A theme may draw the frame itself (Nova's Futuris summons: the frame
       // through its shock waves), returning true when it has.
@@ -8282,7 +8575,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         if (el.style.cursor === "pointer") el.style.cursor = "grab";
       }
 
-      if (busy || !isPlaying || currentPlayer === foeSide || awaitingBegin || replayingRef.current) return;
+      if (busy || !isPlaying || currentPlayer === foeSide || awaitingBegin || replayingRef.current || tourCardUpRef.current) return;
       const hit = pick(ev, { respectDepth: true });
       if (hit && hit.type === "ghost") {
         el.style.cursor = "pointer";
@@ -8500,7 +8793,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          select/deselect a piece on release. An Option/Alt drag is never
          a click. */
       // (A replay playing: the board is the replay's.)
-      if (wasAltPan || wasDrag || !isPlaying || currentPlayer === foeSide || awaitingBegin || replayingRef.current) return;
+      if (wasAltPan || wasDrag || !isPlaying || currentPlayer === foeSide || awaitingBegin || replayingRef.current || tourCardUpRef.current) return;
 
       /* A step is currently animating: real ghost meshes don't exist to
          pick() against (beginMove already cleared them), so a tap here
@@ -10719,10 +11012,11 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         </div>
       )}
 
-      {/* The first game's tour (FirstGameTour.jsx): its cards over the
-         board as the game begins, then its card at the top through your
-         first turn (put away with the dock's panel, as the piece card is). */}
-      {tourStep && isPlaying && !awaitingBegin && !replaying && (tourCardUp || dockView !== "panel") && (
+      {/* The first game's tour (FirstGameTour.jsx): its card at the top
+         (at the left on a wide screen), what it names marked over the
+         board (put away with the dock's panel, as the piece card is). */}
+      {tourShown && tour2d && <TourMarks marks={tour2d} geo={tourGeo} subscribe={tourSubscribe} cardRef={tourCardRef} />}
+      {tourShown && (
         <FirstGameTour
           cardRef={tourCardRef}
           tour={{
@@ -10738,15 +11032,18 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             budget: ACTIVE_LAWS.threeActions ? 3 : 2,
             split: ACTIVE_LAWS.splitMovement ? maxPiecesPerTurn() : 0,
             hasOpa: pieces.some((p) => p.owner === tourMine && p.type === "opa"),
-            dots: shell ? "The bar at the foot of the screen shows how many you have left." : showPoints ? "The dots at the foot of the screen show how many you have left." : null,
+            dots: shell ? "The bar at the foot of the screen shows how many are left." : showPoints ? "The lights at the foot of the screen count how many are left." : null,
             punto: !!ACTIVE_LAWS.punto,
             touch: isCoarsePointer(),
             waiting: currentPlayer !== tourMine,
             lesson: tourLesson,
             status: tourStatus,
-            next: () => setTourStep((st) => (st === "welcome" ? "turn" : st === "turn" ? "board" : "pieces")),
-            skip: endTour,
-            finish: endTour,
+            blocks: tourBlocks,
+            boxed: tourBoxed,
+            moved: tourMoved,
+            next: () => setTourStep((st) => TOUR_CARDS[TOUR_CARDS.indexOf(st) + 1] || "pieces"),
+            skip: () => endTour(),
+            finish: () => endTour(),
           }}
         />
       )}

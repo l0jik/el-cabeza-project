@@ -87,7 +87,9 @@ async function run(name, hook, init = null) {
   await page.close();
 }
 
-await run("tienda", "__TIENDA_THREE__");
+// (The store's sides as they were, Walnut opening: a new player's are
+// Ash, opening, against the computer's Walnut; this rolls Walnut's Chato.)
+await run("tienda", "__TIENDA_THREE__", () => { try { localStorage.setItem("el-cabeza:opponent", JSON.stringify({ aiPlayer: "light", aiDifficulty: "easy", humanStartSide: "dark" })); } catch (e) { /* none */ } });
 await run("standard", "__DEN_THREE__");
 await run("cromo", "__EC_TEST_THREE__");
 await run("lluvia", "__EC_TEST_THREE__");
