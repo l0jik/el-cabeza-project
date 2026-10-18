@@ -59,8 +59,15 @@ export const WORLDS = [
   ...LAB.map(([id, name, line]) => ({ id: `lab-${id}`, name, line, href: `el-cabeza-lab.html?theme=${id}` })),
 ].map((w) => ({ ...w, shot: `el-cabeza-channel-${w.id}.jpg` }));
 
+/* Above every layer a game can have up when the corner's Other realities
+   is pressed: Futuris's sphere (its full-screen layer at 2000, its menus
+   to 2300, the corner raised to 2050 over it) and the rules cards (2500).
+   Under the sphere's layer it showed through but every tap and scroll
+   went to the sphere (user: "It went back to the theme switcher, but then
+   it was stuck. It would not scroll like something was on top of it. A
+   transparent layer."). Under the story's cut (3000). */
 const CSS = `
-.ec-realities { position: fixed; inset: 0; z-index: 1600; display: flex; flex-direction: column; align-items: center;
+.ec-realities { position: fixed; inset: 0; z-index: 2600; display: flex; flex-direction: column; align-items: center;
   padding: max(28px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); overflow-y: auto;
   background: radial-gradient(ellipse at 50% 30%, rgba(40,22,70,0.72), rgba(4,2,10,0.94) 70%); color: #efe9ff;
   font: 400 15px/1.45 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif; opacity: 0; transition: opacity 0.9s ease; }

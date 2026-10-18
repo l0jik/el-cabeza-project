@@ -59,6 +59,8 @@ const E2E = [
   ["e2e-hole-sets.mjs"],
   // A new player's first game in the store: walked through, once.
   ["e2e-first-game-tour.mjs"],
+  // Other realities from Futuris's sphere: the switcher on top, scrolling.
+  ["e2e-realities-over-sphere.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");
