@@ -66,6 +66,30 @@ rim, the front-page mock-ups of NOVA as a neon sign.
   of ABOUT in every world; what was said about rights along the way is
   kept in docs/memory/00-open-reminders.md.)
 
+## Backlog (as given to the user, 2026-10-18: "what's in the backlog.")
+
+Keep this list current: add what's offered and not started, strike what's
+built or dropped.
+
+- Waiting on the user: Cabeza Nova's standard rules (above); a pick among
+  the front page's 50 versions (front/front-review.html, on the site as front-review.html); the online play
+  and cloud saves server on the user's own free Cloudflare account
+  (server/README.md, then its address in chassis/online-config.js
+  RELAY_URL; until then online games and cloud codes don't work, a save
+  file does); and a question: in the store, should a mouse drag turn the
+  board the way a finger does (a mouse keeps the store's own way now)?
+- Reminder: the Trusted Web Activity (above).
+- Offered, not started: every other world in place on Nova's page, as The
+  City is; a walk-home warning (the check alert's kind, for "the
+  computer's Cabeza can reach your back row next turn"); the computer
+  faster and stronger with big armies.
+- Probably stale: "Cabeza [the_system]" (docs/memory/15-open-thread.md),
+  to confirm or drop.
+- Dropped (user, 2026-10-18: "remove this from the backlog. : Two other
+  ways to place singularities: pick one up and tap where it goes, or one
+  pair per row, each with its own Place button."): those two ways of
+  placing singularities. Not to be offered again.
+
 ## Topics (`docs/memory/`)
 
 - [01-what-this-is.md](docs/memory/01-what-this-is.md): What the game and the code are, in one paragraph
