@@ -104,6 +104,14 @@ in; leaving Singularity, back in the den as the set switches off.
   phone's bar); the Nova tests that expect the den set the story as owned
   in their init scripts. Test hooks: `__DEN_TV__()`, `__DEN_TV_PRESS__`.
 
+- **Closing time in the store** (themes/tienda-shopping.js StorePA, the
+  first visit): the PA's ten minutes to closing (the lights down a step),
+  then, in real minutes from it, five, four, three and two to go, and at
+  one Big Glutts' notice over the store (logo, stripes, "We're going to
+  have to ask you to leave. Please take all purchases to the front
+  registers.", the lights down another step): its button checks out (the
+  purchase), "Just a minute" (or Escape) puts it away for good. Tests
+  shorten a minute with `__EC_TEST_CLOSING_MINUTE_MS__` (e2e-store-nudge).
 - **The first game in the store** (2026-10-17): a new player is Ash and
   opens, against the computer as Walnut on Easy (tienda.js
   defaultOpponent), and their first Try a Game is walked through

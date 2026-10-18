@@ -5,7 +5,9 @@
    Looking round doesn't count as doing something, and nor does a look in
    the dock (opened and shut, it still lights); only a game begun does.
    Once lit, the blue grows the longer it's left
-   (window.__EC_TEST_NUDGE_GROW_MS__ shortens that too). */
+   (window.__EC_TEST_NUDGE_GROW_MS__ shortens that too). And the store's
+   PA through a visit: in stock, closing in ten minutes, then the last
+   minutes and Big Glutts' notice a minute from closing. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
@@ -119,6 +121,69 @@ console.log("\nshopping: the PA, the cart, closing time (user: nothing about ord
   check("...and the lights down a step", await poll(() => page.evaluate(() => window.__TIENDA_SHOP__().dim), 3000));
   await q(page, "tienda-pa-closing").click();
   check("...a tap on it: to the register (the purchase)", await poll(() => has(page, "story-cut"), 6000, 100));
+  check("no page errors", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+/* The last minutes (user: "After the 10-minute closing announcement is
+   made, after 5 more minutes, have a new announcement made on every
+   subsequent minute, announcing how many more minutes there are until it
+   closes. And 1 minute before closing, have something show up with the
+   big Glutz logo ... we're going to have to ask you to leave. Please take
+   all purchases to the front"): a minute shortened to 1.2 s
+   (__EC_TEST_CLOSING_MINUTE_MS__). */
+async function lastMinutes() {
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
+  await ctx.addInitScript(() => {
+    window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NUDGE_MS__ = 600000;
+    window.__EC_TEST_PA_MS__ = 3000; window.__EC_TEST_CLOSING_MS__ = 4000; window.__EC_TEST_CLOSING_MIN_MS__ = 2000; window.__EC_TEST_CLOSING_MINUTE_MS__ = 1200;
+    try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("el-cabeza:first-game-tour", "done"); } } catch (e) { /* none */ }
+    // What the PA says, in order.
+    window.__PA_SAID__ = [];
+    new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => {
+      const id = n.nodeType === 1 && n.getAttribute("data-testid");
+      if (id && /^tienda-(pa-|closing-notice)/.test(id)) window.__PA_SAID__.push(id);
+    }))).observe(document, { childList: true, subtree: true });
+  });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto(URL);
+  await poll(() => page.evaluate(() => !!window.__TIENDA_THREE__), 30000);
+  await poll(() => has(page, "tienda-open-box"), 10000);
+  await q(page, "tienda-open-box").click();
+  await poll(async () => !(await has(page, "tienda-lid")), 8000);
+  await openDockPanel(page);
+  await q(page, "tienda-try-game").click();
+  await poll(() => has(page, "tienda-price-tag"), 10000);
+  check("closing time: the PA, ten minutes", await poll(() => has(page, "tienda-pa-closing"), 20000));
+  const notice = await poll(() => has(page, "tienda-closing-notice"), 20000, 100);
+  const said = (await page.evaluate(() => window.__PA_SAID__)).filter((id, i, a) => a.indexOf(id) === i);
+  check("then five, four, three and two minutes, a minute apart, in that order", JSON.stringify(said) === JSON.stringify(["tienda-pa-instock", "tienda-pa-closing", "tienda-pa-5min", "tienda-pa-4min", "tienda-pa-3min", "tienda-pa-2min", "tienda-closing-notice"]), JSON.stringify(said));
+  check("one minute to closing: Big Glutts' notice", !!notice);
+  const text = notice ? (await q(page, "tienda-closing-notice").innerText()).replace(/\s+/g, " ") : "";
+  check("...its logo, and we're going to have to ask you to leave; take all purchases to the front", /Big Glutts/i.test(text) && /closes in one minute/i.test(text) && /We’re going to have to ask you to leave\. Please take all purchases to the front registers\./.test(text), text);
+  check("...over the store (its veil), the lights down another step", (await has(page, "tienda-closing-veil")) && (await poll(() => page.evaluate(() => window.__TIENDA_SHOP__().dim2), 3000)));
+  const box = await q(page, "tienda-closing-notice").boundingBox();
+  check("...on a phone, all of it on the screen", !!box && box.x >= 0 && box.y >= 0 && box.x + box.width <= 412 && box.y + box.height <= 915, JSON.stringify(box));
+  return { ctx, page, errs };
+}
+console.log("\nthe last minutes: Just a minute");
+{
+  const { ctx, page, errs } = await lastMinutes();
+  await q(page, "tienda-closing-later").click();
+  await page.waitForTimeout(600);
+  check("Just a minute: the notice put away, still in the store", !(await has(page, "tienda-closing-notice")) && !(await has(page, "story-cut")) && (await has(page, "tienda-price-tag")));
+  await page.waitForTimeout(2500);
+  check("...and the PA says no more", !(await has(page, "tienda-closing-notice")) && (await page.evaluate(() => window.__PA_SAID__.filter((id) => id === "tienda-closing-notice").length)) === 1);
+  check("no page errors", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+console.log("\nthe last minutes: to the register");
+{
+  const { ctx, page, errs } = await lastMinutes();
+  await q(page, "tienda-closing-checkout").click();
+  check("Take El Cabeza to the register: the purchase", await poll(() => has(page, "story-cut"), 6000, 100));
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

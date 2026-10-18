@@ -17,7 +17,21 @@
      cart;
    - closing time: later, the lights go down a step (a flicker, then
      dimmer, and they stay so), and the PA: the store closing in ten
-     minutes, final purchases to the front; a tap on it checks out.
+     minutes, final purchases to the front; a tap on it checks out;
+   - the last minutes (user: "After the 10-minute closing announcement is
+     made, after 5 more minutes, have a new announcement made on every
+     subsequent minute, announcing how many more minutes there are until
+     it closes. And 1 minute before closing, have something show up with
+     the big Glutz logo ... it's going to say, we're going to have to ask
+     you to leave. Please take all purchases to the front"): five minutes
+     after it, the PA again, five minutes to closing, and again at four,
+     three and two (each a tap from the register, as before); at one, the
+     lights down another step and Big Glutts' notice over the store, its
+     logo and stripes: we're going to have to ask you to leave, take all
+     purchases to the front registers; its button checks out, "Just a
+     minute" puts it away. Real minutes, from the ten-minute words (a
+     minute missed while something else was up is skipped: the PA says
+     the time it is).
 
    The cart is kept for the page (module level) and emptied at each new
    visit; the PA's moments once each, per visit. */
@@ -43,20 +57,28 @@ export function useCart() {
 }
 
 /* ---- the PA's moments, once each a visit ---- */
-const PA = { said: { instock: false, closing: false }, at: 0 };
-export function resetShopping() { PA.said = { instock: false, closing: false }; PA.at = 0; emptyCart(); setDim(false); }
+// (closingAt: when the ten minutes began; left: the last minute said, 5
+// down to 1, the notice; 0 none yet.)
+const PA = { said: { instock: false, closing: false }, at: 0, closingAt: 0, left: 0 };
+export function resetShopping() { PA.said = { instock: false, closing: false }; PA.at = 0; PA.closingAt = 0; PA.left = 0; emptyCart(); setDim(false); }
 const LINES = {
   instock: "Attention shoppers: El Cabeza, the game of unparalleled intention, is now in stock in the Games Department, Aisle 9. Register 3 is open.",
   closing: "Attention shoppers: the store will be closing in ten minutes. Please bring your final purchases to the front registers. Thank you for shopping with us.",
+  "5min": "Attention shoppers: the store will be closing in five minutes. Please bring your final purchases to the front registers.",
+  "4min": "Attention shoppers: Big Glutts will be closing in four minutes. Please make your way to the front registers.",
+  "3min": "Attention shoppers: the store closes in three minutes. All registers are open at the front of the store.",
+  "2min": "Attention shoppers: two minutes until closing. Please bring your final purchases to the front registers now.",
 };
 
 /* ---- the lights going down (closing time) ---- */
 const DIM_CSS = `
   .td-closing-dim { position: fixed; inset: 0; z-index: 2; pointer-events: none; background: rgba(14, 9, 4, 0.0); mix-blend-mode: multiply; transition: background-color 0.9s ease; }
   .td-closing-dim[data-on="true"] { background: rgba(14, 9, 4, 0.34); }
+  .td-closing-dim[data-on="2"] { background: rgba(14, 9, 4, 0.5); }
   .td-closing-dim[data-flick="true"] { transition: none; background: rgba(14, 9, 4, 0.62); }
 `;
-function setDim(on) {
+// The lights down a step (step 2: another row off, a minute from closing).
+function setDim(on, step = 1) {
   if (typeof document === "undefined") return;
   let el = document.querySelector(".td-closing-dim");
   if (!on) { if (el) el.remove(); return; }
@@ -65,7 +87,7 @@ function setDim(on) {
   // (A row of tubes going off: two quick flickers, then down a step.)
   const steps = [[0, true], [90, false], [260, true], [330, false], [520, true]];
   steps.forEach(([ms, flick]) => setTimeout(() => { if (el.isConnected) el.setAttribute("data-flick", flick ? "true" : "false"); }, ms));
-  setTimeout(() => { if (el.isConnected) { el.setAttribute("data-flick", "false"); el.setAttribute("data-on", "true"); } }, 620);
+  setTimeout(() => { if (el.isConnected) { el.setAttribute("data-flick", "false"); el.setAttribute("data-on", step === 2 ? "2" : "true"); } }, 620);
 }
 
 /* ---- the look ---- */
@@ -147,22 +169,92 @@ export function ShopCorner({ inGame, audio, onPurchase }) {
 }
 
 /* The PA, on the first visit: in stock (a few moves into the first game,
-   or a while after arriving), then, later, closing time. */
-const IN_STOCK_MOVES = 4, IN_STOCK_MS = 75000, CLOSING_MS = 120000, CLOSING_MIN_MS = 35000;
+   or a while after arriving), then, later, closing time; then the last
+   minutes, and Big Glutts' notice a minute from closing (NOTICE_CSS). */
+const IN_STOCK_MOVES = 4, IN_STOCK_MS = 75000, CLOSING_MS = 120000, CLOSING_MIN_MS = 35000, MINUTE_MS = 60000;
+// (The notice's stripes, the store's four earth tones, as on the flyer.)
+const STRIPES = ["#6B3A1E", "#B4451F", "#E07B22", "#E9B23A"];
+const NOTICE_CSS = `
+  .td-closing-veil { position: fixed; inset: 0; z-index: 1239; background: rgba(14, 9, 4, 0.42); animation: tdVeilIn 0.5s ease both; }
+  @keyframes tdVeilIn { from { opacity: 0; } to { opacity: 1; } }
+  /* A card from the front office, as the store printed its signs: cream
+     card stock, the stripes across its head, the logo, the notice in the
+     circular's bold type. */
+  .td-closing-notice { position: fixed; left: 50%; top: 50%; z-index: 1240; box-sizing: border-box; width: min(calc(100vw - 28px), 380px);
+    max-height: calc(100vh - 24px); overflow-y: auto; transform: translate(-50%, -50%) rotate(-0.8deg);
+    padding: 0 0 16px; background-color: #F4ECD6; background-image: var(--tienda-paper); color: ${INK};
+    border: 1px solid rgba(46,33,24,0.55); border-radius: 3px;
+    box-shadow: inset 0 0 0 4px #F4ECD6, inset 0 0 0 5px rgba(46,33,24,0.22), 0 18px 44px rgba(10,6,3,0.55);
+    font: 500 15px/1.42 ${FRANKLIN}; text-align: center; animation: tdNoticeIn 0.5s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+  .td-closing-notice:focus { outline: none; }
+  .td-closing-notice .stripes { display: block; width: 100%; height: 34px; }
+  .td-closing-notice .logo { margin: 14px 0 0; }
+  .td-closing-notice .logo b { display: block; font: 400 38px/0.95 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; letter-spacing: 0.01em; text-shadow: 2px 2px 0 #E9B23A; }
+  .td-closing-notice .logo span { display: block; margin-top: 7px; font: 800 9px/1 ${FRANKLIN}; letter-spacing: 0.18em; text-transform: uppercase; color: #B4451F; }
+  .td-closing-notice .band { margin: 14px 0 0; padding: 6px 10px 7px; background: #C8281E; color: #FFF6E4; font: italic 900 15px/1 ${FRANKLIN}; letter-spacing: 0.1em; text-transform: uppercase; }
+  .td-closing-notice h2 { margin: 14px 20px 0; font: 900 22px/1.15 ${FRANKLIN}; letter-spacing: 0.01em; color: #17110c; text-wrap: balance; }
+  .td-closing-notice p { margin: 9px 22px 0; text-wrap: pretty; }
+  .td-closing-notice p.thanks { margin-top: 10px; font: 700 12.5px/1.3 ${COURIER}; color: #5a4636; }
+  .td-closing-notice .go { all: unset; box-sizing: border-box; display: inline-block; margin: 16px 18px 0; padding: 12px 18px; min-height: 44px; cursor: pointer;
+    background: #A8321F; color: #F6EEDA; border: 2px solid ${INK}; border-radius: 2px; box-shadow: 3px 3px 0 ${INK};
+    font: 800 12.5px/1.2 ${FRANKLIN}; letter-spacing: 0.12em; text-transform: uppercase; }
+  .td-closing-notice .go:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 ${INK}; }
+  .td-closing-notice .later { all: unset; display: block; margin: 12px auto 0; padding: 6px 10px; cursor: pointer; font: 700 12.5px/1 ${COURIER}; color: #5a4636; text-decoration: underline; text-underline-offset: 3px; }
+  .td-closing-notice .go:focus-visible, .td-closing-notice .later:focus-visible { outline: 3px solid ${RED}; outline-offset: 3px; }
+  .td-closing-notice .hours { margin: 14px 22px 0; padding-top: 9px; border-top: 1px dashed rgba(46,33,24,0.45); font: 700 10px/1.35 ${COURIER}; letter-spacing: 0.04em; color: #5a4636; }
+  @keyframes tdNoticeIn { from { opacity: 0; transform: translate(-50%, -44%) rotate(-3deg) scale(0.94); } to { opacity: 1; transform: translate(-50%, -50%) rotate(-0.8deg); } }
+  @media (prefers-reduced-motion: reduce) { .td-closing-veil, .td-closing-notice { animation: none; } }
+`;
+// (The logo's face, as the flyer has it, wherever the flyer hasn't been.)
+function logoFont() {
+  if (typeof document === "undefined" || document.querySelector('link[href*="family=Caprasimo"]')) return;
+  const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Caprasimo&display=swap"; document.head.appendChild(l);
+}
+function ClosingNotice({ onCheckout, onLater }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    logoFont();
+    try { ref.current && ref.current.focus({ preventScroll: true }); } catch (e) { /* no focus */ }
+    const onKey = (e) => { if (e.key === "Escape") onLater(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onLater]);
+  // (A tap beside it doesn't reach the store behind.)
+  const hold = (e) => { e.preventDefault(); e.stopPropagation(); };
+  return [
+    h("style", { key: "css" }, NOTICE_CSS),
+    h("div", { key: "veil", className: "td-closing-veil", "data-testid": "tienda-closing-veil", onPointerDown: hold, onClick: hold }),
+    h("div", { key: "card", ref, tabIndex: -1, className: "td-closing-notice", role: "alertdialog", "aria-modal": "true", "aria-labelledby": "td-closing-title", "aria-describedby": "td-closing-words", "data-testid": "tienda-closing-notice", onPointerDown: (e) => e.stopPropagation() },
+      h("svg", { className: "stripes", viewBox: "0 0 380 34", preserveAspectRatio: "none", "aria-hidden": "true" },
+        STRIPES.map((c, i) => h("rect", { key: c, x: 0, y: i * 8.5, width: 380, height: 7.5, fill: c }))),
+      h("div", { className: "logo" }, h("b", null, "Big Glutts"), h("span", null, "Your savings headquarters")),
+      h("div", { className: "band" }, "Closing time"),
+      h("h2", { id: "td-closing-title" }, "The store closes in one minute."),
+      h("p", { id: "td-closing-words" }, "We’re going to have to ask you to leave. Please take all purchases to the front registers."),
+      h("p", { className: "thanks" }, "Thank you for shopping at Big Glutts."),
+      h("button", { type: "button", className: "go", "data-testid": "tienda-closing-checkout", onClick: onCheckout }, "Take El Cabeza to the register ›"),
+      h("button", { type: "button", className: "later", "data-testid": "tienda-closing-later", onClick: onLater }, "Just a minute"),
+      h("div", { className: "hours" }, "Store hours: Mon.–Sat. 9 a.m. to 9 p.m. · Sun. noon to 6 p.m.")),
+  ];
+}
 export function StorePA({ active, game, audio, onPurchase }) {
-  const [say, setSay] = React.useState(null);   // "instock" | "closing" | null
+  const [say, setSay] = React.useState(null);   // "instock" | "closing" | "5min" ... "2min" | null
   const [going, setGoing] = React.useState(false);
+  const [notice, setNotice] = React.useState(false); // Big Glutts' notice, a minute from closing
+  const [spoken, setSpoken] = React.useState(0); // (counts what's been said, for the minutes' timer)
   const arrivedAt = React.useRef(performance.now());
   const moves = game && game.log ? game.log.length : 0;
   const finished = !!(game && (game.status === "finished" || game.status === "ended"));
   const t = (k, d) => (typeof window !== "undefined" && typeof window[k] === "number" ? window[k] : d);
   const speak = React.useCallback((which) => {
-    PA.said[which] = true; PA.at = performance.now();
+    if (which === "instock" || which === "closing") PA.said[which] = true;
+    PA.at = performance.now();
+    if (which === "closing") PA.closingAt = PA.at;
     // (The price tag folds itself away, so the words don't cover it.)
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("td-pa-speak"));
     if (audio && audio.playPage) audio.playPage();
     if (which === "closing") setDim(true);
-    setGoing(false); setSay(which);
+    setGoing(false); setSay(which); setSpoken((n) => n + 1);
   }, [audio]);
   // In stock: four moves into a game, or a while after arriving.
   React.useEffect(() => {
@@ -180,23 +272,62 @@ export function StorePA({ active, game, audio, onPurchase }) {
     const id = setTimeout(() => speak("closing"), Math.max(0, wait));
     return () => clearTimeout(id);
   }, [active, finished, say, speak]);
+  /* The last minutes: ten from the closing words, said at five, four,
+     three and two to go (the one it is, if one was missed while the PA
+     was quiet: a sheet or the clerk up), and at one the notice, the
+     lights down another step. */
+  React.useEffect(() => {
+    if (!active || !PA.said.closing || PA.left === 1) return undefined;
+    const minute = t("__EC_TEST_CLOSING_MINUTE_MS__", MINUTE_MS);
+    const tick = () => {
+      const left = Math.max(1, 10 - Math.floor((performance.now() - PA.closingAt) / minute));
+      if (left > 5 || (PA.left && left >= PA.left)) return;
+      PA.left = left;
+      if (left > 1) { speak(`${left}min`); return; }
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("td-pa-speak"));
+      if (audio && audio.playPage) audio.playPage();
+      setDim(true, 2);
+      setSay(null); setNotice(true); setSpoken((n) => n + 1);
+    };
+    tick();
+    if (PA.left === 1) return undefined;
+    // (A little after the minute turns, so the clock's past it when the
+    // timer comes; and again if it wasn't, though it always is.)
+    const nextLeft = PA.left ? PA.left - 1 : 5;
+    let id = 0;
+    const wait = () => { id = setTimeout(() => { const was = PA.left; tick(); if (PA.left === was) wait(); }, Math.max(0, PA.closingAt + (10 - nextLeft) * minute - performance.now()) + 50); };
+    wait();
+    return () => clearTimeout(id);
+  }, [active, spoken, speak, audio]);
   // The words stay a while, then go.
   React.useEffect(() => {
     if (!say) return undefined;
-    const a = setTimeout(() => setGoing(true), say === "closing" ? 12000 : 10000);
-    const b = setTimeout(() => { setSay(null); setGoing(false); }, say === "closing" ? 12700 : 10700);
+    const long = say === "closing";
+    const a = setTimeout(() => setGoing(true), long ? 12000 : 10000);
+    const b = setTimeout(() => { setSay(null); setGoing(false); }, long ? 12700 : 10700);
     return () => { clearTimeout(a); clearTimeout(b); };
   }, [say]);
   React.useEffect(() => { if (!active) setSay(null); }, [active]);
-  if (!active || !say) return null;
+  const checkout = React.useCallback(() => {
+    audio && audio.playSelect && audio.playSelect();
+    setNotice(false); setSay(null);
+    addToCart(); onPurchase && onPurchase();
+  }, [audio, onPurchase]);
+  const later = React.useCallback(() => { audio && audio.playMenu && audio.playMenu(); setNotice(false); }, [audio]);
+  if (!active) return null;
+  if (notice) return h(ClosingNotice, { onCheckout: checkout, onLater: later });
+  if (!say) return null;
+  const toRegister = say !== "instock";
+  // (Each announcement its own caption, come in afresh.)
   return h("button", {
-    type: "button", className: "td-pa", "data-testid": `tienda-pa-${say}`, "data-going": going ? "true" : "false", role: "status", "aria-live": "polite",
+    key: say, type: "button", className: "td-pa", "data-testid": `tienda-pa-${say}`, "data-going": going ? "true" : "false", role: "status", "aria-live": "polite",
     onClick: () => {
+      if (toRegister) { checkout(); return; }
       audio && audio.playSelect && audio.playSelect();
       setSay(null);
-      if (say === "closing") { addToCart(); onPurchase && onPurchase(); } else addToCart();
+      addToCart();
     },
-  }, h("style", null, CSS), LINES[say], h("small", null, say === "closing" ? "Take it to the register ›" : "Put one in the cart ›"));
+  }, h("style", null, CSS), LINES[say], h("small", null, toRegister ? "Take it to the register ›" : "Put one in the cart ›"));
 }
 
 export function useShoppingVisit(active) {
@@ -209,4 +340,4 @@ export function useShoppingVisit(active) {
   }, [active]);
 }
 
-if (typeof window !== "undefined") window.__TIENDA_SHOP__ = () => ({ cart: CART.n, said: { ...PA.said }, dim: !!document.querySelector('.td-closing-dim[data-on="true"]') });
+if (typeof window !== "undefined") window.__TIENDA_SHOP__ = () => ({ cart: CART.n, said: { ...PA.said }, left: PA.left, dim: !!document.querySelector('.td-closing-dim[data-on="true"], .td-closing-dim[data-on="2"]'), dim2: !!document.querySelector('.td-closing-dim[data-on="2"]') });
