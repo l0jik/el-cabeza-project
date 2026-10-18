@@ -224,8 +224,12 @@ check("...the hint says what to do", /next channel/.test(await page.locator('[da
 await page.keyboard.press("Escape");
 await page.waitForTimeout(1500);
 check("Other realities in the corner (mid-game too)", !!(await poll(async () => (await page.locator('[data-testid="action-corner"]').count()) > 0, 8000)));
+// (Two taps: the first asks for the second; the window long for a slow machine.)
+await page.evaluate(() => { window.__EC_TEST_ARM_MS__ = 30000; });
 await page.locator('[data-testid="action-corner"]').click();
-check("...opens the menu", !!(await poll(async () => (await page.locator('[data-testid="realities"]').count()) > 0, 4000)));
+await page.waitForTimeout(300);
+await page.locator('[data-testid="action-corner"]').click();
+check("...opens the menu (two taps)", !!(await poll(async () => (await page.locator('[data-testid="realities"]').count()) > 0, 4000)));
 await page.locator('[data-testid="reality-store"]').click();
 check("...and Big Glutts: the cut, then the store", !!(await poll(async () => (await page.locator('[data-testid="story-cut"]').count()) > 0, 4000)));
 check("...where it is", !!(await poll(() => page.evaluate(() => !window.__DEN_TV__ && !!document.querySelector('[data-testid="dock-panel"], [data-testid="dock-corner"], .ec-title')), 20000)));

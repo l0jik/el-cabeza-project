@@ -541,7 +541,24 @@ console.log("Noir, in the switcher");
   await p.locator('[data-testid="gate-standard"]').click();
   await poll(() => p.evaluate(() => window.__EC_TEST_ARMED__ === true), 6000);
   check("a game begun in Noir is kept as the last world", (await p.evaluate(() => localStorage.getItem("el-cabeza:last-world"))) === "noir");
-  await p.locator('[data-testid="action-corner"]').first().click();
+  /* Other realities asks for a second tap (user: "Hitting the theme
+     switcher button accidentally makes me realize it needs a double tap
+     or countdown timer, too"). */
+  const corner = p.locator('[data-testid="action-corner"]').first();
+  await corner.click();
+  await p.waitForTimeout(400);
+  check("Other realities, one tap: lit, says click again, a ring running down; no menu yet", (await corner.getAttribute("data-armed")) === "true" && /(Tap|Click) again: Other realities/i.test(await p.locator('[data-testid="action-corner-confirm"]').innerText()) && (await p.locator('[data-testid="action-corner-ring"]').count()) === 1 && (await p.locator('[data-testid="realities"]').count()) === 0);
+  await p.waitForTimeout(3200);
+  check("...left three seconds, it goes back to sleep, still no menu", (await corner.getAttribute("data-armed")) === "false" && (await p.locator('[data-testid="action-corner-confirm"]').count()) === 0 && (await p.locator('[data-testid="realities"]').count()) === 0);
+  await corner.click();
+  await p.mouse.click(640, 300);
+  await p.waitForTimeout(300);
+  check("...a press anywhere else puts it back to sleep too", (await corner.getAttribute("data-armed")) === "false" && (await p.locator('[data-testid="realities"]').count()) === 0);
+  // (Two clicks here take seconds on a slow machine: the window long for them.)
+  await p.evaluate(() => { window.__EC_TEST_ARM_MS__ = 30000; });
+  await corner.click();
+  await p.waitForTimeout(300);
+  await corner.click();
   const here = p.locator('[data-testid="reality-noir"] .here');
   check("its Other realities: Noir marked You are here", !!(await poll(async () => (await here.count()) > 0, 6000)));
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
@@ -567,6 +584,10 @@ console.log("The City, in the switcher");
   await p.locator('[data-testid="gate-standard"]').click();
   await poll(() => p.evaluate(() => window.__EC_TEST_ARMED__ === true), 6000);
   check("a game begun in The City is kept as the last world", (await p.evaluate(() => localStorage.getItem("el-cabeza:last-world"))) === "ciudad");
+  // (Two taps: the second opens it; the window long for a slow machine.)
+  await p.evaluate(() => { window.__EC_TEST_ARM_MS__ = 30000; });
+  await p.locator('[data-testid="action-corner"]').first().click();
+  await p.waitForTimeout(300);
   await p.locator('[data-testid="action-corner"]').first().click();
   const here = p.locator('[data-testid="reality-ciudad"] .here');
   check("its Other realities: The City marked You are here", !!(await poll(async () => (await here.count()) > 0, 6000)));

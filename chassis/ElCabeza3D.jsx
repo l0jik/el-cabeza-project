@@ -236,6 +236,8 @@ const TWO_FINGER_DOUBLE_TAP_MS = 400; // max gap between two taps to count as a 
 // board, a little less (frameTourBoard).
 const TOUR_PHI = 0.6;
 const TOUR_BOARD_PHI = 0.45;
+// Other realities (theme.cornerAction) waits this long for its second tap.
+const ACTION_ARM_MS = 3000;
 const AI_BEAT_MS = 500; // the AI's first step comes no sooner than this after its turn comes round (see the AI turn effect)
 // The player took the page out of full screen themselves (the button or the
 // two-finger double-tap): it stays out until they put it back.
@@ -4352,6 +4354,35 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // A theme's own corner action (theme.cornerAction(): { label, onClick }
   // or null; Nova's den after the story: Other realities).
   const cornerAction = theme.cornerAction ? theme.cornerAction() : null;
+  /* It asks for a second tap (user: "Hitting the theme switcher button
+     accidentally makes me realize it needs a double tap or countdown
+     timer, too"): the first lights it and says to tap again, a ring round
+     it running down ACTION_ARM_MS; a second tap inside that opens it;
+     otherwise, or a tap anywhere else, or Escape, it goes back to sleep.
+     actionArmed: when it was lit, 0 when it isn't. */
+  const [actionArmed, setActionArmed] = useState(0);
+  // (Read by the press itself, not the render's copy: a second tap close
+  // behind the first can come before the render the first asked for.)
+  const actionArmedRef = useRef(0);
+  const disarmAction = () => { actionArmedRef.current = 0; setActionArmed(0); };
+  // (Tests on a slow machine, where two clicks take seconds, may wait longer.)
+  const armMs = () => (typeof window !== "undefined" && window.__EC_TEST_HOOKS__ && window.__EC_TEST_ARM_MS__) || ACTION_ARM_MS;
+  useEffect(() => {
+    if (!actionArmed) return undefined;
+    const id = setTimeout(disarmAction, armMs());
+    const away = (e) => { if (!(e.target && e.target.closest && e.target.closest("[data-ec-arm]"))) disarmAction(); };
+    const onKey = (e) => { if (e.key === "Escape") disarmAction(); };
+    document.addEventListener("pointerdown", away, true);
+    window.addEventListener("keydown", onKey);
+    return () => { clearTimeout(id); document.removeEventListener("pointerdown", away, true); window.removeEventListener("keydown", onKey); };
+  }, [actionArmed]);
+  const pressCornerAction = () => {
+    if (!cornerAction) return;
+    const at = actionArmedRef.current;
+    if (at && performance.now() - at < armMs()) { disarmAction(); cornerAction.onClick(); return; }
+    actionArmedRef.current = performance.now();
+    setActionArmed(actionArmedRef.current);
+  };
   const cornerSlots = [fullScreenCorner && "fs", !noHowTo && "howto", theme.freeCamera && theme.freeCamera.dollhouse && "room", theme.focusMode && "focus", cornerAction && "action"].filter(Boolean);
   const cornerPlace = (key) => {
     if (cornerStack) return { left: 18, bottom: 18 + 38 * Math.max(0, cornerSlots.indexOf(key)) };
@@ -11753,28 +11784,55 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
       )}
 
       {/* The theme's own corner action (theme.cornerAction): a ringed
-         planet, the other realities. */}
+         planet, the other realities; a second tap opens it (actionArmed:
+         lit, a ring running down round it, and its words beside it). */}
       {!shell && cornerAction && (
-        <button
-          type="button"
-          data-testid="action-corner"
-          onClick={cornerAction.onClick}
-          aria-label={cornerAction.label}
-          title={cornerAction.label}
-          style={{
-            position: "fixed", ...cornerStyle("action"), zIndex: cornerControlsZ, width: 38, height: 38,
-            display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
-            color: COLORS.charcoal, opacity: cornerColumnCovered ? 0 : focusMode ? 0.25 : 0.5,
-            pointerEvents: cornerColumnCovered ? "none" : "auto", visibility: cornerColumnCovered ? "hidden" : "visible", cursor: "pointer", transition: "opacity 0.5s ease",
-          }}
-          onMouseEnter={(e) => { if (!cornerColumnCovered) e.currentTarget.style.opacity = 1; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerColumnCovered ? 0 : focusMode ? 0.25 : 0.5; }}
-        >
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="5" />
-            <ellipse cx="12" cy="12" rx="10.5" ry="3.6" transform="rotate(-22 12 12)" />
-          </svg>
-        </button>
+        <div data-ec-arm="" style={{ position: "fixed", ...cornerStyle("action"), zIndex: cornerControlsZ, width: 38, height: 38, pointerEvents: "none", visibility: cornerColumnCovered ? "hidden" : "visible" }}>
+          <style>{`@keyframes ecArmRun{from{stroke-dashoffset:0}to{stroke-dashoffset:113.1}}@keyframes ecArmIn{from{opacity:0;transform:translate(-6px,-50%)}to{opacity:1;transform:translate(0,-50%)}}@media (prefers-reduced-motion: reduce){[data-testid="action-corner-ring"] circle{animation:none!important}[data-testid="action-corner-confirm"]{animation:none!important}}`}</style>
+          <button
+            type="button"
+            data-testid="action-corner"
+            data-armed={actionArmed ? "true" : "false"}
+            onClick={pressCornerAction}
+            aria-label={actionArmed ? `${isCoarsePointer() ? "Tap" : "Click"} again: ${cornerAction.label}` : cornerAction.label}
+            title={cornerAction.label}
+            style={{
+              position: "absolute", inset: 0, width: 38, height: 38,
+              display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", padding: 0,
+              color: COLORS.charcoal, opacity: cornerColumnCovered ? 0 : actionArmed ? 1 : focusMode ? 0.25 : 0.5,
+              pointerEvents: cornerColumnCovered ? "none" : "auto", cursor: "pointer", transition: "opacity 0.5s ease",
+            }}
+            onMouseEnter={(e) => { if (!cornerColumnCovered) e.currentTarget.style.opacity = 1; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerColumnCovered ? 0 : actionArmed ? 1 : focusMode ? 0.25 : 0.5; }}
+          >
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="5" />
+              <ellipse cx="12" cy="12" rx="10.5" ry="3.6" transform="rotate(-22 12 12)" />
+            </svg>
+          </button>
+          {actionArmed > 0 && (
+            <>
+              <svg key={`ring-${actionArmed}`} data-testid="action-corner-ring" width="38" height="38" viewBox="0 0 38 38" aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none", transform: "rotate(-90deg)" }}>
+                <circle cx="19" cy="19" r="18" fill="none" stroke={COLORS.charcoal} strokeOpacity="0.18" strokeWidth="2" />
+                <circle cx="19" cy="19" r="18" fill="none" stroke={COLORS.charcoal} strokeWidth="2" strokeLinecap="round" strokeDasharray="113.1" style={{ animation: `ecArmRun ${armMs()}ms linear both` }} />
+              </svg>
+              <span
+                key={`words-${actionArmed}`}
+                data-testid="action-corner-confirm"
+                role="status"
+                aria-live="polite"
+                style={{
+                  position: "absolute", left: 44, top: "50%", transform: "translate(0,-50%)", whiteSpace: "nowrap",
+                  padding: "6px 10px", borderRadius: 6, background: COLORS.charcoal, color: COLORS.cream,
+                  fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.3)", animation: "ecArmIn 0.2s ease both",
+                }}
+              >
+                {isCoarsePointer() ? "Tap" : "Click"} again: {cornerAction.label}
+              </span>
+            </>
+          )}
+        </div>
       )}
 
       {/* Focus (theme.focusMode): a circle in a frame of corners, beside

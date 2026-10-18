@@ -46,7 +46,8 @@ const city = () => T(() => !!window.__CIUDAD__);
 // menu opens from the gate's link, or from Nova's corner once a game's on.
 const toRealities = async (p = page) => {
   const link = p.locator('[data-testid="gate-realities"]');
-  if (await link.count()) await link.click(); else await p.locator('[data-testid="action-corner"]').first().click();
+  // (Nova's corner asks for a second tap.)
+  if (await link.count()) await link.click(); else { await p.evaluate(() => { window.__EC_TEST_ARM_MS__ = 30000; }); await p.locator('[data-testid="action-corner"]').first().click(); await p.waitForTimeout(300); await p.locator('[data-testid="action-corner"]').first().click(); }
   return poll(async () => (await p.locator('[data-testid="realities"]').count()) === 1, 6000);
 };
 const gateWorld = (p = page) => p.locator('[data-testid="reality-gate"]').getAttribute("data-world").catch(() => null);
