@@ -17,18 +17,28 @@
      sheen   a glint of light passing over EL CABEZA, left to right
      ink     from the light ink (over the opening's dark table) to the
              poster's own (5's dark ink on its paper)
-     halo    a soft shade round the name, for while the picture moves under it */
+     halo    a soft shade round the name, for while the picture moves under it
+     pulse   NOVA breathing once it's in (the logo posters only; user: "At
+             the end, have Nova pulsing in a subtle way"): a slow swell of
+             light behind it and in its letters, a hair larger, then back */
 import { W } from "./size.js";
 
 // EL CABEZA at rest, and where it is from the first frame (the opening's board ends at y 1403).
 export const TITLE = { base: 1562, width: 776, track: 0.06 };
 
 /* Each poster's inks. light: the name's colour over a dark ground (the
-   opening's table), where a poster's own ink is dark (5, on paper). */
+   opening's table), where a poster's own ink is dark (5, on paper). The
+   logo posters (logos.js) take their logos' own: black or cream for the
+   name, NOVA in gold; and NOVA breathes at the end (pulse). */
 export const SCHEME = {
   v1: { ink: "#F3D4A2", light: "#F3D4A2", nova: "#DE8631", rule: "#C8762E", glow: [255, 190, 112], sheen: "#FFF4DE", ground: "dark" },
   v2: { ink: "#F3D4A2", light: "#F3D4A2", nova: "#DE8631", rule: "#C8762E", glow: [255, 190, 112], sheen: "#FFF4DE", ground: "dark" },
   v5: { ink: "#1E1611", light: "#F3D4A2", nova: "#C9742E", rule: "#C9742E", glow: [214, 112, 40], sheen: "#D98A3A", ground: "light" },
+  L1: { ink: "#1C1916", light: "#F3D4A2", nova: "#8E6A32", rule: "#8E6A32", glow: [200, 150, 76], sheen: "#C99A4B", ground: "light", pulse: true },
+  L2: { ink: "#EFE5D2", light: "#EFE5D2", nova: "#D4A65E", rule: "#B98D4C", glow: [238, 186, 108], sheen: "#FFF1D6", ground: "dark", pulse: true },
+  L3: { ink: "#F0E7D4", light: "#F0E7D4", nova: "#D3A862", rule: "#B99050", glow: [232, 188, 112], sheen: "#FFF3DA", ground: "dark", pulse: true },
+  L4: { ink: "#1A1714", light: "#F3D4A2", nova: "#8C6830", rule: "#8C6830", glow: [200, 150, 76], sheen: "#C99A4B", ground: "light", pulse: true },
+  L5: { ink: "#EBCB93", light: "#EBCB93", nova: "#CFA35E", rule: "#C29A5C", glow: [240, 192, 116], sheen: "#FFF0D2", ground: "dark", pulse: true },
 };
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -160,8 +170,8 @@ const bloomCurve = (n, peak = 0.24, fade = 1) => smooth(span01(n, 0.04, peak)) *
 /* NOVA in light letters between two rules: a spark on the line, the rules
    running out from it and parting, the word opening out of the middle into
    focus, a soft bloom behind. o: y (the line), size, track (ems), gap,
-   len, rule (thickness). */
-function ruledNova(ctx, sc, n, o) {
+   len, rule (thickness). p: the breath once it's in (0..1). */
+function ruledNova(ctx, sc, n, o, p = 0) {
   const cx = W / 2, y = o.y, dark = sc.ground === "dark", glow = sc.glow, k = o.size / 48;
   const rest = layout(ctx, "NOVA", JOSEFIN(o.size), o.track * o.size, cx);
   const gi = rest.full / 2 + o.gap;
@@ -183,13 +193,37 @@ function ruledNova(ctx, sc, n, o) {
     const word = layout(ctx, "NOVA", JOSEFIN(o.size), (0.1 + (o.track - 0.1) * open) * o.size, cx);
     const blur = 7 * k * (1 - smooth(span01(n, 0.14, 0.74)));
     ctx.save();
+    if (p > 0) { const s = 1 + 0.012 * p; ctx.translate(cx, y); ctx.scale(s, s); ctx.translate(-cx, -y); }
     ctx.font = word.font;
     ctx.fillStyle = sc.nova;
     ctx.globalAlpha = a;
     if (blur > 0.05) ctx.filter = `blur(${blur.toFixed(2)}px)`;
     for (const l of word.out) ctx.fillText(l.ch, l.x, y + o.size * 0.36);
+    if (p > 0) {
+      // the breath: the letters lighter, a soft glow round them
+      const dark = sc.ground === "dark";
+      ctx.fillStyle = sc.sheen;
+      ctx.globalAlpha = (dark ? 0.3 : 0.62) * p;
+      ctx.shadowColor = rgba(sc.glow, (dark ? 0.65 : 0.5) * p);
+      ctx.shadowBlur = (dark ? 28 : 20) * p;
+      for (const l of word.out) ctx.fillText(l.ch, l.x, y + o.size * 0.36);
+    }
     ctx.restore();
   }
+}
+
+// The breath's light behind NOVA and along its rules.
+function breath(ctx, sc, p, o) {
+  if (!(p > 0)) return;
+  const cx = W / 2, k = o.size / 48;
+  bloom(ctx, sc, cx, o.y, 470 * Math.sqrt(k), 120 * Math.sqrt(k), (sc.ground === "dark" ? 0.62 : 0.5) * p);
+  const word = layout(ctx, "NOVA", JOSEFIN(o.size), o.track * o.size, cx), gi = word.full / 2 + o.gap;
+  ctx.save();
+  ctx.fillStyle = sc.sheen;
+  ctx.globalAlpha = 0.35 * p;
+  ctx.fillRect(cx - gi - o.len, o.y - o.rule / 2, o.len, o.rule);
+  ctx.fillRect(cx + gi, o.y - o.rule / 2, o.len, o.rule);
+  ctx.restore();
 }
 
 // NOVA: its line, size, letter-spacing (ems), the rules' gap, length and thickness.
@@ -204,6 +238,7 @@ export function drawTitle(ctx, id, s = {}) {
   ctx.textAlign = "left";
   const word = cabeza(ctx, sc, s, lerp(TITLE.base, CABEZA_UP, easeInOut(span01(n, 0, 0.4))));
   glint(ctx, sc, s.sheen ?? 0, word);
-  if (n > 0) ruledNova(ctx, sc, n, NOVA);
+  breath(ctx, sc, s.pulse ?? 0, NOVA);
+  if (n > 0) ruledNova(ctx, sc, n, NOVA, s.pulse ?? 0);
   ctx.restore();
 }

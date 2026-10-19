@@ -4,8 +4,11 @@
      v2  the board bursts apart along the rays, sideways first, the slices
          flying out to show the poster underneath
      v5  the rings swing in round their corners like wipers, the stripes drop
-         in from above and rise from below, and the paper spreads out */
+         in from above and rise from below, and the paper spreads out
+     the logos: the board in level bands (4's stripes) sliding away to either
+         side in turn, the blocks rising out of the line after them */
 import { W, H, V1, V2, V5, wedge, posterCanvas } from "./posters.js";
+import { LOGO, blockBox, drawBlock, drawLines, star, planet } from "./logos.js";
 import { BOARD, REST } from "./board.js";
 import { clamp, lerp, span, smooth, easeIn, easeOut, easeInOut, backOut } from "./anim.js";
 
@@ -197,9 +200,74 @@ function sweepV5(ctx, t) {
   if (fin > 0) { ctx.globalAlpha = fin; ctx.drawImage(P, 0, 0); ctx.globalAlpha = 1; }
 }
 
+/* ---------------- the logos: bands ---------------- */
+
+/* The board cut into level bands as wide as 4's stripes, sliding away to
+   either side in turn, the middle first, to show the emblem under it; its
+   blocks then rise out of the line one after another, the line under them
+   runs out and the upright one draws down. */
+function sweepBands(ctx, id, t) {
+  if (t < 0.75) return rest(ctx);
+  const L = LOGO[id], [cx, cy] = L.C, R = L.R;
+  const P = posterCanvas(id, { title: false, blocks: false, lines: false });
+  // underneath: the emblem without its blocks and lines, settling from a touch large
+  const s = lerp(1.05, 1, easeOut(span(t, 0.8, 2.8)));
+  ctx.save();
+  ctx.translate(cx, cy); ctx.scale(s, s); ctx.translate(-cx, -cy);
+  ctx.drawImage(P, 0, 0);
+  ctx.restore();
+  const fAxis = easeInOut(span(t, 2.05, 2.75)), fBase = easeInOut(span(t, 1.45, 2.15));
+  if (!L.axisOver) drawLines(ctx, id, fAxis, "axis");
+  L.blocks.forEach((_, i) => {
+    const k = backOut(span(t, 1.7 + 0.2 * i, 2.45 + 0.2 * i), 1.1);
+    if (k <= 0) return;
+    const h = L.base - blockBox(id, i)[1];
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, L.base);
+    ctx.clip();
+    ctx.translate(0, (1 - k) * (h + 0.03 * R));
+    drawBlock(ctx, id, i);
+    ctx.restore();
+  });
+  if (L.axisOver) drawLines(ctx, id, fAxis, "axis");
+  drawLines(ctx, id, fBase, "base");
+  if (L.star) star(ctx, id, smooth(span(t, 2.6, 3.0)));
+  if (L.orbit) planet(ctx, id, smooth(span(t, 2.6, 3.0)));
+  // the board's bands over it all: their shadows first, so none falls on another band
+  const pitch = L.stripes?.pitch ?? 36, top = cy - R - pitch * Math.ceil((cy - R) / pitch);
+  const bands = [];
+  for (let y = top, k = 0; y < H; y += pitch, k++) {
+    const t0 = 0.8 + 1.05 * Math.min(1, Math.abs(y + pitch / 2 - cy) / 1100) + 0.05 * ((k * 7) % 3);
+    const f = easeIn(span(t, t0, t0 + 0.8));
+    if (f < 1) bands.push({ y, f, dx: (k % 2 ? 1 : -1) * 1.15 * W * f });
+  }
+  for (const b of bands) {
+    if (b.f <= 0) continue;
+    ctx.save();
+    ctx.shadowColor = `rgba(0,0,0,${0.5 * Math.min(1, b.f * 6)})`;
+    ctx.shadowBlur = 18;
+    ctx.shadowOffsetY = 8;
+    ctx.fillStyle = "#120c08";
+    ctx.fillRect(b.dx, b.y, W, pitch);
+    ctx.restore();
+  }
+  for (const b of bands) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(b.dx, b.y, W, pitch);
+    ctx.clip();
+    ctx.drawImage(BOARD.start, b.dx, 0);
+    ctx.restore();
+  }
+  const fin = smooth(span(t, 3.05, 3.4));
+  if (fin > 0) { ctx.globalAlpha = fin; ctx.drawImage(posterCanvas(id, { title: false }), 0, 0); ctx.globalAlpha = 1; }
+}
+
 export const sweep = {
-  settle: (id) => ({ v1: 3.4, v2: 3.0, v5: 3.55 })[id],
+  settle: (id) => (LOGO[id] ? 3.4 : { v1: 3.4, v2: 3.0, v5: 3.55 }[id]),
   frame(ctx, id, t) {
+    if (LOGO[id]) return sweepBands(ctx, id, t);
     if (id === "v1") return sweepV1(ctx, t);
     if (id === "v2") return sweepV2(ctx, t);
     return sweepV5(ctx, t);

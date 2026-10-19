@@ -5,9 +5,13 @@
      v2: the board grows into a cube seen corner-on; a cube half its size
          turns out of it, the triangle draws itself, the rays shoot out.
      v5: the pieces lift away; the board's squares slide into stripes and
-         bend into rings, the table turns to paper. */
+         bend into rings, the table turns to paper.
+     the logos: the pieces lift off; the board rounds into the disc, its
+         wood giving way to the stone and the gold; three pieces fly to stand
+         as the blocks and the rest sink into the disc; the lines draw. */
 import { W, H, V1, V2, V5, posterCanvas, hexPoints, poly, wedge, v1Frame, v2Fans, v5Stripes, v5Rings } from "./posters.js";
-import { BOARD, XS, YS, REST, PHOTO, drawStart } from "./board.js";
+import { BOARD, XS, YS, REST, PHOTO, drawStart, toFrame } from "./board.js";
+import { LOGO, halves, blockBox, drawBlock, drawGround, drawRings, drawHairlines, drawLines, star, planet } from "./logos.js";
 import { clamp, lerp, span, smooth, smoother, easeIn, easeOut, easeInOut, backOut, hex, mix, mixRgb, rgb, canvas } from "./anim.js";
 import { makeCam, superellipse, drawPrism, planeXform, pathPts, ISO_EPS } from "./iso3d.js";
 
@@ -605,11 +609,130 @@ function ringsV5(key, S, bend, ringIn) {
   return c;
 }
 
+/* ---------------- the logos ---------------- */
+
+// Which piece stands as which block: the light ones for blocks with gold in them, the dark for the rest; nearest in shape.
+const CAST = {};
+function castLogo(id) {
+  if (CAST[id]) return CAST[id];
+  const L = LOGO[id], free = BOARD.pieces.filter((p) => !p.circle);
+  const aspect = (p) => (p.box[3] - p.box[1]) / (p.box[2] - p.box[0]);
+  return (CAST[id] = L.blocks.map((faces, i) => {
+    const [x0, y0, x1, y1] = blockBox(id, i), want = (y1 - y0) / (x1 - x0);
+    const gold = faces.some((f) => f[2] === "gold");
+    const pool = free.filter((p) => (p.side === "light") === gold);
+    const off = (p) => Math.abs(Math.log(aspect(p) / want));
+    const pick = (pool.length ? pool : free).reduce((a, b) => (off(b) < off(a) ? b : a));
+    free.splice(free.indexOf(pick), 1);
+    return pick;
+  }));
+}
+
+// A piece's cut-out centred at (x, y), k times its size on the board, lifted by `lift` (its shadow).
+function pieceAt(ctx, p, x, y, k, lift, alpha = 1) {
+  const s = REST.k * k * (1 + 0.12 * lift), w = p.sprite.width * s, h = p.sprite.height * s;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  if (lift > 0) {
+    ctx.shadowColor = `rgba(0,0,0,${0.55 * Math.min(1, lift * 1.5)})`;
+    ctx.shadowBlur = 10 + 40 * lift;
+    ctx.shadowOffsetX = -14 * lift;
+    ctx.shadowOffsetY = 34 * lift;
+  }
+  ctx.drawImage(p.sprite, x - w / 2, y - h / 2, w, h);
+  ctx.restore();
+}
+
+function buildLogo(ctx, id, t) {
+  if (t < 0.6) return drawStart(ctx, t);
+  const L = LOGO[id], [cx, cy] = L.C, R = L.R;
+  // the board: square to round, shrinking into the disc
+  const m = easeInOut(span(t, 0.9, 2.3));
+  const hw = lerp((REST.w / 2) * 1.012, R, m), hh = lerp((REST.h / 2) * 1.012, R, m);
+  const bx = lerp(REST.cx, cx, m), by = lerp(REST.cy, cy, m), rad = Math.min(hw, hh, lerp(14, R, smooth(span(m, 0.1, 1))));
+  const sx = hw / (REST.w / 2), sy = hh / (REST.h / 2);
+  const carry = (fx, fy) => [bx + (fx - REST.cx) * sx, by + (fy - REST.cy) * sy];
+  // the table giving way to the poster's ground, the rings behind
+  ctx.drawImage(BOARD.ground, 0, 0);
+  const g = smooth(span(t, 1.2, 2.4));
+  if (g > 0) { ctx.globalAlpha = g; drawGround(ctx, id); ctx.globalAlpha = 1; }
+  drawRings(ctx, id, easeInOut(span(t, 2.3, 3.2)));
+  const mat = smooth(span(t, 1.5, 2.5)), cut = L.whole ? 0 : smooth(span(t, 2.2, 2.7));
+  const shape = () => { ctx.beginPath(); ctx.roundRect(bx - hw, by - hh, 2 * hw, 2 * hh, rad); };
+  ctx.save();
+  if (cut > 0) { ctx.beginPath(); ctx.rect(0, 0, W, lerp(H, L.base, cut)); ctx.clip(); }
+  if (mat < 1) {
+    ctx.save();
+    ctx.shadowColor = `rgba(0,0,0,${0.7 * (1 - mat)})`;
+    ctx.shadowBlur = 46;
+    ctx.shadowOffsetY = 22;
+    shape();
+    ctx.fillStyle = "#000";
+    ctx.fill();
+    ctx.restore();
+  }
+  shape();
+  ctx.clip();
+  if (mat < 1) ctx.drawImage(BOARD.clean, bx - hw, by - hh, 2 * hw, 2 * hh);
+  if (mat > 0) { const hv = halves(id); ctx.globalAlpha = mat; ctx.drawImage(hv.canvas, hv.x, hv.y); ctx.globalAlpha = 1; }
+  ctx.restore();
+  drawHairlines(ctx, id, span(t, 2.7, 3.35));
+  const fAxis = easeInOut(span(t, 2.45, 3.15));
+  if (!L.axisOver) drawLines(ctx, id, fAxis, "axis");
+  // the pieces: lifted as the board starts to change; those not cast sink into the disc
+  const lift = smooth(span(t, 0.75, 1.25)), cast = castLogo(id);
+  BOARD.pieces.filter((p) => !cast.includes(p)).forEach((p, j) => {
+    const t0 = 1.2 + 0.07 * j, k = easeIn(span(t, t0, t0 + 0.75));
+    if (k >= 1) return;
+    const [px, py] = carry(...toFrame(p.cx, p.cy));
+    pieceAt(ctx, p, lerp(px, cx + (px - cx) * 0.3, k), lerp(py - 30 * lift, cy + (py - cy) * 0.3, k), sx * (1 - 0.75 * k), lift * (1 - k), 1 - smooth(span(k, 0.4, 1)));
+  });
+  // ... and the cast fly to their places, turning from wood into the blocks
+  cast.forEach((p, i) => {
+    const t0 = 1.65 + 0.2 * i, u = span(t, t0, t0 + 1.0), e = easeInOut(u);
+    const [px, py] = carry(...toFrame(p.cx, p.cy));
+    const [x0, y0, x1, y1] = blockBox(id, i), ew = x1 - x0, eh = y1 - y0;
+    const sk = REST.k * (1 + 0.12 * lift), sw = p.sprite.width * sk * sx, sh = p.sprite.height * sk * sy;
+    const w = lerp(sw, ew, e), h = lerp(sh, eh, e);
+    const x = lerp(px, (x0 + x1) / 2, e), y = lerp(py - 30 * lift, (y0 + y1) / 2, e) - 0.25 * R * Math.sin(Math.PI * e);
+    const air = lift * (1 - e) + 0.6 * Math.sin(Math.PI * u), turn = smooth(span(u, 0.35, 0.8));
+    if (turn < 1) {
+      ctx.save();
+      ctx.globalAlpha = 1 - turn;
+      ctx.shadowColor = `rgba(0,0,0,${0.55 * Math.min(1, air * 1.5)})`;
+      ctx.shadowBlur = 10 + 40 * air;
+      ctx.shadowOffsetX = -14 * air;
+      ctx.shadowOffsetY = 34 * air;
+      ctx.drawImage(p.sprite, x - w / 2, y - h / 2, w, h);
+      ctx.restore();
+    }
+    if (turn > 0) {
+      ctx.save();
+      ctx.globalAlpha = turn;
+      ctx.translate(x - w / 2, y - h / 2);
+      ctx.scale(w / ew, h / eh);
+      ctx.translate(-x0, -y0);
+      drawBlock(ctx, id, i);
+      ctx.restore();
+    }
+  });
+  if (L.axisOver) drawLines(ctx, id, fAxis, "axis");
+  drawLines(ctx, id, easeInOut(span(t, 2.6, 3.2)), "base");
+  if (L.star) star(ctx, id, smooth(span(t, 3.0, 3.4)));
+  if (L.orbit) planet(ctx, id, smooth(span(t, 3.0, 3.4)));
+  // (the opening photo gives way to the model of it)
+  const op = 1 - span(t, 0.6, 0.75);
+  if (op > 0) { ctx.globalAlpha = op; drawStart(ctx, t); ctx.globalAlpha = 1; }
+  const fin = smooth(span(t, 3.55, 3.9));
+  if (fin > 0) { ctx.globalAlpha = fin; ctx.drawImage(posterCanvas(id, { title: false }), 0, 0); ctx.globalAlpha = 1; }
+}
+
 /* ---------------- the version ---------------- */
 
 export const build = {
-  settle: (id) => ({ v1: 3.8, v2: 4.2, v5: 3.95 })[id],
+  settle: (id) => (LOGO[id] ? 3.9 : { v1: 3.8, v2: 4.2, v5: 3.95 }[id]),
   frame(ctx, id, t) {
+    if (LOGO[id]) return buildLogo(ctx, id, t);
     if (id === "v1") return buildV1(ctx, t);
     if (id === "v2") return buildV2(ctx, t);
     if (id === "v5") return buildV5(ctx, t);

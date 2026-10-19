@@ -75,11 +75,11 @@ window.SPLASH = {
     const ink = inkAt(version, id);
     picture(version, id, t);
     ctx.save();
-    drawTitle(ctx, id, titleState(t, VERSIONS[version].settle(id), ink));
+    drawTitle(ctx, id, titleState(t, VERSIONS[version].settle(id), ink, SCHEME[id].pulse));
     ctx.restore();
   },
   duration(version, id) {
-    return length(VERSIONS[version].settle(id));
+    return length(VERSIONS[version].settle(id), SCHEME[id].pulse);
   },
   inkAt,
 };

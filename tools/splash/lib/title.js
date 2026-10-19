@@ -4,19 +4,26 @@
    over the board photo in the first second, its letters closing in, and
    stays, steady, while the picture changes under it. Once the poster has
    settled, NOVA has its own moment (lockup.js), a glint crosses the name,
-   and it all holds. */
+   and it all holds; on the logo posters NOVA breathes twice instead (user:
+   "At the end, have Nova pulsing in a subtle way"). */
 import { span, smooth } from "./anim.js";
 
 export const NOVA_AT = 0.3; // after the poster settles
 export const NOVA_LEN = 1.5;
 export const HOLD = 1.4;
+// The breaths: from just after NOVA is in, each this long, then a moment still.
+export const BREATH = 1.7, BREATHS = 2;
+const BREATH_AT = 1.6, STILL = 0.2;
 
-export const length = (settle) => settle + NOVA_AT + NOVA_LEN + HOLD;
+export const length = (settle, pulse = false) => settle + NOVA_AT + (pulse ? BREATH_AT + BREATHS * BREATH + STILL : NOVA_LEN + HOLD);
+
+// A breath's swell at p seconds into the breaths: out and back, slowly.
+const breath = (p) => (p <= 0 || p >= BREATHS * BREATH ? 0 : 0.5 - 0.5 * Math.cos((2 * Math.PI * p) / BREATH));
 
 /* The title's state at t. settle: when the version's poster is whole;
    inkAt: when the ground under the name turns light (poster 5's paper), or
-   null where it stays dark. */
-export function titleState(t, settle, inkAt) {
+   null where it stays dark; pulse: NOVA breathes at the end. */
+export function titleState(t, settle, inkAt, pulse = false) {
   const n0 = settle + NOVA_AT;
   return {
     cabeza: span(t, 0.05, 1.25),
@@ -24,5 +31,6 @@ export function titleState(t, settle, inkAt) {
     halo: 1 - smooth(span(t, settle - 0.3, settle + 0.3)),
     nova: span(t, n0, n0 + NOVA_LEN),
     sheen: span(t, n0 + 0.5 * NOVA_LEN, n0 + 1.3 * NOVA_LEN),
+    pulse: pulse ? breath(t - n0 - BREATH_AT) : 0,
   };
 }

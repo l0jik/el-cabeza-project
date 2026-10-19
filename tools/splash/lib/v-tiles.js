@@ -4,9 +4,11 @@
      v2  out to the sides from the middle, as the rays run
      v5  quarter by quarter: the stripes' tiles turn on upright hinges, the
          rings' on level ones
+     the logos: a ripple out from the disc's middle, as 1
    The title isn't in the tiles: it's over them (title.js). */
 import * as THREE from "../../../node_modules/three/build/three.module.js";
 import { W, H, V1, V2, V5, posterCanvas } from "./posters.js";
+import { LOGO } from "./logos.js";
 import { BOARD, XS, YS, REST } from "./board.js";
 import { clamp, lerp, span, smooth, easeInOut, rng, canvas } from "./anim.js";
 
@@ -61,8 +63,8 @@ function texture(cv) {
 // The flip for each tile: when, about which axis (in the picture's plane), by poster.
 function plan(id, cx, cy) {
   const j = rng(Math.round(cx * 7 + cy * 13))() - 0.5;
-  if (id === "v1") {
-    const [ox, oy] = V1.C;
+  if (id === "v1" || LOGO[id]) {
+    const [ox, oy] = LOGO[id] ? LOGO[id].C : V1.C;
     const d = Math.hypot(cx - ox, cy - oy);
     return { s: 0.75 + 2.1 * (d / 1250) + 0.12 * j, dir: d < 1 ? [1, 0] : [(cx - ox) / d, (cy - oy) / d] };
   }

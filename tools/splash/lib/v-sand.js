@@ -5,13 +5,15 @@
      v1  a whirlpool round the hexagon
      v2  a flatter one, drawn out sideways like the rays
      v5  a squarer one, round the four squares
+     the logos (logos.js): a round one about the disc
    The middle of the board goes first; the poster forms from its middle out. */
 import { W, H, V1, V2, V5, posterCanvas } from "./posters.js";
+import { LOGO } from "./logos.js";
 import { BOARD, REST } from "./board.js";
 import { clamp, lerp, span, smooth, easeInOut, rng, hex, fbm } from "./anim.js";
 
 const GW = W / 2, GH = H / 2, N = GW * GH; // grains, one per 2 x 2 block
-const CENTRE = { v1: V1.C, v2: V2.C, v5: [V5.x + V5.S / 2, V5.y + V5.S / 2] };
+const CENTRE = { v1: V1.C, v2: V2.C, v5: [V5.x + V5.S / 2, V5.y + V5.S / 2], ...Object.fromEntries(Object.entries(LOGO).map(([id, L]) => [id, L.C])) };
 // How the swirl is shaped: positions from (r, angle) and back.
 const SHAPE = {
   v1: { to: (r, a) => [r * Math.cos(a), r * Math.sin(a)], from: (x, y) => [Math.hypot(x, y), Math.atan2(y, x)] },
@@ -21,7 +23,8 @@ const SHAPE = {
     from: (x, y) => [(x ** 4 + y ** 4) ** 0.25, Math.atan2(y, x)],
   },
 };
-const EMPTY = { v1: "#1E130D", v2: V2.bg, v5: V5.paper };
+for (const id in LOGO) SHAPE[id] = SHAPE.v1;
+const EMPTY = { v1: "#1E130D", v2: V2.bg, v5: V5.paper, ...Object.fromEntries(Object.entries(LOGO).map(([id, L]) => [id, L.ground.empty])) };
 
 const PLANS = {};
 function pixels(cv) { return new Uint32Array(cv.getContext("2d").getImageData(0, 0, W, H).data.buffer.slice(0)); }

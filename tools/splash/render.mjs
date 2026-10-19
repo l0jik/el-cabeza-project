@@ -11,14 +11,16 @@
    Frames are drawn in Chromium (tools/splash/splash.html, a canvas stepped
    one frame at a time) and piped to ffmpeg.
 
-     node tools/splash/render.mjs posters                  the three posters as PNGs
+     node tools/splash/render.mjs posters [ids]            the posters as PNGs (v1 v2 v5 by default)
      node tools/splash/render.mjs still <version> <poster> <t> [<t> ...]
      node tools/splash/render.mjs video <version> <poster>
      node tools/splash/render.mjs all                      every version x poster
    Options: --out DIR (default /tmp/splash-out), --fps N (default 60),
    --from S --to S (a part of a video, for checking).
 
-   Versions: tiles, sand, liquid, sweep, build. Posters: v1, v2, v5.
+   Versions: tiles, sand, liquid, sweep, build. Posters: v1, v2, v5, and
+   the logo posters L1 to L5 (lib/logos.js; their videos are the five pairs
+   in LOGO_VIDEOS: `all logos` renders them).
    Needs an ffmpeg with libx264 (FFMPEG=path to use another;
    `pip install imageio-ffmpeg` has one). */
 import { chromium } from "playwright";
@@ -37,6 +39,8 @@ const TO = opt("to", null);
 const FF = process.env.FFMPEG || "ffmpeg";
 const VERSIONS = ["tiles", "sand", "liquid", "sweep", "build"];
 const POSTERS = ["v1", "v2", "v5"];
+// The logo posters, each with the version that brings it in.
+const LOGO_VIDEOS = [["tiles", "L3"], ["sand", "L2"], ["liquid", "L1"], ["sweep", "L4"], ["build", "L5"]];
 fs.mkdirSync(OUT, { recursive: true });
 
 const browser = await chromium.launch({
@@ -87,7 +91,7 @@ async function video(version, poster) {
 
 const [cmd, ...rest] = args;
 if (cmd === "posters") {
-  for (const p of POSTERS) {
+  for (const p of rest.length ? rest : POSTERS) {
     await page.evaluate((id) => window.SPLASH.poster(id), p);
     check();
     fs.writeFileSync(path.join(OUT, `poster-${p}.png`), await shot());
@@ -98,9 +102,11 @@ if (cmd === "posters") {
   for (const t of ts) console.log(await still(v, p, Number(t)));
 } else if (cmd === "video") {
   await video(rest[0], rest[1]);
+} else if (cmd === "all" && rest[0] === "logos") {
+  for (const [v, p] of LOGO_VIDEOS) await video(v, p);
 } else if (cmd === "all") {
   for (const v of rest.length ? rest : VERSIONS) for (const p of POSTERS) await video(v, p);
 } else {
-  console.log("usage: render.mjs posters | still <version> <poster> <t>... | video <version> <poster> | all [versions]");
+  console.log("usage: render.mjs posters [ids] | still <version> <poster> <t>... | video <version> <poster> | all [versions | logos]");
 }
 await browser.close();

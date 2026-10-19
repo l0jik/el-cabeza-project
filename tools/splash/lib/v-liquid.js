@@ -1,11 +1,12 @@
 /* Version 3, "Liquid": a warp morph. The board's outline flows into the
    poster's (its square into the hexagon for 1 and 2, onto the four squares
-   for 5) while ripples run out from the middle and the poster's colours
+   for 5, round into the disc for the logos) while ripples run out from the middle and the poster's colours
    seep in through the wood in blots, a warm edge ahead of them. The frame's
    edges stay put; everything between bends smoothly (a thin-plate spline
    through matched points: the board's corners and edges to the poster's). */
 import * as THREE from "../../../node_modules/three/build/three.module.js";
 import { W, H, V1, V2, V5, hexPoints, posterCanvas } from "./posters.js";
+import { LOGO } from "./logos.js";
 import { BOARD, REST } from "./board.js";
 import { clamp, lerp, span, smooth, easeInOut } from "./anim.js";
 
@@ -24,6 +25,11 @@ function boardPoints() {
 }
 // The same sixteen points on the poster's outline, in the same order (top left, along the top, ...).
 function posterPoints(id) {
+  if (LOGO[id]) {
+    // round the disc, a point every 22.5 degrees from its upper left
+    const { C, R } = LOGO[id];
+    return { ring: Array.from({ length: 16 }, (_, i) => { const a = ((-135 + 22.5 * i) * Math.PI) / 180; return [C[0] + R * Math.cos(a), C[1] + R * Math.sin(a)]; }), c: C };
+  }
   const L = (a, b, f) => [lerp(a[0], b[0], f), lerp(a[1], b[1], f)];
   if (id === "v5") {
     const x0 = V5.x, y0 = V5.y, x1 = V5.x + V5.S, y1 = V5.y + V5.S;

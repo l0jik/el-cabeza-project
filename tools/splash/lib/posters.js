@@ -19,6 +19,7 @@
    it up again from the same numbers. */
 import { W, H } from "./size.js";
 import { drawTitle } from "./lockup.js";
+import { LOGO_DRAW } from "./logos.js";
 export { W, H };
 const D2R = Math.PI / 180;
 
@@ -336,7 +337,8 @@ export function grain(ctx, amount = 0.09) {
   ctx.restore();
 }
 
-export const DRAW = { v1: drawV1, v2: drawV2, v5: drawV5 };
+// (and the five logo posters, logos.js)
+export const DRAW = { v1: drawV1, v2: drawV2, v5: drawV5, ...LOGO_DRAW };
 
 /* The whole poster into a new canvas (cached): the artwork with its grain,
    and the title over it (opt.title false: the artwork alone, what the
