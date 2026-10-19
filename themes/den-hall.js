@@ -26,8 +26,9 @@
    ceiling, sparks drifting out into the room, a flash over the whole
    screen; and in the hall, the rift and its glow. The sound is made here
    (the den's phoneOutput: straight to the master): booms, a hum, crackle,
-   the roar at the end; and, on the way in, recordings (PULL below): the
-   man pulled along, things going over, a force field, his shout.
+   the footsteps; and, on the way in, recordings (PULL below): the dread
+   under the walk, a force field, his shout; and the den's own sound
+   bending away behind you (den-audio.js hallPull).
 
    createHall({ audio, onEnding, flares }) -> { arm(moves), tick(now, t, den, ctx),
    placeCamera(camera, t, den), state(), dispose() }. den-fx.js runs it. */
@@ -82,31 +83,34 @@ const ENDING_AT = CALM_UNTIL + ERUPT_MS;
    round it stretches away; the white comes over its last moments. */
 const DOLLY = [12000, 15800], DOLLY_IN = 0.62, DOLLY_MAX_FOV = 118;
 
-/* The pull's recordings (user: "audio of someone being pulled, somewhat
-   unwilingly, although curious... stuff should sound like it's being
-   knocked over, but it's not total chaos... some forcefield like noise";
-   then, hearing it, "Less grunting, less panting... More surprise and
-   ruckus sounds", and of five whole sets made that way, "Let's go with
-   number 5... that glass break right near the very end, we need to remove
-   that and lower the ruckus just a hair"), made by tools/hall_sounds.py
-   from freesound.org recordings (assets/hall/src/CREDITS.md): the man, one
-   voice throughout, surprised (dersuperanton's, CC BY 4.0); his shout as
-   he's taken (LittleRobotSoundFactory's, CC BY 4.0; both credited on the
-   About card), and its preverb; what's thrown about on the way; the force
-   field's hum. No breathing. Fetched when the hall first flares, over http
-   (from disk, the made sounds alone). Each take sits in its own slot of
-   its file, LEAD in (tools/hall_sounds.py). */
-const PULL_FILES = { voice: "el-cabeza-hall-voice.mp3", things: "el-cabeza-hall-things.mp3", field: "el-cabeza-hall-field.mp3", pre: "el-cabeza-hall-pre.mp3" };
-const SLOT = { voice: 2.5, things: 4.0 }, LEAD = 0.1, FIELD_LOOP = 20, FIELD_PAD = 0.3;
-// [slot, seconds]
-const TAKES = {
-  voice: { huh: [0, 0.87], hey: [1, 0.53], wow: [2, 1.25], ahh: [3, 1.23], uhoh: [4, 0.38], hit: [5, 0.72], scream: [6, 1.11] },
-  things: {
-    engage: [0, 3.0], table: [1, 3.4], tray: [2, 2.1], whoosh: [3, 0.3], cans: [4, 1.55], papers: [5, 3.2], metal: [6, 2.0], pot: [7, 3.75],
-    chair: [8, 2.8], box: [9, 1.15], boards: [10, 2.9], vase: [11, 1.04], bump: [12, 0.61], slap: [13, 0.36], stumble: [14, 0.95],
-    swoosh: [15, 0.35], woodfall: [16, 0.7], cansfar: [17, 1.55], smash: [18, 1.5], debris: [19, 2.0], whizz: [20, 2.45],
-  },
+/* The walk's sound. The first (user: "audio of someone being pulled,
+   somewhat unwilingly, although curious... stuff should sound like it's
+   being knocked over"; set 5 of five) was the man reacting all the way
+   and things going over; then "We have to redo the sound for the walking
+   to the hallway animation. I don't like it", what was off "His voice,
+   The crashing things", and what it should be "Building dread": a rising
+   drone and a heartbeat, the room's sound warping, a few sharp hits,
+   little or no voice; the third time, dragged in, "the same way, made
+   faster and rougher". So: the dread, one recording for the walk and one
+   for the drag (tools/hall_dread.py, from freesound.org recordings,
+   assets/hall/src/CREDITS.md), played from the click on the walk's own
+   time; round it, made here and live, the footsteps, the crackle with the
+   flashes, the hum, the force field's (FIELD_AT), the den's own sound
+   bending away behind you (PULL_WALK, PULL_DRAG); and as the white takes
+   you, his shout (LittleRobotSoundFactory's, CC BY 4.0, credited on the
+   About card), its preverb and its echo. No breathing. Fetched when the
+   hall flares, over http (from disk, the made sounds: booms, and the roar
+   at the end, in the dread's place). Each file starts LEAD in
+   (tools/hall_sounds.py, tools/hall_dread.py). */
+const PULL_FILES = {
+  scream: "el-cabeza-hall-scream.mp3", field: "el-cabeza-hall-field.mp3", pre: "el-cabeza-hall-pre.mp3",
+  walk: "el-cabeza-hall-dread-walk.mp3", drag: "el-cabeza-hall-dread-drag.mp3",
 };
+const LEAD = 0.1, FIELD_LOOP = 20, FIELD_PAD = 0.3, SCREAM_SECS = 1.11;
+// (A dread come later than this into the walk is let go: the made sounds.)
+const DREAD_LATE_MS = 1500;
+// The shout's level, walked in and dragged.
+const SHOUT = { walk: 0.7, drag: 0.75 };
 /* The scream ends as the white takes you, and echoes on into the void
    (user: "The end of the scream should have reverb / echo decay that
    lasts for a 1.7 seconds after being pulled through the portal / when
@@ -119,7 +123,7 @@ const TAKES = {
    PRE_LEAD before that, and plays from PRE + PRE_LEAD before the shout's
    take, both started from the one cue so they line up to the sample. */
 const ECHO_SECS = 1.7, PRE = 1.7, PRE_LEAD = 0.1;
-const SCREAM_AT = ENDING_AT - Math.round((LEAD + TAKES.voice.scream[1]) * 1000);
+const SCREAM_AT = ENDING_AT - Math.round((LEAD + SCREAM_SECS) * 1000);
 const SCREAM_CUE = SCREAM_AT - Math.round((PRE + PRE_LEAD) * 1000);
 /* The echo's room, made: a wash of noise dying away (and darkening as it
    goes), with echoes in it going from side to side, each fainter and
@@ -157,49 +161,24 @@ function echoRoom(ctx) {
   for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); for (let i = 0; i < n; i++) d[i] /= peak; }
   return buf;
 }
-/* When each comes, on the walk's own clock (so with the camera: through
-   the doorframe at 6.9-7.1 s, turning right to the rift from 7.2 s, the
-   rift full in view by 8.9 s), [ms, kind, take, gain, pan (or [from, to])].
-   Investigating: surprised from the start ("Huh?"), the force field
-   taking hold and throwing the den about, and him reacting to it ("Hey!",
-   "Wow!", "Ahhh!", "Uh-oh"): the table shaking, a tray of things, a
-   whoosh past, tins, papers flying, metal coming down, a pot crashing in
-   the kitchen, the chair, a box, boards falling, the vase; thrown against
-   the doorframe (a bump, a hand slapping it, a hit) and stumbling through;
-   round the turn, the rift: "Huh?" again, "Wow!"; a last thing settling
-   and "Uh-oh" as it dies down, tins far off; and as it erupts, wood
-   smashing, debris, metal, a rush past, and as the white takes him his
-   shout, its preverb swelling into it, its echo ringing on into the void
-   (SCREAM_CUE). The things 2 dB under the voice's set (user: "lower the
-   ruckus just a hair"); the force field's swell as it was. */
-const byTime = (list) => list.sort((a, b) => a[0] - b[0]);
-const WALK_CUES = byTime([
-  [0, "things", "engage", 0.5, 0], [350, "voice", "huh", 0.6], [500, "things", "table", 0.33, 0.4], [1300, "things", "tray", 0.36, -0.5],
-  [1700, "voice", "hey", 0.6], [1800, "things", "whoosh", 0.28, [0.7, -0.7]], [2300, "things", "cans", 0.36, 0.55], [2550, "voice", "wow", 0.55],
-  [2900, "things", "papers", 0.32, [-0.7, 0.5]], [3400, "things", "metal", 0.36, -0.4], [3900, "things", "pot", 0.32, 0.7], [4300, "voice", "ahh", 0.55],
-  [4600, "things", "chair", 0.4, 0.55], [5100, "things", "box", 0.4, -0.3], [5600, "things", "boards", 0.32, 0.2], [5800, "voice", "uhoh", 0.6],
-  [6300, "things", "vase", 0.44, 0.35], [6850, "things", "bump", 0.52, 0.3], [6950, "things", "slap", 0.48, 0.45], [7000, "voice", "hit", 0.55],
-  [7400, "things", "stumble", 0.32, -0.5], [7800, "voice", "huh", 0.75], [8000, "things", "swoosh", 0.28, [-0.8, 0.8]], [8900, "voice", "wow", 0.6],
-  [9700, "things", "woodfall", 0.22, -0.3], [11000, "voice", "uhoh", 0.45], [11200, "things", "cansfar", 0.18, 0.4],
-  [12600, "things", "smash", 0.4, 0], [13100, "things", "debris", 0.4, 0.4], [13800, "things", "metal", 0.36, -0.5], [14400, "things", "whizz", 0.32, [0.9, -0.9]],
-  [SCREAM_CUE, "voice", "scream", 0.7],
-]);
-// Dragged in, the third time (the walk 1.7 times as fast, no standing
-// still): fewer words (the takes don't speed up) and a little less thrown
-// about, the doorframe, "Huh?" at the rift, the eruption, the shout.
-const DRAG_CUES = byTime([
-  [0, "things", "engage", 0.65, 0], [200, "voice", "hey", 0.55], [900, "things", "table", 0.33, 0.4], [1800, "things", "whoosh", 0.28, [0.7, -0.7]],
-  [2600, "things", "cans", 0.36, 0.55], [3000, "things", "papers", 0.32, [-0.7, 0.5]], [3600, "voice", "ahh", 0.5], [4200, "things", "metal", 0.36, -0.4],
-  [4800, "things", "chair", 0.4, 0.55], [5600, "voice", "uhoh", 0.55], [6300, "things", "vase", 0.44, 0.35], [6850, "things", "bump", 0.52, 0.3],
-  [6950, "things", "slap", 0.48, 0.45], [7000, "voice", "hit", 0.55], [7700, "voice", "huh", 0.8], [8600, "things", "swoosh", 0.28, [-0.8, 0.8]],
-  [12600, "things", "smash", 0.4, 0], [13100, "things", "debris", 0.4, 0.4], [13800, "things", "metal", 0.36, -0.5], [14400, "things", "whizz", 0.32, [0.9, -0.9]],
-  [SCREAM_CUE, "voice", "scream", 0.75],
-]);
-// The force field, by the walk's clock: up as he's pulled in, most at the
-// rift, down as it dies down, up again for the eruption.
-const FIELD_AT = [[0, 0], [1500, 0.45], [6900, 0.7], [8000, 0.8], [10200, 0.6], [12000, 0.4], [12600, 0.55], [15600, 0.9]];
-// A walk's takes, from the `i`th.
-const cuesFor = (list, i = 0) => ({ list, i });
+/* The den's own sound as you go (hallPull, den-audio.js): [s, sag, lp
+   Hz, gain] from the click. Walked, steady while you cross the room, then
+   sagging and closing in as the doorway nears (6.9-7.1 s), and gone round
+   the turn, before the rift's full in view (8.9 s); dragged (real time,
+   the doorway at about 4.1 s), sooner, further and wobblier. */
+const PULL_WALK = {
+  points: [[0, 0, 16000, 1], [2, 0.01, 12000, 1], [4.5, 0.07, 5000, 0.9], [6.9, 0.18, 1800, 0.6], [7.3, 0.24, 800, 0.42], [8.6, 0.33, 300, 0.1], [9.4, 0.38, 200, 0]],
+  wobble: [[0, 0], [3, 0.0008], [6, 0.003], [8.5, 0.006]], wobbleHz: 0.45,
+};
+const PULL_DRAG = {
+  points: [[0, 0.02, 12000, 1], [1.5, 0.1, 5000, 0.85], [3.6, 0.28, 1600, 0.5], [4.2, 0.36, 600, 0.3], [5.3, 0.48, 220, 0]],
+  wobble: [[0, 0], [1, 0.002], [3, 0.006], [5, 0.01]], wobbleHz: 0.9,
+};
+// The force field, by the walk's clock: up as you're drawn in, most at the
+// rift, down to almost nothing in the calm (the heart's all there is, then:
+// the dread), up again for the eruption. (Under the dread, about 6 dB
+// lower than it was under the man and the things.)
+const FIELD_AT = [[0, 0], [1500, 0.25], [6900, 0.35], [8000, 0.4], [10200, 0.22], [11000, 0.12], [12000, 0.12], [12600, 0.4], [15600, 0.7]];
 const along = (pts, s) => {
   if (s <= pts[0][0]) return pts[0][1];
   for (let i = 1; i < pts.length; i++) if (s <= pts[i][0]) { const [a, va] = pts[i - 1], [b, vb] = pts[i]; return va + (vb - va) * (s - a) / (b - a); }
@@ -441,6 +420,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
   // rumble rolling on.
   function boom(s = 1) {
     const o = out(); if (!o) return;
+    madeSounds.booms++;
     const { ctx } = o, t = ctx.currentTime + 0.02;
     const sub = keep(ctx.createOscillator()); sub.type = "sine";
     sub.frequency.setValueAtTime(58, t); sub.frequency.exponentialRampToValueAtTime(27, t + 1.4);
@@ -453,6 +433,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
   // A footstep: the carpet's soft thud, or in the hall the floorboards'
   // a little brighter, now and then a creak.
   function step(hall) {
+    steps.push([Math.round(performance.now() - t0), hall ? 1 : 0]);
     const o = out(); if (!o) return;
     const { ctx } = o, t = ctx.currentTime + 0.01;
     const n = noise(o, t, 0.16), lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = hall ? 900 : 380;
@@ -493,6 +474,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
   // The roar at the end: everything rising to the white.
   function roar() {
     const o = out(); if (!o) return;
+    madeSounds.roars++;
     const { ctx } = o, t = ctx.currentTime + 0.02, d = ERUPT_MS / 1000;
     const n = noise(o, t, d + 0.4), lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.setValueAtTime(220, t); lp.frequency.exponentialRampToValueAtTime(5200, t + d);
     const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.55, t + d); g.gain.linearRampToValueAtTime(0.0001, t + d + 0.35);
@@ -503,10 +485,11 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     sub.connect(sl).connect(sg).connect(o.ear); sub.start(t); sub.stop(t + d + 0.4);
   }
   function stopSound(fade = 0.6) {
-    // (The field's bed goes with it.)
+    // (The field's bed goes with it, and the dread.)
     if (field) field.g.gain.setTargetAtTime(0, field.ctx.currentTime, fade / 3);
-    const beds = !!field;
-    field = null;
+    if (dread) dread.g.gain.setTargetAtTime(0, dread.ctx.currentTime, fade / 3);
+    const beds = !!(field || dread);
+    field = null; dread = null;
     if (hum || beds) {
       if (hum) { const h = hum; h.g.gain.setTargetAtTime(0, h.ctx.currentTime, fade / 3); hum = null; }
       setTimeout(() => nodes.forEach((n) => { try { n.stop(); } catch (e) { /* done */ } }), fade * 1000 + 300);
@@ -514,37 +497,66 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
   }
 
   /* ---- the pull's recordings (PULL_FILES above) ---- */
-  let rec = null, field = null, cues = null, pre = null;
-  const heard = []; // (the takes played, for the tests)
-  function loadRecordings() {
-    if (rec || typeof fetch === "undefined" || (typeof location !== "undefined" && location.protocol === "file:")) return;
+  let rec = null, field = null, pre = null, dread = null, dreadGone = false, shouted = false, pulled = false;
+  const heard = []; // (what's played, for the tests)
+  const madeSounds = { booms: 0, roars: 0 }; // (and the made sounds)
+  const steps = []; // (and the footsteps: when on the walk's clock, and whether in the hall)
+  // The shout and the field when it first flares, and the dread it'll
+  // need (`kind`: the third time's is the drag's).
+  function loadRecordings(kind) {
+    if (typeof fetch === "undefined" || (typeof location !== "undefined" && location.protocol === "file:")) return;
     const o = out(); if (!o) return;
-    rec = {};
-    Object.entries(PULL_FILES).forEach(([k, url]) => {
-      fetch(url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => o.ctx.decodeAudioData(b))
-        .then((buf) => { rec[k] = buf; }).catch(() => { /* the made sounds alone, then */ });
+    if (!rec) rec = {};
+    ["scream", "field", "pre", kind].forEach((k) => {
+      if (k in rec) return;
+      rec[k] = null;
+      fetch(PULL_FILES[k]).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => o.ctx.decodeAudioData(b))
+        .then((buf) => { rec[k] = buf; }).catch(() => { /* the made sounds, then */ });
     });
   }
-  // One take, from its slot, at `gain`, panned (or swept from one side to
-  // the other over its length). The shout: its preverb from now, the shout
-  // itself PRE + PRE_LEAD on, less however `late` the frame that cued it
-  // came (s), so it still ends at the hand-off.
-  function take(kind, name, gain, pan = 0, late = 0) {
-    const o = out(), buf = rec && rec[kind], at = TAKES[kind][name];
-    if (!o || !buf || !at) return false;
-    const { ctx } = o, scream = kind === "voice" && name === "scream", cue = ctx.currentTime + 0.01;
-    const t = scream ? cue + PRE + PRE_LEAD - late : cue, len = LEAD + at[1] + 0.05;
+  // Where a recording's sound starts: its first sound (decoders differ in
+  // the silence they put before it), or LEAD in.
+  function firstSound(buf) {
+    const d = buf.getChannelData(0), n = Math.min(d.length, Math.round(buf.sampleRate * (LEAD + 0.15)));
+    let i = 0; while (i < n && Math.abs(d[i]) < 1e-4) i++;
+    return i < n ? i / buf.sampleRate : LEAD;
+  }
+  /* The dread, from `ms` into the walk (real time; the drag's is its own),
+     at the click as near as can be. Until it's come, nothing in its place;
+     come too late (DREAD_LATE_MS) or not at all, the made sounds. */
+  function dreadFrame(ms) {
+    if (dread || dreadGone) return;
+    const kind = dragged ? "drag" : "walk";
+    if (!rec || !(kind in rec) || ms > DREAD_LATE_MS) { dreadGone = true; return; }
+    if (rec[kind]) startDread(kind, ms);
+  }
+  function startDread(kind, ms) {
+    const o = out(), buf = rec && rec[kind];
+    if (!o || !buf) return false;
+    const { ctx } = o, src = keep(ctx.createBufferSource()), g = ctx.createGain();
+    src.buffer = buf; g.gain.value = 1;
+    src.connect(g).connect(o.ear);
+    const from = firstSound(buf) + ms / 1000;
+    if (from >= buf.duration) return false;
+    src.start(ctx.currentTime + 0.005, from);
+    dread = { src, g, ctx, kind, from: +(ms / 1000).toFixed(3) };
+    heard.push(`dread-${kind}`);
+    return true;
+  }
+  /* The shout: its preverb from now, the shout itself PRE + PRE_LEAD on,
+     less however `late` the frame that cued it came (s), so it still ends
+     at the hand-off. */
+  function shout(gain, late = 0) {
+    const o = out(), buf = rec && rec.scream;
+    if (!o || !buf) return false;
+    const { ctx } = o, cue = ctx.currentTime + 0.01;
+    const t = cue + PRE + PRE_LEAD - late, len = LEAD + SCREAM_SECS + 0.05;
     const src = keep(ctx.createBufferSource()); src.buffer = buf;
     const g = ctx.createGain(); g.gain.value = gain;
-    src.connect(g);
-    const p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
-    if (p) {
-      if (Array.isArray(pan)) { p.pan.setValueAtTime(pan[0], t); p.pan.linearRampToValueAtTime(pan[1], t + len); } else p.pan.value = pan;
-      g.connect(p).connect(o.ear);
-    } else g.connect(o.ear);
-    src.start(t, at[0] * SLOT[kind], len);
-    if (scream) { preverb(o, gain, cue, late, t); screamEcho(o, g, t, LEAD + at[1]); }
-    heard.push(name);
+    src.connect(g).connect(o.ear);
+    src.start(t, 0, len);
+    preverb(o, gain, cue, late, t); screamEcho(o, g, t, LEAD + SCREAM_SECS);
+    heard.push("scream");
     return true;
   }
   /* The shout's preverb (the `pre` file, made from the take; its own
@@ -626,16 +638,18 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     src.start(ctx.currentTime + 0.02, from);
     return { src, g, ctx };
   }
-  /* Each frame of the walk (s, its clock): the takes that are due (ones
-     whose moment passed before their file came are let go, not played
-     late), and the field's level. */
-  function pullSound(s) {
-    if (!rec) return;
-    if (!cues) cues = cuesFor(dragged ? DRAG_CUES : WALK_CUES);
-    while (cues.i < cues.list.length && cues.list[cues.i][0] <= s) {
-      const [at, kind, name, gain, pan] = cues.list[cues.i++];
-      if (s - at < 600) take(kind, name, gain, pan, (s - at) / 1000);
+  /* Each frame of the walk (s, its clock; ms, real time): the dread, the
+     den's own sound sent bending away, the shout when it's due (let go if
+     its moment passed before its file came), and the field's level. */
+  function pullSound(s, ms) {
+    if (!pulled) {
+      pulled = true;
+      const o = out();
+      if (o && audio && audio.hallPull) audio.hallPull({ at: o.ctx.currentTime - ms / 1000, ...(dragged ? PULL_DRAG : PULL_WALK) });
     }
+    dreadFrame(ms);
+    if (!rec) return;
+    if (!shouted && s >= SCREAM_CUE) { shouted = true; if (s - SCREAM_CUE < 600) shout(dragged ? SHOUT.drag : SHOUT.walk, (s - SCREAM_CUE) / 1000); }
     if (!field && rec.field) field = bed("field");
     if (field) field.g.gain.setTargetAtTime(along(FIELD_AT, s), field.ctx.currentTime, 0.2);
   }
@@ -675,7 +689,8 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
       if (blockEl) { blockEl.remove(); blockEl = null; }
       return;
     }
-    state = "walk"; t0 = performance.now(); walkFrom = null; path = null; nextStep = 0; cues = null; pre = null;
+    state = "walk"; t0 = performance.now(); walkFrom = null; path = null; nextStep = 0; pre = null;
+    dread = null; dreadGone = false; shouted = false; pulled = false; steps.length = 0;
   }
   /* The walk's clock: as it is; dragged, the walk itself goes 1.7 times
      as fast and, there, straight on to the eruption (no standing calm). */
@@ -695,7 +710,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     if (flareStore) flareStore.set(flares);
     camTo(1);
     startHum();
-    loadRecordings();
+    loadRecordings(flares >= 3 ? "drag" : "walk");
     if (doc && !flashEl) { style(); flashEl = div("den-hall-flash"); }
     // (The board's not to be touched while it's on: the choice first.)
     if (doc && !blockEl) blockEl = div("den-hall-block");
@@ -760,15 +775,15 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
       level = 1 - smooth(s / 2600); wild = level;
       if (s > 2600) { state = "armed"; need = AGAIN_AFTER; choiceAt = 0; stopSound(); countFrom(ctx && ctx.moves ? ctx.moves() : 0); }
     } else if (state === "walk") {
-      pullSound(s);
+      pullSound(s, now - t0);
       // Dying down as you go (to a glow you can walk up to).
       level = s < CALM_UNTIL ? 0.22 + 0.78 * (1 - smooth((s - 600) / 5200)) : 0.22;
       wild = s < CALM_UNTIL ? Math.max(0, 1 - s / 4200) : 0;
-      if (s < 3200 && now >= nextBoom) { boom(0.6); nextBoom = now + 4000; }
+      if (s < 3200 && now >= nextBoom && dreadGone) { boom(0.6); nextBoom = now + 4000; }
       if (s >= CALM_UNTIL) {
         const e = clamp01((s - CALM_UNTIL) / ERUPT_MS);
         if (!hum && e < 0.05) startHum();
-        if (!built.roared) { built.roared = true; roar(); boom(1.4); }
+        if (!built.roared) { built.roared = true; if (!dread) { roar(); boom(1.4); } }
         level = 0.22 + 4 * e * e; wild = 1 + e; grow = e;
         if (whiteEl === null && doc) { style(); whiteEl = div("den-hall-white"); }
         if (whiteEl) whiteEl.style.opacity = String(clamp01((e - 0.72) / 0.26));
@@ -933,7 +948,8 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     // Is it showing (the camera's, the screen's)?
     active: () => state === "flare" || state === "settle" || state === "walk",
     state: () => ({ state, need, made, amt, cam: camW, flares, dragged, fov: fovCam ? fovCam.fov : null, t: state === "idle" || state === "armed" ? 0 : performance.now() - t0,
-      pull: { loaded: rec ? Object.keys(rec).filter((k) => rec[k]).sort() : [], heard: heard.slice(), field: field ? +field.g.gain.value.toFixed(3) : null, pre: preNow(), echo: echoNow() } }),
+      steps: steps.slice(),
+      pull: { loaded: rec ? Object.keys(rec).filter((k) => rec[k]).sort() : [], heard: heard.slice(), dread: dread ? { kind: dread.kind, from: dread.from } : dreadGone ? "made" : null, made: { ...madeSounds }, field: field ? +field.g.gain.value.toFixed(3) : null, pre: preNow(), echo: echoNow() } }),
     // Test-only: now (as if the moves were made), and the choice.
     now(moves = 0) { if (state === "idle" || state === "armed") flare(performance.now(), moves); },
     pick,
@@ -942,6 +958,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
       restoreFov();
       state = "over"; walkFrom = null; camW = camGoal = 0;
       stopSound(0.1); cleanupDom();
+      if (audio && audio.hallPull) audio.hallPull(null);
       if (built && built.den) built.den.keepHall(false);
       unbuild();
     },
@@ -949,9 +966,9 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     skipWalk(ms = CALM_UNTIL - 300) {
       if (state !== "walk") return;
       dragged = false; t0 = performance.now() - ms;
-      // (The takes it skips past aren't played all at once.)
-      cues = cuesFor(WALK_CUES, WALK_CUES.findIndex((c) => c[0] > ms));
-      if (cues.i < 0) cues.i = WALK_CUES.length;
+      // (The dread goes on from there; the shout, if it's still to come.)
+      if (dread) { try { dread.src.stop(); } catch (e) { /* done */ } dread = null; startDread("walk", ms); }
+      shouted = ms > SCREAM_CUE;
     },
     dispose() {
       restoreFov();

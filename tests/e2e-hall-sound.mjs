@@ -1,27 +1,30 @@
-/* The pull down the hall, its recordings (user: "audio of someone being
-   pulled, somewhat unwilingly, although curious... stuff should sound like
-   it's being knocked over, but it's not total chaos... some forcefield like
-   noise"; then "Less grunting, less panting... More surprise and ruckus
-   sounds", and of the five sets made that way, "Let's go with number 5...
-   that glass break right near the very end, we need to remove that and
-   lower the ruckus just a hair"). themes/den-hall.js PULL_FILES,
-   WALK_CUES, DRAG_CUES; tools/hall_sounds.py makes the files.
+/* The walk down the hall, its sound (user, of the first, the man reacting
+   all the way and things knocked over: "We have to redo the sound for the
+   walking to the hallway animation. I don't like it"; what was off, "His
+   voice, The crashing things"; what it should be, "Building dread": a
+   rising drone and a heartbeat, the room's sound warping, a few sharp
+   hits, little or no voice; the third time, dragged in, "the same way,
+   made faster and rougher"). themes/den-hall.js PULL_FILES, PULL_WALK,
+   PULL_DRAG; den-audio.js hallPull; tools/hall_dread.py makes the dread,
+   tools/hall_sounds.py the shout, its preverb and the force field.
 
-   Served over http (as GitHub Pages serves it): the four files (the man,
-   what goes over, the force field, the shout's preverb) fetched and
-   decoded as the hall flares; no breathing. Investigating: "Huh?" as it
-   takes hold; things going over and him reacting on the way, each take at
-   its moment, in order; the doorframe (a bump, a slap, a hit) as the
-   camera passes through it; round the turn, "Huh?" again, the force field
-   up by then. Skipped on to the eruption, what's skipped isn't played all
-   at once; the shout's preverb swells up for 1.7 s and the shout comes out
-   of it, ending as the white takes you, its echo ringing on into the
-   void, gone by 1.7 s. Dragged in (the third time): "Hey!" first, "Huh?"
-   at the rift, sooner, and the shout with its preverb. The scene's link
+   Served over http (as GitHub Pages serves it): as the hall flares, the
+   shout, its preverb, the force field and the walk's dread fetched and
+   decoded (nothing of the man's voice or the things, no breathing).
+   Investigating: the dread from the click, on the walk's own time; the
+   den's own sound (the fire, the clock, a record) bending away behind you,
+   gone by the time the rift's in view; no made booms or roar over the
+   dread; the force field up at the rift, down to almost nothing in the
+   calm. Skipped on to the eruption, the dread goes on from there and the
+   shout's preverb swells up for 1.7 s and the shout comes out of it,
+   ending as the white takes you, its echo ringing on into the void, gone
+   by 1.7 s (back from the void, the den's sound comes straight through
+   again: e2e-ending). Dragged in (the third time): the drag's own dread, the den's
+   sound gone sooner, the shout with its preverb. The scene's link
    (?scene=hall), from nothing kept: a tap, the hall flares with its
-   recordings, and investigating, the pull's heard. The About card credits
-   dersuperanton and LittleRobotSoundFactory (CC BY). From disk: nothing
-   fetched, the walk the same without them.
+   recordings, and investigating, the dread's heard. The About card credits
+   LittleRobotSoundFactory (CC BY) and the dread's makers. From disk:
+   nothing fetched, the made sounds (booms, the roar) instead.
 
    node tests/e2e-hall-sound.mjs */
 import { chromium } from "playwright";
@@ -46,9 +49,8 @@ let fails = 0;
 const check = (name, ok, extra = "") => { console.log(`  ${ok ? "ok  " : "FAIL"} ${name}${!ok && extra ? "  " + extra : ""}`); if (!ok) fails++; };
 const poll = async (fn, ms = 8000, step = 150) => { const end = Date.now() + ms; for (;;) { const v = await fn().catch(() => null); if (v) return v; if (Date.now() > end) return null; await new Promise((r) => setTimeout(r, step)); } };
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--autoplay-policy=no-user-gesture-required", "--allow-file-access-from-files"] });
-const FILES = ["voice", "things", "field", "pre"];
-// The walk's takes up to "Huh?" at the rift, in order (WALK_CUES).
-const TO_THE_RIFT = ["engage", "huh", "table", "tray", "hey", "whoosh", "cans", "wow", "papers", "metal", "pot", "ahh", "chair", "box", "boards", "uhoh", "vase", "bump", "slap", "hit", "stumble", "huh"];
+const FILES = ["scream", "field", "pre", "dread-walk"];
+const GONE = ["voice", "things", "breath"];
 // The preverb: from 1.8 s before the shout's take (its PRE_LEAD of silence,
 // then 1.7 s rising into the shout).
 const PRE_AHEAD = 1.8;
@@ -72,7 +74,7 @@ async function home(url, flares = 0) {
   const page = await ctx.newPage();
   const errs = [], fetched = {};
   page.on("pageerror", (e) => errs.push(e.message));
-  page.on("response", (r) => { const m = /el-cabeza-hall-([a-z]+)\.mp3/.exec(r.url()); if (m) fetched[m[1]] = r.status(); });
+  page.on("response", (r) => { const m = /el-cabeza-hall-([a-z-]+)\.mp3/.exec(r.url()); if (m) fetched[m[1]] = r.status(); });
   await page.goto(url);
   await poll(() => page.evaluate(() => !!window.__DEN_TV__), 30000);
   await page.waitForTimeout(1500);
@@ -83,40 +85,50 @@ async function home(url, flares = 0) {
   await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game/ }).first().click();
   await page.waitForTimeout(2000);
   const hall = () => page.evaluate(() => window.__DEN_HALL__());
-  return { ctx, page, errs, fetched, hall };
+  const den = () => page.evaluate(() => window.__DEN_AUDIO__ && window.__DEN_AUDIO__());
+  return { ctx, page, errs, fetched, hall, den };
 }
 
 // ---- Investigating, over http ----
 {
   console.log("investigating, over http");
-  const { ctx, page, errs, fetched, hall } = await home(URL_HTTP);
+  const { ctx, page, errs, fetched, hall, den } = await home(URL_HTTP);
   await page.evaluate(() => window.__DEN_HALL_NOW__());
-  check("the hall flares: its four recordings fetched (no breathing)", !!(await poll(async () => FILES.every((k) => fetched[k] === 200), 8000)) && !("breath" in fetched), JSON.stringify(fetched));
-  check("...and decoded", !!(await poll(async () => (await hall()).pull.loaded.join() === "field,pre,things,voice", 8000)), JSON.stringify((await hall()).pull));
+  check("the hall flares: the shout, its preverb, the force field and the walk's dread fetched", !!(await poll(async () => FILES.every((k) => fetched[k] === 200), 8000)) && GONE.every((k) => !(k in fetched)) && !("dread-drag" in fetched), JSON.stringify(fetched));
+  check("...and decoded", !!(await poll(async () => (await hall()).pull.loaded.join() === "field,pre,scream,walk", 8000)), JSON.stringify((await hall()).pull));
   await page.waitForSelector('[data-testid="den-hall-choice"]:not([data-held])', { timeout: 6000 });
   await page.locator('[data-testid="den-hall-investigate"]').click();
-  const early = await poll(async () => { const h = await hall(); return h.pull.heard.includes("huh") ? h : null; }, 4000, 100);
-  check(`the walk: the force field takes hold, then "Huh?" (${early && early.pull.heard.join(" ")})`, !!early && early.pull.heard[0] === "engage" && early.pull.heard[1] === "huh");
-  // Through the doorframe (about 7 s on the walk's clock): a bump, a slap,
-  // a hit; and round the turn, a stumble and "Huh?" again.
-  const door = await poll(async () => { const h = await hall(); return h.pull.heard.includes("hit") ? h : null; }, 12000, 100);
-  check(`...things going over and him reacting on the way (${door && door.pull.heard.join(" ")})`, !!door && ["table", "tray", "cans", "papers", "metal", "pot", "chair", "box", "boards", "vase", "hey", "wow", "ahh", "uhoh"].every((k) => door.pull.heard.includes(k)));
-  check(`...at the doorframe, at ${door && Math.round(door.t)} ms: a bump, a slap, a hit`, !!door && door.t > 6700 && door.t < 7900 && ["bump", "slap", "hit"].every((k) => door.pull.heard.includes(k)));
-  const turn = await poll(async () => { const h = await hall(); return h.pull.heard.filter((k) => k === "huh").length === 2 ? h : null; }, 6000, 100);
-  check(`round the turn, the rift: a stumble, then "Huh?" again (at ${turn && Math.round(turn.t)} ms)`, !!turn && turn.pull.heard.lastIndexOf("huh") > turn.pull.heard.indexOf("stumble") && turn.pull.heard.indexOf("stumble") > turn.pull.heard.indexOf("hit"));
-  check(`...the force field up by then (${turn && turn.pull.field}), and no breathing`, !!turn && turn.pull.field > 0.5 && !("breath" in turn.pull));
-  check(`...each take at its moment, in order, once (${turn && turn.pull.heard.join(" ")})`, !!turn && turn.pull.heard.slice(0, TO_THE_RIFT.length).join() === TO_THE_RIFT.join());
-  // On to the eruption: what's skipped (a last thing settling, tins far
-  // off) isn't played; the shout is, its preverb first. (A sampler in the
-  // page for the preverb's swell: what it's been, read every 100 ms.)
+  const start = await poll(async () => { const h = await hall(); return h.pull.dread && h.pull.dread.kind ? h : null; }, 3000, 50);
+  // (The flare's booms, before the click, counted; none after.)
+  const before = start ? start.pull.made : { booms: -1, roars: -1 };
+  check(`the dread from the click (${start && JSON.stringify(start.pull.dread)}, at ${start && Math.round(start.t)} ms)`, !!start && start.pull.dread.kind === "walk" && start.pull.dread.from < 0.4 && start.pull.heard[0] === "dread-walk");
+  const bend0 = await den();
+  check("...the den's own sound sent bending away (den-audio hallPull)", !!(bend0 && bend0.pull), JSON.stringify(bend0 && bend0.pull));
+  // Halfway to the doorway: sagging, closing in.
+  await poll(async () => (await hall()).t > 5000, 8000, 100);
+  const bend1 = await den();
+  check(`...by 5 s, sagging and closing in (${JSON.stringify(bend1 && bend1.pull)})`, !!(bend1 && bend1.pull) && bend1.pull.delay > 0.08 && bend1.pull.lp < 6000 && bend1.pull.gain < 1);
+  // Round the turn, the rift in view.
+  const turn = await poll(async () => { const h = await hall(); return h.t > 9700 ? h : null; }, 8000, 100);
+  const bend2 = await den();
+  check(`...gone by the time the rift's in view (${JSON.stringify(bend2 && bend2.pull)})`, !!(bend2 && bend2.pull) && bend2.pull.gain < 0.01);
+  check(`the force field up at the rift (${turn && turn.pull.field})`, !!turn && turn.pull.field > 0.2);
+  check(`no voice, nothing thrown about, no made booms over the dread (${turn && turn.pull.heard.join(" ")}; ${turn && JSON.stringify(turn.pull.made)})`, !!turn && turn.pull.heard.join() === "dread-walk" && turn.pull.made.booms === before.booms);
+  const calm = await poll(async () => { const h = await hall(); return h.t > 11400 ? h : null; }, 4000, 100);
+  check(`...and down to almost nothing in the calm (${calm && calm.pull.field})`, !!calm && calm.pull.field < 0.16);
+  // On to the eruption: the dread goes on from there; the shout, its
+  // preverb first. (A sampler in the page for the preverb's swell: what
+  // it's been, read every 100 ms.)
   await page.evaluate(() => {
     window.__preEnv = [];
     const id = setInterval(() => { const p = window.__DEN_HALL__().pull.pre; if (p && p.env) window.__preEnv.push(...p.env.map(([t, rms]) => ({ t, rms, shout: p.shout }))); }, 100);
     window.__preStop = () => clearInterval(id);
   });
   await page.evaluate(() => window.__DEN_HALL_SKIP__(12200));
+  const skipped = await hall();
+  check(`skipped on to the eruption: the dread goes on from there (${JSON.stringify(skipped.pull.dread)})`, !!skipped.pull.dread && Math.abs(skipped.pull.dread.from - 12.2) < 0.05);
   const erupt = await poll(async () => { const h = await hall(); return h.pull.heard.includes("scream") ? h : null; }, 6000, 100);
-  check(`skipped on to the eruption: the shout, and nothing skipped played (${erupt && erupt.pull.heard.slice(-3).join(" ")})`, !!erupt && !erupt.pull.heard.includes("woodfall") && !erupt.pull.heard.includes("cansfar"));
+  check(`...the shout, and no made roar over the dread (${erupt && JSON.stringify(erupt.pull.made)})`, !!erupt && erupt.pull.made.roars === before.roars);
   // (User: "Add 1.7 sec. preverb to all ending yells before being sucked
   // into the void.")
   const pre = erupt && erupt.pull.pre;
@@ -158,13 +170,15 @@ async function home(url, flares = 0) {
 // ---- Dragged in, the third time ----
 {
   console.log("dragged in (the third time), over http");
-  const { ctx, page, errs, hall } = await home(URL_HTTP, 2);
+  const { ctx, page, errs, fetched, hall, den } = await home(URL_HTTP, 2);
   await page.evaluate(() => window.__DEN_HALL_NOW__());
-  check("the third time: no choice, pulled in", !!(await poll(async () => { const h = await hall(); return h.state === "walk" && h.dragged ? h : null; }, 8000)));
-  const first = await poll(async () => { const h = await hall(); return h.pull.heard.length >= 2 ? h : null; }, 5000, 100);
-  check(`..."Hey!" first, no "Huh?" (${first && first.pull.heard.join(" ")})`, !!first && first.pull.heard[1] === "hey" && !first.pull.heard.includes("huh"));
-  const huh = await poll(async () => { const h = await hall(); return h.pull.heard.includes("huh") ? h : null; }, 8000, 100);
-  check(`...through the doorframe faster: "Huh?" at the rift at ${huh && Math.round(huh.t)} ms`, !!huh && huh.t > 4000 && huh.t < 5400);
+  check("the third time: the drag's own dread fetched", !!(await poll(async () => fetched["dread-drag"] === 200, 8000)) && !("dread-walk" in fetched), JSON.stringify(fetched));
+  check("...no choice, pulled in", !!(await poll(async () => { const h = await hall(); return h.state === "walk" && h.dragged ? h : null; }, 8000)));
+  const first = await poll(async () => { const h = await hall(); return h.pull.dread && h.pull.dread.kind ? h : null; }, 3000, 50);
+  check(`...the drag's dread from its start (${first && JSON.stringify(first.pull.dread)})`, !!first && first.pull.dread.kind === "drag" && first.pull.dread.from < 0.4 && first.pull.heard[0] === "dread-drag");
+  await poll(async () => (await hall()).t > 5600, 8000, 100);
+  const bend = await den();
+  check(`...the den's sound gone sooner (by 5.6 s: ${JSON.stringify(bend && bend.pull)})`, !!(bend && bend.pull) && bend.pull.gain < 0.01);
   const scream = await poll(async () => { const h = await hall(); return h.pull.heard.includes("scream") ? h : null; }, 12000, 100);
   const pre = scream && scream.pull.pre;
   check(`...the shout, its preverb first (${pre && JSON.stringify({ at: pre.at, shout: pre.shout })}), no breathing`, !!pre && Math.abs(pre.shout - pre.at - PRE_AHEAD) < 0.005 && !("breath" in scream.pull));
@@ -180,7 +194,7 @@ async function home(url, flares = 0) {
   const page = await ctx.newPage();
   const errs = [], fetched = {};
   page.on("pageerror", (e) => errs.push(e.message));
-  page.on("response", (r) => { const m = /el-cabeza-hall-([a-z]+)\.mp3/.exec(r.url()); if (m) fetched[m[1]] = r.status(); });
+  page.on("response", (r) => { const m = /el-cabeza-hall-([a-z-]+)\.mp3/.exec(r.url()); if (m) fetched[m[1]] = r.status(); });
   await page.goto(URL_HTTP + "?scene=hall");
   const begin = page.locator('[data-testid="den-hall-preview"]');
   check("\"The hallway / Tap to begin\"", !!(await poll(async () => (await begin.count()) > 0, 30000)));
@@ -189,8 +203,8 @@ async function home(url, flares = 0) {
   check("a tap: the hall flares, its recordings fetched", !!(await poll(async () => FILES.every((k) => fetched[k] === 200), 10000)), JSON.stringify(fetched));
   await page.waitForSelector('[data-testid="den-hall-choice"]:not([data-held])', { timeout: 8000 });
   await page.locator('[data-testid="den-hall-investigate"]').click();
-  const h = await poll(async () => { const v = await page.evaluate(() => window.__DEN_HALL__()); return v.pull.heard.includes("huh") ? v : null; }, 5000, 100);
-  check(`investigate: the pull heard (${h && h.pull.heard.join(" ")})`, !!h && h.pull.heard[0] === "engage");
+  const h = await poll(async () => { const v = await page.evaluate(() => window.__DEN_HALL__()); return v.pull.heard.length ? v : null; }, 5000, 100);
+  check(`investigate: the dread heard (${h && h.pull.heard.join(" ")})`, !!h && h.pull.heard[0] === "dread-walk");
   check(`no page errors (${errs.length})`, errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }
@@ -201,7 +215,7 @@ async function home(url, flares = 0) {
   const { ctx, page } = await home(URL_HTTP);
   await page.evaluate(() => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "about" } })));
   const credits = await poll(() => page.evaluate(() => { const e = document.querySelector('[data-testid="info-sound-credits"]'); return e && e.innerText; }), 8000);
-  check(`the man's voice and his shout credited: dersuperanton, LittleRobotSoundFactory, CC BY 4.0`, /dersuperanton/.test(credits || "") && /LittleRobotSoundFactory/.test(credits || "") && /CC BY 4\.0/.test(credits || ""), credits);
+  check(`his shout credited (LittleRobotSoundFactory, CC BY 4.0), and the dread's makers; not the man's voice that's gone`, /LittleRobotSoundFactory/.test(credits || "") && /CC BY 4\.0/.test(credits || "") && /Werra/.test(credits || "") && /Cloud-10/.test(credits || "") && !/dersuperanton/.test(credits || ""), credits);
   await ctx.close();
 }
 
@@ -215,6 +229,9 @@ async function home(url, flares = 0) {
   await page.waitForTimeout(3000);
   const h = await hall();
   check("nothing fetched, the walk the same without them", Object.keys(fetched).length === 0 && h.state === "walk" && h.pull.loaded.length === 0 && h.pull.heard.length === 0, JSON.stringify(h.pull));
+  await page.evaluate(() => window.__DEN_HALL_SKIP__(12200));
+  const roar = await poll(async () => { const v = await hall(); return v.pull.made.roars > 0 ? v : null; }, 4000, 100);
+  check(`...the made sounds instead: the roar at the eruption (${roar && JSON.stringify(roar.pull.made)})`, !!roar && roar.pull.dread === "made" && roar.pull.made.roars === 1, JSON.stringify((await hall()).pull));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

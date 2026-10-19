@@ -1,23 +1,12 @@
-"""The hall's recorded sounds: the pull down the hall (themes/den-hall.js),
-as the user chose it from five whole sets (set 5: "Let's go with number 5
-for the hull pull, but that glass break right near the very end, we need to
-remove that and lower the ruckus just a hair"), made from the recordings in
-assets/hall/src/ (CREDITS.md says whose each is):
+"""The hall's recorded sounds round the dread (themes/den-hall.js; the
+dread itself, tools/hall_dread.py), from the recordings in assets/hall/src/
+(CREDITS.md says whose each is). The man reacting all the way and the
+things knocked over (set 5 of five, then "We have to redo the sound for the
+walking to the hallway animation. I don't like it": "His voice, The
+crashing things") are gone; what's left:
 
-  voice.mp3   the man, one voice throughout, no grunting and no panting
-              (user: "Less grunting, less panting... More surprise and
-              ruckus sounds"): dersuperanton's reactions, "Huh?", "Hey!",
-              "Wow!", "Ahhh!", "Uh-oh" and a hit as he's thrown against the
-              doorframe; and his shout as he's taken, LittleRobotSoundFactory's
-              "Scream_Male_03". Each take in its own VOICE_SLOT seconds.
-  things.mp3  the force taking hold (LilMati's force field swell) and what
-              it throws about on the way, each in its own THING_SLOT
-              seconds: the table shaking, a tray of things, a whoosh, tins,
-              papers, metal coming down, a pot in the kitchen (far off: low-
-              passed here), the chair, a box, boards, the vase, the body
-              against the doorframe and a hand slapping it, a stumble, a
-              swoosh, a wooden thing settling, tins far off; and at the
-              eruption, wood smashing, debris and a rush past.
+  scream.mp3  his shout as he's taken, LittleRobotSoundFactory's
+              "Scream_Male_03", LEAD in.
   field.mp3   humanoide9000's "Force Field": a hum with pulses that come
               faster, a seamless 20 s loop (padded as Noir's loops are).
   pre.mp3     the shout's preverb (user: "Add 1.7 sec. preverb to all ending
@@ -27,8 +16,8 @@ assets/hall/src/ (CREDITS.md says whose each is):
               echo it rings with after. Stereo, PRE_LEAD of silence first.
 
 Every cut has a short fade in and out, a high-pass under the voice's
-lowest (80 Hz; 50 for the things), and its loudest 0.3 s at -14 dBFS
-(the loop: its average at -20); the game sets the mix.
+lowest (80 Hz), and its loudest 0.3 s at -14 dBFS (the loop: its average
+at -20); the game sets the mix.
 
     FFMPEG=/path/to/ffmpeg python3 tools/hall_sounds.py
 """
@@ -46,45 +35,14 @@ OUT = os.path.join(ROOT, "assets/hall")
 FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 SR = 44100
 PAD = 0.3
-# Where each take sits (themes/den-hall.js reads the same slots): it starts
-# LEAD seconds into its slot, so a decoder's own silence at the very start
-# never cuts into it.
-VOICE_SLOT, THING_SLOT, LEAD = 2.5, 4.0, 0.1
+# Where the shout starts (themes/den-hall.js reads the same): LEAD seconds
+# in, so a decoder's own silence at the very start never cuts into it.
+SLOT, LEAD = 2.5, 0.1
 # The preverb (themes/den-hall.js PRE, PRE_LEAD).
 PRE, PRE_LEAD = 1.7, 0.1
 
-VOICE = [  # name, file, from, to (seconds in the recording; None: all of it)
-    ("huh", "dersuperanton-huh-eh-man-437649.ogg", None, None),
-    ("hey", "dersuperanton-hey-voice-434463.ogg", None, None),
-    ("wow", "dersuperanton-wow-voice-437660.ogg", None, None),
-    ("ahh", "dersuperanton-ahhh-surprise-man-voice-437663.ogg", None, None),
-    ("uhoh", "dersuperanton-cartoon-oh-oh-435883.ogg", None, None),
-    ("hit", "dersuperanton-getting-hit-damage-scream-437650.ogg", None, None),
-    ("scream", "littlerobotsoundfactory-scream-male-03-270474.ogg", 0.0, 1.11),
-]
-THINGS = [  # name, file, from, to, fade in, fade out[, low-pass: far off]
-    ("engage", "lilmati-force-field-01-702771.ogg", 0.00, 3.00, 0.01, 0.6),
-    ("table", "yannsauvin-dinner-table-shaking-778107.ogg", 2.40, 5.80, 0.4, 0.8),
-    ("tray", "rossbell-wooden-tray-objects-falling-389430.ogg", 0.30, 2.40, 0.005, 0.4),
-    ("whoosh", "henkonen-whooshes-757256.ogg", 0.15, 0.45, 0.005, 0.1),
-    ("cans", "jho3000-cans-in-a-pile-falling-693515.ogg", 0.55, 2.10, 0.005, 0.3),
-    ("papers", "mickdow-paper-flutter-320913.ogg", 14.00, 17.20, 0.3, 0.9),
-    ("metal", "craigsmith-metal-objects-hitting-and-fall-675477.ogg", 0.60, 2.60, 0.005, 0.4),
-    ("pot", "daddoit-pot-crash-50048.ogg", 0.45, 4.20, 0.005, 0.6, 3200),
-    ("chair", "kyles-chair-scrape-455673.ogg", 1.90, 4.70, 0.02, 0.3),
-    ("box", "vsokorelos-cardboard-box-drop-346169.ogg", 0.45, 1.60, 0.005, 0.3),
-    ("boards", "lampeight-wood-panel-debris-clatter-400643.ogg", 0.10, 3.00, 0.005, 0.5),
-    ("vase", "martian-vase-rolling-drops-335887.ogg", 0.36, 1.40, 0.01, 0.15),
-    ("bump", "jawbutch-body-wall-impact-344402.ogg", 0.24, 0.85, 0.005, 0.15),
-    ("slap", "soundscape-leuphana-flat-hand-wall-210258.ogg", 4.56, 4.92, 0.005, 0.08),
-    ("stumble", "petebarry-the-gilligan-stumble-493794.ogg", 1.80, 2.75, 0.005, 0.2),
-    ("swoosh", "danjocross-several-low-fast-swooshes-507470.ogg", 2.10, 2.45, 0.005, 0.1),
-    ("woodfall", "craigsmith-wooden-object-falls-675976.ogg", 0.00, 0.70, 0.005, 0.2),
-    ("cansfar", "jho3000-cans-in-a-pile-falling-693515.ogg", 0.55, 2.10, 0.005, 0.3, 2500),
-    ("smash", "rutgermuller-wood-metal-chain-smash-hall-104003.ogg", 0.10, 1.60, 0.005, 0.3),
-    ("debris", "xkeril-big-falling-debris-crash-703247.ogg", 0.00, 2.00, 0.005, 0.4),
-    ("whizz", "keus92-whizzing-by-2-506907.mp3", 0.85, 3.30, 0.005, 0.4),
-]
+# name, file, from, to (seconds in the recording)
+SCREAM = ("scream", "littlerobotsoundfactory-scream-male-03-270474.ogg", 0.0, 1.11)
 
 
 def load(name):
@@ -215,10 +173,9 @@ def padded(loop):
 
 
 def main():
-    print("voice"); v, made = slotted(VOICE, VOICE_SLOT, 80); write(v, "voice.mp3", 4)
-    print("things"); write(slotted(THINGS, THING_SLOT, 50)[0], "things.mp3", 4)
+    print("scream"); v, made = slotted([SCREAM], SLOT, 80); write(v, "scream.mp3", 4)
     # The preverb comes from the shout as it was cut, at the level it's
-    # in the voice file.
+    # in its file.
     print("pre"); write(preverb(made["scream"]), "pre.mp3", 4)
     # The field: 3-25 s of it (past its own start, before its end), a 20 s
     # loop with a 2 s crossfade, its average at -20 dBFS.

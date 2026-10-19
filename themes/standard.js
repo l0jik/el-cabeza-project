@@ -101,7 +101,7 @@ export const freeCamera = {
 // The den's recordings that ask for a credit, on the About card (as
 // Noir's): the man pulled down the hall (den-hall.js; the pull's other
 // recordings are CC0, assets/hall/src/CREDITS.md).
-export const soundCredits = "Sounds from freesound.org: the man pulled down the hall, six recordings by dersuperanton (\u201cHuh Eh Man\u201d, \u201cHey voice\u201d, \u201cWow Voice\u201d, \u201cAhhh Surprise Man Voice\u201d, \u201cCartoon Oh-Oh\u201d and \u201cGetting Hit Damage Scream\u201d; freesound.org/people/dersuperanton), and his shout as he\u2019s taken, \u201cScream_Male_03\u201d by LittleRobotSoundFactory (freesound.org/s/270474), CC BY 4.0, cut; what goes over and the force field, YannSauvin, RossBell, HenKonen, JHo3000, mickdow, craigsmith, dADDoiT, kyles, VSokorelos, LampEight, martian, jawbutch, Soundscape_Leuphana, PeteBarry, Danjocross, RutgerMuller, xkeril, keus92, humanoide9000 and LilMati (CC0).";
+export const soundCredits = "Sounds from freesound.org: down the hall, his shout as he\u2019s taken, \u201cScream_Male_03\u201d by LittleRobotSoundFactory (freesound.org/s/270474), CC BY 4.0, cut; the dread on the way, the force field and the heart, Werra, HarmonicMess, BJCurlee, Woodingp, Cloud-10, harrisonlace, AudioPapkin, vykroft, burnttoys, unfa and humanoide9000 (CC0).";
 export const modalBackdrop = "rgba(20, 12, 6, 0.5)";
 export const modalSurface = "rgba(243, 231, 205, 0.98)";
 // Shown only until the room is up.

@@ -200,6 +200,9 @@ check("(the controls back after, once it's faded)", !!(await poll(async () => !(
   check("...the lens given back after the dolly zoom", Math.abs(fovAfter - fovBefore) < 0.01, `${fovBefore} before, ${fovAfter} after`);
 }
 check("Stay in the den: back in the den", !!(await poll(async () => !(await page.locator('[data-testid="den-ending"]').count()) && !(await page.locator('[data-testid="realities"]').count()), 6000)));
+// (The den's own sound, bent away down the hall (den-audio hallPull),
+// comes straight through again.)
+check("...its own sound straight through again, back up", !!(await poll(async () => { const a = await page.evaluate(() => window.__DEN_AUDIO__ && window.__DEN_AUDIO__()); return a && a.pull === null && a.gates.room > 0.5; }, 4000)), JSON.stringify(await page.evaluate(() => { const a = window.__DEN_AUDIO__ && window.__DEN_AUDIO__(); return a && { pull: a.pull, gates: a.gates }; })));
 check("...the game's placard there now", !!(await poll(() => page.evaluate(() => { const b = document.querySelector('[data-testid="victory-backdrop"]'); const cs = getComputedStyle(b); return b.dataset.open === "true" && cs.pointerEvents === "auto" && Number(cs.opacity) > 0.9; }), 4000)));
 await page.mouse.click(12, 400);
 check("...and a tap outside it puts it away", !!(await poll(async () => (await page.locator('[data-testid="victory-backdrop"]').getAttribute("data-open")) === "false", 3000)));

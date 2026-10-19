@@ -34,7 +34,7 @@ const GS = 830.61, FS = 739.99, E = 659.26, B = 493.88;
 const HOUR_CHIME = [[E, GS, FS, B], [E, FS, GS, E], [GS, E, FS, B], [B, FS, GS, E]];
 
 export function createAudio() {
-  let ctx = null, master = null, comp = null, roomBus = null, sfxBus = null, wood = null;
+  let ctx = null, master = null, comp = null, denOut = null, roomBus = null, sfxBus = null, wood = null;
   let fireBus = null, firePan = null, musicBus = null, verb = null;
   let phoneBus = null, phonePan = null, earBus = null, phoneNear = 1, phoneSide = 0;
   let noiseBuf = null, brownBuf = null;
@@ -78,24 +78,28 @@ export function createAudio() {
         for (let i = pre; i < len; i++) { lp = lp * 0.45 + (Math.random() * 2 - 1) * 0.55; d[i] = lp * Math.pow(1 - (i - pre) / (len - pre), 2.4) * 2; }
       }
       verb = ctx.createConvolver(); verb.buffer = ir;
+      // (All the den's own sound meets in denOut on its way to the master,
+      // so the hall can bend it: hallPull. The hall's own, the ear, doesn't.)
+      denOut = ctx.createGain();
+      denOut.connect(master);
       const verbOut = ctx.createGain(); verbOut.gain.value = 0.3;
-      verb.connect(verbOut).connect(master);
+      verb.connect(verbOut).connect(denOut);
       // The room (fire, clock), the music and the pieces, each behind its switch.
       gates.room = ctx.createGain(); gates.room.gain.value = chGain("room");
       roomBus = ctx.createGain(); roomBus.gain.value = 0;
-      roomBus.connect(gates.room).connect(master);
+      roomBus.connect(gates.room).connect(denOut);
       fireBus = ctx.createGain(); fireBus.gain.value = fireNear;
       firePan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
       if (firePan) fireBus.connect(firePan).connect(roomBus); else fireBus.connect(roomBus);
       gates.stereo = ctx.createGain(); gates.stereo.gain.value = chGain("stereo");
       musicBus = ctx.createGain(); musicBus.gain.value = 0.9;
-      musicBus.connect(gates.stereo).connect(master);
+      musicBus.connect(gates.stereo).connect(denOut);
       const musicRoom = ctx.createGain(); musicRoom.gain.value = 0.12;
       gates.stereo.connect(musicRoom).connect(verb);
       gates.pieces = ctx.createGain(); gates.pieces.gain.value = chGain("pieces");
       sfxBus = ctx.createGain();
       sfxBus.connect(gates.pieces);
-      gates.pieces.connect(master);
+      gates.pieces.connect(denOut);
       const send = ctx.createGain(); send.gain.value = 0.22;
       gates.pieces.connect(send).connect(verb);
       wood = createWoodSfx(ctx, sfxBus, { board: "solid" });
@@ -110,6 +114,7 @@ export function createAudio() {
           chimes,
           music: music ? { id: music.track.id, medium: music.track.medium, paused: music.el.paused, time: music.el.currentTime, duck: music.duck ? music.duck.gain.value : null, wobble: music.wobG ? music.wobG.gain.value : null, level: music.lvl ? music.lvl.gain.value : null } : null,
           tvPull,
+          pull: pull ? { delay: +pull.delay.delayTime.value.toFixed(4), lp: Math.round(pull.lp.frequency.value), gain: +pull.gain.gain.value.toFixed(3), at: pull.at } : null,
         });
         if (window.__EC_TEST_HOOKS__) window.__DEN_CHIME_NOW__ = () => { ensureGraph(); if (ctx && roomOn) chime(); return chimes; };
       }
@@ -291,6 +296,63 @@ export function createAudio() {
     roomOn = true;
     startFire(); startClock(); // (No rain any more: user.)
     roomBus.gain.setTargetAtTime(roomLevel(), now(), 1.2);
+  }
+
+  /* ---------------- the hall's pull ---------------- */
+  /* Walking down the hall to the rift (den-hall.js; user: "Building
+     dread": "the room's sound warping"): all the den's own sound (the
+     fire, the clock, a record, the room round them) drags like a tape
+     going slow, its pitch sagging further and further, a slow seasick
+     wobble on it, its top closing in, and drains away. hallPull(plan)
+     from the walk's start: plan.at (the audio clock), and its points, each
+     [s, sag, lp, gain] (seconds from `at`; sag: how far the pitch has
+     fallen, 0 to 1, made by a delay growing under it; lp: the top, Hz;
+     gain); plan.wobble [[s, depth]] (seconds of delay it swings by, at
+     plan.wobbleHz). hallPull(null), or awayFromDen(false) (back from the
+     void): straight through again. */
+  let pull = null;
+  const along = (pts, t, k) => {
+    if (t <= pts[0][0]) return pts[0][k];
+    for (let i = 1; i < pts.length; i++) if (t <= pts[i][0]) { const a = pts[i - 1], b = pts[i]; return a[k] + ((b[k] - a[k]) * (t - a[0])) / (b[0] - a[0]); }
+    return pts[pts.length - 1][k];
+  };
+  function hallPull(plan) {
+    if (!ctx || !denOut) return;
+    if (pull) {
+      const p = pull;
+      pull = null;
+      try { p.wob.stop(); } catch (e) { /* gone */ }
+      [p.delay, p.lp, p.gain, p.wob, p.wobG].forEach((n) => { try { n.disconnect(); } catch (e) { /* gone */ } });
+      try { denOut.disconnect(); } catch (e) { /* gone */ }
+      denOut.connect(master);
+    }
+    if (!plan || !plan.points || plan.points.length < 2) return;
+    const pts = plan.points, at = Math.max(now(), plan.at || now()), end = pts[pts.length - 1][0];
+    const late = Math.max(0, now() - (plan.at || now()));
+    // The delay under it: how far behind it's fallen, the sag summed up.
+    const STEP = 0.02, n = Math.max(2, Math.ceil((end - late) / STEP) + 1), curve = new Float32Array(n);
+    let d = 0;
+    for (let s = 0; s < late; s += STEP) d += along(pts, s, 1) * STEP;
+    for (let i = 0; i < n; i++) { curve[i] = d; d += along(pts, late + i * STEP, 1) * STEP; }
+    const delay = ctx.createDelay(Math.max(1, d + 0.5));
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 0.7;
+    const gain = ctx.createGain();
+    delay.delayTime.setValueCurveAtTime(curve, at, (n - 1) * STEP);
+    lp.frequency.setValueAtTime(along(pts, late, 2), at);
+    gain.gain.setValueAtTime(along(pts, late, 3), at);
+    pts.forEach(([s, , f, g]) => {
+      if (s <= late) return;
+      lp.frequency.exponentialRampToValueAtTime(Math.max(40, f), at + s - late);
+      gain.gain.linearRampToValueAtTime(g, at + s - late);
+    });
+    // The wobble (never more than the delay it swings round).
+    const wob = ctx.createOscillator(); wob.frequency.value = plan.wobbleHz || 0.45;
+    const wobG = ctx.createGain(); wobG.gain.setValueAtTime(0, at);
+    (plan.wobble || []).forEach(([s, depth]) => { if (s > late) wobG.gain.linearRampToValueAtTime(Math.min(depth, 0.5 * curve[Math.min(n - 1, Math.round((s - late) / STEP))]), at + s - late); });
+    wob.connect(wobG).connect(delay.delayTime); wob.start(at);
+    denOut.disconnect();
+    denOut.connect(delay).connect(lp).connect(gain).connect(master);
+    pull = { delay, lp, gain, wob, wobG, at: +(at - late).toFixed(3) };
   }
 
   /* ---------------- the stereo console ---------------- */
@@ -790,8 +852,10 @@ export function createAudio() {
     awayFromDen(on, secs = 1.5) {
       away = !!on;
       if (!ctx) return;
+      if (!on && pull) hallPull(null);
       ["room", "stereo", "pieces"].forEach((ch) => { if (gates[ch]) gates[ch].gain.setTargetAtTime(chGain(ch), now(), secs / 3); });
     },
+    hallPull,
     holdForPhone,
     phoneHeld: () => phoneHeld,
     // On the phone: the record turned down under it (and back after).
