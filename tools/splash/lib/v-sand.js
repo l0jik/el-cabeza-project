@@ -10,7 +10,6 @@ import { W, H, V1, V2, V5, posterCanvas } from "./posters.js";
 import { BOARD, REST } from "./board.js";
 import { clamp, lerp, span, smooth, easeInOut, rng, hex, fbm } from "./anim.js";
 
-const DURATION = 5.6;
 const GW = W / 2, GH = H / 2, N = GW * GH; // grains, one per 2 x 2 block
 const CENTRE = { v1: V1.C, v2: V2.C, v5: [V5.x + V5.S / 2, V5.y + V5.S / 2] };
 // How the swirl is shaped: positions from (r, angle) and back.
@@ -29,7 +28,7 @@ function pixels(cv) { return new Uint32Array(cv.getContext("2d").getImageData(0,
 
 function plan(id) {
   if (PLANS[id]) return PLANS[id];
-  const src = pixels(BOARD.start), dst = pixels(posterCanvas(id));
+  const src = pixels(BOARD.start), dst = pixels(posterCanvas(id, { title: false }));
   const [ox, oy] = CENTRE[id], sh = SHAPE[id];
   const lum = (px, b) => {
     const x = (b % GW) * 2, y = Math.floor(b / GW) * 2, i = y * W + x;
@@ -139,4 +138,5 @@ function frameSand(ctx, id, t) {
   ctx.putImageData(IM, 0, 0);
 }
 
-export const sand = { duration: DURATION, frame: frameSand };
+// settle: when the last grain lands
+export const sand = { settle: (id) => { const P = plan(id); let m = 0; for (let i = 0; i < N; i++) if (P.ta[i] > m) m = P.ta[i]; return Math.ceil(m * 20) / 20; }, frame: frameSand };

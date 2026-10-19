@@ -6,12 +6,11 @@
          turns out of it, the triangle draws itself, the rays shoot out.
      v5: the pieces lift away; the board's squares slide into stripes and
          bend into rings, the table turns to paper. */
-import { W, H, V1, V2, V5, TITLE, drawTitle, posterCanvas, hexPoints, poly, wedge, v1Frame, v2Fans, v5Stripes, v5Rings } from "./posters.js";
+import { W, H, V1, V2, V5, posterCanvas, hexPoints, poly, wedge, v1Frame, v2Fans, v5Stripes, v5Rings } from "./posters.js";
 import { BOARD, XS, YS, REST, PHOTO, drawStart } from "./board.js";
 import { clamp, lerp, span, smooth, smoother, easeIn, easeOut, easeInOut, backOut, hex, mix, mixRgb, rgb, canvas } from "./anim.js";
 import { makeCam, superellipse, drawPrism, planeXform, pathPts, ISO_EPS } from "./iso3d.js";
 
-const DURATION = 6.5;
 const k = REST.k;
 const kx = k, ky = ((XS[10] - XS[0]) * k) / (YS[10] - YS[0]); // the playable 10 x 10 made exactly square
 const BW = PHOTO.w * kx, BH = PHOTO.h * ky; // the board in world units
@@ -192,10 +191,9 @@ function buildV1(ctx, t) {
   const op = 1 - span(t, 0.6, 0.75);
   if (op > 0) { ctx.globalAlpha = op; drawStart(ctx, t); ctx.globalAlpha = 1; }
 
-  // the title, then the poster itself settles over everything
-  drawTitle(ctx, "v1", { title: span(t, 3.45, 4.25), nova: span(t, 3.85, 4.45), tag: span(t, 4.05, 4.6) });
-  const fin = smooth(span(t, 4.6, 5.1));
-  if (fin > 0) { ctx.globalAlpha = fin; ctx.drawImage(posterCanvas("v1"), 0, 0); ctx.globalAlpha = 1; }
+  // the poster itself settles over everything
+  const fin = smooth(span(t, 3.45, 3.8));
+  if (fin > 0) { ctx.globalAlpha = fin; ctx.drawImage(posterCanvas("v1", { title: false }), 0, 0); ctx.globalAlpha = 1; }
 }
 
 function pieceAsPrism(ctx, cam, p, st) {
@@ -346,9 +344,8 @@ function buildV2(ctx, t) {
 
   // the figure: lines from each face's far corner, then the faces flatten into facets
   figureV2(ctx, t);
-  drawTitle(ctx, "v2", { title: span(t, 3.5, 4.3), nova: span(t, 3.9, 4.5), tag: span(t, 4.1, 4.65) });
-  const fin = smooth(span(t, 4.65, 5.15));
-  if (fin > 0) { ctx.globalAlpha = fin; ctx.drawImage(posterCanvas("v2"), 0, 0); ctx.globalAlpha = 1; }
+  const fin = smooth(span(t, 3.9, 4.2));
+  if (fin > 0) { ctx.globalAlpha = fin; ctx.drawImage(posterCanvas("v2", { title: false }), 0, 0); ctx.globalAlpha = 1; }
 }
 
 function figureV2(ctx, t) {
@@ -526,9 +523,8 @@ function buildV5(ctx, t) {
   const op = 1 - span(t, 0.6, 0.72);
   if (op > 0) { ctx.globalAlpha = op; drawStart(ctx, t); ctx.globalAlpha = 1; }
 
-  drawTitle(ctx, "v5", { title: span(t, 3.55, 4.3), nova: span(t, 3.9, 4.5), tag: span(t, 4.1, 4.65) });
-  const fin = smooth(span(t, 4.65, 5.15));
-  if (fin > 0) { ctx.globalAlpha = fin; ctx.drawImage(posterCanvas("v5"), 0, 0); ctx.globalAlpha = 1; }
+  const fin = smooth(span(t, 3.6, 3.95));
+  if (fin > 0) { ctx.globalAlpha = fin; ctx.drawImage(posterCanvas("v5", { title: false }), 0, 0); ctx.globalAlpha = 1; }
 }
 
 function drawPieceLifted(ctx, p, lift) {
@@ -612,7 +608,7 @@ function ringsV5(key, S, bend, ringIn) {
 /* ---------------- the version ---------------- */
 
 export const build = {
-  duration: DURATION,
+  settle: (id) => ({ v1: 3.8, v2: 4.2, v5: 3.95 })[id],
   frame(ctx, id, t) {
     if (id === "v1") return buildV1(ctx, t);
     if (id === "v2") return buildV2(ctx, t);

@@ -9,7 +9,6 @@ import { W, H, V1, V2, V5, wedge, posterCanvas } from "./posters.js";
 import { BOARD, REST } from "./board.js";
 import { clamp, lerp, span, smooth, easeIn, easeOut, easeInOut, backOut } from "./anim.js";
 
-const DURATION = 5.2;
 const D2R = Math.PI / 180;
 
 // The photo as it is, held still until it starts to move.
@@ -24,7 +23,7 @@ const FAN_LEFT = [-180, -154, -128, -104, -82, -60, -38, -19, 0];
 
 function sweepV1(ctx, t) {
   if (t < 0.75) return rest(ctx);
-  const P = posterCanvas("v1");
+  const P = posterCanvas("v1", { title: false });
   const [cx, cy] = V1.C;
   const e = easeInOut(span(t, 0.75, 2.95));
   ctx.drawImage(BOARD.ground, 0, 0);
@@ -80,7 +79,7 @@ function sweepV1(ctx, t) {
 
 function sweepV2(ctx, t) {
   if (t < 0.75) return rest(ctx);
-  const P = posterCanvas("v2");
+  const P = posterCanvas("v2", { title: false });
   const [cx, cy] = V2.C;
   // underneath: the poster, settling from a touch large
   const settle = easeOut(span(t, 0.9, 3.0));
@@ -131,7 +130,7 @@ function sweepV2(ctx, t) {
 
 function sweepV5(ctx, t) {
   if (t < 0.75) return rest(ctx);
-  const P = posterCanvas("v5");
+  const P = posterCanvas("v5", { title: false });
   rest(ctx);
   const bx = V5.x, by = V5.y, S = V5.S;
   // the paper spreads out round the square (not over it: the square comes in its own way)
@@ -199,7 +198,7 @@ function sweepV5(ctx, t) {
 }
 
 export const sweep = {
-  duration: DURATION,
+  settle: (id) => ({ v1: 3.4, v2: 3.0, v5: 3.55 })[id],
   frame(ctx, id, t) {
     if (id === "v1") return sweepV1(ctx, t);
     if (id === "v2") return sweepV2(ctx, t);

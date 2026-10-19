@@ -3,9 +3,16 @@
    upright (1080 x 1920) so they stay sharp at full screen (user: "Redraw
    them sharp").
 
-     v1  "Before chess. After time."  a hexagon of cubes on a sunburst
-     v2  "The geometry of thought."   a faceted hexagon, rays to the sides
-     v5  "The ultimate mindscape."    four squares of stripes and arcs
+     v1  a hexagon of cubes on a sunburst
+     v2  a faceted hexagon, rays to the sides
+     v5  four squares of stripes and arcs
+
+   No taglines, and the only words are the name (user: "remove the taglines
+   from all of them. The only text that should be on there is ... initially
+   just the word El Cabeza ... then ... an additional splash of the added
+   word Nova. Make these look refined and classy"): the title is drawn over
+   the artwork (drawTitle, below), not into it, so the videos can bring it in
+   on its own.
 
    Everything is drawn from geometry kept here (centres, radii, the room
    of cubes, the rings), so the videos can take a poster apart and build
@@ -13,13 +20,23 @@
 export const W = 1080, H = 1920;
 const D2R = Math.PI / 180;
 
-// The title block, the same place on all three.
-export const TITLE = { base: 1452, nova: 1531, tag: 1646, titleW: 836, tagW: 850, size: 148, novaSize: 54, tagSize: 66 };
+/* The title block, the same place on all three: EL CABEZA, and under it
+   NOVA between two hairline rules. */
+export const TITLE = {
+  base: 1562, // EL CABEZA's baseline
+  width: 776, // its width at rest, letter-spaced
+  track: 0.06, // its letter-spacing at rest, in ems
+  nova: 1650, // NOVA's middle, and the rules'
+  novaSize: 48, novaTrack: 0.66,
+  ruleGap: 30, ruleLen: 150, rule: 2,
+};
 
+/* Each poster's inks. light: the name's colour over a dark ground (the
+   opening's table), where a poster's own ink is dark (5, on paper). */
 export const SCHEME = {
-  v1: { title: "#F3D4A2", nova: "#DE8631", rule: "#C8762E", tag: "#F1D3A1", tagline: "BEFORE CHESS. AFTER TIME." },
-  v2: { title: "#F3D4A2", nova: "#DE8631", rule: "#C8762E", tag: "#F1D3A1", tagline: "THE GEOMETRY OF THOUGHT." },
-  v5: { title: "#1E1611", nova: "#C9742E", rule: "#C9742E", tag: "#1E1611", tagline: "THE ULTIMATE MINDSCAPE." },
+  v1: { ink: "#F3D4A2", light: "#F3D4A2", nova: "#DE8631", rule: "#C8762E", glow: [255, 190, 112], sheen: "#FFF4DE", ground: "dark" },
+  v2: { ink: "#F3D4A2", light: "#F3D4A2", nova: "#DE8631", rule: "#C8762E", glow: [255, 190, 112], sheen: "#FFF4DE", ground: "dark" },
+  v5: { ink: "#1E1611", light: "#F3D4A2", nova: "#C9742E", rule: "#C9742E", glow: [214, 112, 40], sheen: "#D98A3A", ground: "light" },
 };
 
 export const hexPoints = (cx, cy, r) => [0, 1, 2, 3, 4, 5].map((i) => {
@@ -146,7 +163,6 @@ export function drawV1(ctx, opt = {}) {
   v1Rays(ctx, opt.rays ?? 1);
   v1Frame(ctx);
   v1Room(ctx);
-  if (opt.title !== false) drawTitle(ctx, "v1");
 }
 
 /* ---------------- v2: the faceted hexagon ---------------- */
@@ -231,7 +247,6 @@ export function drawV2(ctx, opt = {}) {
   ctx.fillRect(0, 0, W, H);
   v2Fans(ctx, opt.fans ?? 1);
   v2Emblem(ctx);
-  if (opt.title !== false) drawTitle(ctx, "v2");
 }
 
 /* ---------------- v5: stripes and arcs ---------------- */
@@ -311,77 +326,186 @@ export function drawV5(ctx, opt = {}) {
   v5Rings(ctx, "tr");
   v5Rings(ctx, "bl");
   v5Stripes(ctx, "br");
-  if (opt.title !== false) drawTitle(ctx, "v5");
 }
 
 /* ---------------- the title, shared ---------------- */
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const span01 = (t, a, b) => clamp01((t - a) / (b - a));
 const smooth = (v) => { v = clamp01(v); return v * v * (3 - 2 * v); };
+const easeOut = (v) => 1 - (1 - clamp01(v)) ** 3;
+const easeOutQuart = (v) => 1 - (1 - clamp01(v)) ** 4;
+const easeOutExpo = (v) => (v >= 1 ? 1 : 1 - 2 ** (-10 * clamp01(v)));
+const easeInOut = (v) => { v = clamp01(v); return v < 0.5 ? 4 * v * v * v : 1 - (-2 * v + 2) ** 3 / 2; };
+const hexRgb = (c) => { const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+const mixHex = (a, b, t) => { const x = hexRgb(a), y = hexRgb(b); return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * clamp01(t))).join(",")})`; };
+const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
-/* Letters with their own x, measured with kerning (each prefix's width),
-   centred on cx, fitted to width w. */
-function letters(ctx, text, font, size, w, cx, spacing = 0) {
-  ctx.font = `${font.replace("SIZE", size)}`;
-  ctx.letterSpacing = `${spacing}px`;
-  let full = ctx.measureText(text).width - spacing;
-  if (w && full > w) {
-    size = (size * w) / full;
-    ctx.font = `${font.replace("SIZE", size)}`;
-    full = ctx.measureText(text).width - spacing;
-  }
-  const out = [];
-  for (let i = 0; i < text.length; i++) out.push({ ch: text[i], x: cx - full / 2 + ctx.measureText(text.slice(0, i)).width });
+const CABEZA_FONT = (size) => `700 ${size}px Cinzel`;
+const NOVA_FONT = (size) => `300 ${size}px 'Josefin Sans'`;
+
+/* Letters laid out with their own kerning (each prefix's width) plus a
+   tracking in pixels, centred on cx. */
+function layout(ctx, text, font, track, cx) {
+  ctx.font = font;
   ctx.letterSpacing = "0px";
-  return { size, full, out };
+  const full = ctx.measureText(text).width + track * (text.length - 1);
+  const x0 = cx - full / 2;
+  const out = [];
+  for (let i = 0; i < text.length; i++) out.push({ ch: text[i], x: x0 + ctx.measureText(text.slice(0, i)).width + track * i });
+  return { full, x0, out };
 }
 
-/* reveal: { title, nova, tag } each 0..1 (1 = shown, the default). The
-   letters come up and in one after another; NOVA's rules draw out from
-   it. */
-export function drawTitle(ctx, id, reveal = {}) {
-  const sc = SCHEME[id];
-  const T = TITLE, cx = W / 2;
-  const rt = reveal.title ?? 1, rn = reveal.nova ?? 1, rg = reveal.tag ?? 1;
+// EL CABEZA's size: as wide as TITLE.width at its resting tracking.
+let cabezaSize = 0;
+function sizeCabeza(ctx) {
+  if (cabezaSize) return cabezaSize;
+  ctx.font = CABEZA_FONT(100);
+  ctx.letterSpacing = "0px";
+  const w = ctx.measureText("EL CABEZA").width / 100;
+  return (cabezaSize = TITLE.width / (w + TITLE.track * 8));
+}
+
+let sheenCanvas = null;
+
+/* The title, at any point of its coming in. s (each 0..1; the default, the
+   title at rest):
+     cabeza  EL CABEZA coming up: in from nothing as its letters close in
+     nova    NOVA's entrance: a spark on the line under the name, the rules
+             running out from it and parting, NOVA opening out of the
+             middle into focus, a soft bloom of light behind it
+     sheen   a glint of light passing over EL CABEZA, left to right
+     ink     from the light ink (over the opening's dark table) to the
+             poster's own (5's dark ink on its paper)
+     halo    a soft shade round the name, for while the picture moves under it */
+export function drawTitle(ctx, id, s = {}) {
+  const sc = SCHEME[id], T = TITLE, cx = W / 2;
+  const c = s.cabeza ?? 1, n = s.nova ?? 1, ink = s.ink ?? 1, halo = s.halo ?? 0, sh = s.sheen ?? 0;
   ctx.save();
   ctx.textBaseline = "alphabetic";
-  // EL CABEZA
-  const tl = letters(ctx, "EL CABEZA", "700 SIZEpx Cinzel", T.size, T.titleW, cx, 2);
-  ctx.font = `700 ${tl.size}px Cinzel`;
-  ctx.fillStyle = sc.title;
-  tl.out.forEach((l, i) => {
-    const k = smooth((rt * 1.6 - i * 0.075) / 1);
-    if (k <= 0) return;
-    ctx.globalAlpha = k;
-    ctx.fillText(l.ch, l.x, T.base + (1 - k) * 26);
-  });
-  // NOVA, its rules
-  const nl = letters(ctx, "NOVA", "300 SIZEpx 'Josefin Sans'", T.novaSize, 0, cx, T.novaSize * 0.62);
-  ctx.font = `300 ${nl.size}px 'Josefin Sans'`;
-  ctx.letterSpacing = `${T.novaSize * 0.62}px`;
-  const kn = smooth(rn);
-  ctx.globalAlpha = kn;
-  ctx.fillStyle = sc.nova;
-  ctx.textAlign = "center";
-  ctx.fillText("NOVA", cx + (T.novaSize * 0.62) / 2, T.nova + nl.size * 0.36);
   ctx.textAlign = "left";
-  ctx.letterSpacing = "0px";
-  const ruleGap = nl.full / 2 + 34, ruleLen = 196 * smooth(rn * 1.3 - 0.15);
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = sc.rule;
-  if (ruleLen > 0) {
-    ctx.fillRect(cx - ruleGap - ruleLen, T.nova - 1.5, ruleLen, 3);
-    ctx.fillRect(cx + ruleGap, T.nova - 1.5, ruleLen, 3);
+
+  // EL CABEZA
+  const size = sizeCabeza(ctx);
+  const cab = layout(ctx, "EL CABEZA", CABEZA_FONT(size), (T.track + 0.12 * (1 - easeOut(c))) * size, cx);
+  const alpha = smooth(c * 1.25);
+  if (alpha > 0) {
+    ctx.font = CABEZA_FONT(size);
+    ctx.fillStyle = mixHex(sc.light, sc.ink, ink);
+    if (halo > 0) {
+      const lightInk = sc.ground === "dark" || ink < 0.5;
+      ctx.shadowColor = lightInk ? `rgba(12,7,4,${0.78 * halo * alpha})` : `rgba(242,214,176,${0.75 * halo * alpha})`;
+      ctx.shadowBlur = 30;
+    }
+    ctx.globalAlpha = alpha;
+    for (const l of cab.out) ctx.fillText(l.ch, l.x, T.base);
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
   }
-  // the tagline
-  const gl = letters(ctx, sc.tagline, "600 SIZEpx 'Barlow Condensed'", T.tagSize, T.tagW, cx, 1);
-  ctx.font = `600 ${gl.size}px 'Barlow Condensed'`;
-  ctx.letterSpacing = "1px";
-  const kg = smooth(rg);
-  ctx.globalAlpha = kg;
-  ctx.fillStyle = sc.tag;
-  ctx.textAlign = "center";
-  ctx.fillText(sc.tagline, cx, T.tag + (1 - kg) * 14);
+
+  // the glint over the name: the letters again, in light, seen through a band that crosses them
+  if (sh > 0 && sh < 1) {
+    const top = T.base - size, h = size * 1.25;
+    if (!sheenCanvas) { sheenCanvas = document.createElement("canvas"); sheenCanvas.width = W; sheenCanvas.height = Math.ceil(h) + 4; }
+    const g = sheenCanvas.getContext("2d");
+    g.clearRect(0, 0, W, sheenCanvas.height);
+    g.globalCompositeOperation = "source-over";
+    g.font = CABEZA_FONT(size);
+    g.fillStyle = sc.sheen;
+    for (const l of cab.out) g.fillText(l.ch, l.x, T.base - top);
+    g.globalCompositeOperation = "destination-in";
+    const e = easeInOut(sh), bx = cab.x0 - 220 + (cab.full + 440) * e;
+    const gr = g.createLinearGradient(bx - 90, h, bx + 90 + h * 0.35, 0);
+    gr.addColorStop(0, "rgba(0,0,0,0)");
+    gr.addColorStop(0.5, "rgba(0,0,0,1)");
+    gr.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gr;
+    g.fillRect(0, 0, W, sheenCanvas.height);
+    ctx.globalAlpha = (sc.ground === "dark" ? 0.75 : 0.5) * Math.sin(Math.PI * sh);
+    ctx.drawImage(sheenCanvas, 0, top);
+    ctx.globalAlpha = 1;
+  }
+
+  // NOVA
+  if (n > 0) drawNova(ctx, sc, n);
+  ctx.restore();
+}
+
+function drawNova(ctx, sc, n) {
+  const T = TITLE, cx = W / 2, y = T.nova, ns = T.novaSize;
+  const dark = sc.ground === "dark";
+  const glow = sc.glow;
+  // where it all ends up: the word at its tracking, the rules a gap away
+  const rest = layout(ctx, "NOVA", NOVA_FONT(ns), T.novaTrack * ns, cx);
+  const gi = rest.full / 2 + T.ruleGap;
+
+  // a soft bloom behind the word, rising quickly and dying away slowly
+  const bloom = smooth(span01(n, 0.04, 0.24)) * (1 - smooth(span01(n, 0.28, 1)));
+  if (bloom > 0) {
+    ctx.save();
+    ctx.globalCompositeOperation = dark ? "screen" : "source-over";
+    ctx.translate(cx, y);
+    ctx.scale(1, 0.26);
+    const r = 560;
+    const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+    const k = dark ? 0.5 : 0.1;
+    gr.addColorStop(0, rgba(glow, k * bloom));
+    gr.addColorStop(0.4, rgba(glow, k * 0.38 * bloom));
+    gr.addColorStop(1, rgba(glow, 0));
+    ctx.fillStyle = gr;
+    ctx.fillRect(-r, -r, 2 * r, 2 * r);
+    ctx.restore();
+  }
+
+  // the rules: run out from the middle, then part for the word
+  const outer = (gi + T.ruleLen) * easeOutExpo(span01(n, 0.02, 0.6));
+  const inner = gi * easeInOut(span01(n, 0.16, 0.62));
+  if (outer > inner) {
+    ctx.fillStyle = sc.rule;
+    ctx.fillRect(cx - outer, y - T.rule / 2, outer - inner, T.rule);
+    ctx.fillRect(cx + inner, y - T.rule / 2, outer - inner, T.rule);
+  }
+  // a point of light at each running end
+  const run = smooth(span01(n, 0.02, 0.07)) * (1 - smooth(span01(n, 0.32, 0.62)));
+  if (run > 0) for (const x of [cx - outer, cx + outer]) spark(ctx, x, y, dark ? 34 : 22, run * (dark ? 0.9 : 0.75), glow, dark);
+  // and the spark the line starts from
+  const flash = smooth(span01(n, 0, 0.06)) * (1 - smooth(span01(n, 0.08, 0.4)));
+  if (flash > 0) spark(ctx, cx, y, dark ? 90 : 46, flash * (dark ? 1 : 0.8), glow, dark);
+
+  // the word: opening out from the middle, coming into focus
+  const a = smooth(span01(n, 0.16, 0.6));
+  if (a > 0) {
+    const open = easeOutQuart(span01(n, 0.12, 0.86));
+    const word = layout(ctx, "NOVA", NOVA_FONT(ns), (0.1 + (T.novaTrack - 0.1) * open) * ns, cx);
+    const blur = 7 * (1 - smooth(span01(n, 0.14, 0.74)));
+    ctx.save();
+    ctx.font = NOVA_FONT(ns);
+    ctx.fillStyle = sc.nova;
+    ctx.globalAlpha = a;
+    if (blur > 0.05) ctx.filter = `blur(${blur.toFixed(2)}px)`;
+    for (const l of word.out) ctx.fillText(l.ch, l.x, y + ns * 0.36);
+    ctx.restore();
+  }
+}
+
+// A point of light: white-hot in the middle on a dark ground, the glow's colour on a light one.
+function spark(ctx, x, y, r, a, glow, dark) {
+  ctx.save();
+  ctx.globalCompositeOperation = dark ? "screen" : "source-over";
+  const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+  if (dark) {
+    gr.addColorStop(0, `rgba(255,250,240,${a})`);
+    gr.addColorStop(0.12, rgba(glow, 0.85 * a));
+    gr.addColorStop(0.4, rgba(glow, 0.22 * a));
+  } else {
+    gr.addColorStop(0, rgba(glow, 0.95 * a));
+    gr.addColorStop(0.1, rgba(glow, 0.6 * a));
+    gr.addColorStop(0.4, rgba(glow, 0.12 * a));
+  }
+  gr.addColorStop(1, rgba(glow, 0));
+  ctx.fillStyle = gr;
+  ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
   ctx.restore();
 }
 
@@ -412,7 +536,9 @@ export function grain(ctx, amount = 0.09) {
 
 export const DRAW = { v1: drawV1, v2: drawV2, v5: drawV5 };
 
-// The whole poster, finished, into a new canvas (cached).
+/* The whole poster into a new canvas (cached): the artwork with its grain,
+   and the title over it (opt.title false: the artwork alone, what the
+   videos morph into, the title coming in over them on its own). */
 const cache = {};
 export function posterCanvas(id, opt = {}) {
   const key = id + JSON.stringify(opt);
@@ -423,5 +549,6 @@ export function posterCanvas(id, opt = {}) {
   const ctx = c.getContext("2d");
   DRAW[id](ctx, opt);
   if (opt.grain !== false) grain(ctx);
+  if (opt.title !== false) drawTitle(ctx, id);
   return (cache[key] = c);
 }

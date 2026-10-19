@@ -25,11 +25,17 @@ the game. "In:" says where a line is shown now.
 
 ## 2. The user's collage of twenty posters (user, 2026-10-18)
 
-1. BEFORE CHESS. AFTER TIME. (splash poster v1)
-2. THE GEOMETRY OF THOUGHT. (splash poster v2)
+The splash videos' posters are 1, 2 and 5, redrawn; their lines were on
+them until 2026-10-19, when the user had every tagline taken off (user:
+"remove the taglines from all of them"). The splash now says only EL
+CABEZA, then NOVA.
+
+
+1. BEFORE CHESS. AFTER TIME.
+2. THE GEOMETRY OF THOUGHT.
 3. INTELLECT BEYOND THE GRID.
 4. OUTPLAY THE INFINITE.
-5. THE ULTIMATE MINDSCAPE. (splash poster v5)
+5. THE ULTIMATE MINDSCAPE.
 6. WHERE LOGIC MEETS THE VOID.
 7. THE GAME OF UNPARALLELED INTENTION.
 8. FOR THE DISCERNED FEW.

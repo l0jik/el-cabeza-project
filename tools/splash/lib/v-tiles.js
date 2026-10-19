@@ -4,13 +4,12 @@
      v2  out to the sides from the middle, as the rays run
      v5  quarter by quarter: the stripes' tiles turn on upright hinges, the
          rings' on level ones
-   and last the title's row, left to right, like a station board. */
+   The title isn't in the tiles: it's over them (title.js). */
 import * as THREE from "../../../node_modules/three/build/three.module.js";
-import { W, H, V1, V2, V5, TITLE, posterCanvas } from "./posters.js";
+import { W, H, V1, V2, V5, posterCanvas } from "./posters.js";
 import { BOARD, XS, YS, REST } from "./board.js";
 import { clamp, lerp, span, smooth, easeInOut, rng, canvas } from "./anim.js";
 
-const DURATION = 6.0;
 const k = REST.k;
 // The board's squares at rest, continued across the frame.
 const PX = REST.x + XS[0] * k, PY = REST.y + YS[0] * k;
@@ -62,8 +61,6 @@ function texture(cv) {
 // The flip for each tile: when, about which axis (in the picture's plane), by poster.
 function plan(id, cx, cy) {
   const j = rng(Math.round(cx * 7 + cy * 13))() - 0.5;
-  const inTitle = cy > TITLE.base - 150 && cy < TITLE.tag + 50;
-  if (inTitle) return { s: 2.25 + 0.6 * (cx / W) + 0.05 * Math.max(0, (cy - (TITLE.base - 150)) / DY) + 0.03 * j, dir: [0, -1] };
   if (id === "v1") {
     const [ox, oy] = V1.C;
     const d = Math.hypot(cx - ox, cy - oy);
@@ -99,7 +96,7 @@ function build(id) {
   if (SCENES[id]) return SCENES[id];
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0b0806);
-  const front = material(texture(BOARD.start)), back = material(texture(posterCanvas(id))), side = material(null, [0.17, 0.105, 0.06]);
+  const front = material(texture(BOARD.start)), back = material(texture(posterCanvas(id, { title: false }))), side = material(null, [0.17, 0.105, 0.06]);
   side.side = THREE.DoubleSide;
   const shadowTex = (() => {
     const c = canvas(64, 64), g = c.getContext("2d");
@@ -202,7 +199,8 @@ function frameTiles(ctx, id, t) {
   ctx.drawImage(r.domElement, 0, 0);
   // the poster itself, exactly, once every tile lies flat
   const fin = smooth(span(t, 4.05, 4.4));
-  if (fin > 0) { ctx.globalAlpha = fin; ctx.drawImage(posterCanvas(id), 0, 0); ctx.globalAlpha = 1; }
+  if (fin > 0) { ctx.globalAlpha = fin; ctx.drawImage(posterCanvas(id, { title: false }), 0, 0); ctx.globalAlpha = 1; }
 }
 
-export const tiles = { duration: DURATION, frame: frameTiles };
+// settle: when the poster is whole (the title's NOVA follows it)
+export const tiles = { settle: () => 4.4, frame: frameTiles };

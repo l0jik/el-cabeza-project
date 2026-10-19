@@ -3,7 +3,10 @@
    "5 versions of a video that incorporate the game board morphing into these
    images"; "separate videos ... it'll be the board first and then the
    poster"; silent; for "the front page or the splash page for a mobile
-   app"). 1080 x 1920, H.264, no sound.
+   app"). 1080 x 1920, H.264, no sound. The only words are the name: EL
+   CABEZA from the first second, then NOVA's own entrance once the poster has
+   settled (user: "remove the taglines from all of them ... Make these look
+   refined and classy"; lib/title.js).
 
    Frames are drawn in Chromium (tools/splash/splash.html, a canvas stepped
    one frame at a time) and piped to ffmpeg.
@@ -60,7 +63,7 @@ async function still(version, poster, t) {
 }
 
 async function video(version, poster) {
-  const dur = await page.evaluate((v) => window.SPLASH.duration(v), version);
+  const dur = await page.evaluate(([v, p]) => window.SPLASH.duration(v, p), [version, poster]);
   const end = TO == null ? dur : Math.min(dur, Number(TO));
   const n0 = Math.round(FROM * FPS), n1 = Math.round(end * FPS);
   const file = path.join(OUT, `${version}-${poster}${FROM || TO ? `-${FROM}-${end}` : ""}.mp4`);

@@ -9,7 +9,6 @@ import { W, H, V1, V2, V5, hexPoints, posterCanvas } from "./posters.js";
 import { BOARD, REST } from "./board.js";
 import { clamp, lerp, span, smooth, easeInOut } from "./anim.js";
 
-const DURATION = 5.8;
 const GX = 90, GY = 160; // the mesh, in quads
 
 // The board's outline at rest: corners, edge midpoints and quarter points, and its centre.
@@ -147,7 +146,7 @@ function build(id) {
   g.setIndex(idx);
   const mat = new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG, side: THREE.DoubleSide,
-    uniforms: { texA: { value: texture(BOARD.start) }, texB: { value: texture(posterCanvas(id)) }, melt: { value: 0 }, time: { value: 0 }, centre: { value: new THREE.Vector2(pp.c[0] / W, 1 - pp.c[1] / H) } },
+    uniforms: { texA: { value: texture(BOARD.start) }, texB: { value: texture(posterCanvas(id, { title: false })) }, melt: { value: 0 }, time: { value: 0 }, centre: { value: new THREE.Vector2(pp.c[0] / W, 1 - pp.c[1] / H) } },
   });
   const scene = new THREE.Scene();
   scene.add(new THREE.Mesh(g, mat));
@@ -184,7 +183,7 @@ function frameLiquid(ctx, id, t) {
   r.render(S.scene, cam);
   ctx.drawImage(r.domElement, 0, 0);
   const fin = smooth(span(t, 3.75, 4.15));
-  if (fin > 0) { ctx.globalAlpha = fin; ctx.drawImage(posterCanvas(id), 0, 0); ctx.globalAlpha = 1; }
+  if (fin > 0) { ctx.globalAlpha = fin; ctx.drawImage(posterCanvas(id, { title: false }), 0, 0); ctx.globalAlpha = 1; }
 }
 
-export const liquid = { duration: DURATION, frame: frameLiquid };
+export const liquid = { settle: () => 4.15, frame: frameLiquid };

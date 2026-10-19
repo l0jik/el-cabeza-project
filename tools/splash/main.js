@@ -1,7 +1,9 @@
 /* The stage: fonts and the board photo loaded, then window.SPLASH.frame(version,
-   poster, t) draws one frame of a video at t seconds. */
-import { W, H, posterCanvas } from "./lib/posters.js";
+   poster, t) draws one frame of a video at t seconds: the version's picture,
+   and the title over it (lib/title.js). */
+import { W, H, TITLE, SCHEME, posterCanvas, drawTitle } from "./lib/posters.js";
 import { BOARD, loadBoard, drawStart, drawPiece } from "./lib/board.js";
+import { length, titleState } from "./lib/title.js";
 import { build } from "./lib/v-build.js";
 import { tiles } from "./lib/v-tiles.js";
 import { sand } from "./lib/v-sand.js";
@@ -9,7 +11,7 @@ import { liquid } from "./lib/v-liquid.js";
 import { sweep } from "./lib/v-sweep.js";
 
 const canvas = document.getElementById("c");
-const ctx = canvas.getContext("2d");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
 const VERSIONS = {
   build,
@@ -19,7 +21,7 @@ const VERSIONS = {
   sweep,
   // (a look at the pieces lifted off the board, for checking the cut-outs)
   debug: {
-    duration: 3,
+    settle: () => 3,
     frame(ctx, id, t) {
       if (t < 1) return drawStart(ctx, 0);
       ctx.drawImage(BOARD.startClean, 0, 0);
@@ -28,12 +30,38 @@ const VERSIONS = {
   },
 };
 
+function picture(version, id, t) {
+  ctx.save();
+  VERSIONS[version].frame(ctx, id, t);
+  ctx.restore();
+}
+
+/* When the ground under the name turns light (poster 5: the table to the
+   paper), found by stepping through the picture without the title: the last
+   moment the name's box is still mostly dark. Null on the dark posters. */
+const INK = {};
+function inkAt(version, id) {
+  if (SCHEME[id].ground === "dark") return null;
+  const key = `${version}-${id}`;
+  if (key in INK) return INK[key];
+  const bx = W / 2 - TITLE.width / 2, by = TITLE.base - 110, bw = TITLE.width, bh = 120;
+  const end = VERSIONS[version].settle(id);
+  let last = 0;
+  for (let t = 0; t <= end + 1e-6; t += 0.05) {
+    picture(version, id, t);
+    const d = ctx.getImageData(bx, by, bw, bh).data;
+    let s = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4 * 7) { s += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]; n++; }
+    if (s / n / 255 < 0.5) last = t;
+  }
+  return (INK[key] = last + 0.025);
+}
+
 window.SPLASH = {
   ready: (async () => {
     await Promise.all([
       document.fonts.load("700 100px Cinzel"),
       document.fonts.load("300 50px 'Josefin Sans'"),
-      document.fonts.load("600 50px 'Barlow Condensed'"),
       loadBoard("./board-photo.jpg"),
     ]);
   })(),
@@ -43,11 +71,14 @@ window.SPLASH = {
     ctx.drawImage(posterCanvas(id), 0, 0);
   },
   frame(version, id, t) {
+    const ink = inkAt(version, id);
+    picture(version, id, t);
     ctx.save();
-    VERSIONS[version].frame(ctx, id, t);
+    drawTitle(ctx, id, titleState(t, VERSIONS[version].settle(id), ink));
     ctx.restore();
   },
-  duration(version) {
-    return VERSIONS[version].duration;
+  duration(version, id) {
+    return length(VERSIONS[version].settle(id));
   },
+  inkAt,
 };
