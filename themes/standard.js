@@ -101,7 +101,7 @@ export const freeCamera = {
 // The den's recordings that ask for a credit, on the About card (as
 // Noir's): the man pulled down the hall (den-hall.js; the pull's other
 // recordings are CC0, assets/hall/src/CREDITS.md).
-export const soundCredits = "Sounds from freesound.org: down the hall, his shout as he\u2019s taken, \u201cScream_Male_03\u201d by LittleRobotSoundFactory (freesound.org/s/270474), CC BY 4.0, cut; the dread on the way, the force field and the heart, Werra, HarmonicMess, BJCurlee, Woodingp, Cloud-10, harrisonlace, AudioPapkin, vykroft, burnttoys, unfa and humanoide9000 (CC0).";
+export const soundCredits = "Sounds from freesound.org: down the hall, his shout as he\u2019s taken, \u201cScream_Male_03\u201d by LittleRobotSoundFactory (freesound.org/s/270474), CC BY 4.0, cut; the dread on the way (the house groaning round you), the force field and the heart, ceich93, lennartgreen, peridactyloptrix, Brighella, LoafDV, jemburyturner, Woodingp, Cloud-10, harrisonlace, brktkrgll, AudioPapkin, unfa and humanoide9000 (CC0).";
 export const modalBackdrop = "rgba(20, 12, 6, 0.5)";
 export const modalSurface = "rgba(243, 231, 205, 0.98)";
 // Shown only until the room is up.

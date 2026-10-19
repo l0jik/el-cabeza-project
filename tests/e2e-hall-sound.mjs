@@ -215,7 +215,7 @@ async function home(url, flares = 0) {
   const { ctx, page } = await home(URL_HTTP);
   await page.evaluate(() => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "about" } })));
   const credits = await poll(() => page.evaluate(() => { const e = document.querySelector('[data-testid="info-sound-credits"]'); return e && e.innerText; }), 8000);
-  check(`his shout credited (LittleRobotSoundFactory, CC BY 4.0), and the dread's makers; not the man's voice that's gone`, /LittleRobotSoundFactory/.test(credits || "") && /CC BY 4\.0/.test(credits || "") && /Werra/.test(credits || "") && /Cloud-10/.test(credits || "") && !/dersuperanton/.test(credits || ""), credits);
+  check(`his shout credited (LittleRobotSoundFactory, CC BY 4.0), and the dread's makers; not the man's voice that's gone`, /LittleRobotSoundFactory/.test(credits || "") && /CC BY 4\.0/.test(credits || "") && /ceich93/.test(credits || "") && /Brighella/.test(credits || "") && /Cloud-10/.test(credits || "") && !/dersuperanton/.test(credits || ""), credits);
   await ctx.close();
 }
 

@@ -39,8 +39,8 @@ the white takes you.
     FFMPEG=... python3 tools/hall_dread.py --set 3               another, into the game
     FFMPEG=... python3 tools/hall_dread.py --all --out DIR       every set, DIR/set1 ... set5
 
-The game's set is SET below. Each file: stereo, LEAD of silence first
-(den-hall.js finds the first sound), LAME VBR.
+The game's set is SET below (the user's pick: set 2). Each file: stereo,
+LEAD of silence first (den-hall.js finds the first sound), LAME VBR.
 """
 import argparse
 import os
@@ -57,7 +57,7 @@ OUT = os.path.join(ROOT, "assets/hall")
 FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 SR = 44100
 LEAD = 0.1
-SET = 1
+SET = 2  # (user: "We're going to go with SET 2 The house turns.")
 
 # The walk's moments (den-hall.js; the walk's clock from the click, s): the
 # doorframe, round the turn, the rift full in view, standing still, the
@@ -107,7 +107,7 @@ FILES = {
 # each from EXCERPT[key] seconds into its recording: loaded, it's put back
 # where it was (silence before). Any other set's recordings: from
 # freesound.org (the number at the end of each name), into SRC.
-EXCERPT = {"werra": 1.5, "harmonic": 0.0, "glass": 1.5, "rumble": 1.5}
+EXCERPT = {"bowedrone": 1.5, "rumble3": 4.5, "creaks": 4.0, "door": 2.5, "rumble": 1.5}
 _cache = {}
 
 
