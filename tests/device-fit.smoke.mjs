@@ -60,6 +60,11 @@ console.log("[slow everywhere: 30 ms a frame]");
   let drawn = 0, skipped = 0;
   for (let i = 0; i < 60; i++) { if (r.gov.skip(clock)) skipped++; else drawn++; clock += 16.7; }
   check("...a frame drawn every other refresh", Math.abs(drawn - 30) <= 1 && Math.abs(skipped - 30) <= 1, `${drawn} drawn, ${skipped} skipped`);
+  // Frames coming every 30 ms of themselves (a slow renderer, the browser
+  // tests' own): still no more than 30 a second.
+  let slowDrawn = 0;
+  for (let i = 0; i < 100; i++) { if (!r.gov.skip(clock)) slowDrawn++; clock += 30; }
+  check("...and frames every 30 ms of themselves: no more than 30 a second (not all 100 in 3 s)", slowDrawn <= 91 && slowDrawn >= 85, `${slowDrawn} drawn in 3 s`);
   runTimers();
   clock += 4000; runTimers();
   const saved = JSON.parse(store.get("el-cabeza:fit") || "{}")["mid|test"];

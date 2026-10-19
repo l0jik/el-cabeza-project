@@ -67,7 +67,11 @@
     are slow and the rest aren't, halves the shadow map first; at the
     pixel-ratio floor and still slow, halves the shadow map (to 512) and
     then holds frames to 30 a second (the chassis skips every other
-    refresh: `gov.skip(now)` at the top of tick); comes back up slowly
+    refresh: `gov.skip(now)` at the top of tick; a frame is due every
+    33.3 ms counted from the last one due, not from when it came, so a
+    renderer whose frames come every ~30 ms of themselves, as CI's do,
+    still makes no more than 30: counted from when it came, those all
+    passed and read 33, failing e2e-device-fit on cc1ad27); comes back up slowly
     (the cap, then the shadow map, then the pixel ratio, 8 s apart, not
     within 15 s of a step down; the cap comes off when every refresh is
     on time). Remembered per tier and world in localStorage

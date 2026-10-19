@@ -63,7 +63,7 @@ export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
   const fullShadow = q.shadowMap, minShadow = Math.min(fullShadow, 512);
   let pr = renderer.getPixelRatio(), shadow = fullShadow, paced = false;
   const frames = [], busy = [], raw = [];
-  let lastFrame = 0, lastRaw = 0, lastDrawn = 0, lastJudged = 0, lastEase = 0, lastRelief = -Infinity, settleUntil = 0, saveTimer = null, wasBusy = false, firstAt = 0, crawling = 0;
+  let lastFrame = 0, lastRaw = 0, nextDue = 0, lastJudged = 0, lastEase = 0, lastRelief = -Infinity, settleUntil = 0, saveTimer = null, wasBusy = false, firstAt = 0, crawling = 0;
 
   function changed() {
     if (opts.onChange) opts.onChange({ pixelRatio: pr, shadowMap: shadow, paced });
@@ -99,7 +99,7 @@ export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
   }
   function setPaced(v) {
     paced = v;
-    lastDrawn = 0;
+    nextDue = 0;
     settle();
     changed();
   }
@@ -137,14 +137,21 @@ export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
 
   return {
     /* Whether to skip this refresh (held to 30 a second). Called at the
-       top of every frame; a skipped one draws nothing. */
+       top of every frame; a skipped one draws nothing. A frame's due every
+       33.3 ms, counted on from the last one due, not from when it came (5 ms
+       early will do): a 60 Hz display draws every other refresh, 120 Hz
+       every fourth, and frames that come every 30 ms of themselves (a slow
+       renderer) still make no more than 30 a second, one in ten let go. (A
+       frame drawn 30 ms after the last used to count as on time, so those
+       ran at 33.) */
     skip(now) {
       if (!paced) return false;
       const d = now - lastRaw;
       lastRaw = now;
       if (d > 0 && d < 250 && now >= settleUntil) { raw.push(d); if (raw.length > 180) raw.shift(); }
-      if (lastDrawn && now - lastDrawn < 1000 / 30 - 5) return true;
-      lastDrawn = now;
+      if (nextDue && now < nextDue - 5) return true;
+      // (Far behind, after a stall: counted from now, not caught up in a rush.)
+      nextDue = nextDue && now - nextDue < 100 ? nextDue + 1000 / 30 : now + 1000 / 30;
       return false;
     },
     // A frame drawn; busy: it drew the shadows again (something moved).

@@ -1178,8 +1178,13 @@ if (state.activeCategory === "topologies") {
   await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
   await page.waitForTimeout(200);
 }
-check("(setup) a rule was changed after saving",
-  (await sphereState()).selections.topologies.missingSquares === false);
+{
+  // (Said where the sphere got to, if it didn't: CI on cc1ad27 failed here
+  // once, with nothing to say why; it passed locally.)
+  const now = await sphereState();
+  check("(setup) a rule was changed after saving",
+    now.selections.topologies.missingSquares === false, JSON.stringify({ reached: state.activeCategory, stage: state.stage, missingSquares: now.selections.topologies.missingSquares }));
+}
 await openConfigurations();
 await page.locator('[data-testid="config-item"][data-name="Test Setup"] [data-testid="config-load"]').click();
 await page.waitForTimeout(300);
