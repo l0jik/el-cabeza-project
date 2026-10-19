@@ -3,8 +3,11 @@
    splash screen that appears when the app is first opened"). Asked, the
    user chose: a title menu on the splash ("When the video ends, the logo
    stays on screen with NOVA breathing, and a few choices fade in under
-   it"), every time the app opens (a tap at any moment skips the rest of
-   the video), and held on the logo until a tap.
+   it"), every time the app opens, and held on the logo until a choice;
+   then (user: "Tapping anywhere on the splash screen, I don't want that.
+   I want it to, you have to hit the buttons") only the buttons do
+   anything: a tap off them, while the video plays or after, does
+   nothing. (On a keyboard, Escape skips the rest of the video.)
 
    Not a module: build/build.js puts it in Nova's page as it is, ahead of
    the app's script, so it's up at once while the app loads (WORLD_NAMES is
@@ -19,7 +22,6 @@
      after the story          Continue in <world>  (the last one played)
                               Other realities      (the theme switcher)
    and, with any progress, "Restart the story" (a second tap to be sure).
-   A tap anywhere but the choices takes the first.
 
    Not shown when the page is reached from inside the game (another world's
    menu: ?world=, a scene's link, ?switcher, ?restart=story, ?jump=, coming
@@ -66,7 +68,7 @@
   const CSS = `
 html.ec-splash-on { background: #120C08; }
 .ec-splash { position: fixed; inset: 0; z-index: 5000; overflow: hidden; background: #120C08; color: #EBCB93;
-  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; cursor: default;
   font-family: 'Josefin Sans', 'Gill Sans', 'Century Gothic', 'Avenir Next', sans-serif; transition: opacity 0.7s ease; }
 .ec-splash.gone { opacity: 0; pointer-events: none; }
 /* (Inside the stage, so it moves with the picture; its middle exactly
@@ -236,7 +238,7 @@ html.ec-splash-on { background: #120C08; }
     if (still) { try { video.pause(); video.currentTime = HOLD_FROM; } catch (e) { /* as it is */ } }
     else holdLoop();
   }
-  // A tap while it plays: a dip to the logo, held.
+  // Escape while it plays: a dip to the logo, held.
   function skip() {
     if (state !== "playing") return;
     setState("skipping");
@@ -291,20 +293,17 @@ html.ec-splash-on { background: #120C08; }
     }, 760);
   };
 
+  // The buttons alone (a tap anywhere else is nothing).
   root.addEventListener("click", (e) => {
-    if (state === "playing") { skip(); return; }
     if (state !== "held") return;
-    const b = e.target && e.target.closest ? e.target.closest("button") : null;
-    if (b === second) choose("realities");
+    const b = e.target && e.target.closest ? e.target.closest(".ec-splash button") : null;
+    if (!b) return;
+    if (b === primary) choose(first.action);
+    else if (b === second) choose("realities");
     else if (b === restart) choose("restart");
-    else choose(first.action);
   });
   W.addEventListener("keydown", (e) => {
     if (!root.isConnected || gone) return;
-    if (state === "playing" && (e.key === "Enter" || e.key === " " || e.key === "Escape")) { e.preventDefault(); skip(); return; }
-    if (state === "held" && (e.key === "Enter" || e.key === " ") && !(D.activeElement && D.activeElement.closest && D.activeElement.closest(".ec-splash button"))) {
-      e.preventDefault();
-      choose(first.action);
-    }
+    if (state === "playing" && e.key === "Escape") { e.preventDefault(); skip(); }
   });
 })();

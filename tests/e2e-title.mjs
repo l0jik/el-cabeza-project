@@ -1,15 +1,19 @@
 /* Nova's title screen (apps/title-screen.js; user: the Horizon · Build
    splash "to be the splash screen that appears when the app is first
-   opened", a title menu on it, every time, held on the logo until a tap).
+   opened", a title menu on it, every time, held on the logo until a
+   choice; then: "Tapping anywhere on the splash screen, I don't want
+   that. I want it to, you have to hit the buttons").
 
    - It's up as the page opens (?title: the tests' browsers are automated,
      where it otherwise stays out of the way), the splash playing, the app
      not mounted under it.
    - A new player: when the video's over, the logo held (looping its last
      breath, never past it) and the menu: Begin alone. A tap off the
-     button begins: the title goes and the story's at Big Glutts, the lid
-     on the box.
-   - A tap while it plays skips to the logo, held, and the menu.
+     button does nothing; Begin begins: the title goes and the story's at
+     Big Glutts, the lid on the box.
+   - A tap while it plays does nothing (it plays on); Escape skips to the
+     logo, held, and the menu. Enter there does nothing until a button
+     has the keyboard; then it's that button.
    - Partway (bought): Continue, "where you left off", and Restart the
      story; Continue opens the den.
    - After the story: Continue in the last world played and Other
@@ -68,11 +72,11 @@ async function open({ story = null, last = null, phone = false, path = "?title" 
   await page.goto(URL + path);
   return { ctx, page, errs };
 }
-// Skip to the logo, held, with a tap while it plays.
+// Skip to the logo, held, with Escape while it plays (a tap doesn't).
 async function toMenu(page) {
   await poll(async () => (await state(page)) === "playing", 8000);
   await page.waitForTimeout(700);
-  await q(page, "title-screen").click({ position: { x: 40, y: 40 } });
+  await page.keyboard.press("Escape");
   return poll(async () => (await state(page)) === "held", 6000);
 }
 const gone = (page) => poll(async () => !(await has(page, "title-screen")), 30000);
@@ -94,9 +98,13 @@ console.log("\na new player: the splash, the logo held, Begin");
   check("...breathing: the last breath again and again (7.5 to 9.2 s)", times.every((t) => t >= 7.4 && t <= 9.45) && new Set(times.map((t) => t.toFixed(1))).size > 3, times.map((t) => t.toFixed(2)).join(" "));
   check("...the menu: Begin alone", (await q(page, "title-primary").innerText()).trim().toUpperCase() === "BEGIN" && !(await has(page, "title-realities")) && !(await has(page, "title-restart")));
   await page.screenshot({ path: "/tmp/title-new-held.png" });
-  // A tap off the button takes it.
+  // Only the button (user: "you have to hit the buttons").
   await q(page, "title-screen").click({ position: { x: 30, y: 30 } });
-  check("a tap anywhere: the title goes", !!(await gone(page)));
+  await q(page, "title-screen").click({ position: { x: 640, y: 300 } });
+  await page.waitForTimeout(1500);
+  check("taps off the button: nothing, the logo still held", (await state(page)) === "held" && !(await mounted(page)));
+  await q(page, "title-primary").click();
+  check("Begin: the title goes", !!(await gone(page)));
   check("...the story, at Big Glutts", (await poll(() => place(page), 20000)) === "store");
   check("...the lid on the box", await poll(() => has(page, "tienda-lid"), 10000));
   check("no errors", errs.length === 0, errs.join(" | "));
@@ -104,14 +112,25 @@ console.log("\na new player: the splash, the logo held, Begin");
 }
 
 /* ---------------- a tap while it plays ---------------- */
-console.log("\na tap while it plays: straight to the logo");
+console.log("\na tap while it plays: nothing; Escape skips");
 {
   const { ctx, page, errs } = await open();
+  await poll(async () => (await state(page)) === "playing", 8000);
+  await page.waitForTimeout(700);
+  await q(page, "title-screen").click({ position: { x: 40, y: 40 } });
+  await page.waitForTimeout(1200);
+  const at = await page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime);
+  check("a tap while it plays: it plays on", (await state(page)) === "playing" && at < 7, `${await state(page)} at ${at.toFixed(2)} s`);
   const t0 = Date.now();
-  check("the tap skips to the logo, held, with the menu", !!(await toMenu(page)) && Date.now() - t0 < 9000);
+  check("Escape skips to the logo, held, with the menu", !!(await toMenu(page)) && Date.now() - t0 < 4000);
   check("...the video at the last breath", await page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime >= 7.4));
   check("...the app still waiting", !(await mounted(page)));
-  check("Enter takes the first choice", await (async () => { await page.keyboard.press("Enter"); return !!(await gone(page)); })());
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(1200);
+  check("Enter with no button chosen: nothing", (await state(page)) === "held");
+  await q(page, "title-primary").focus();
+  await page.keyboard.press("Enter");
+  check("...Enter on Begin: the title goes", !!(await gone(page)));
   check("...the store", (await poll(() => place(page), 20000)) === "store");
   check("no errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
