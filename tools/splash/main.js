@@ -2,7 +2,7 @@
    poster, t) draws one frame of a video at t seconds: the version's picture,
    and the title over it (lib/title.js). */
 import { W, H, posterCanvas } from "./lib/posters.js";
-import { TITLE, SCHEME, drawTitle, setStyle, styleLen, styleSheen, STYLES } from "./lib/lockup.js";
+import { TITLE, SCHEME, drawTitle } from "./lib/lockup.js";
 import { BOARD, loadBoard, drawStart, drawPiece } from "./lib/board.js";
 import { length, titleState } from "./lib/title.js";
 import { build } from "./lib/v-build.js";
@@ -63,7 +63,6 @@ window.SPLASH = {
     await Promise.all([
       document.fonts.load("700 100px Cinzel"),
       document.fonts.load("300 50px 'Josefin Sans'"),
-      document.fonts.load("italic 500 100px 'Bodoni Moda'"),
       loadBoard("./board-photo.jpg"),
     ]);
   })(),
@@ -76,14 +75,11 @@ window.SPLASH = {
     const ink = inkAt(version, id);
     picture(version, id, t);
     ctx.save();
-    drawTitle(ctx, id, titleState(t, VERSIONS[version].settle(id), ink, styleLen(), styleSheen()));
+    drawTitle(ctx, id, titleState(t, VERSIONS[version].settle(id), ink));
     ctx.restore();
   },
   duration(version, id) {
-    return length(VERSIONS[version].settle(id), styleLen());
+    return length(VERSIONS[version].settle(id));
   },
-  // NOVA's treatment (lockup.js STYLES)
-  setStyle,
-  styles: Object.keys(STYLES),
   inkAt,
 };

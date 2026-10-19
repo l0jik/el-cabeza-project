@@ -18,7 +18,7 @@
    of cubes, the rings), so the videos can take a poster apart and build
    it up again from the same numbers. */
 import { W, H } from "./size.js";
-import { drawTitle, styleName } from "./lockup.js";
+import { drawTitle } from "./lockup.js";
 export { W, H };
 const D2R = Math.PI / 180;
 
@@ -339,12 +339,11 @@ export function grain(ctx, amount = 0.09) {
 export const DRAW = { v1: drawV1, v2: drawV2, v5: drawV5 };
 
 /* The whole poster into a new canvas (cached): the artwork with its grain,
-   and the title over it, in the current treatment (opt.title false: the
-   artwork alone, what the videos morph into, the title coming in over them
-   on its own). */
+   and the title over it (opt.title false: the artwork alone, what the
+   videos morph into, the title coming in over them on its own). */
 const cache = {};
 export function posterCanvas(id, opt = {}) {
-  const key = id + JSON.stringify(opt) + (opt.title === false ? "" : styleName());
+  const key = id + JSON.stringify(opt);
   if (cache[key]) return cache[key];
   const c = document.createElement("canvas");
   c.width = W;

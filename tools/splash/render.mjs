@@ -16,9 +16,7 @@
      node tools/splash/render.mjs video <version> <poster>
      node tools/splash/render.mjs all                      every version x poster
    Options: --out DIR (default /tmp/splash-out), --fps N (default 60),
-   --from S --to S (a part of a video, for checking), --style NAME (NOVA's
-   treatment, lib/lockup.js: hairline, the first, by default; the files then
-   carry its name).
+   --from S --to S (a part of a video, for checking).
 
    Versions: tiles, sand, liquid, sweep, build. Posters: v1, v2, v5.
    Needs an ffmpeg with libx264 (FFMPEG=path to use another;
@@ -36,8 +34,6 @@ const OUT = opt("out", "/tmp/splash-out");
 const FPS = Number(opt("fps", 60));
 const FROM = Number(opt("from", 0));
 const TO = opt("to", null);
-const STYLE = opt("style", "hairline");
-const TAG = STYLE === "hairline" ? "" : `-${STYLE}`;
 const FF = process.env.FFMPEG || "ffmpeg";
 const VERSIONS = ["tiles", "sand", "liquid", "sweep", "build"];
 const POSTERS = ["v1", "v2", "v5"];
@@ -54,7 +50,6 @@ page.on("pageerror", (e) => errs.push(e.message));
 page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") console.log("  page:", m.text()); });
 await page.goto(`file://${DIR}/splash.html`);
 await page.evaluate(() => window.SPLASH.ready);
-await page.evaluate((s) => window.SPLASH.setStyle(s), STYLE);
 const cdp = await ctx.newCDPSession(page);
 const shot = async () => Buffer.from((await cdp.send("Page.captureScreenshot", { format: "png", optimizeForSpeed: true })).data, "base64");
 const check = () => { if (errs.length) { console.error("page errors:", errs.join(" | ")); process.exit(1); } };
@@ -62,7 +57,7 @@ const check = () => { if (errs.length) { console.error("page errors:", errs.join
 async function still(version, poster, t) {
   await page.evaluate(([v, p, tt]) => window.SPLASH.frame(v, p, tt), [version, poster, t]);
   check();
-  const file = path.join(OUT, `${version}-${poster}${TAG}-${t.toFixed(2)}.png`);
+  const file = path.join(OUT, `${version}-${poster}-${t.toFixed(2)}.png`);
   fs.writeFileSync(file, await shot());
   return file;
 }
@@ -71,7 +66,7 @@ async function video(version, poster) {
   const dur = await page.evaluate(([v, p]) => window.SPLASH.duration(v, p), [version, poster]);
   const end = TO == null ? dur : Math.min(dur, Number(TO));
   const n0 = Math.round(FROM * FPS), n1 = Math.round(end * FPS);
-  const file = path.join(OUT, `${version}-${poster}${TAG}${FROM || TO ? `-${FROM}-${end}` : ""}.mp4`);
+  const file = path.join(OUT, `${version}-${poster}${FROM || TO ? `-${FROM}-${end}` : ""}.mp4`);
   const ff = spawn(FF, ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "png", "-i", "-",
     // capped near 8 Mbit/s: Sand's half a million grains would otherwise run to 50 MB
     "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-maxrate", "8M", "-bufsize", "16M", "-pix_fmt", "yuv420p", "-profile:v", "high", "-movflags", "+faststart", "-an", file], { stdio: ["pipe", "inherit", "inherit"] });
@@ -95,8 +90,8 @@ if (cmd === "posters") {
   for (const p of POSTERS) {
     await page.evaluate((id) => window.SPLASH.poster(id), p);
     check();
-    fs.writeFileSync(path.join(OUT, `poster-${p}${TAG}.png`), await shot());
-    console.log(path.join(OUT, `poster-${p}${TAG}.png`));
+    fs.writeFileSync(path.join(OUT, `poster-${p}.png`), await shot());
+    console.log(path.join(OUT, `poster-${p}.png`));
   }
 } else if (cmd === "still") {
   const [v, p, ...ts] = rest;
