@@ -8,7 +8,7 @@ import { mountSummon, summonBridge } from "../themes/futuris-summon.js";
 import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
 import { StoryCut, STORY_KEY, storyPreview, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone, hallDue, saveHallDue, hallFlares, saveHallFlares, storyEnded, saveStoryEnded, forgetStoryEnd } from "./novaStory.jsx";
-import { createRealitiesMenu, goToWorld, onStoryRestart, lastWorld } from "../themes/realities.js";
+import { createRealitiesMenu, goToWorld, onStoryRestart, lastWorld, WORLDS } from "../themes/realities.js";
 import { SINGULARITY_SEEN_KEY, SPECIAL_ORDER_NOTED_KEY, COMMERCIAL_AIRED_KEY, forgetSingularity, journeyPreview, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn, setSceneLink } from "../engine/journey.js";
 import { prepareCommercial } from "../themes/den-ad-audio.js";
 import {
@@ -134,11 +134,20 @@ const STORY_PREVIEW = SUMMONS_PARAM || LURE_PARAM;
 // (Any scene's link: no reality gate over it, even after the story (user:
 // the hallway's link, with the story over, opened under the gate).)
 const SCENE_LINK = STORY_PREVIEW || !!SCENE_PARAM;
+/* The title screen (apps/title-screen.js, in the page ahead of this
+   script; user: the Horizon · Build splash "to be the splash screen that
+   appears when the app is first opened", a title menu on it): when it's
+   up, the app waits for its choice before it mounts (fromTitle, at the
+   foot), opens where that asks, and tells it when it's up (TITLE.done). */
+const TITLE = typeof window !== "undefined" && window.ecTitle && window.ecTitle.active ? window.ecTitle : null;
+let TITLE_PLACE = null; // Continue in one of Nova's own places: open there
+let TITLE_REALITIES = false; // Other realities: open on the menu
 // After the story, Nova's page opens on the realities menu (user: "the
 // game should always open on the theme switcher"), with the last world
 // played offered first ("Continue in ..."; chosen with the user). Not when
-// it's come here for a place (?world=) or a scene's link.
-const OPEN_ON_RETURN = !OPEN_SWITCHER && !WORLD_PARAM && !SCENE_LINK && storyEnded();
+// it's come here for a place (?world=) or a scene's link, nor through the
+// title screen, whose own choices these are.
+const OPEN_ON_RETURN = !TITLE && !OPEN_SWITCHER && !WORLD_PARAM && !SCENE_LINK && storyEnded();
 // (The den's one-scene links, revelation, glutts, hall: no story notes over
 // them. Not the summons or the lure: those play the whole first trip.)
 if (SCENE_PARAM && !LURE_PARAM) setSceneLink();
@@ -329,7 +338,7 @@ const {
 
 function UnifiedApp() {
   // A first visit opens in the store; once the game is bought, at home.
-  const [themeName, setThemeName] = useState(() => (SUMMONS_PARAM ? "futuris" : (WORLD_PARAM && THEMES[WORLD_PARAM] ? WORLD_PARAM : null) || (SCENE_PARAM || readOwned() ? "standard" : "tienda")));
+  const [themeName, setThemeName] = useState(() => (SUMMONS_PARAM ? "futuris" : (WORLD_PARAM && THEMES[WORLD_PARAM] ? WORLD_PARAM : null) || (TITLE_PLACE && THEMES[TITLE_PLACE] ? TITLE_PLACE : null) || (SCENE_PARAM || readOwned() ? "standard" : "tienda")));
   useEffect(() => { try { document.title = WORLD_TITLES[themeName] || "El Cabeza Nova"; } catch (e) { /* no document */ } }, [themeName]);
   // A world being fetched (LAZY), named, while it comes.
   const [loadingWorld, setLoadingWorld] = useState(null);
@@ -670,11 +679,19 @@ function UnifiedApp() {
     createRealitiesMenu({ current: themeName, onPick: (w) => storyBridge.goWorld(w), continueWorld: opts.continueWorld || null });
   };
   // ?switcher, or back after the story: the menu, once the den's up (the
-  // latter with the last world played first).
+  // latter with the last world played first). From the title screen's
+  // Other realities, at once, under the title as it fades.
   useEffect(() => {
-    if (!OPEN_SWITCHER && !OPEN_ON_RETURN) return undefined;
-    const id = setTimeout(() => storyBridge.openRealities(OPEN_ON_RETURN ? { continueWorld: lastWorld() } : {}), 900);
+    if (!OPEN_SWITCHER && !OPEN_ON_RETURN && !TITLE_REALITIES) return undefined;
+    const id = setTimeout(() => storyBridge.openRealities(OPEN_ON_RETURN || TITLE_REALITIES ? { continueWorld: lastWorld() } : {}), TITLE_REALITIES ? 0 : 900);
     return () => clearTimeout(id);
+  }, []);
+  // Up: the title screen can go (a couple of frames drawn first).
+  useEffect(() => {
+    if (!TITLE) return undefined;
+    let a = 0, b = 0, t = 0;
+    a = requestAnimationFrame(() => { b = requestAnimationFrame(() => { t = setTimeout(() => TITLE.done(), 350); }); });
+    return () => { cancelAnimationFrame(a); cancelAnimationFrame(b); clearTimeout(t); };
   }, []);
   /* The story over from the top: only from the very bottom of the
      theme switcher (the realities menu, which asks first; user: "Remove
@@ -871,11 +888,35 @@ applyBootstrapBoardSize();
 applyBootstrapLaws();
 bootRules = { board: getBoardDimensions(), laws: { ...ACTIVE_LAWS } };
 
+/* The title screen's choice: Begin or Continue, the story where it is;
+   Continue in a world, the last one played (one of Nova's own places
+   opened here, fetched first if it must be; another page, gone to);
+   Other realities, the den with the menu over it; Restart the story, the
+   story forgotten (as the menu's Restart story) and the store, from the
+   top shelf. */
+function fromTitle(c, boot) {
+  if (c.action === "restart") {
+    saveOwned(false);
+    forgetStoreGone();
+    forgetStoryEnd();
+    forgetSingularity();
+    boot();
+    return;
+  }
+  if (c.action === "realities") { TITLE_REALITIES = true; boot(); return; }
+  const w = c.world ? WORLDS.find((x) => x.id === c.world) : null;
+  if (w && !w.nova && w.href) { goToWorld(w); return; }
+  if (!w || !(THEMES[w.nova] || LAZY[w.nova])) { boot(); return; }
+  TITLE_PLACE = w.nova;
+  ensureWorld(w.nova).then(boot, () => { TITLE_PLACE = null; boot(); });
+}
+
 // (?fresh: nothing mounts, so nothing's kept again before the page reloads.)
 // A world of the site's asked for by the address (?world=ciudad): fetched
 // first, then the page opens there (or in the den, if it can't be had).
 if (!FRESH) {
   const boot = () => ReactDOM.createRoot(document.getElementById("root")).render(<UnifiedApp />);
-  if (WORLD_PARAM && LAZY[WORLD_PARAM]) ensureWorld(WORLD_PARAM).then(boot, boot);
+  if (TITLE) TITLE.chosen.then((c) => fromTitle(c, boot));
+  else if (WORLD_PARAM && LAZY[WORLD_PARAM]) ensureWorld(WORLD_PARAM).then(boot, boot);
   else boot();
 }

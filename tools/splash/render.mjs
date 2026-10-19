@@ -16,7 +16,9 @@
      node tools/splash/render.mjs video <version> <poster>
      node tools/splash/render.mjs all                      every version x poster
    Options: --out DIR (default /tmp/splash-out), --fps N (default 60),
-   --from S --to S (a part of a video, for checking).
+   --from S --to S (a part of a video, for checking), --keyframes S,S,...
+   (key frames at these times as well, so a player can jump there at
+   once: the app's title screen loops its last breath from one).
 
    Versions: tiles, sand, liquid, sweep, build. Posters: v1, v2, v5, and
    the logo posters L1 to L5 (lib/logos.js; their videos are the five pairs
@@ -36,6 +38,7 @@ const OUT = opt("out", "/tmp/splash-out");
 const FPS = Number(opt("fps", 60));
 const FROM = Number(opt("from", 0));
 const TO = opt("to", null);
+const KEYFRAMES = opt("keyframes", null);
 const FF = process.env.FFMPEG || "ffmpeg";
 const VERSIONS = ["tiles", "sand", "liquid", "sweep", "build"];
 const POSTERS = ["v1", "v2", "v5"];
@@ -73,7 +76,8 @@ async function video(version, poster) {
   const file = path.join(OUT, `${version}-${poster}${FROM || TO ? `-${FROM}-${end}` : ""}.mp4`);
   const ff = spawn(FF, ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "png", "-i", "-",
     // capped near 8 Mbit/s: Sand's half a million grains would otherwise run to 50 MB
-    "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-maxrate", "8M", "-bufsize", "16M", "-pix_fmt", "yuv420p", "-profile:v", "high", "-movflags", "+faststart", "-an", file], { stdio: ["pipe", "inherit", "inherit"] });
+    "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-maxrate", "8M", "-bufsize", "16M", "-pix_fmt", "yuv420p", "-profile:v", "high",
+    ...(KEYFRAMES ? ["-force_key_frames", `0,${KEYFRAMES}`] : []), "-movflags", "+faststart", "-an", file], { stdio: ["pipe", "inherit", "inherit"] });
   const done = new Promise((res, rej) => ff.on("close", (c) => (c ? rej(new Error(`ffmpeg ${c}`)) : res())));
   const t0 = Date.now();
   for (let f = n0; f < n1; f++) {

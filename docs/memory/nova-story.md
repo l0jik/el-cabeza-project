@@ -126,3 +126,13 @@ in; leaving Singularity, back in the den as the set switches off.
   first seed the store's old sides (`el-cabeza:opponent` { aiPlayer:
   "light", aiDifficulty: "easy", humanStartSide: "dark" }: e2e-outline,
   e2e-outside-dismiss, e2e-slide-sounds).
+
+- **The title screen** (2026-10-19; apps/title-screen.js, in Nova's page
+  ahead of the app): every plain open of Nova's page plays the Horizon ·
+  Build splash, holds on the logo breathing, and offers Begin / Continue
+  (/ Continue in <last world> and Other realities after the story) and
+  Restart the story; the app mounts only once a choice is made
+  (apps/unified.jsx fromTitle) and says when it's up (window.ecTitle.done).
+  Never on the game's own ways into the page (?world=, ?scene=, ?switcher,
+  ?restart=, ?jump=, Back) nor under automation; ?title forces it for a
+  test, ?title=auto applies the player's rules. tests/e2e-title.mjs.

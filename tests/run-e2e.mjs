@@ -63,6 +63,8 @@ const E2E = [
   ["e2e-realities-over-sphere.mjs"],
   // A slow machine: the governor's steps (floor, shadow map, 30 a second), kept; shaders compiled early.
   ["e2e-device-fit.mjs"],
+  // Nova's title screen: the Horizon splash, held on the logo, its menu by the story's place.
+  ["e2e-title.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

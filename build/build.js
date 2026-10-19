@@ -1,5 +1,6 @@
 import * as esbuild from "esbuild";
-import { writeFileSync, mkdirSync, copyFileSync, readdirSync, existsSync, rmSync } from "fs";
+import { writeFileSync, mkdirSync, copyFileSync, readdirSync, existsSync, rmSync, readFileSync } from "fs";
+import { WORLDS } from "../themes/realities.js";
 
 // The den's records: the user's tracks, each through tools/console_1974_turntable.py.
 const DEN_RECORDS = {
@@ -98,8 +99,14 @@ const targets = [
   // (each in a long hall, tools/parrish_bookends.py).
   { name: "parrish", entry: "apps/parrish.jsx", title: "Parrish Cabeza", head: '<meta name="theme-color" content="#0E1A3D">', files: { "el-cabeza-parrish-stabs.mp3": "assets/parrish/piece-stabs.mp3", "el-cabeza-parrish-intro.mp3": "assets/parrish/intro.mp3", "el-cabeza-parrish-outro.mp3": "assets/parrish/outro.mp3", "el-cabeza-parrish-hums.mp3": "assets/parrish/hums.mp3", "el-cabeza-parrish-soundtrack-orinoco.mp3": "assets/parrish/soundtrack-orinoco.mp3", "el-cabeza-parrish-na-seas.mp3": "assets/parrish/na-seas.mp3", "el-cabeza-parrish-evening.mp3": "assets/parrish/evening.mp3" } },
   // Nova: the worlds it holds beside it (the City's chunk fetched as it's
-  // picked); the City's sounds beside it too, for the City in place.
-  { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover", files: { ...DEN_RECORDS, ...CIUDAD_FILES } },
+  // picked); the City's sounds beside it too, for the City in place. It
+  // opens on the title screen (apps/title-screen.js, in the page itself so
+  // it's up before the app has loaded): the Horizon · Build splash
+  // (tools/splash), sharp and light, and its first frame.
+  { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover",
+    head: '<meta name="theme-color" content="#120C08"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400&display=swap">',
+    bodyStart: "title",
+    files: { ...DEN_RECORDS, ...CIUDAD_FILES, "el-cabeza-title.mp4": "assets/title/title.mp4", "el-cabeza-title-720.mp4": "assets/title/title-720.mp4", "el-cabeza-title-720.webm": "assets/title/title-720.webm", "el-cabeza-title-poster.jpg": "assets/title/poster.jpg" } },
   // Tienda's page can draw under a phone's
   // notch and home bar (the theme keeps its controls clear of them).
   // Its files beside the page: the store's reels (the 1974 Muzak tape and
@@ -138,6 +145,15 @@ const workerJs = workerResult.outputFiles[0].text;
 // </script sequences inside the bundled worker text would otherwise
 // prematurely close this holder tag when the browser parses the HTML.
 const workerJsEscaped = workerJs.replace(/<\/script/gi, "<\\/script");
+
+/* Nova's title screen, as a plain script in the page (not a module: it
+   runs as the page is read, ahead of the app), the worlds' names written
+   into it for its "Continue in ...". */
+const titleJs = (await esbuild.transform(
+  readFileSync("apps/title-screen.js", "utf8").replace("__WORLD_NAMES__", JSON.stringify(Object.fromEntries(WORLDS.map((w) => [w.id, w.name])))),
+  { minify: true, loader: "js" },
+)).code.replace(/<\/script/gi, "<\\/script");
+const BODY_START = { title: `<script>${titleJs}</script>` };
 
 /* Every page's script from one run, the code the pages share in chunks
    beside them (user: "shrink the iOS download size"). Each world's page
@@ -212,7 +228,7 @@ const workerJsEscaped = workerJs.replace(/<\/script/gi, "<\\/script");
     // type="application/x-ai-worker" (not a JS mimetype) keeps the browser
     // from ever trying to execute this inline — chassis/ElCabeza3D.jsx
     // reads its textContent and turns it into a real Worker via a Blob URL.
-    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="${t.viewport || "width=device-width,initial-scale=1"}">${t.head || ""}<meta name="robots" content="noindex, nofollow"><title>${t.title}</title>${preload}</head><body style="margin:0"><div id="root"></div><script type="application/x-ai-worker" id="ai-worker-src">${workerJsEscaped}</script><script type="module" src="${entry}"></script></body></html>`;
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="${t.viewport || "width=device-width,initial-scale=1"}">${t.head || ""}<meta name="robots" content="noindex, nofollow"><title>${t.title}</title>${preload}</head><body style="margin:0">${t.bodyStart ? BODY_START[t.bodyStart] : ""}<div id="root"></div><script type="application/x-ai-worker" id="ai-worker-src">${workerJsEscaped}</script><script type="module" src="${entry}"></script></body></html>`;
     writeFileSync(`dist/el-cabeza-${t.name}.html`, html);
     Object.entries({ ...COMMON_FILES, ...(t.files || {}) }).forEach(([to, from]) => copyFileSync(from, `dist/${to}`));
     const own = bytes(entry), shared = chunks.reduce((s, c) => s + bytes(c), 0);
