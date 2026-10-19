@@ -446,7 +446,10 @@ function OnlineBlock({ ctl, t }) {
 /* ---- setup ------------------------------------------------------------- */
 
 function SetupPanel({ ctl, t }) {
-  const locked = ctl.opponentLocked;
+  // (A new player's first look, ctl.firstLook: the setup's held back, all
+  // but See the pieces and Begin; the dock does the same.)
+  const first = !!ctl.firstLook;
+  const locked = ctl.opponentLocked || first;
   const vsAi = ctl.aiPlayer !== null;
   // A side's button, once chosen, takes that side's own colour.
   const sideOpts = () => [
@@ -538,6 +541,7 @@ function SetupPanel({ ctl, t }) {
               testid="shell-check-alert"
               options={[{ value: true, label: "On" }, { value: false, label: "Off" }]}
               value={!!ctl.checkAlert}
+              disabled={first}
               onChange={() => { ctl.cue("Select"); ctl.onToggleCheckAlert(); }}
             />
           </Field>
@@ -552,6 +556,7 @@ function SetupPanel({ ctl, t }) {
             testid="shell-start"
             options={[{ value: false, label: "Standard" }, { value: true, label: "Manual" }]}
             value={!!ctl.startByHand}
+            disabled={first}
             onChange={(v) => { ctl.cue("Select"); ctl.onStartByHand(v); }}
           />
         </Field>
@@ -563,6 +568,7 @@ function SetupPanel({ ctl, t }) {
             testid="shell-set-out-half"
             options={[{ value: false, label: "Back 3 rows" }, { value: true, label: "My half" }]}
             value={!!ctl.ownHalf}
+            disabled={first}
             onChange={() => { ctl.cue("Select"); ctl.onToggleOwnHalf(); }}
           />
         </Field>
@@ -575,6 +581,7 @@ function SetupPanel({ ctl, t }) {
             className="ec-shell-btn ec-shell-ghost"
             data-testid={a.testid}
             title={a.title}
+            disabled={!!a.disabled}
             onClick={a.onClick}
             style={{ flex: "0 1 38%" }}
           >
@@ -599,6 +606,7 @@ function SetupPanel({ ctl, t }) {
           className="ec-shell-btn ec-shell-ghost"
           data-testid={a.testid}
           title={a.title}
+          disabled={!!a.disabled}
           onClick={a.onClick}
           style={{ width: "100%", height: 42, borderStyle: "dashed" }}
         >

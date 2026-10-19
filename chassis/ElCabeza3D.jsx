@@ -1405,13 +1405,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [checkAlert, setCheckAlert] = useState(loadCheckAlert);
   const toggleCheckAlert = () => { const next = !checkAlert; setCheckAlert(next); saveCheckAlert(next); };
   // The check alert's switch in the dock (setup, and in play beside Focus):
-  // Focus's own little pill.
-  const checkSwitch = (testid) => (
+  // Focus's own little pill. (Held back in a new player's first look at
+  // the setup: locked, firstLook.)
+  const checkSwitch = (testid, locked = false) => (
     <button
       className="ec-btn"
       role="switch"
       aria-checked={checkAlert}
       data-testid={testid}
+      disabled={locked}
+      {...(locked ? { "data-first-lock": "" } : null)}
       title="Check alert: a warning when the computer could crush your Cabeza on its next turn"
       onClick={(e) => { showToggleHint(e, checkAlert ? "Check alert: off." : "Check alert: on. A warning when the computer could crush your Cabeza on its next turn."); toggleCheckAlert(); }}
       style={{ ...dockLinkStyle(), display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none" }}
@@ -3252,6 +3255,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const tourCardRef = useRef(null);
   const tourSawMineRef = useRef(false); // your turn has come round (the computer may open)
   const tourFoeBeforeRef = useRef(null); // the other side's pieces as its turn began
+  /* A new player's first look at the dock's menu (user, 2026-10-19: "For
+     a first-time player on a new game, the only buttons that can be
+     pressed if they hit the 3D rotating piece menu is the ones that are
+     circled in red": See the pieces and Try a Game). While the first game
+     a world walks through is still to come (tourOffer, TOUR_KEY), its
+     setup is the one that game is played with: the rest of the menu (the
+     opponent, the check alert, the start, the cart, the footer's links
+     and switches) stays in sight, dimmed, and can't be pressed until
+     that game's begun and the walkthrough's over or skipped. A world's
+     own setup row hears it as firstLook (tienda.js: the cart), and so
+     does the phone's bar. */
+  const firstLook = awaitingBegin && !!tourOffer && !!aiPlayer && !online && !replay && !tourDone();
+  const firstLock = firstLook ? { "data-first-lock": "" } : null;
+  const firstLockIcon = firstLook ? { "data-first-lock": "icon" } : null;
   /* The corner menu (chassis/CornerMenu.jsx): while a game is being
      played (not through Futuris's Singularity, nor where a theme says there's
      no game), in the look the theme names (theme.cornerMenu: a look's
@@ -3833,7 +3850,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // The dock's Starting position row (the mock-ups' setup): Standard, or
   // Manual; with Manual, Anywhere in my half beside it.
   const startRow = (
-    <div data-dock-role="start" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: "6px 8px", marginTop: 8 }}>
+    <div data-dock-role="start" {...firstLock} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: "6px 8px", marginTop: 8 }}>
       <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.slate, marginRight: 2, flexShrink: 0 }}>
         Start
       </span>
@@ -3843,6 +3860,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           className="ec-btn"
           data-testid={o.v ? "start-by-hand" : "start-standard"}
           aria-pressed={startByHand === o.v}
+          disabled={firstLook}
           title={o.title}
           onClick={() => toggleStartByHand(o.v)}
           style={{ ...toggleButtonStyle(startByHand === o.v), padding: "6px 9px", letterSpacing: "0.06em", flexShrink: 0, cursor: "pointer" }}
@@ -10799,7 +10817,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       className="ec-btn"
       data-ec-diff={key}
       aria-pressed={aiDifficulty === key}
-      disabled={busy || aiThinking || turnLocked}
+      disabled={busy || aiThinking || turnLocked || firstLook}
       onClick={() => setAiDifficulty(key)}
       style={{
         ...toggleButtonStyle(aiDifficulty === key),
@@ -12326,6 +12344,9 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         ref={cardRef}
         data-testid="dock-panel"
         data-open={dockView === "panel"}
+        // (A new player's first look: all but See the pieces and Try a
+        // Game held back, firstLook.)
+        data-first-look={firstLook || undefined}
         style={{
           position: "fixed",
           left: "50%",
@@ -12394,6 +12415,10 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           flexDirection: "column",
         }}
       >
+        {/* What a new player's first look holds back (firstLock): in
+           sight, faded, not to be pressed; the corner switches, quiet
+           already, further. */}
+        {firstLook && <style>{'[data-first-lock]{opacity:.32!important;pointer-events:none!important;cursor:default!important;transition:opacity .3s ease}[data-first-lock="icon"]{opacity:.16!important}'}</style>}
 
         {/* Brief, obtrusive confirmation the instant an AI side is
            picked — per feedback, the collapsed Back+Difficulty row
@@ -12504,16 +12529,16 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           <div
             // Only a control while a game hasn't begun — mid-game this
             // is a plain readout again, and toggleStartingPlayer no-ops.
-            role={awaitingBegin ? "button" : undefined}
-            tabIndex={awaitingBegin ? 0 : undefined}
+            role={awaitingBegin && !firstLook ? "button" : undefined}
+            tabIndex={awaitingBegin && !firstLook ? 0 : undefined}
             data-testid="turn-status"
             // (Whose move, as the game says it, whatever the theme calls
             // the sides: for tests.)
             data-side={currentPlayer}
-            title={awaitingBegin ? "Tap to switch which side moves first" : undefined}
-            onClick={toggleStartingPlayer}
+            title={awaitingBegin && !firstLook ? "Tap to switch which side moves first" : undefined}
+            onClick={firstLook ? undefined : toggleStartingPlayer}
             onKeyDown={(e) => {
-              if (!awaitingBegin) return;
+              if (!awaitingBegin || firstLook) return;
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
                 toggleStartingPlayer();
@@ -12524,7 +12549,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               alignItems: "center",
               gap: 10,
               minWidth: 0,
-              cursor: awaitingBegin ? "pointer" : "default",
+              cursor: awaitingBegin && !firstLook ? "pointer" : "default",
               // Keeps the tap target a comfortable size without changing
               // the row's own fixed height or the text's position.
               alignSelf: "stretch",
@@ -12770,7 +12795,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
              letter-spacing trims below for the same reason: several
              small margin cuts here rather than chasing one exact
              pixel threshold that isn't reliably measurable locally). */}
-          <div ref={diffRowRef} data-testid="opponent-row" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 5, maxWidth: "100%" }}>
+          <div ref={diffRowRef} data-testid="opponent-row" {...firstLock} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 5, maxWidth: "100%" }}>
           {showOpponentPicker ? (
             <>
               <span
@@ -12792,7 +12817,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                 // showing it and for screen readers.)
                 data-opponent="human"
                 aria-pressed={aiPlayer === null}
-                disabled={busy || aiThinking || turnLocked}
+                disabled={busy || aiThinking || turnLocked || firstLook}
                 onClick={handleHumanButtonClick}
                 style={{
                   ...playerButtonStyle(humanStartSide),
@@ -12812,7 +12837,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                 { label: "AI", value: "dark", side: "dark" },
                 { label: "AI", value: "light", side: "light" },
               ].map((opt) => {
-                const locked = busy || aiThinking || turnLocked;
+                const locked = busy || aiThinking || turnLocked || firstLook;
                 const isActive = aiPlayer === opt.value;
                 return (
                   <button
@@ -12846,7 +12871,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                 className="ec-btn"
                 data-opponent="online"
                 aria-pressed={!!online}
-                disabled={busy || aiThinking || turnLocked}
+                disabled={busy || aiThinking || turnLocked || firstLook}
                 onClick={() => { setOnlineView(online ? (online.role === "host" ? "host" : "join") : "menu"); setShowOpponentPicker(false); }}
                 style={{ ...ghostButtonStyle(), ...pickedMark(!!online), flexShrink: 0, cursor: busy || aiThinking || turnLocked ? "default" : "pointer" }}
               >
@@ -12862,7 +12887,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                 data-ec-diff-back=""
                 aria-label="Back to opponent selection"
                 title="Back to opponent selection"
-                disabled={busy || aiThinking || turnLocked}
+                disabled={busy || aiThinking || turnLocked || firstLook}
                 // Only shows the picker again — does NOT touch aiPlayer
                 // (selectOpponent(null) used to, resetting the choice
                 // back to Human). Per feedback, Back is for double-
@@ -12942,7 +12967,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
 
           {/* The check alert, against the computer (user: in the game's
               setup as well as the in-game menu). */}
-          {aiPlayer && checkSwitch("check-alert-setup")}
+          {aiPlayer && checkSwitch("check-alert-setup", firstLook)}
 
           {/* Starting position: Standard, or Manual (set out before the
               game; the other side mirrors yours). */}
@@ -12981,12 +13006,12 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                   {online && online.role === "guest" ? "Waiting for the host\u2026" : startByHand ? "Place my pieces" : beginLabel}
                 </button>
               );
-              const extras = theme.renderSetupExtras && theme.renderSetupExtras({ beginGameButton, ...setupExtras });
+              const extras = theme.renderSetupExtras && theme.renderSetupExtras({ beginGameButton, ...setupExtras, firstLook });
               return extras || <div style={{ display: "flex", gap: 8, flexShrink: 0, width: "100%" }}>{beginGameButton}</div>;
             })()}
           {awaitingBegin && novaAgain && !gate && (
             <div data-dock-role="links" style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>
-              <button className="ec-btn" data-testid="nova-again-setup" data-dock-role="link" title="Every piece, rule and board: set up this game" onClick={openNovaAgain} style={dockLinkStyle()}>
+              <button className="ec-btn" data-testid="nova-again-setup" data-dock-role="link" title="Every piece, rule and board: set up this game" onClick={openNovaAgain} disabled={firstLook} {...firstLock} style={dockLinkStyle()}>
                 Cabeza Nova
               </button>
             </div>
@@ -13011,6 +13036,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             data-testid="sound-button"
             aria-haspopup="true"
             aria-expanded={!!soundMenuAt}
+            disabled={firstLook}
+            {...firstLockIcon}
             onClick={(e) => {
               // The sound popover: the volume, standing up (user: always a
               // slider, all the way down is off), and a theme's separate
@@ -13068,6 +13095,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         {(awaitingBegin || !isPlaying) && !replay && (
           <div
             data-dock-role="footer-links"
+            {...firstLock}
             style={{
               position: "absolute",
               left: 16,
@@ -13084,6 +13112,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               data-testid="replay-link"
               data-dock-role="link"
               title="Replay a game from a copied move log"
+              disabled={firstLook}
               onClick={openReplaySheet}
               style={{
                 ...dockLinkStyle(),
@@ -13104,6 +13133,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               data-testid="open-saves"
               data-dock-role="link"
               title="Save your progress and settings to a file or the cloud, or restore them"
+              disabled={firstLook}
               onClick={openSavesSheet}
               style={{
                 ...dockLinkStyle(),
@@ -13162,6 +13192,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         <button
           data-testid="points-toggle"
           aria-pressed={showPoints}
+          disabled={firstLook}
+          {...firstLockIcon}
           onClick={(e) => {
             const next = !showPoints;
             setShowPoints(next);
@@ -13203,6 +13235,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           <button
             data-testid="costs-toggle"
             aria-pressed={showCosts}
+            disabled={firstLook}
+            {...firstLockIcon}
             onClick={(e) => {
               const next = !showCosts;
               setShowCosts(next);
@@ -13243,6 +13277,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         <button
           data-testid="guide-toggle"
           aria-pressed={showGuide}
+          disabled={firstLook}
+          {...firstLockIcon}
           onClick={(e) => { showToggleHint(e, showGuide ? "Piece guide: off." : "Piece guide: on. A card says what the chosen piece does."); togglePieceGuide(); }}
           aria-label={showGuide ? "Hide the piece guide" : "Show the piece guide"}
           title={showGuide ? "Hide the piece guide" : "Show the piece guide"}
@@ -13277,6 +13313,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         {layoutSwitch && (
           <button
             data-testid="layout-toggle"
+            disabled={firstLook}
+            {...firstLockIcon}
             onClick={(e) => { showToggleHint(e, "Layout: the control bar. Switch back from its menu."); layoutSwitch("bar"); }}
             aria-label="Use the control bar layout"
             title="Use the control bar layout"
@@ -13533,7 +13571,10 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             online, onlineView,
             onlineCtl: { ready: relayReady(), host: hostOnline, join: joinOnline, leave: leaveOnline, view: setOnlineView, codeText: joinCodeText, setCodeText: setJoinCodeText, link: () => (online && online.code ? joinLink(online.code) : ""), names: SIDE_NAMES },
             onBegin: beginOrSetOut,
-            setupActions: theme.shellSetupActions && setupExtras ? theme.shellSetupActions(setupExtras) : [],
+            setupActions: theme.shellSetupActions && setupExtras ? theme.shellSetupActions({ ...setupExtras, firstLook }) : [],
+            // (A new player's first look at the setup: all but its own
+            // actions' See the pieces and Begin held back.)
+            firstLook,
             beginLabel: startByHand ? "Place my pieces" : beginLabel,
             startByHand,
             onStartByHand: toggleStartByHand,

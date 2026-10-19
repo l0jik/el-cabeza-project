@@ -127,6 +127,14 @@ in; leaving Singularity, back in the den as the set switches off.
   "light", aiDifficulty: "easy", humanStartSide: "dark" }: e2e-outline,
   e2e-outside-dismiss, e2e-slide-sounds).
 
+- **The store's menu at first** (2026-10-19; user: "For a first-time
+  player on a new game, the only buttons that can be pressed if they hit
+  the 3D rotating piece menu is the ones that are circled in red", See
+  the pieces and Try a Game): until the walkthrough's done (TOUR_KEY),
+  the dock's setup is that first game's, the rest of the panel faded and
+  not to be pressed (the chassis's firstLook; the bar's setup too).
+  tests/e2e-first-look.mjs.
+
 - **The title screen** (2026-10-19; apps/title-screen.js, in Nova's page
   ahead of the app): every plain open of Nova's page plays the Horizon ·
   Build splash, holds on the logo breathing, and offers Begin / Continue

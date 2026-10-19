@@ -542,7 +542,7 @@ export function beginLabel(x) {
    catalog of the five pieces, and the game can be bought and taken home
    from a row beneath; at home the row is Custom rules again, with the way
    back to the store and a fresh start under it. */
-export function renderSetupExtras({ beginGameButton, openOrderForm, story, specialOpen }) {
+export function renderSetupExtras({ beginGameButton, openOrderForm, story, specialOpen, firstLook }) {
   const h = React.createElement;
   const store = !!story && story.mode === "store";
   const home = !!story && story.mode === "home";
@@ -587,8 +587,10 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
           style: buyStyle,
         }, confused ? "Go home, confused." : "Purchase another copy · $7.97")
       // (Before it's bought: into the cart, then to the register; user:
-      // nothing about "your order" in the store, tienda-shopping.js.)
-      : h(CartButton, { key: "buy", story, style: buyStyle }))
+      // nothing about "your order" in the store, tienda-shopping.js. Held
+      // back in a new player's first look at the menu, the chassis's
+      // firstLook: only See the pieces and Try a Game, user.)
+      : h(CartButton, { key: "buy", story, style: buyStyle, locked: !!firstLook }))
     // One line, however narrow the phone (the type shrinks a little): on
     // two, the dock's panel ran past its height and scrolled, and the
     // second line slid under its corner switches (user's screenshot). No
@@ -612,7 +614,7 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
 /* The same buttons for the phone layout's control bar (chassis/MobileShell.jsx),
    which Nova offers: the catalog (or, in the story's store, the page of
    the pieces and the purchase) on rows of their own below Begin Game. */
-export function shellSetupActions({ openOrderForm, story, specialOpen }) {
+export function shellSetupActions({ openOrderForm, story, specialOpen, firstLook }) {
   if (story && story.mode === "store") {
     // Back after the story: no game on the table, only the purchase.
     if (story.after && story.after()) {
@@ -624,7 +626,7 @@ export function shellSetupActions({ openOrderForm, story, specialOpen }) {
       { key: "see-pieces", label: "See the pieces", onClick: openOrderForm, testid: "shell-see-pieces", placement: "below", title: "The catalog's page of the pieces in the box" },
       clerkConfusedNow()
         ? { key: "confused", label: "Go home, confused.", onClick: story.onGoHomeConfused, testid: "shell-go-home-confused", placement: "below" }
-        : { key: "purchase", label: cartCount() ? "Check out \u00b7 $7.97" : "Put one in the cart \u00b7 $7.97", onClick: () => (cartCount() ? story.onPurchase() : addToCart()), testid: "shell-purchase", placement: "below" },
+        : { key: "purchase", label: cartCount() ? "Check out \u00b7 $7.97" : "Put one in the cart \u00b7 $7.97", onClick: () => (cartCount() ? story.onPurchase() : addToCart()), testid: "shell-purchase", placement: "below", disabled: !!firstLook },
     ];
   }
   if (!specialOpen) return [{ key: "see-pieces", label: "See the pieces", onClick: openOrderForm, testid: "shell-see-pieces", placement: "below", title: "The catalog's page of the pieces in the box" }];
@@ -634,10 +636,11 @@ export function shellSetupActions({ openOrderForm, story, specialOpen }) {
 export { useSetupExtras, renderExtraOverlays, resetLid, clerkConfused } from "./tienda-overlay.js";
 import { useCart, addToCart, cartCount } from "./tienda-shopping.js";
 // The store's buy button before it's bought: into the cart, then check out.
-function CartButton({ story, style }) {
+function CartButton({ story, style, locked }) {
   const n = useCart();
   return React.createElement("button", {
     type: "button", className: "ec-btn", "data-testid": "story-purchase", "data-cart": n ? "full" : "empty",
+    disabled: locked, ...(locked ? { "data-first-lock": "" } : null),
     onClick: () => (n ? story.onPurchase() : addToCart()), style,
   }, n ? "Check out \u00b7 $7.97" : "Put one in the cart \u00b7 $7.97");
 }

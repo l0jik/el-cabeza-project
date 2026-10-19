@@ -26,16 +26,28 @@ async function world(name, key) {
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   await page.goto(`file:///home/user/el-cabeza-project/dist/el-cabeza-${name}.html?fps&quality=low`);
+  // A slow phone whatever runs this: the page's own thread at a quarter of
+  // its speed, so every frame's over the governor's mark (a faster CI
+  // runner drew 43 a second at the floor, just under it, and the shadow
+  // map was never halved).
+  const cdp = await ctx.newCDPSession(page);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
   const readout = () => page.evaluate(() => (document.querySelector('[data-testid="fps-readout"]') || {}).textContent || "");
   const shadow = () => page.evaluate(() => { const t = window.__EC_TEST_THREE__ && window.__EC_TEST_THREE__(); const k = t && t.lights && t.lights.key; return k ? k.shadow.mapSize.x : null; });
   let text = "";
   for (let i = 0; i < 60; i++) { await page.waitForTimeout(1000); text = await readout(); if (/held to 30/.test(text) && (await shadow()) === 512) break; }
   check("slow on every frame: down to the floor (×0.85 at the low tier), the shadow map 512, held to 30", /×0\.85\s+low\s+held to 30/.test(text) && /shadows 512/.test(text) && (await shadow()) === 512, text.replace(/\n/g, " | "));
-  const fps = Number((/^(\d+) fps/.exec(text) || [])[1]);
-  check("...no more than 30 frames a second", fps > 0 && fps <= 31, String(fps));
-  await page.waitForTimeout(3500);
+  // (The readout's count is of the second before it, which the first
+  // "held to 30" shares with frames before the hold: two seconds more.)
+  await page.waitForTimeout(2200);
+  const now = await readout();
+  const fps = Number((/^(\d+) fps/.exec(now) || [])[1]);
+  check("...no more than 30 frames a second", /held to 30/.test(now) && fps > 0 && fps <= 31, now.replace(/\n/g, " | "));
+  await page.waitForTimeout(1300);
   const kept = await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:fit") || "{}"));
   check("...kept for the next visit, by tier and world", kept[`low|${key}`] && kept[`low|${key}`].pr === 0.85 && kept[`low|${key}`].shadow === 512 && kept[`low|${key}`].paced === true, JSON.stringify(kept));
+  // (Its own speed again: what's read now is only what was kept.)
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
   await page.reload();
   await page.waitForTimeout(2500);
   text = await readout();
