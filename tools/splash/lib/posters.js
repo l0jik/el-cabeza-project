@@ -11,33 +11,16 @@
    from all of them. The only text that should be on there is ... initially
    just the word El Cabeza ... then ... an additional splash of the added
    word Nova. Make these look refined and classy"): the title is drawn over
-   the artwork (drawTitle, below), not into it, so the videos can bring it in
-   on its own.
+   the artwork (lockup.js), not into it, so the videos can bring it in on its
+   own.
 
    Everything is drawn from geometry kept here (centres, radii, the room
    of cubes, the rings), so the videos can take a poster apart and build
    it up again from the same numbers. */
-export const W = 1080, H = 1920;
+import { W, H } from "./size.js";
+import { drawTitle, styleName } from "./lockup.js";
+export { W, H };
 const D2R = Math.PI / 180;
-
-/* The title block, the same place on all three: EL CABEZA, and under it
-   NOVA between two hairline rules. */
-export const TITLE = {
-  base: 1562, // EL CABEZA's baseline
-  width: 776, // its width at rest, letter-spaced
-  track: 0.06, // its letter-spacing at rest, in ems
-  nova: 1650, // NOVA's middle, and the rules'
-  novaSize: 48, novaTrack: 0.66,
-  ruleGap: 30, ruleLen: 150, rule: 2,
-};
-
-/* Each poster's inks. light: the name's colour over a dark ground (the
-   opening's table), where a poster's own ink is dark (5, on paper). */
-export const SCHEME = {
-  v1: { ink: "#F3D4A2", light: "#F3D4A2", nova: "#DE8631", rule: "#C8762E", glow: [255, 190, 112], sheen: "#FFF4DE", ground: "dark" },
-  v2: { ink: "#F3D4A2", light: "#F3D4A2", nova: "#DE8631", rule: "#C8762E", glow: [255, 190, 112], sheen: "#FFF4DE", ground: "dark" },
-  v5: { ink: "#1E1611", light: "#F3D4A2", nova: "#C9742E", rule: "#C9742E", glow: [214, 112, 40], sheen: "#D98A3A", ground: "light" },
-};
 
 export const hexPoints = (cx, cy, r) => [0, 1, 2, 3, 4, 5].map((i) => {
   const a = (-90 + 60 * i) * D2R;
@@ -328,187 +311,6 @@ export function drawV5(ctx, opt = {}) {
   v5Stripes(ctx, "br");
 }
 
-/* ---------------- the title, shared ---------------- */
-
-const clamp01 = (v) => Math.max(0, Math.min(1, v));
-const span01 = (t, a, b) => clamp01((t - a) / (b - a));
-const smooth = (v) => { v = clamp01(v); return v * v * (3 - 2 * v); };
-const easeOut = (v) => 1 - (1 - clamp01(v)) ** 3;
-const easeOutQuart = (v) => 1 - (1 - clamp01(v)) ** 4;
-const easeOutExpo = (v) => (v >= 1 ? 1 : 1 - 2 ** (-10 * clamp01(v)));
-const easeInOut = (v) => { v = clamp01(v); return v < 0.5 ? 4 * v * v * v : 1 - (-2 * v + 2) ** 3 / 2; };
-const hexRgb = (c) => { const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
-const mixHex = (a, b, t) => { const x = hexRgb(a), y = hexRgb(b); return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * clamp01(t))).join(",")})`; };
-const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
-
-const CABEZA_FONT = (size) => `700 ${size}px Cinzel`;
-const NOVA_FONT = (size) => `300 ${size}px 'Josefin Sans'`;
-
-/* Letters laid out with their own kerning (each prefix's width) plus a
-   tracking in pixels, centred on cx. */
-function layout(ctx, text, font, track, cx) {
-  ctx.font = font;
-  ctx.letterSpacing = "0px";
-  const full = ctx.measureText(text).width + track * (text.length - 1);
-  const x0 = cx - full / 2;
-  const out = [];
-  for (let i = 0; i < text.length; i++) out.push({ ch: text[i], x: x0 + ctx.measureText(text.slice(0, i)).width + track * i });
-  return { full, x0, out };
-}
-
-// EL CABEZA's size: as wide as TITLE.width at its resting tracking.
-let cabezaSize = 0;
-function sizeCabeza(ctx) {
-  if (cabezaSize) return cabezaSize;
-  ctx.font = CABEZA_FONT(100);
-  ctx.letterSpacing = "0px";
-  const w = ctx.measureText("EL CABEZA").width / 100;
-  return (cabezaSize = TITLE.width / (w + TITLE.track * 8));
-}
-
-let sheenCanvas = null;
-
-/* The title, at any point of its coming in. s (each 0..1; the default, the
-   title at rest):
-     cabeza  EL CABEZA coming up: in from nothing as its letters close in
-     nova    NOVA's entrance: a spark on the line under the name, the rules
-             running out from it and parting, NOVA opening out of the
-             middle into focus, a soft bloom of light behind it
-     sheen   a glint of light passing over EL CABEZA, left to right
-     ink     from the light ink (over the opening's dark table) to the
-             poster's own (5's dark ink on its paper)
-     halo    a soft shade round the name, for while the picture moves under it */
-export function drawTitle(ctx, id, s = {}) {
-  const sc = SCHEME[id], T = TITLE, cx = W / 2;
-  const c = s.cabeza ?? 1, n = s.nova ?? 1, ink = s.ink ?? 1, halo = s.halo ?? 0, sh = s.sheen ?? 0;
-  ctx.save();
-  ctx.textBaseline = "alphabetic";
-  ctx.textAlign = "left";
-
-  // EL CABEZA
-  const size = sizeCabeza(ctx);
-  const cab = layout(ctx, "EL CABEZA", CABEZA_FONT(size), (T.track + 0.12 * (1 - easeOut(c))) * size, cx);
-  const alpha = smooth(c * 1.25);
-  if (alpha > 0) {
-    ctx.font = CABEZA_FONT(size);
-    ctx.fillStyle = mixHex(sc.light, sc.ink, ink);
-    if (halo > 0) {
-      const lightInk = sc.ground === "dark" || ink < 0.5;
-      ctx.shadowColor = lightInk ? `rgba(12,7,4,${0.78 * halo * alpha})` : `rgba(242,214,176,${0.75 * halo * alpha})`;
-      ctx.shadowBlur = 30;
-    }
-    ctx.globalAlpha = alpha;
-    for (const l of cab.out) ctx.fillText(l.ch, l.x, T.base);
-    ctx.shadowColor = "transparent";
-    ctx.shadowBlur = 0;
-    ctx.globalAlpha = 1;
-  }
-
-  // the glint over the name: the letters again, in light, seen through a band that crosses them
-  if (sh > 0 && sh < 1) {
-    const top = T.base - size, h = size * 1.25;
-    if (!sheenCanvas) { sheenCanvas = document.createElement("canvas"); sheenCanvas.width = W; sheenCanvas.height = Math.ceil(h) + 4; }
-    const g = sheenCanvas.getContext("2d");
-    g.clearRect(0, 0, W, sheenCanvas.height);
-    g.globalCompositeOperation = "source-over";
-    g.font = CABEZA_FONT(size);
-    g.fillStyle = sc.sheen;
-    for (const l of cab.out) g.fillText(l.ch, l.x, T.base - top);
-    g.globalCompositeOperation = "destination-in";
-    const e = easeInOut(sh), bx = cab.x0 - 220 + (cab.full + 440) * e;
-    const gr = g.createLinearGradient(bx - 90, h, bx + 90 + h * 0.35, 0);
-    gr.addColorStop(0, "rgba(0,0,0,0)");
-    gr.addColorStop(0.5, "rgba(0,0,0,1)");
-    gr.addColorStop(1, "rgba(0,0,0,0)");
-    g.fillStyle = gr;
-    g.fillRect(0, 0, W, sheenCanvas.height);
-    ctx.globalAlpha = (sc.ground === "dark" ? 0.75 : 0.5) * Math.sin(Math.PI * sh);
-    ctx.drawImage(sheenCanvas, 0, top);
-    ctx.globalAlpha = 1;
-  }
-
-  // NOVA
-  if (n > 0) drawNova(ctx, sc, n);
-  ctx.restore();
-}
-
-function drawNova(ctx, sc, n) {
-  const T = TITLE, cx = W / 2, y = T.nova, ns = T.novaSize;
-  const dark = sc.ground === "dark";
-  const glow = sc.glow;
-  // where it all ends up: the word at its tracking, the rules a gap away
-  const rest = layout(ctx, "NOVA", NOVA_FONT(ns), T.novaTrack * ns, cx);
-  const gi = rest.full / 2 + T.ruleGap;
-
-  // a soft bloom behind the word, rising quickly and dying away slowly
-  const bloom = smooth(span01(n, 0.04, 0.24)) * (1 - smooth(span01(n, 0.28, 1)));
-  if (bloom > 0) {
-    ctx.save();
-    ctx.globalCompositeOperation = dark ? "screen" : "source-over";
-    ctx.translate(cx, y);
-    ctx.scale(1, 0.26);
-    const r = 560;
-    const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
-    const k = dark ? 0.5 : 0.1;
-    gr.addColorStop(0, rgba(glow, k * bloom));
-    gr.addColorStop(0.4, rgba(glow, k * 0.38 * bloom));
-    gr.addColorStop(1, rgba(glow, 0));
-    ctx.fillStyle = gr;
-    ctx.fillRect(-r, -r, 2 * r, 2 * r);
-    ctx.restore();
-  }
-
-  // the rules: run out from the middle, then part for the word
-  const outer = (gi + T.ruleLen) * easeOutExpo(span01(n, 0.02, 0.6));
-  const inner = gi * easeInOut(span01(n, 0.16, 0.62));
-  if (outer > inner) {
-    ctx.fillStyle = sc.rule;
-    ctx.fillRect(cx - outer, y - T.rule / 2, outer - inner, T.rule);
-    ctx.fillRect(cx + inner, y - T.rule / 2, outer - inner, T.rule);
-  }
-  // a point of light at each running end
-  const run = smooth(span01(n, 0.02, 0.07)) * (1 - smooth(span01(n, 0.32, 0.62)));
-  if (run > 0) for (const x of [cx - outer, cx + outer]) spark(ctx, x, y, dark ? 34 : 22, run * (dark ? 0.9 : 0.75), glow, dark);
-  // and the spark the line starts from
-  const flash = smooth(span01(n, 0, 0.06)) * (1 - smooth(span01(n, 0.08, 0.4)));
-  if (flash > 0) spark(ctx, cx, y, dark ? 90 : 46, flash * (dark ? 1 : 0.8), glow, dark);
-
-  // the word: opening out from the middle, coming into focus
-  const a = smooth(span01(n, 0.16, 0.6));
-  if (a > 0) {
-    const open = easeOutQuart(span01(n, 0.12, 0.86));
-    const word = layout(ctx, "NOVA", NOVA_FONT(ns), (0.1 + (T.novaTrack - 0.1) * open) * ns, cx);
-    const blur = 7 * (1 - smooth(span01(n, 0.14, 0.74)));
-    ctx.save();
-    ctx.font = NOVA_FONT(ns);
-    ctx.fillStyle = sc.nova;
-    ctx.globalAlpha = a;
-    if (blur > 0.05) ctx.filter = `blur(${blur.toFixed(2)}px)`;
-    for (const l of word.out) ctx.fillText(l.ch, l.x, y + ns * 0.36);
-    ctx.restore();
-  }
-}
-
-// A point of light: white-hot in the middle on a dark ground, the glow's colour on a light one.
-function spark(ctx, x, y, r, a, glow, dark) {
-  ctx.save();
-  ctx.globalCompositeOperation = dark ? "screen" : "source-over";
-  const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
-  if (dark) {
-    gr.addColorStop(0, `rgba(255,250,240,${a})`);
-    gr.addColorStop(0.12, rgba(glow, 0.85 * a));
-    gr.addColorStop(0.4, rgba(glow, 0.22 * a));
-  } else {
-    gr.addColorStop(0, rgba(glow, 0.95 * a));
-    gr.addColorStop(0.1, rgba(glow, 0.6 * a));
-    gr.addColorStop(0.4, rgba(glow, 0.12 * a));
-  }
-  gr.addColorStop(1, rgba(glow, 0));
-  ctx.fillStyle = gr;
-  ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
-  ctx.restore();
-}
-
 /* A fine print grain, the same every frame, laid over a finished poster. */
 let grainCanvas = null;
 export function grain(ctx, amount = 0.09) {
@@ -537,11 +339,12 @@ export function grain(ctx, amount = 0.09) {
 export const DRAW = { v1: drawV1, v2: drawV2, v5: drawV5 };
 
 /* The whole poster into a new canvas (cached): the artwork with its grain,
-   and the title over it (opt.title false: the artwork alone, what the
-   videos morph into, the title coming in over them on its own). */
+   and the title over it, in the current treatment (opt.title false: the
+   artwork alone, what the videos morph into, the title coming in over them
+   on its own). */
 const cache = {};
 export function posterCanvas(id, opt = {}) {
-  const key = id + JSON.stringify(opt);
+  const key = id + JSON.stringify(opt) + (opt.title === false ? "" : styleName());
   if (cache[key]) return cache[key];
   const c = document.createElement("canvas");
   c.width = W;
