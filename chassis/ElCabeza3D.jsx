@@ -236,6 +236,10 @@ const TWO_FINGER_DOUBLE_TAP_MS = 400; // max gap between two taps to count as a 
 // board, a little less (frameTourBoard).
 const TOUR_PHI = 0.6;
 const TOUR_BOARD_PHI = 0.45;
+// The crush card's close-up looks in lower, to see the roll (tourCrush).
+const TOUR_CRUSH_PHI = 0.85;
+// The close-up's crush, once round: the copies in, the roll, held, out.
+const TOUR_CRUSH_LOOP_MS = 3400, TOUR_CRUSH_ROLL_AT = 650, TOUR_CRUSH_ROLL_MS = 620, TOUR_CRUSH_OUT_AT = 2700;
 // Other realities (theme.cornerAction) waits this long for its second tap.
 const ACTION_ARM_MS = 3000;
 const AI_BEAT_MS = 500; // the AI's first step comes no sooner than this after its turn comes round (see the AI turn effect)
@@ -4535,6 +4539,36 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tourStep, pieces, tourMine],
   );
+  /* The crush, shown up close (user: "when says "or crush the opponent's
+     Cabeza", it should cut to a zoomed-in example of this happening to
+     illustrate"). Where: the empty stretch of board nearest the middle with
+     room for a copy of the other side's Cabeza and, beside it to the west,
+     a copy of one of your blocks (the Turrito, where there is one) that
+     rolls east onto it; squares, holes and missing squares kept clear. */
+  const tourCrushSite = React.useMemo(() => {
+    if (tourStep !== "crush") return null;
+    const foeCab = pieces.find((p) => p.owner === tourFoe && p.type === "cabeza");
+    const mine = pieces.filter((p) => p.owner === tourMine && p.type !== "cabeza" && !p.vox);
+    if (!foeCab || !mine.length) return null;
+    const block = mine.find((p) => p.type === "turrito") || [...mine].sort((a, b) => cubeCount(a) - cubeCount(b))[0];
+    const blocked = (r, c) => r < 0 || c < 0 || r >= BOARD_ROWS || c >= BOARD_COLS
+      || pieces.some((p) => r >= p.row && r < p.row + p.h && c >= p.col && c < p.col + p.w)
+      || BLACK_HOLES.some((b) => b.row === r && b.col === c) || MISSING_SQUARES.some((m) => m.row === r && m.col === c);
+    const clear = (q) => { for (let r = q.row; r < q.row + q.h; r++) for (let c = q.col; c < q.col + q.w; c++) if (blocked(r, c)) return false; return true; };
+    const midR = (BOARD_ROWS - 1) / 2, midC = (BOARD_COLS - 1) / 2;
+    let best = null;
+    for (let R = 0; R < BOARD_ROWS; R++) for (let C = 0; C < BOARD_COLS; C++) {
+      const cab = { ...foeCab, id: "tour-crush-cabeza", row: R, col: C };
+      const from = { ...block, id: "tour-crush-block", row: R - Math.floor((block.h - 1) / 2), col: C - block.w };
+      const to = rollBlock(from, "E");
+      if (!(to.row <= R && R < to.row + to.h && to.col <= C && C < to.col + to.w)) continue;
+      if (!clear(cab) || !clear(from) || !clear(to)) continue;
+      const d = Math.hypot(R - midR, C - 0.5 - midC);
+      if (!best || d < best.d) best = { d, cab, from, to, cabId: foeCab.id, blockId: block.id, blockName: PIECE_META[block.type] ? PIECE_META[block.type].name : block.type };
+    }
+    return best;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourStep, pieces, tourMine]);
   const t3 = { rings: [], band: null };
   const t2 = { tags: [], arrows: [], boxes: [], orbit: null, avoid: ['[data-testid="points-counter"]', '[data-testid="stop-here-float"]', '[data-testid="undo-move-float"]', '[data-testid="shell-points"]', '[data-testid="corner-menu-tab"]', ...(tourOffer && tourOffer.clear ? [tourOffer.clear] : [])] };
   const tourBlocks = [], tourBoxed = [], tourMoved = [];
@@ -4553,6 +4587,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       foeP.forEach((p) => ring(p, "foe"));
       tag("mine", { pieces: mineP.map((p) => p.id) }, `${sideName(tourMine)} · you`, "mine");
       tag("foe", { pieces: foeP.map((p) => p.id) }, `${sideName(tourFoe)} · the computer`, "foe");
+    } else if (tourStep === "ways") {
+      // Both, before each in turn: the row your Cabeza wins on, and theirs to crush.
+      t3.band = { row: goalRow, tone: "goal" };
+      if (myCab) {
+        ring(myCab, "mine", { pulse: true });
+        t2.arrows.push({ key: "path", from: { piece: myCab.id }, to: { box: { type: "square", row: goalRow, col: myCab.col, w: 1, h: 1, z: 0 } }, tone: "goal", bend: 0.08 });
+        tag("way-1", { piece: myCab.id }, "1 · Your Cabeza across", "mine");
+      }
+      if (foeCab) { ring(foeCab, "foe", { pulse: true }); tag("way-2", { piece: foeCab.id }, `2 · Crush ${sideName(tourFoe)}'s`, "foe"); }
     } else if (tourStep === "goal") {
       t3.band = { row: goalRow, tone: "goal" };
       tag("goal", { row: goalRow }, `${sideName(tourFoe)}'s back row · your goal`, "goal");
@@ -4562,8 +4605,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         tag("cabeza", { piece: myCab.id }, "Your Cabeza", "mine");
       }
     } else if (tourStep === "crush") {
-      if (foeCab) { ring(foeCab, "foe", { pulse: true }); tag("foe-cabeza", { piece: foeCab.id }, `${sideName(tourFoe)}'s Cabeza · crush it`, "foe"); }
-      if (myCab) { ring(myCab, "mine"); tag("cabeza", { piece: myCab.id }, "Yours · keep it safe", "mine"); }
+      // The close-up: the copies named where they stand (tourCrush below).
+      if (tourCrushSite) {
+        ring(tourCrushSite.cab, "foe", { pulse: true });
+        // (Set off to either side, so the block's label, following it as it rolls, never swaps sides.)
+        tag("crush-cabeza", { box: tourCrushSite.cab }, `${sideName(tourFoe)}'s Cabeza`, "foe", "right");
+        tag("crush-block", { crush: "block", box: tourCrushSite.from }, `Your ${tourCrushSite.blockName}`, "mine", "left");
+      } else {
+        if (foeCab) { ring(foeCab, "foe", { pulse: true }); tag("foe-cabeza", { piece: foeCab.id }, `${sideName(tourFoe)}'s Cabeza · crush it`, "foe"); }
+        if (myCab) { ring(myCab, "mine"); tag("cabeza", { piece: myCab.id }, "Yours · keep it safe", "mine"); }
+      }
     } else if (tourStep === "blocks") {
       blocks.forEach((p) => { ring(p, "mine", { pulse: true }); tag(p.id, { piece: p.id }, nameOf(p), "mine"); });
     } else if (tourStep === "turn") {
@@ -4609,6 +4660,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // asks at each frame; the canvas's own place read once a frame, sync()).
   const tourPiecesRef = useRef(pieces);
   tourPiecesRef.current = pieces;
+  // (The crush card's copies, while they're on the board: their labels follow them.)
+  const tourCrushObjRef = useRef(null);
   const tourGeo = React.useMemo(() => {
     const v = new THREE.Vector3();
     let cr = null;
@@ -4641,8 +4694,23 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           const hw = disc ? (DISC_DIAM * CABEZA_SCALE) / 2 : (p.w * PIECE_SCALE) / 2, hd = disc ? hw : (p.h * PIECE_SCALE) / 2;
           addBox(c.x - hw, c.x + hw, c.z - hd, c.z + hd, tall(p));
         };
+        const obj = at.crush && tourCrushObjRef.current && tourCrushObjRef.current[at.crush];
         const ids = at.pieces || (at.piece ? [at.piece] : null);
-        if (ids) ids.forEach((id) => { const p = tourPiecesRef.current.find((q) => q.id === id); if (p) addPiece(p); });
+        if (obj) {
+          // (Each mesh's own box, as it stands now.)
+          obj.updateWorldMatrix(true, true);
+          obj.traverse((o) => {
+            if (!o.isMesh || !o.visible) return;
+            if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+            const bb = o.geometry.boundingBox;
+            for (const x of [bb.min.x, bb.max.x]) for (const y of [bb.min.y, bb.max.y]) for (const z of [bb.min.z, bb.max.z]) {
+              v.set(x, y, z).applyMatrix4(o.matrixWorld).project(three.current.camera);
+              if (v.z > 1) continue;
+              const px = cr.left + ((v.x + 1) / 2) * cr.width, py = cr.top + ((1 - v.y) / 2) * cr.height;
+              box.l = Math.min(box.l, px); box.r = Math.max(box.r, px); box.t = Math.min(box.t, py); box.b = Math.max(box.b, py);
+            }
+          });
+        } else if (ids) ids.forEach((id) => { const p = tourPiecesRef.current.find((q) => q.id === id); if (p) addPiece(p); });
         else if (at.box) addPiece(at.box);
         else if (at.row != null) {
           // (Up to the top of the tallest piece standing on it: a label
@@ -4798,6 +4866,30 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     c.theta = theta; c.phi = phi; c.radius = best.r; c.target.copy(best.target); c.dollhouse = false;
     glideRef.current = {};
   }
+  /* The crush card's close-up: the copies and the square the block rolls
+     to, from your side and lower than the cards' view, as close as they
+     fill most of the room the card leaves; a cut, not a glide (user: "it
+     should cut to a zoomed-in example"). The next card glides back out. */
+  function cutToTourCrush(site) {
+    const t = three.current;
+    const size = t.getMountSize && t.getMountSize();
+    if (!site || !t.camera || !t.renderer || !size) return;
+    const c = cam.current;
+    if (!tourCamRef.current) tourCamRef.current = { theta: c.theta, phi: c.phi, radius: c.radius, target: c.target.clone(), dollhouse: !!c.dollhouse };
+    const { from, to, cab } = site;
+    const r0 = Math.min(from.row, to.row, cab.row) - 0.6, r1 = Math.max(from.row + from.h, to.row + to.h, cab.row + cab.h) + 0.6;
+    const c0 = Math.min(from.col, cab.col) - 0.7, c1 = Math.max(to.col + to.w, cab.col + cab.w) + 0.7;
+    const foot = [[c0, r0], [c1, r0], [c0, r1], [c1, r1]].map(([cc, rr]) => [cc * SQUARE_SIZE - OFF_X, rr * SQUARE_SIZE - OFF_Z]);
+    // (A block's corner rises as it rolls: room for that above it.)
+    const high = Math.max(from.w, from.h, from.z) * 1.42 * PIECE_SCALE;
+    const theta = tourMine === "dark" ? Math.PI : 0;
+    const phi = Math.min(theme.maxPitch ?? 1.25, TOUR_CRUSH_PHI);
+    const best = fitFootInRegion(theta, phi, foot, high, tourRegion(size, 24), 0.72, zoomMin);
+    c.theta = theta; c.phi = phi; c.radius = best.r; c.target.copy(best.target); c.dollhouse = false;
+    const v = c.view;
+    v.theta = c.theta; v.phi = c.phi; v.radius = c.radius; v.target.copy(c.target);
+    glideRef.current = null;
+  }
   /* The lesson's camera (user: "it'll kind of zoom in on it a little
      bit"): the piece and every square it can move to now, with board round
      them, as close as they fill three fifths of the room the card leaves,
@@ -4844,11 +4936,116 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (!tourShown) return undefined;
     const raf = requestAnimationFrame(() => {
       if (tourYours) frameTourPiece(selectedPiece);
+      else if (tourStep === "crush" && tourCrushSite) cutToTourCrush(tourCrushSite);
       else if (!(tourStep === "pieces" && selectedId)) frameTourBoard();
     });
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourStep, tourShown, selectedId, tourYours && turnLocked ? stepsUsed : -1]);
+  /* The close-up's crush, played over and over while the card's up: copies
+     of the pieces' own meshes (the world's own look) in a group of their
+     own, at tourCrushSite. The two come in; the block rolls east onto the
+     Cabeza's square about its edge, as the game's rolls go (pivotFor), and
+     the Cabeza is pressed flat under it as it comes down; a red ring
+     bursts from the square; held; both fade, and again. The real pieces,
+     and the game, are never touched. */
+  const tourCrushRef = useRef(null);
+  useEffect(() => {
+    const t = three.current;
+    const site = tourShown && tourStep === "crush" ? tourCrushSite : null;
+    if (!site || !t.boardGroup || !t.pieceGroup || !t.frameHooks) return undefined;
+    const group = new THREE.Group();
+    group.userData = { kind: "tour-crush" };
+    group.position.copy(t.pieceGroup.position);
+    group.quaternion.copy(t.pieceGroup.quaternion);
+    group.scale.copy(t.pieceGroup.scale);
+    // A copy of a piece's meshes moved from where it stands to `state` (the
+    // same shape, the same way up, the same materials: a world's own
+    // shaders, its wood, come along, and nothing new is compiled).
+    const copyOf = (id, state) => {
+      const real = pieces.find((p) => p.id === id);
+      const parts = t.pieceGroup.children.filter((c) => c.userData.pieceId === id);
+      if (!real || !parts.length) return null;
+      const a = pieceCenter(real), b = pieceCenter(state);
+      const root = new THREE.Group();
+      parts.forEach((part) => {
+        const c = part.clone(true);
+        c.traverse((o) => { o.userData = { kind: "tour-crush" }; o.raycast = () => {}; });
+        c.position.x += b.x - a.x;
+        c.position.z += b.z - a.z;
+        root.add(c);
+      });
+      return root;
+    };
+    const cabCopy = copyOf(site.cabId, site.cab), blockCopy = copyOf(site.blockId, site.from);
+    if (!cabCopy || !blockCopy) return undefined;
+    // The Cabeza pressed flat from its foot: it hangs in a holder on the board under its middle.
+    const cc = pieceCenter(site.cab);
+    const cabHolder = new THREE.Group();
+    cabHolder.position.set(cc.x, 0, cc.z);
+    cabCopy.position.set(-cc.x, 0, -cc.z);
+    cabHolder.add(cabCopy);
+    // The block turns about the edge it rolls over; inside that, it grows
+    // and shrinks about its own foot.
+    const pv = pivotFor(site.from, "E");
+    const bc = pieceCenter(site.from);
+    const blockHolder = new THREE.Group();
+    blockHolder.position.copy(pv.point);
+    const blockGrow = new THREE.Group();
+    blockGrow.position.set(bc.x - pv.point.x, -pv.point.y, bc.z - pv.point.z);
+    blockCopy.position.x -= bc.x;
+    blockCopy.position.z -= bc.z;
+    blockGrow.add(blockCopy);
+    blockHolder.add(blockGrow);
+    tourCrushObjRef.current = { block: blockCopy, cab: cabCopy };
+    // The burst: a red ring flat on the square.
+    const burstMat = new THREE.MeshBasicMaterial({ color: TOUR_TONES.foe, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+    const burst = new THREE.Mesh(new THREE.RingGeometry(0.38, 0.5, 48).rotateX(-Math.PI / 2), burstMat);
+    burst.position.set(cc.x, 0.05, cc.z);
+    burst.renderOrder = 8;
+    group.add(cabHolder, blockHolder, burst);
+    t.boardGroup.add(group);
+    const state = { loops: 0, phase: "in", roll: 0, press: 0 };
+    tourCrushRef.current = state;
+    const t0 = performance.now();
+    const ease = (e) => (e < 0.5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2);
+    const k01 = (v) => Math.max(0, Math.min(1, v));
+    const frame = (now) => {
+      const all = Math.max(0, now - t0), ms = all % TOUR_CRUSH_LOOP_MS;
+      state.loops = Math.floor(all / TOUR_CRUSH_LOOP_MS);
+      // in (grown up out of the board, a touch past full), held, out
+      // (shrunk away): by scale, not fading, so they stay solid and their
+      // shadows go with them
+      const gin = k01(ms / 380), gout = k01((ms - TOUR_CRUSH_OUT_AT) / 330);
+      const k = Math.max(0.0001, Math.min(1 + 2.2 * Math.pow(gin - 1, 3) + 1.2 * Math.pow(gin - 1, 2), 1 - gout * gout * (3 - 2 * gout)));
+      blockGrow.scale.setScalar(k);
+      // the roll
+      const roll = k01((ms - TOUR_CRUSH_ROLL_AT) / TOUR_CRUSH_ROLL_MS);
+      const e = ease(roll), sm = e * e * (3 - 2 * e);
+      blockHolder.setRotationFromAxisAngle(pv.axis, pv.angle * e);
+      blockHolder.position.copy(pv.point).addScaledVector(pv.dirVec, pv.residual * sm * sm);
+      // pressed flat as the block comes down on it (its second half)
+      const press = Math.pow(k01((roll - 0.55) / 0.45), 2);
+      cabHolder.scale.set(k * (1 + 0.24 * press), k * Math.max(0.06, 1 - 0.94 * press), k * (1 + 0.24 * press));
+      // the ring, as it lands
+      const b = k01((ms - TOUR_CRUSH_ROLL_AT - TOUR_CRUSH_ROLL_MS) / 700);
+      burst.scale.setScalar(0.7 + 1.7 * b);
+      burstMat.opacity = b > 0 && b < 1 ? 0.95 * (1 - b) : 0;
+      state.phase = ms < TOUR_CRUSH_ROLL_AT ? "in" : roll < 1 ? "roll" : ms < TOUR_CRUSH_OUT_AT ? "crushed" : "out";
+      state.roll = roll;
+      state.press = press;
+    };
+    t.frameHooks.add(frame);
+    return () => {
+      t.frameHooks.delete(frame);
+      t.boardGroup.remove(group);
+      burst.geometry.dispose();
+      burstMat.dispose();
+      tourCrushRef.current = null;
+      tourCrushObjRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourCrushSite, tourShown, tourStep]);
   /* Its moments: your turn come round, then gone (the other side's turn,
      its pieces as it begins kept, to show what it moved; its card stays
      until it's put away, or a piece is picked on your next turn). A game
@@ -4872,6 +5069,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       saved: tourCamRef.current ? { theta: tourCamRef.current.theta, phi: tourCamRef.current.phi, radius: tourCamRef.current.radius } : null,
       mine: tourMine,
       marks: tourShown ? { rings: t3.rings.map((r) => ({ id: r.id, tone: r.tone, pulse: !!r.pulse, faint: !!r.faint })), band: t3.band, arrows: t2.arrows.map((a) => ({ key: a.key, tone: a.tone })), tags: t2.tags.map((g) => g.text), boxes: t2.boxes.map((b) => b.key), orbit: t2.orbit } : null,
+      // (the crush card's close-up: where, and how far through its play)
+      crush: tourCrushRef.current ? { ...tourCrushRef.current, cab: tourCrushSite && { row: tourCrushSite.cab.row, col: tourCrushSite.cab.col }, block: tourCrushSite && tourCrushSite.blockId } : null,
     });
     window.__EC_TEST_TO_MOVE__ = () => currentPlayer; // (whose turn it is: "dark" or "light")
   }

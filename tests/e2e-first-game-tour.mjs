@@ -7,14 +7,20 @@
    Copyright 1975 ... We need to create a first-time player walkthrough
    tutorial"; then: "Highlight the pieces as they're explained. Arrows to
    indicate stuff will be helpful. Make it perfectly transparent how the
-   game is played. Hand-holding is encouraged here"; chassis/
-   FirstGameTour.jsx).
+   game is played. Hand-holding is encouraged here"; then, 2026-10-18:
+   "Before the win conditions are shown, it should be mentioned that there
+   are 2 ways to win, and then show them", and at "or crush the opponent's
+   Cabeza", "it should cut to a zoomed in example of this happening to
+   illustrate"; chassis/FirstGameTour.jsx).
 
    On a phone, from a fresh story: the computer on Easy playing Walnut and
    you Ash, moving first, chosen already; Try a Game brings the cards at
    the top, the board framed under them and what each names lit up: both
-   sides ringed and labelled; your Cabeza, the row you win on lit green
-   and an arrow to it; Walnut's Cabeza; your four blocks, named; the
+   sides ringed and labelled; the two ways to win, both Cabezas ringed and
+   numbered; your Cabeza, the row you win on lit green and an arrow to it;
+   Walnut's Cabeza crushed, a cut to a close-up of copies of a block of
+   yours rolling onto a copy of it, over and over (the real pieces
+   untouched), the camera gliding back out on Next; your four blocks, named; the
    actions' lights ringed; arrows round the board and a fingertip along
    them. The computer waits on the cards, and a tap on a piece picks
    nothing while one's up. Then your turn: the pieces that can move glow,
@@ -109,25 +115,63 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const dc = await posOf("dark-cabeza");
   check("...Walnut's side seen below the card, not under it", !!dc && dc.y > cardBox.y + cardBox.height, JSON.stringify({ dc, cardBox }));
 
-  // How you win: your Cabeza, the row lit green, an arrow there.
+  // Two ways to win, before either: both Cabezas ringed and numbered.
   await next(page);
   t = await cardText(page);
-  check("Next: how you win, your Cabeza to Walnut's back row, lit green", /Get your Cabeza across to win\./.test(t) && /Walnut's back row, the far edge lit green/.test(t), t);
+  check("Next: there are two ways to win, both said", /There are two ways to win\./.test(t) && /1\. Get your Cabeza across the board to Walnut's back row\./.test(t) && /2\. Crush Walnut's Cabeza with one of your blocks\./.test(t) && /2 of 8/i.test(t), t);
+  r = await rings(page);
+  cardBox = await card(page).boundingBox();
+  const way1 = await tagBox(page, "way-1"), way2 = await tagBox(page, "way-2");
+  check("...both Cabezas ringed and pulsing, the row you'd win on lit", r.length === 2 && r.some((x) => x.id === "light-cabeza" && x.tone === "mine" && x.pulse) && r.some((x) => x.id === "dark-cabeza" && x.tone === "foe" && x.pulse) && (await band(page)) === 0, JSON.stringify({ r, band: await band(page) }));
+  check("...each numbered, on the screen and clear of the card", !!way1 && /1 · Your Cabeza across/i.test(way1.text) && !!way2 && /2 · Crush Walnut's/i.test(way2.text) && [way1, way2].every((b) => inView(b, W, H) && !overlap(b, cardBox)) && !overlap(way1, way2), JSON.stringify({ way1, way2, cardBox }));
+  check("...an arrow from your Cabeza up to the row", ((await arrowD(page, "arrow-path")) || "").length > 10);
+
+  // The first: your Cabeza, the row lit green, an arrow there.
+  await next(page);
+  t = await cardText(page);
+  check("Next: the first way, your Cabeza to Walnut's back row, lit green", /1\. Get your Cabeza across\./.test(t) && /Walnut's back row, the far edge lit green/.test(t), t);
   r = await rings(page);
   check("...your Cabeza ringed, Walnut's back row lit on the board", r.length === 1 && r[0].id === "light-cabeza" && r[0].pulse && (await band(page)) === 0, JSON.stringify({ r, band: await band(page) }));
   const path = await arrowD(page, "arrow-path");
   const goalTag = await tagBox(page, "goal");
   check("...an arrow from it to the row, and the row labelled your goal", !!path && path.length > 10 && !!goalTag && /back row · your goal/i.test(goalTag.text) && inView(goalTag, W, H), JSON.stringify({ path, goalTag }));
 
-  // Or crush theirs.
-  await next(page);
+  // The second: a cut to a close-up of a crush, played over and over.
+  const boardCam = await camOf(page);
+  const realBefore = await page.evaluate(() => window.__EC_TEST_PIECES__.map((p) => `${p.id}@${p.row},${p.col}`).join(" "));
+  await page.locator('[data-testid="tour-next"]').click();
+  await page.waitForTimeout(250);
   t = await cardText(page);
+  check("Next: the second way, crush Walnut's Cabeza: roll a block onto it", /2\. Crush Walnut's Cabeza\./.test(t) && /Roll one of your blocks onto Walnut's Cabeza and it's crushed: you win\./.test(t) && /up close/.test(t), t);
+  let cut = await page.evaluate(() => window.__EC_TEST_CAM__());
+  check("...a cut, not a glide: the view there at once, in close and lower", Math.abs(cut.view.radius - cut.radius) < 0.01 && Math.abs(cut.view.phi - cut.phi) < 0.01 && Math.abs(cut.phi - 0.85) < 0.02 && cut.radius < 0.6 * boardCam.radius, JSON.stringify({ boardCam, goal: { phi: cut.phi, radius: cut.radius }, view: cut.view }));
+  tour = await tourOf(page);
+  const demo = tour.crush;
+  check("...copies of the Turrito and Walnut's Cabeza on an empty square near the middle", !!demo && demo.block === "light-turrito" && !!demo.cab && demo.cab.row >= 3 && demo.cab.row <= 6 && demo.cab.col >= 3 && demo.cab.col <= 6 && (await page.evaluate(() => window.__EC_TEST_THREE__().boardGroup.children.filter((c) => c.userData.kind === "tour-crush").length)) === 1, JSON.stringify(demo));
   r = await rings(page);
-  check("Next: or crush Walnut's Cabeza, ringed red, yours ringed too", /Or crush Walnut's Cabeza\./.test(t) && /Roll one of your blocks onto its square/.test(t) && r.some((x) => x.id === "dark-cabeza" && x.tone === "foe" && x.pulse) && r.some((x) => x.id === "light-cabeza" && x.tone === "mine"), t + " " + JSON.stringify(r));
-  check("...each labelled", /crush it/i.test(((await tagBox(page, "foe-cabeza")) || {}).text || "") && /keep it safe/i.test(((await tagBox(page, "cabeza")) || {}).text || ""));
+  cardBox = await card(page).boundingBox();
+  const crushCab = await tagBox(page, "crush-cabeza"), crushBlock = await tagBox(page, "crush-block");
+  check("...the copied Cabeza ringed red, both named on the screen below the card", r.some((x) => x.id === "tour-crush-cabeza" && x.tone === "foe" && x.pulse) && !!crushCab && /Walnut's Cabeza/i.test(crushCab.text) && !!crushBlock && /Your Turrito/i.test(crushBlock.text) && [crushCab, crushBlock].every((b) => inView(b, W, H) && !overlap(b, cardBox)), JSON.stringify({ r, crushCab, crushBlock, cardBox }));
+  const seen = new Set();
+  let pressed = 0, loops = 0, blockAt0 = null, blockAt1 = null;
+  for (let i = 0; i < 90 && !(seen.has("crushed") && loops >= 1 && seen.has("in")); i++) {
+    const c = (await tourOf(page)).crush;
+    if (c) { seen.add(c.phase); if (c.phase === "crushed") pressed = Math.max(pressed, c.press); loops = c.loops; }
+    const b = await tagBox(page, "crush-block");
+    if (b && c && c.phase === "in" && !blockAt0) blockAt0 = b;
+    if (b && c && c.phase === "crushed" && !blockAt1) blockAt1 = b;
+    await page.waitForTimeout(80);
+  }
+  check("...the block rolls on and the Cabeza's pressed flat, then again", seen.has("crushed") && pressed > 0.99 && loops >= 1, JSON.stringify({ seen: [...seen], pressed, loops }));
+  check("...the block's label goes with it as it rolls", !!blockAt0 && !!blockAt1 && blockAt1.x > blockAt0.x + 4, JSON.stringify({ blockAt0, blockAt1 }));
+  check("...the real pieces untouched, and nothing played", (await page.evaluate(() => window.__EC_TEST_PIECES__.map((p) => `${p.id}@${p.row},${p.col}`).join(" "))) === realBefore && (await page.evaluate(() => (window.__EC_TEST_TURNS__ || []).length)) === 0);
+  await page.locator('[data-testid="tour-next"]').click();
+  await page.waitForTimeout(250);
+  const out = await page.evaluate(() => window.__EC_TEST_CAM__());
+  check("Next: the close-up gone, the camera gliding back out", (await tourOf(page)).crush === null && (await page.evaluate(() => window.__EC_TEST_THREE__().boardGroup.children.filter((c) => c.userData.kind === "tour-crush").length)) === 0 && out.view.radius < out.radius - 0.5 && Math.abs(out.phi - 0.45) < 0.02, JSON.stringify({ goal: { phi: out.phi, radius: out.radius }, view: out.view }));
+  await page.waitForTimeout(2400);
 
   // Your blocks, each named on the board.
-  await next(page);
   t = await cardText(page);
   check("Next: your four blocks, named on the board; they roll, never corner to corner", /Your four blocks\./.test(t) && /The Turrito, the Flaco, the Chato and the Opa, named on the board\./.test(t) && /never corner to corner/.test(t), t);
   r = await rings(page);
@@ -268,7 +312,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   check("Try a Game: the welcome card", (await tourOf(page)).step === "welcome");
   const box = await card(page).boundingBox();
   check("...at the left, the board beside it", !!box && box.x < 40 && Math.abs(box.width - 360) < 2, JSON.stringify(box));
-  for (let i = 0; i < 5; i++) { await page.locator('[data-testid="tour-next"]').click(); await page.waitForTimeout(150); }
+  for (let i = 0; i < 6; i++) { await page.locator('[data-testid="tour-next"]').click(); await page.waitForTimeout(150); }
   await page.waitForTimeout(600);
   const t = await cardText(page);
   const tour = await tourOf(page);

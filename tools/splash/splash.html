@@ -1,0 +1,20 @@
+<!doctype html>
+<!-- The splash videos' stage: one 1080 x 1920 canvas that tools/splash/render.mjs
+     steps frame by frame (window.SPLASH). Open it alone to see a version play:
+     splash.html?v=build&p=v1 -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@font-face { font-family: "Cinzel"; src: url("../fonts/Cinzel-700.ttf"); font-weight: 700; }
+@font-face { font-family: "Josefin Sans"; src: url("../fonts/JosefinSans-300.ttf"); font-weight: 300; }
+@font-face { font-family: "Barlow Condensed"; src: url("../fonts/BarlowCondensed-600.ttf"); font-weight: 600; }
+html, body { margin: 0; background: #000; }
+canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

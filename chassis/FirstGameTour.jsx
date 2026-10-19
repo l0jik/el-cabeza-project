@@ -13,12 +13,18 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
    walkthrough tutorial"; then, 2026-10-18: "Highlight the pieces as
    they're explained. Arrows to indicate stuff will be helpful. Make it
    perfectly transparent how the game is played. Hand-holding is
-   encouraged here").
+   encouraged here"; and: "when says "or crush the opponent's Cabeza", it
+   should cut to a zoomed-in example of this happening to illustrate.
+   Before the win conditions are shown, it should be mentioned that there
+   are 2 ways to win, and then show them").
 
    The chassis runs it (ElCabeza3D.jsx, tourStep) and hands this the
    moment as `tour`. As the game begins, a card at the top for each thing
-   to know, one after another (TOUR_CARDS): who you are, how you win,
-   the other way to win, your blocks, your turn, the board; the computer
+   to know, one after another (TOUR_CARDS): who you are, that there are
+   two ways to win, the first (your Cabeza across), the second (a crush,
+   shown up close: the camera cuts to a block of yours rolling onto the
+   other side's Cabeza, ElCabeza3D.jsx's tourCrush), your blocks, your
+   turn, the board; the computer
    waits until they're through. Each lights up what it speaks of, the
    board turned to show it all: the pieces ringed on the board (the
    chassis's tourGroup), the words and the arrows over the screen
@@ -43,7 +49,7 @@ export function markTourDone() {
 
 // The cards before you play, in order; then "pieces" (your first turn)
 // and "foe" (the other side's turn after it).
-export const TOUR_CARDS = ["welcome", "goal", "crush", "blocks", "turn", "board"];
+export const TOUR_CARDS = ["welcome", "ways", "goal", "crush", "blocks", "turn", "board"];
 
 /* The marks' colours, bright against the board and its pieces, each with
    the name the cards call it by: yours, the other side's, the row you
@@ -74,9 +80,18 @@ function cardText(t) {
           "This short tour shows you how to play. The computer waits until you're ready.",
         ],
       };
+    case "ways":
+      return {
+        title: "There are two ways to win.",
+        body: [
+          `1. Get your Cabeza across the board to ${foe}'s back row.`,
+          `2. Crush ${foe}'s Cabeza with one of your blocks.`,
+          "Here's each one.",
+        ],
+      };
     case "goal":
       return {
-        title: "Get your Cabeza across to win.",
+        title: "1. Get your Cabeza across.",
         body: [
           `This disc is your Cabeza. Bring it all the way to ${foe}'s back row, the far edge lit ${TONE_NAMES.goal}, and you win.`,
           "It steps one square at a time, any way, corners too.",
@@ -84,9 +99,9 @@ function cardText(t) {
       };
     case "crush":
       return {
-        title: `Or crush ${foe}'s Cabeza.`,
+        title: `2. Crush ${foe}'s Cabeza.`,
         body: [
-          `That's ${foe}'s Cabeza, ringed in ${TONE_NAMES.foe}. Roll one of your blocks onto its square and it's crushed: you win.`,
+          `Roll one of your blocks onto ${foe}'s Cabeza and it's crushed: you win. Here it is, up close.`,
           `${foe} wins the same two ways, so keep your own Cabeza out from under ${foe}'s blocks.`,
         ],
       };
