@@ -61,6 +61,8 @@ const E2E = [
   ["e2e-first-game-tour.mjs"],
   // Other realities from Futuris's sphere: the switcher on top, scrolling.
   ["e2e-realities-over-sphere.mjs"],
+  // A slow machine: the governor's steps (floor, shadow map, 30 a second), kept; shaders compiled early.
+  ["e2e-device-fit.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

@@ -6,7 +6,8 @@
    Once a second: frames a second and the average frame; the slowest
    frame; the main loop's own time a frame (its script and the drawing it
    hands the graphics chip; the chip's own time a page can't see); the
-   pixel ratio and the device's tier; the shadow map's size and how many
+   pixel ratio and the device's tier (and "held to 30" when the governor
+   holds the frames to 30 a second, device-fit.js); the shadow map's size and how many
    times a second it was drawn; and what the last frame drew. */
 const KEY = "el-cabeza:fps";
 
@@ -57,7 +58,7 @@ export function createFpsReadout() {
         `${fps.toFixed(0)} fps  ${frames ? (sum / frames).toFixed(1) : "–"} ms`,
         `slowest ${worst.toFixed(0)} ms`,
         `main loop ${frames ? (work / Math.max(1, frames)).toFixed(1) : "–"} ms`,
-        `×${a.pixelRatio.toFixed(2)}  ${a.tier}`,
+        `×${a.pixelRatio.toFixed(2)}  ${a.tier}${a.paced ? "  held to 30" : ""}`,
         `shadows ${a.shadowMap || "off"}  ${a.shadowsAlways ? "every frame" : `${Math.round((shadows * 1000) / span)}/s`}`,
         `${k(a.calls)} draws  ${k(a.triangles)} tris`,
       ].join("\n");

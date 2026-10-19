@@ -13,9 +13,11 @@
      period fonts have arrived.
    - Wood grain that follows a roll (wood-set.js followGrain).
    - Device fit: the tier's pixel-ratio cap and shadow size are applied
-     at once, and a frame-rate governor then lowers the pixel ratio if
-     the device can't hold a steady frame rate (and raises it again,
-     within the cap, when it can). Paused while the tab is hidden.
+     at once, and the shared frame-rate governor (chassis/device-fit.js,
+     handed to the chassis as three.current.governor, which runs it each
+     frame) lowers the pixel ratio, then the shadow map, then holds the
+     frames to 30 a second if the device can't keep up (and gives them
+     back when it can). Paused while the tab is hidden.
    - A tube near the court that fails to strike now and then; the sound
      buzzes with it (tienda-audio.js). */
 
@@ -24,6 +26,7 @@ import { SLAB_X, SLAB_Z } from "../engine/constants.js";
 import { buildStore, buildTable, CEIL, storeRevisited } from "./tienda-store.js";
 import { woodSet } from "./tienda.js";
 import { quality } from "./tienda-quality.js";
+import { createGovernor } from "../chassis/device-fit.js";
 import { ensurePaper, ensureNewsprint } from "./tienda-textures.js";
 
 const FONT_FACES = ["800 40px 'Libre Franklin'", "900 40px 'Libre Franklin'", "700 40px 'Libre Franklin'", "600 40px 'Libre Franklin'", "700 40px 'Courier Prime'", "400 40px 'Courier Prime'", "700 40px 'Bodoni Moda'", "italic 700 40px 'Libre Franklin'"];
@@ -127,44 +130,23 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, awaiting
   }
 
   /* ---- device fit: pixel ratio, shadows, the frame-rate governor ---- */
-  let pr = 1;
-  const frames = [];
-  let lastFrame = 0, lastJudged = 0, lastRaise = 0, settleUntil = 0;
-  function setPixelRatio(v) {
-    const t = three.current;
-    if (!t || !t.renderer) return;
-    pr = Math.max(q.dprFloor, Math.min(v, q.dprCap, window.devicePixelRatio || 1));
-    t.renderer.setPixelRatio(pr);
-    const size = t.getMountSize && t.getMountSize();
-    if (size) t.renderer.setSize(size.w, size.h);
-    settleUntil = performance.now() + 1500;
-    frames.length = 0;
-    if (typeof window !== "undefined") window.__TIENDA_PIXEL_RATIO__ = pr;
-  }
   function tune(t) {
     if (tuned || !t.renderer) return;
     tuned = true;
-    setPixelRatio(Math.min(window.devicePixelRatio || 1, q.dprCap));
+    t.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.dprCap));
+    const size = t.getMountSize && t.getMountSize();
+    if (size) t.renderer.setSize(size.w, size.h);
     const key = t.lights && t.lights.key;
     if (key && key.shadow && key.shadow.mapSize.x !== q.shadowMap) {
       key.shadow.mapSize.set(q.shadowMap, q.shadowMap);
       if (key.shadow.map) { key.shadow.map.dispose(); key.shadow.map = null; }
     }
-    if (typeof window !== "undefined") window.__TIENDA_QUALITY__ = q.tier;
-  }
-  function govern(now) {
-    const dt = now - lastFrame;
-    lastFrame = now;
-    if (document.hidden || now < settleUntil || dt <= 0 || dt > 250) return; // tab away, a hitch, or just changed
-    frames.push(dt);
-    if (frames.length > 120) frames.shift();
-    if (now - lastJudged < 2000 || frames.length < 60) return;
-    lastJudged = now;
-    const sorted = frames.slice().sort((a, b) => a - b);
-    const median = sorted[Math.floor(sorted.length / 2)];
-    const slow = sorted[Math.floor(sorted.length * 0.9)];
-    if (median > 1000 / 42 && pr > q.dprFloor + 0.01) setPixelRatio(pr - 0.2);
-    else if (slow < 1000 / 56 && pr < Math.min(q.dprCap, window.devicePixelRatio || 1) - 0.01 && now - lastRaise > 8000) { lastRaise = now; setPixelRatio(pr + 0.15); }
+    t.governor = createGovernor(t.renderer, () => t.getMountSize && t.getMountSize(), q, {
+      key: "tienda",
+      light: () => t.lights && t.lights.key,
+      onChange: ({ pixelRatio }) => { if (typeof window !== "undefined") window.__TIENDA_PIXEL_RATIO__ = pixelRatio; },
+    });
+    if (typeof window !== "undefined") { window.__TIENDA_PIXEL_RATIO__ = t.renderer.getPixelRatio(); window.__TIENDA_QUALITY__ = q.tier; }
   }
 
   /* ---- attach and size the store ---- */
@@ -254,7 +236,6 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, awaiting
     tick(now) {
       if (!attach()) return;
       const t = three.current;
-      govern(now);
       woodSet.followGrain(t); // the grain turns with the rolls (wood-set.js)
       /* Back after the whole story, El Cabeza is nowhere to be seen: the
          board, its pieces, their markers and the brass all go; only the

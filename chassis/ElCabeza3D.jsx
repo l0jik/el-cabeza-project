@@ -85,7 +85,23 @@ const APP_VERSION = "1.39.0";
    points ("1", "2") or "free" for a move back to an earlier position
    this turn (drawn as a ring on the ink colour). Colours come from the
    mover's side. */
+/* The badges' pictures, drawn once each ("1", "2", "free" in a side's
+   colours) and shared: a piece picked used to paint and upload a new one
+   for every marker, again each time its markers were laid out. */
+const BADGE_TEXTURES = new Map();
 function buildCostBadge({ text, fill, ink, x, y, z, size }) {
+  const id = `${text}|${fill}|${ink}`;
+  let tex = BADGE_TEXTURES.get(id);
+  if (!tex) { tex = paintCostBadge(text, fill, ink); BADGE_TEXTURES.set(id, tex); }
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, opacity: 0 });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(size, size, 1);
+  sprite.position.set(x, y, z);
+  sprite.renderOrder = 20;
+  sprite.userData.costBadge = text;
+  return sprite;
+}
+function paintCostBadge(text, fill, ink) {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 128;
   const g = canvas.getContext("2d");
@@ -110,14 +126,7 @@ function buildCostBadge({ text, fill, ink, x, y, z, size }) {
   g.textBaseline = "middle";
   g.font = free ? "800 38px system-ui, sans-serif" : "800 72px system-ui, sans-serif";
   g.fillText(text, 64, free ? 66 : 70);
-  const tex = new THREE.CanvasTexture(canvas);
-  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, opacity: 0 });
-  const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(size, size, 1);
-  sprite.position.set(x, y, z);
-  sprite.renderOrder = 20;
-  sprite.userData.costBadge = text;
-  return sprite;
+  return new THREE.CanvasTexture(canvas);
 }
 
 /* Cantilever Pivot's move cue: a curved arrow floating just above the
@@ -514,6 +523,21 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (!theme.sideSurface) return { opacity: active ? 1 : 0.35 };
     return { opacity: 1, boxShadow: active ? `0 0 0 2px ${COLORS.cream}, 0 0 0 3.5px ${COLORS.charcoal}` : "none" };
   }
+  /* The sides' wood pictures (theme.sideSurface: each a small drawing of
+     its own, made once) made while the page is idle after it opens, not
+     the first time a button wears them: that was in the middle of the
+     computer's first turn, a stall of its own on a slow phone. */
+  useEffect(() => {
+    if (!theme.sideSurface) return undefined;
+    const warm = () => { try { theme.sideSurface("dark"); theme.sideSurface("light"); } catch (e) { /* flat colours then */ } };
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(warm, { timeout: 5000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = setTimeout(warm, 2000);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function playerButtonStyle(player) {
     const isDark = player === "dark";
@@ -2018,6 +2042,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         last = now;
         return;
       }
+      // (Held to 30 a second with the board when the device can't keep
+      // 60: device-fit.js. The tumble goes by the clock either way.)
+      const gov = three.current.governorNow && three.current.governorNow();
+      if (gov && gov.state().paced && now - last < 1000 / 30 - 5) return;
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
       const t = now / 1000;
@@ -2216,11 +2244,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const state = dockPieceRef.current;
     if (!state) return;
     const { pieceGroup } = state;
-    while (pieceGroup.children.length) {
-      const c = pieceGroup.children.pop();
-      c.geometry && c.geometry.dispose();
-      c.material && c.material.dispose();
-    }
+    /* The piece it showed is freed a moment later, not now: its new
+       piece (the other side's, at every change of turn) wears the same
+       shader, and three.js lets a shader go with the last material
+       wearing it, so freeing the old one first had the new one compile
+       it all over again: the store's and the den's wood is a long one,
+       a stall at every turn on a slow phone. */
+    const stale = [];
+    while (pieceGroup.children.length) stale.push(pieceGroup.children.pop());
+    if (stale.length) setTimeout(() => stale.forEach((c) => { c.geometry && c.geometry.dispose(); c.material && c.material.dispose(); }), 1500);
     // During a game it's whoever's turn it is (user: "another visual
     // indicator ... as to whose turn it is"); before and after, as above.
     const side = dockTestSide || dockTurnSide || (aiPlayer !== null ? (aiPlayer === "dark" ? "light" : "dark") : dockSessionColor);
@@ -3247,9 +3279,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      unscrolled box ends, over the rows (user's screenshot: "Start the
      story over" under them). So they're lowered by however much the
      panel overflows, to the strip at the end of its content. */
+  /* Only while it's open: reading its heights makes the browser lay the
+     whole page out there and then, and this runs after every render (a
+     roll's landing and the computer's turn re-render several times; on a
+     slow phone that was the biggest single stall of a move). Closed, its
+     switches aren't seen; it's measured again as it opens. */
   useLayoutEffect(() => {
     const el = cardRef.current;
-    if (!el) return;
+    if (!el || dockView !== "panel") return;
     const over = Math.max(0, el.scrollHeight - el.clientHeight);
     const v = `${over}px`;
     if (el.style.getPropertyValue("--ec-dock-overflow") !== v) el.style.setProperty("--ec-dock-overflow", v);
@@ -5967,13 +6004,51 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const ro = new ResizeObserver(resize);
     ro.observe(mount);
 
-    // The frame-rate governor (device-fit.js), where the theme doesn't
-    // run its own (the den, the store and Parrish do: theme.ownsPixelRatio).
-    const governor = theme.ownsPixelRatio ? null : createGovernor(renderer, () => three.current.getMountSize(), fit);
+    // The frame-rate governor (device-fit.js). The den, the store and
+    // Parrish make their own, with their own limits, and hand it over as
+    // three.current.governor (theme.ownsPixelRatio); this loop runs
+    // whichever there is.
+    const governor = theme.ownsPixelRatio ? null : createGovernor(renderer, () => three.current.getMountSize(), fit, {
+      key: typeof theme.cornerMenu === "string" ? theme.cornerMenu : "world",
+      light: () => key,
+    });
+    const governorNow = () => governor || three.current.governor || null;
+    three.current.governorNow = governorNow;
+
+    /* The move markers' shaders compiled while the page is idle, a moment
+       after it opens: a shader is compiled the first time something
+       wearing it is drawn, and on a slow phone that's a stall, here at
+       the first piece picked (its markers and their tap targets) and the
+       first cost badge. One of each is built (a marker, a crush marker,
+       a target, a badge), kept hidden in the scene, never drawn, and the
+       scene compiled: three.js keeps a compiled shader for as long as
+       anything wears it, and the real markers, built the same way, find
+       theirs waiting. */
+    let warmId = null;
+    const warmShaders = () => {
+      warmId = null;
+      try {
+        const holder = new THREE.Group();
+        holder.visible = false;
+        holder.userData.kind = "shader-warm";
+        const hx = (SQUARE_SIZE * GHOST_SCALE) / 2;
+        [false, true].forEach((isCrush) => {
+          const ind = theme.buildMoveIndicator && theme.buildMoveIndicator({ cx: 0, cz: 0, hx, hz: hx, isCrush, dir: "N" });
+          if (ind && ind.root) holder.add(ind.root);
+        });
+        holder.add(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })));
+        holder.add(buildCostBadge({ text: "2", fill: COLORS.accentLight || COLORS.bodyLight, ink: COLORS.inkOnAccent || COLORS.bodyDark, x: 0, y: 0, z: 0, size: 1 }));
+        scene.add(holder);
+        renderer.compile(scene, camera);
+      } catch (e) { /* (they'll compile when first drawn, as before) */ }
+    };
+    const idle = typeof window.requestIdleCallback === "function";
+    warmId = idle ? window.requestIdleCallback(warmShaders, { timeout: 6000 }) : setTimeout(warmShaders, 2500);
     // ?fps: the readout (fps-readout.js).
     const readout = fpsWanted() ? createFpsReadout() : null;
     const aboutFrame = () => ({
       pixelRatio: renderer.getPixelRatio(), tier: fit.tier, shadowMap: key.castShadow ? key.shadow.mapSize.x : 0, shadowsAlways,
+      paced: !!(governorNow() && governorNow().state().paced),
       calls: renderer.info.render.calls, triangles: renderer.info.render.triangles,
     });
 
@@ -5981,6 +6056,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     let raf;
     let last = performance.now();
     function tick(now) {
+      // (Held to 30 a second on a device that can't keep 60 evenly: this
+      // refresh is skipped, nothing drawn; device-fit.js.)
+      const gov = governorNow();
+      if (gov && gov.skip(now)) { raf = requestAnimationFrame(tick); return; }
       const workStart = readout ? performance.now() : 0;
       /* Clamped, not raw. The AI's move search runs synchronously and can
          block the main thread for hundreds of milliseconds — JS is
@@ -6367,7 +6446,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       scene.updateMatrixWorld();
       const shadowDrawn = shadowsChanged ? shadowsChanged(scene, now) : true;
       if (shadowsChanged && shadowDrawn) renderer.shadowMap.needsUpdate = true;
-      if (governor) governor.govern(now);
+      if (gov) gov.govern(now, shadowDrawn);
 
       if (frameHooks.size) {
         camera.updateMatrixWorld();
@@ -6384,6 +6463,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
     return () => {
       cancelAnimationFrame(raf);
+      if (warmId != null) { if (idle) window.cancelIdleCallback(warmId); else clearTimeout(warmId); }
       ro.disconnect();
       if (readout) readout.dispose();
       renderer.dispose();
@@ -6986,7 +7066,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         ...themed,
         root,
         setOpacity: (o) => { themed.setOpacity(o); badge.material.opacity = Math.min(1, o * 4); },
-        dispose: () => { themed.dispose(); badge.material.map.dispose(); badge.material.dispose(); },
+        dispose: () => { themed.dispose(); badge.material.dispose(); }, // (its picture is shared: BADGE_TEXTURES)
       };
     };
 

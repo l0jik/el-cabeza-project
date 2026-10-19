@@ -165,7 +165,8 @@ const workerJsEscaped = workerJs.replace(/<\/script/gi, "<\\/script");
     // to 2.5 MB (1.27 to 1.11 MB gzipped), less for a phone to download
     // and parse. The code's long comments are what it mostly sheds; no
     // code here depends on function or class names.
-    minify: true,
+    // (EC_KEEP_NAMES=1 keeps the functions' names, for reading a profile.)
+    ...(process.env.EC_KEEP_NAMES ? { minifyWhitespace: true, minifySyntax: true } : { minify: true }),
     jsx: "automatic",
     jsxImportSource: "react",
     logLevel: "warning",

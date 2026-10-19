@@ -18,6 +18,7 @@ import * as THREE from "three";
 import { SLAB_X, SLAB_Z } from "../engine/constants.js";
 import { createPainter } from "./parrish-paint.js";
 import { look, lookName } from "./parrish-looks.js";
+import { createGovernor } from "../chassis/device-fit.js";
 
 /* ------------------------------------------------------------ the light */
 
@@ -126,38 +127,13 @@ export function createParrishEffects(woodSet, { quality }) {
     /* The pixel ratio. A painting needs no more than about one pixel to
        the screen's point (the strokes are wider than any pixel), and every
        pixel costs several passes: capped by the device's tier, lowered a
-       step when the frames run slow, raised again when there's room (as
-       the den does, den-fx.js govern). */
+       step when the frames run slow, raised again when there's room: the
+       shared governor (chassis/device-fit.js, as the den's), with this
+       painting's own range and smaller steps, handed to the chassis to
+       run each frame (three.current.governor). */
     const q = quality();
     const PR = q.tier === "low" ? { cap: 1, floor: 0.7 } : q.tier === "mid" ? { cap: 1.25, floor: 0.85 } : { cap: 1.5, floor: 1 };
-    let pr = 1, prBefore = null;
-    const frameTimes = [];
-    let lastFrameAt = 0, lastJudged = 0, lastRaise = 0, settleUntil = 0;
-    function setPixelRatio(v) {
-      const t = three.current;
-      if (!t || !t.renderer) return;
-      pr = Math.max(PR.floor, Math.min(v, PR.cap, window.devicePixelRatio || 1));
-      t.renderer.setPixelRatio(pr);
-      const sz = t.getMountSize && t.getMountSize();
-      if (sz) t.renderer.setSize(sz.w, sz.h);
-      settleUntil = performance.now() + 1500;
-      frameTimes.length = 0;
-      if (typeof window !== "undefined") window.__PARRISH_PIXEL_RATIO__ = pr;
-    }
-    function govern(now) {
-      const dt = now - lastFrameAt;
-      lastFrameAt = now;
-      if (document.hidden || now < settleUntil || dt <= 0 || dt > 250) return;
-      frameTimes.push(dt);
-      if (frameTimes.length > 120) frameTimes.shift();
-      if (now - lastJudged < 2000 || frameTimes.length < 60) return;
-      lastJudged = now;
-      const sorted = frameTimes.slice().sort((a, b) => a - b);
-      const median = sorted[Math.floor(sorted.length / 2)];
-      const slow = sorted[Math.floor(sorted.length * 0.9)];
-      if (median > 1000 / 42 && pr > PR.floor + 0.01) setPixelRatio(pr - 0.15);
-      else if (slow < 1000 / 56 && pr < Math.min(PR.cap, window.devicePixelRatio || 1) - 0.01 && now - lastRaise > 8000) { lastRaise = now; setPixelRatio(pr + 0.1); }
-    }
+    let prBefore = null, governor = null;
 
     function attach() {
       const t = three.current;
@@ -166,7 +142,19 @@ export function createParrishEffects(woodSet, { quality }) {
         attachedTo = t.boardGroup;
         dims = "";
         if (dome.parent) dome.parent.remove(dome);
-        if (prBefore == null) { prBefore = t.renderer.getPixelRatio(); setPixelRatio(Math.min(window.devicePixelRatio || 1, PR.cap)); }
+        if (prBefore == null) {
+          prBefore = t.renderer.getPixelRatio();
+          t.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, PR.cap));
+          const sz = t.getMountSize && t.getMountSize();
+          if (sz) t.renderer.setSize(sz.w, sz.h);
+          governor = createGovernor(t.renderer, () => t.getMountSize && t.getMountSize(), q, {
+            floor: PR.floor, cap: PR.cap, stepDown: 0.15, stepUp: 0.1, key: "parrish",
+            light: () => t.lights && t.lights.key,
+            onChange: ({ pixelRatio }) => { if (typeof window !== "undefined") window.__PARRISH_PIXEL_RATIO__ = pixelRatio; },
+          });
+          if (typeof window !== "undefined") window.__PARRISH_PIXEL_RATIO__ = t.renderer.getPixelRatio();
+          t.governor = governor;
+        }
         if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__PARRISH_THREE__ = t; // tests: read the scene
       }
       if (dims !== `${SLAB_X}x${SLAB_Z}`) build();
@@ -210,7 +198,6 @@ export function createParrishEffects(woodSet, { quality }) {
         dome.material.uniforms.uTime.value = now / 1000;
         placeLights();
         woodSet.followGrain(t);
-        govern(now);
       },
       // The frame through the paint (the chassis's render hook).
       render(r, scn, camera) {
@@ -232,6 +219,7 @@ export function createParrishEffects(woodSet, { quality }) {
           if (keyBase[k]) l.position.copy(keyBase[k]);
           if (lightBase[k]) { l.color.setHex(lightBase[k][0]); l.intensity = lightBase[k][1]; }
         });
+        if (t && governor && t.governor === governor) t.governor = null;
         if (t && t.renderer && prBefore != null) { t.renderer.setPixelRatio(prBefore); const sz = t.getMountSize && t.getMountSize(); if (sz) t.renderer.setSize(sz.w, sz.h); }
       },
     };

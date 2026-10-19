@@ -30,3 +30,49 @@
   calls each") and deliberately chosen over a closed-form approximation
   that was tried and failed (§8).
 
+- **Smoother on weak machines (2026-10-19; user: "We need to see how we
+  can make the animations run more smoothly for low capability
+  machines")**, measured on the store at the low tier with the CPU slowed
+  4x (scratch perf/anim.mjs, landing.mjs, spikes.mjs, programs.mjs):
+  - The dock panel's overflow measure (a layout effect reading
+    scrollHeight after *every* render) forced a whole-page layout at each
+    React commit: the biggest single main-thread cost of a move (a roll's
+    landing and the computer's turn re-render 5-14 times). Now only while
+    the panel is open (`dockView === "panel"`). Don't put an unconditional
+    layout read back in a no-deps layout effect.
+  - The sides' wood swatches (wood-set.js woodSwatch: a WebGL context, a
+    shader compile and a toDataURL) were made the first time a button
+    wore them, mid computer's-turn; now in an idle callback after load.
+  - Shaders compiled the first time something was drawn: the move markers
+    (theme.buildMoveIndicator, crush and not), their tap targets and the
+    cost badge's sprite compiled at the first pick/roll. One of each is
+    built at the first idle moment, kept hidden in the scene (never
+    disposed: three.js frees a program when its last material goes) and
+    `renderer.compile(scene, camera)` run. No program is compiled during
+    play in the store any more (tests/e2e-device-fit.mjs checks the count
+    doesn't change at the first pick).
+  - Cost badge pictures cached by text and colours (BADGE_TEXTURES), not
+    painted and uploaded per marker per layout.
+  - The corner dock piece (its own small renderer) is rebuilt at every
+    change of turn (it shows whose turn it is); its old meshes were freed
+    first, which freed the wood shader both wear, so the new piece
+    compiled it again every turn. The old ones are now freed 1.5 s later.
+    Its loop is held to 30 a second with the board's when paced
+    (three.current.governorNow).
+  - One governor for every world (device-fit.js createGovernor; the den,
+    the store and Parrish build theirs with their own limits and hand it
+    over as three.current.governor, which the chassis loop runs). Judges
+    after 1 s (30 frames, or 10 over 2 s when slower), a bigger step
+    under 24 fps; when frames that redraw the shadows (something moving)
+    are slow and the rest aren't, halves the shadow map first; at the
+    pixel-ratio floor and still slow, halves the shadow map (to 512) and
+    then holds frames to 30 a second (the chassis skips every other
+    refresh: `gov.skip(now)` at the top of tick); comes back up slowly
+    (the cap, then the shadow map, then the pixel ratio, 8 s apart, not
+    within 15 s of a step down; the cap comes off when every refresh is
+    on time). Remembered per tier and world in localStorage
+    `el-cabeza:fit`. Under __EC_TEST_HOOKS__ only the pixel ratio moves
+    and nothing is remembered unless __EC_TEST_FIT__ (the CI renderer is
+    slow on every frame). tests/device-fit.smoke.mjs (made-up frame
+    times) and tests/e2e-device-fit.mjs. The ?fps readout says "held to
+    30" when it is.
