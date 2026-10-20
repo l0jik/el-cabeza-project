@@ -3,10 +3,12 @@
    splash screen that appears when the app is first opened"). Asked, the
    user chose: a title menu on the splash ("When the video ends, the logo
    stays on screen with NOVA breathing, and a few choices fade in under
-   it"; then, "Make it 6.2 seconds before the button appears": the
-   choices come in 6.2 s into the video, as NOVA's first breath begins,
-   and it plays on into the held breath), every time the app opens, and
-   held on the logo until a choice;
+   it"; then, "Make it 6.2 seconds before the button appears"; then,
+   "The user should only have to wait ... two seconds once the begin
+   button appears on the opening splash screen in order to be able to hit
+   the begin button": the choices come in 2 s after the splash opens,
+   wherever the video's got to, and it plays on into the held breath),
+   every time the app opens, and held on the logo until a choice;
    then (user: "Tapping anywhere on the splash screen, I don't want that.
    I want it to, you have to hit the buttons") only the buttons choose:
    a tap off them, while the video plays or after, chooses nothing. (On a
@@ -44,9 +46,10 @@
   // after the poster settles at 3.9 s, the breaths from 1.6 s after that,
   // each 1.7 s); held, it breathes that one again and again.
   const HOLD_FROM = 7.5, HOLD_TO = 9.2;
-  // The choices come in this far into it (user: "Make it 6.2 seconds
-  // before the button appears"); the video plays on.
-  const MENU_AT = 6.2;
+  // The choices come in this long after the splash opens, by the clock,
+  // so a slow line that's still loading the video doesn't hold them back
+  // (user: "two seconds"; it was 6.2 s into the video); the video plays on.
+  const MENU_AFTER = (W.__EC_TEST_HOOKS__ && W.__EC_TEST_TITLE_MENU_MS__) || 2000;
   const WORLD_NAMES = __WORLD_NAMES__;
 
   let forced = false;
@@ -201,18 +204,14 @@ html.ec-splash-on { background: #120C08; }
       if (p && p.catch) p.catch(() => {});
     }
   };
-  const menuDue = () => { if (state === "playing" && video.currentTime >= MENU_AT) hold(); };
   if (video.requestVideoFrameCallback) {
-    const onFrame = () => { paint(); menuDue(); holdLoop(); video.requestVideoFrameCallback(onFrame); };
+    const onFrame = () => { paint(); holdLoop(); video.requestVideoFrameCallback(onFrame); };
     video.requestVideoFrameCallback(onFrame);
   } else {
-    const tick = () => { if (!root.isConnected) return; paint(); menuDue(); holdLoop(); W.requestAnimationFrame(tick); };
+    const tick = () => { if (!root.isConnected) return; paint(); holdLoop(); W.requestAnimationFrame(tick); };
     W.requestAnimationFrame(tick);
   }
-  video.addEventListener("timeupdate", menuDue);
-  // (A video that stalls on a slow line never gets there: the choices
-  // anyway, a few seconds later.)
-  W.setTimeout(() => { if (state === "playing") hold(); }, (MENU_AT + 4) * 1000);
+  W.setTimeout(() => { if (state === "playing") hold(); }, MENU_AFTER);
   video.addEventListener("ended", () => { if (state === "playing") hold(); else holdLoop(); });
   video.addEventListener("seeked", paint);
   video.addEventListener("error", () => { if (state === "playing") hold(); });
@@ -244,7 +243,7 @@ html.ec-splash-on { background: #120C08; }
   };
   W.addEventListener("resize", fit);
 
-  // 6.2 s in (or the video over, or skipped): the menu, the logo held
+  // 2 s in (or the video over, or skipped): the menu, the logo held
   // breathing once it's into its last breath.
   function hold(still = false) {
     if (state !== "playing" && state !== "skipping") return;

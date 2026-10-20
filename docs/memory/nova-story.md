@@ -140,8 +140,9 @@ in; leaving Singularity, back in the den as the set switches off.
 
 - **The title screen** (2026-10-19; apps/title-screen.js, in Nova's page
   ahead of the app): every plain open of Nova's page plays the Horizon ·
-  Build splash (its buttons in 6.2 s into it, user), holds on the logo
-  breathing, and offers Begin / Continue
+  Build splash (its buttons 2 s after it opens, by the clock, whatever
+  the video's reached, user, 2026-10-20; it was 6.2 s of video, and more
+  on a slow line), holds on the logo breathing, and offers Begin / Continue
   (/ Continue in <last world> and Other realities after the story) and
   Restart the story; the app mounts only once a choice is made
   (apps/unified.jsx fromTitle) and says when it's up (window.ecTitle.done).
