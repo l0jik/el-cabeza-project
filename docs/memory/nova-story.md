@@ -166,7 +166,11 @@ in; leaving Singularity, back in the den as the set switches off.
   that sort of segue text font, there's something wrong with it"). The
   commercial waits on its first frame for the picture before its hold,
   its sound and "Wait… is that my house?" (user: "what are they reacting
-  to"). After the commercial the order paper's ring comes up only once
+  to"). The thought goes by the spot's own start too (den-fx.js
+  HOUSE_CLEAR, 300 ms before it plays), not only HOUSE_MS after it came:
+  with slow frames it came up late and was still up as the spot played
+  (CI run 39461728058, e2e-den-spot; reproduced at 6x CPU throttling).
+  After the commercial the order paper's ring comes up only once
   the camera's back on the table, the set off (user: "only appear once
   you've centered on the table"), and until it's up a press on the set
   doesn't go back into Futuris.

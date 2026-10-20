@@ -27,17 +27,23 @@ const PAN_HALF = Math.PI / 3;
 const cam = () => page.evaluate(() => window.__EC_TEST_CAM__());
 const pan = () => page.evaluate(() => window.__TIENDA_PAN__);
 const framed = (c) => Math.abs(c.phi - 1.25) < 0.01 && Math.abs(c.radius - 66) < 0.5 && Math.abs(c.target[0] - 2.2) < 0.05 && Math.abs(c.target[1] + 2.87) < 0.05;
-// Over a while: the pan's offsets, every 100 ms or so.
-const watch = async (ms) => { const out = []; const end = Date.now() + ms; while (Date.now() < end) { out.push((await pan()).off); await page.waitForTimeout(100); } return out; };
+// Over a while: the pan's offsets, every 100 ms or so, till `done` has
+// seen enough (or `ms` is up). (Its frames' steps are capped, so on a slow
+// machine it turns slower than the clock: CI's took over 5 s to come back
+// from the right end.)
+const watch = async (ms, done) => { const out = []; const end = Date.now() + ms; while (Date.now() < end) { out.push((await pan()).off); if (done && done(out)) break; await page.waitForTimeout(100); } return out; };
+// Whether it's turning: how far it goes in 2 s (still, it doesn't move at
+// all; on a slow machine it goes slower than the clock, as above).
+const turning = async () => { const a = await pan(); await page.waitForTimeout(2000); const b = await pan(); return { a, b, d: b.off - a.off }; };
 
 {
-  const a = await pan(); await page.waitForTimeout(1500); const b = await pan(); const c = await cam();
-  check(`the lid on: the camera at the opening framing, turning rightward (${a.off} -> ${b.off})`, framed(c) && b.on && b.off > a.off + 0.02 && b.w > 0, JSON.stringify({ a, b, c }));
+  const { a, b, d } = await turning(); const c = await cam();
+  check(`the lid on: the camera at the opening framing, turning rightward (${a.off} -> ${b.off})`, framed(c) && b.on && d > 0.01 && b.w > 0, JSON.stringify({ a, b, c }));
 }
 // The right end: a soft bounce, back the other way.
 await page.evaluate((h) => window.__TIENDA_PAN_AT__(h - 0.06), PAN_HALF);
 {
-  const offs = await watch(5000);
+  const offs = await watch(15000, (o) => Math.max(...o) > PAN_HALF && o[o.length - 1] < Math.max(...o) - 0.035);
   const peak = Math.max(...offs), last = offs[offs.length - 1];
   const p = await pan();
   check(`...at the right end it bounces softly and heads back (peak ${(peak - PAN_HALF).toFixed(3)} rad past the end, now ${last.toFixed(3)})`, peak > PAN_HALF && peak < PAN_HALF + 0.05 && last < peak - 0.03 && p.dir === -1 && p.w < 0, JSON.stringify({ peak, last, p }));
@@ -47,7 +53,7 @@ await page.evaluate((h) => window.__TIENDA_PAN_AT__(-h + 0.06), PAN_HALF);
 await page.waitForTimeout(100);
 {
   // (Headed left still: give it a moment to reach the end.)
-  const offs = await watch(5500);
+  const offs = await watch(15000, (o) => Math.min(...o) < -PAN_HALF && o[o.length - 1] > Math.min(...o) + 0.035);
   const low = Math.min(...offs), last = offs[offs.length - 1];
   const p = await pan();
   check(`...and at the left end, back to the right (low ${(low + PAN_HALF).toFixed(3)} rad past the end, now ${last.toFixed(3)})`, low < -PAN_HALF && low > -PAN_HALF - 0.05 && last > low + 0.03 && p.dir === 1, JSON.stringify({ low, last, p }));
@@ -56,8 +62,8 @@ await page.waitForTimeout(100);
 await page.locator('[data-testid="tienda-open-box"]').click();
 await page.waitForTimeout(1500);
 {
-  const a = await pan(); await page.waitForTimeout(1200); const b = await pan();
-  check(`the box opened: still turning (${a.off} -> ${b.off})`, b.on && Math.abs(b.off - a.off) > 0.02, JSON.stringify({ a, b }));
+  const { a, b, d } = await turning();
+  check(`the box opened: still turning (${a.off} -> ${b.off})`, b.on && Math.abs(d) > 0.01, JSON.stringify({ a, b }));
 }
 // A finger (the mouse) down on the scene: it stops where it is, held.
 const box = await page.locator("canvas").first().boundingBox();
@@ -77,8 +83,8 @@ await page.waitForTimeout(6000);
 }
 {
   const back = await poll(async () => { const p = await pan(); return p.on && !p.gliding ? p : null; }, 9000, 200);
-  const a = await pan(); await page.waitForTimeout(1200); const b = await pan();
-  check(`...about 10 s still: turning again (${a.off} -> ${b.off})`, !!back && Math.abs(b.off - a.off) > 0.02, JSON.stringify({ back, a, b }));
+  const { a, b, d } = await turning();
+  check(`...about 10 s still: turning again (${a.off} -> ${b.off})`, !!back && Math.abs(d) > 0.01, JSON.stringify({ back, a, b }));
 }
 // A drag round: it stops there; 10 s on it glides back onto its arc (the
 // opening framing, within the 120°) and turns on.
@@ -95,8 +101,8 @@ await page.waitForTimeout(800);
   const back = await poll(async () => { const p = await pan(); return p.on ? p : null; }, 14000, 200);
   await poll(async () => !(await pan()).gliding, 6000, 200);
   await page.waitForTimeout(600);
-  const c = await cam(), a = await pan(); await page.waitForTimeout(1200); const b = await pan();
-  check(`...10 s still: back on its arc at the opening framing, turning (off ${b.off})`, !!back && framed(c) && Math.abs(b.off) <= PAN_HALF + 0.05 && Math.abs(b.off - a.off) > 0.02, JSON.stringify({ back, c, a, b }));
+  const c = await cam(), { a, b, d } = await turning();
+  check(`...10 s still: back on its arc at the opening framing, turning (off ${b.off})`, !!back && framed(c) && Math.abs(b.off) <= PAN_HALF + 0.05 && Math.abs(d) > 0.01, JSON.stringify({ back, c, a, b }));
 }
 check("no page errors", errs.length === 0, errs.join(" | "));
 await browser.close();

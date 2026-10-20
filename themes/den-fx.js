@@ -935,7 +935,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        seconds (den-tv.js AD_WAIT_MS), it plays on in the snow, no thought. */
     const PHEW = "Phew… I'm home. What just happened?!", PHEW_AT = 800, PHEW_MS = 3200;
     const WAKE_AT = 2800, WAKE_TO_AD = 2000;
-    const HOUSE = "Wait… is that my house?", HOUSE_HOLD = 4200, HOUSE_AT = 1300, HOUSE_MS = 2600, PUSH_MS = 3800;
+    const HOUSE = "Wait… is that my house?", HOUSE_HOLD = 4200, HOUSE_AT = 1300, HOUSE_MS = 2600, HOUSE_CLEAR = 300, PUSH_MS = 3800;
     let wake = null, phewCard = null, phewEnd = 0, houseAt = 0, houseCard = null, houseEnd = 0, pushAt = 0, adWait = false;
     function wakeFrame(now) {
       if (phewCard && now >= phewEnd) { phewCard.remove(700); phewCard = null; }
@@ -944,7 +944,10 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         const doc = typeof document !== "undefined" ? document : null;
         if (doc) { houseCard = dealCard(doc, { testid: "den-house", l1: HOUSE }); houseEnd = now + HOUSE_MS; }
       }
-      if (houseCard && now >= houseEnd) { houseCard.remove(700); houseCard = null; }
+      // (Gone HOUSE_MS after it came, or HOUSE_CLEAR before the spot
+      // plays, whichever's first: counted from the spot too, as slow
+      // frames put it up late, and it was still up as it played.)
+      if (houseCard && (now >= houseEnd || !den || !den.tv || den.tv.commercialIn(now) <= HOUSE_CLEAR)) { houseCard.remove(700); houseCard = null; }
       // The picture's on the set (or it's going on without): the hold
       // from now, the sound with it, the push and the thought.
       if (adWait && den && den.tv && den.tv.commercialShown) {
