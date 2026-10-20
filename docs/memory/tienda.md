@@ -215,7 +215,9 @@ box art and an ad standee (assets/tienda/*.jpg).
   squares a turn, in any direction, even diagonally" (user: "one square at
   a time" read as one a turn); "your opponent" after the welcome names
   Walnut once (user: "This should say your opponent ... not walnut");
-  board labels "Opponent's ...".
+  board labels "Opponent's ...". The welcome card keeps Walnut's name
+  ("Your opponent, the computer, plays Walnut"; asked, the user: "This
+  can be left as-is").
 - **The opponent's first move, watched** (2026-10-20; user: "The camera
   should slowly pan in to watch the opponent's piece move"): the tour's
   foe step glides in (1.8 s) on the planned piece and its path, the move
