@@ -5,9 +5,13 @@
    stays on screen with NOVA breathing, and a few choices fade in under
    it"), every time the app opens, and held on the logo until a choice;
    then (user: "Tapping anywhere on the splash screen, I don't want that.
-   I want it to, you have to hit the buttons") only the buttons do
-   anything: a tap off them, while the video plays or after, does
-   nothing. (On a keyboard, Escape skips the rest of the video.)
+   I want it to, you have to hit the buttons") only the buttons choose:
+   a tap off them, while the video plays or after, chooses nothing. (On a
+   keyboard, Escape skips the rest of the video.) And full screen first
+   (user: "Need the splash screen to automatically go full screen. That
+   should be the first thing it does."): a page can't go full screen by
+   itself, only from a tap, a click or a key, so the first one, wherever
+   it lands, does that, and only that off the buttons.
 
    Not a module: build/build.js puts it in Nova's page as it is, ahead of
    the app's script, so it's up at once while the app loads (WORLD_NAMES is
@@ -253,6 +257,33 @@ html.ec-splash-on { background: #120C08; }
     }, 260);
   }
 
+  /* ------------------------------------------------ full screen */
+
+  /* From the first tap, click or key (not Escape, which a browser keeps
+     for leaving it), wherever it lands, and any later one that finds the
+     page out of it, as the game does (chassis: fullscreenOnFirstTap).
+     Not where a browser can't, as an iPhone's. A touch's end counts too,
+     a touch that moves never makes a click. */
+  let askedAt = -1e4;
+  function fullScreen() {
+    try {
+      const de = D.documentElement, req = de.requestFullscreen || de.webkitRequestFullscreen;
+      if (!req || D.fullscreenElement || D.webkitFullscreenElement) return;
+      const now = W.performance.now();
+      if (now - askedAt < 1000) return; // (one ask a touch: its end, then its click)
+      askedAt = now;
+      const p = req.call(de);
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) { /* not offered */ }
+  }
+  const firstTouch = (e) => {
+    if (gone || !e.isTrusted) return;
+    if (e.type === "touchend" && e.touches && e.touches.length) return; // (other fingers still down)
+    fullScreen();
+  };
+  root.addEventListener("touchend", firstTouch, true);
+  root.addEventListener("click", firstTouch, true);
+
   /* ------------------------------------------------ the choices */
 
   let sureTimer = 0;
@@ -267,12 +298,7 @@ html.ec-splash-on { background: #120C08; }
     }
     setState("leaving");
     root.classList.add("leaving");
-    // Full screen, from this tap (as every screen of the game asks at its
-    // first; not where a browser can't, as an iPhone's).
-    try {
-      const de = D.documentElement;
-      if (!D.fullscreenElement && de.requestFullscreen) de.requestFullscreen().catch(() => {});
-    } catch (e) { /* not offered */ }
+    fullScreen();
     title.choice = action === "continue" && first.world ? { action, world: first.world } : { action };
     resolveChoice(title.choice);
     // (If the app never says it's up, the title goes anyway.)
@@ -304,6 +330,7 @@ html.ec-splash-on { background: #120C08; }
   });
   W.addEventListener("keydown", (e) => {
     if (!root.isConnected || gone) return;
-    if (state === "playing" && e.key === "Escape") { e.preventDefault(); skip(); }
+    if (e.key !== "Escape") { if (e.isTrusted) fullScreen(); return; }
+    if (state === "playing") { e.preventDefault(); skip(); }
   });
 })();

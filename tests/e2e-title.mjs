@@ -2,7 +2,9 @@
    splash "to be the splash screen that appears when the app is first
    opened", a title menu on it, every time, held on the logo until a
    choice; then: "Tapping anywhere on the splash screen, I don't want
-   that. I want it to, you have to hit the buttons").
+   that. I want it to, you have to hit the buttons"; and: "Need the
+   splash screen to automatically go full screen. That should be the
+   first thing it does").
 
    - It's up as the page opens (?title: the tests' browsers are automated,
      where it otherwise stays out of the way), the splash playing, the app
@@ -11,9 +13,10 @@
      breath, never past it) and the menu: Begin alone. A tap off the
      button does nothing; Begin begins: the title goes and the story's at
      Big Glutts, the lid on the box.
-   - A tap while it plays does nothing (it plays on); Escape skips to the
-     logo, held, and the menu. Enter there does nothing until a button
-     has the keyboard; then it's that button.
+   - The first tap, wherever it lands, puts the page full screen and does
+     nothing else: it plays on. Then, the logo held, Enter does nothing
+     until a button has the keyboard; then it's that button. Escape skips
+     the video to the logo (where nothing's been tapped yet).
    - Partway (bought): Continue, "where you left off", and Restart the
      story; Continue opens the den.
    - After the story: Continue in the last world played and Other
@@ -47,6 +50,7 @@ const has = async (page, id) => (await q(page, id).count()) > 0;
 const state = (page) => q(page, "title-screen").getAttribute("data-state").catch(() => null);
 const mounted = (page) => page.evaluate(() => !!document.querySelector("#root canvas"));
 const place = (page) => page.evaluate(() => (window.__TIENDA_THREE__ ? "store" : window.__DEN_THREE__ ? "home" : null));
+const fullScreen = (page) => page.evaluate(() => !!document.fullscreenElement);
 const gateWorld = (page) => q(page, "reality-gate").getAttribute("data-world").catch(() => null);
 const AFTER = { owned: true, storeGone: true, ended: true, hallDue: false };
 
@@ -102,7 +106,7 @@ console.log("\na new player: the splash, the logo held, Begin");
   await q(page, "title-screen").click({ position: { x: 30, y: 30 } });
   await q(page, "title-screen").click({ position: { x: 640, y: 300 } });
   await page.waitForTimeout(1500);
-  check("taps off the button: nothing, the logo still held", (await state(page)) === "held" && !(await mounted(page)));
+  check("taps off the button: full screen, nothing else, the logo still held", (await fullScreen(page)) && (await state(page)) === "held" && !(await mounted(page)));
   await q(page, "title-primary").click();
   check("Begin: the title goes", !!(await gone(page)));
   check("...the story, at Big Glutts", (await poll(() => place(page), 20000)) === "store");
@@ -111,19 +115,19 @@ console.log("\na new player: the splash, the logo held, Begin");
   await ctx.close();
 }
 
-/* ---------------- a tap while it plays ---------------- */
-console.log("\na tap while it plays: nothing; Escape skips");
+/* ---------------- the first tap: full screen ---------------- */
+console.log("\nthe first tap, while it plays: full screen, nothing else");
 {
   const { ctx, page, errs } = await open();
   await poll(async () => (await state(page)) === "playing", 8000);
   await page.waitForTimeout(700);
+  check("not full screen before a tap (a page can't by itself)", !(await fullScreen(page)));
   await q(page, "title-screen").click({ position: { x: 40, y: 40 } });
   await page.waitForTimeout(1200);
   const at = await page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime);
-  check("a tap while it plays: it plays on", (await state(page)) === "playing" && at < 7, `${await state(page)} at ${at.toFixed(2)} s`);
-  const t0 = Date.now();
-  check("Escape skips to the logo, held, with the menu", !!(await toMenu(page)) && Date.now() - t0 < 4000);
-  check("...the video at the last breath", await page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime >= 7.4));
+  check("the first tap: full screen", await fullScreen(page));
+  check("...and only that: it plays on", (await state(page)) === "playing" && at < 7, `${await state(page)} at ${at.toFixed(2)} s`);
+  check("the video over: the logo held, the menu", !!(await poll(async () => (await state(page)) === "held", 15000)));
   check("...the app still waiting", !(await mounted(page)));
   await page.keyboard.press("Enter");
   await page.waitForTimeout(1200);
@@ -140,7 +144,9 @@ console.log("\na tap while it plays: nothing; Escape skips");
 console.log("\npartway through the story: Continue, Restart the story");
 {
   const { ctx, page, errs } = await open({ story: { owned: true } });
-  await toMenu(page);
+  const t0 = Date.now();
+  check("Escape skips to the logo, held, with the menu", !!(await toMenu(page)) && Date.now() - t0 < 6000);
+  check("...the video at the last breath", await page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime >= 7.4));
   const t = (await q(page, "title-primary").innerText()).toUpperCase();
   check("Continue, where you left off", /CONTINUE/.test(t) && /WHERE YOU LEFT OFF/.test(t), t);
   check("...Restart the story, no Other realities yet", (await has(page, "title-restart")) && !(await has(page, "title-realities")));

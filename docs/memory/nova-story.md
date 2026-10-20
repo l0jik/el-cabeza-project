@@ -142,8 +142,10 @@ in; leaving Singularity, back in the den as the set switches off.
   Restart the story; the app mounts only once a choice is made
   (apps/unified.jsx fromTitle) and says when it's up (window.ecTitle.done).
   Only its buttons do anything (user: "you have to hit the buttons"): a
-  tap elsewhere, held or while the video plays, is nothing; Escape skips
-  the video on a keyboard.
+  tap elsewhere, held or while the video plays, chooses nothing; Escape
+  skips the video on a keyboard. The first tap, click or key anywhere
+  puts the page full screen (user: "That should be the first thing it
+  does"; a page can't by itself).
   Never on the game's own ways into the page (?world=, ?scene=, ?switcher,
   ?restart=, ?jump=, Back) nor under automation; ?title forces it for a
   test, ?title=auto applies the player's rules. tests/e2e-title.mjs.
