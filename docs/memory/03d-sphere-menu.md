@@ -347,3 +347,19 @@ the same ones aren't retried:
    unmodified from the board's own viewing angle), which is why they
    kept reading as "too high."
 
+
+- **Tests reach a category by tapping its label where it is
+  (2026-10-20).** `__EC_TEST_SINGULARITY__.rootLabelSpots` (a getter,
+  worked out only when read): each root label's middle on screen (x, y)
+  and how squarely it faces the camera (1 = dead on), from
+  SphereGeometry's own mapping (u round from -x toward +z, v = 0.5 the
+  equator) through the mesh's matrixWorld. `tests/e2e-singularity.mjs`
+  navigateToCategory taps the label once it faces the camera (> 0.55),
+  else drags 110 px its way (right brings what's on the left round) and
+  looks again. It used to tap the middle and drag set distances, hoping
+  the coast had brought the label there; how far a drag coasts goes with
+  how fast the moves came, so on a slow or busy machine it could circle
+  and never land (CI shard 1 on 2ffe0f9: "Black Hole Squares: in
+  TOPOLOGY ... activeCategory=null"; locally "(setup) a rule was changed
+  after saving", reached null; once before on cc1ad27). Each category now
+  in at most six steps, passing at 3x CPU throttling as well.

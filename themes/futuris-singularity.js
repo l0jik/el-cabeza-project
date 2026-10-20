@@ -1809,6 +1809,23 @@ export function advanceSingularityScene(t, now, chromeRefs) {
       // shuffleRootLabels) — exposed so tests can find a given category
       // deterministically instead of assuming a fixed layout.
       rootLabels: s.rootLabels ? s.rootLabels.map((r) => ({ key: r.key, u: r.u })) : null,
+      // Where each root label's middle is on screen, and how squarely it
+      // faces the camera (1 = dead on), so a test can tap the one it wants
+      // as a player would (turning the sphere first if it's round the
+      // back) rather than drag blind and hope the coast brings it to the
+      // middle. Worked out only when read.
+      get rootLabelSpots() {
+        if (!s.sphere || !t.camera || !s.rootLabels) return null;
+        const c = s.sphere.mesh.getWorldPosition(new THREE.Vector3()), theta = (1 - LABEL_CENTER_V) * Math.PI;
+        return s.rootLabels.map((r) => {
+          // (SphereGeometry's own mapping, u round from -x toward +z.)
+          const phi = (((r.u % 1) + 1) % 1) * Math.PI * 2;
+          const wp = new THREE.Vector3(-Math.cos(phi) * Math.sin(theta), Math.cos(theta), Math.sin(phi) * Math.sin(theta)).multiplyScalar(SPHERE_RADIUS).applyMatrix4(s.sphere.mesh.matrixWorld);
+          const facing = wp.clone().sub(c).normalize().dot(t.camera.position.clone().sub(wp).normalize());
+          const ndc = wp.clone().project(t.camera);
+          return { key: r.key, facing, x: ((ndc.x + 1) / 2) * window.innerWidth, y: ((1 - ndc.y) / 2) * window.innerHeight };
+        });
+      },
       // Where the south-pole CONFIGURATIONS label is on screen and whether it
       // currently faces the camera (so a test can drag it into view and tap it).
       configLabel: (() => {

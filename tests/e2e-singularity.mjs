@@ -336,19 +336,35 @@ await closeOverlay();
 // vault past it; landing on a real (wrong) label still takes a full
 // step onward. The guard is generous (not "2 drags always suffice")
 // precisely because drag distance isn't reliable here.
+// A category's label tapped as a player would: if it's facing the camera
+// (well clear of the sphere's rim), a tap on it, wherever it is on screen;
+// if not, the sphere dragged a little its way, and a look again. (It used
+// to tap the middle and drag set distances between, hoping the coast had
+// brought the label there; how far a drag coasts goes with how fast the
+// moves came, so on a slow or busy machine it could go round and round and
+// never land: CI on 2ffe0f9, and once on cc1ad27.)
 async function navigateToCategory(targetKey) {
-  for (let guard = 0; guard < 12; guard++) {
-    await page.mouse.click(cx, cy);
-    await page.waitForTimeout(250);
-    const s = await sphereState();
-    if (process.env.EC_DEBUG_NAV) console.error(`  [nav->${targetKey}] guard=${guard} activeCategory=${s.activeCategory} stage=${s.stage} rot=${s.sphereRotationY} rootLabels=${JSON.stringify(s.rootLabels)}`);
-    if (s.activeCategory === targetKey) return s;
+  for (let guard = 0; guard < 16; guard++) {
+    let s = await sphereState();
     if (s.stage === "overlay") {
+      if (s.activeCategory === targetKey) return s;
       await closeOverlay();
-      await dragSphereBy(420);
-    } else {
-      await dragSphereBy(90); // landed in a gap — nudge, don't vault past
+      s = await sphereState();
     }
+    const spot = (s.rootLabelSpots || []).find((l) => l.key === targetKey);
+    if (process.env.EC_DEBUG_NAV) console.error(`  [nav->${targetKey}] guard=${guard} stage=${s.stage} rot=${s.sphereRotationY} spot=${JSON.stringify(spot)}`);
+    if (spot && spot.facing > 0.55) {
+      await page.mouse.click(spot.x, spot.y);
+      await page.waitForTimeout(250);
+      const after = await sphereState();
+      if (after.activeCategory === targetKey) return after;
+      // (A miss is a bare tap: let it age out of the triple-tap window.)
+      await page.waitForTimeout(550);
+      continue;
+    }
+    // Dragging right brings what's on the left (front or back) round
+    // toward the middle, and left what's on the right.
+    await dragSphereBy(spot && spot.x > cx ? -110 : 110);
     await waitForSphereSettle(); // let the release coast decay out
   }
   return sphereState();
