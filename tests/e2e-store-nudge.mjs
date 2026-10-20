@@ -7,7 +7,8 @@
    Once lit, the blue grows the longer it's left
    (window.__EC_TEST_NUDGE_GROW_MS__ shortens that too). And the store's
    PA through a visit: in stock, closing in ten minutes, then the last
-   minutes and Big Glutts' notice a minute from closing. */
+   minutes and Big Glutts' notice a minute from closing; its cards swiped
+   away once they've been up 3 s. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
@@ -121,6 +122,77 @@ console.log("\nshopping: the PA, the cart, closing time (user: nothing about ord
   check("...and the lights down a step", await poll(() => page.evaluate(() => window.__TIENDA_SHOP__().dim), 3000));
   await q(page, "tienda-pa-closing").click();
   check("...a tap on it: to the register (the purchase)", await poll(() => has(page, "story-cut"), 6000, 100));
+  check("no page errors", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+/* The PA's cards swiped away (user: "You should be able to swipe dismiss
+   these after about 3 seconds"): sooner, a swipe only tugs at one and it
+   comes back; after, a finger's swipe left, or a mouse's drag up, and it's
+   gone (swiped, not faded out at its time); and a swipe is never the
+   card's tap (the cart, the register). (The first swipe's "sooner" is held
+   open by __EC_TEST_PA_SWIPE_MS__, then put back to the game's 3 s: a slow
+   machine can take seconds just to send a swipe.) */
+console.log("\nthe PA's cards: swiped away after 3 s, not before");
+{
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
+  await ctx.addInitScript(() => {
+    window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NUDGE_MS__ = 600000;
+    window.__EC_TEST_PA_MS__ = 3000; window.__EC_TEST_CLOSING_MS__ = 12000; window.__EC_TEST_PA_SWIPE_MS__ = 600000;
+    try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("el-cabeza:first-game-tour", "done"); } } catch (e) { /* none */ }
+    // When each card came up, and whether it was fading out when it went.
+    window.__PA_AT__ = {}; window.__PA_GONE__ = {};
+    new MutationObserver((ms) => ms.forEach((m) => {
+      m.addedNodes.forEach((n) => { const id = n.nodeType === 1 && n.getAttribute("data-testid"); if (id && /^tienda-pa-/.test(id)) window.__PA_AT__[id] = performance.now(); });
+      m.removedNodes.forEach((n) => { const id = n.nodeType === 1 && n.getAttribute("data-testid"); if (id && /^tienda-pa-/.test(id)) window.__PA_GONE__[id] = n.getAttribute("data-going"); });
+    })).observe(document, { childList: true, subtree: true });
+  });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  const cdp = await ctx.newCDPSession(page);
+  // A finger's swipe from the card's middle (touch events, as a phone's).
+  const swipe = async (id, dx, dy) => {
+    const b = await q(page, id).boundingBox();
+    const x = b.x + b.width / 2, y = b.y + b.height / 2;
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+    for (let i = 1; i <= 4; i++) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x + (dx * i) / 4, y: y + (dy * i) / 4 }] });
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  };
+  const upFor = (id) => page.evaluate((k) => performance.now() - window.__PA_AT__[k], id);
+  const middle = async (id) => { const b = await q(page, id).boundingBox({ timeout: 2000 }).catch(() => null); return b ? b.x + b.width / 2 : null; };
+  const swiped = (id) => poll(() => page.evaluate((k) => window.__PA_GONE__[k] === "false", id), 2500, 50);
+  const cart = () => page.evaluate(() => window.__TIENDA_SHOP__().cart);
+  await page.goto(URL);
+  await poll(() => page.evaluate(() => !!window.__TIENDA_THREE__), 30000);
+  await poll(() => has(page, "tienda-open-box"), 10000);
+  await q(page, "tienda-open-box").click();
+  await poll(async () => !(await has(page, "tienda-lid")), 8000);
+  await openDockPanel(page);
+  await q(page, "tienda-try-game").click();
+  await poll(() => has(page, "tienda-price-tag"), 10000);
+  check("the PA's first card", !!(await poll(() => has(page, "tienda-pa-instock"), 15000, 100)));
+  await swipe("tienda-pa-instock", -220, 0);
+  await page.waitForTimeout(600);
+  const back = await middle("tienda-pa-instock");
+  check("swiped too soon: it only gives, and it's back", back !== null && Math.abs(back - 206) < 4, `middle ${back}`);
+  check("...and that's no tap: nothing in the cart", (await cart()) === 0);
+  await page.evaluate(() => { window.__EC_TEST_PA_SWIPE_MS__ = 3000; });
+  await poll(async () => (await upFor("tienda-pa-instock")) > 3300, 6000, 100);
+  await swipe("tienda-pa-instock", -220, 0);
+  check("3 s up, swiped left: gone", !!(await swiped("tienda-pa-instock")), JSON.stringify(await page.evaluate(() => window.__PA_GONE__)));
+  check("...and that's no tap: nothing in the cart", (await cart()) === 0);
+  check("closing time's card", !!(await poll(() => has(page, "tienda-pa-closing"), 20000)));
+  await poll(async () => (await upFor("tienda-pa-closing")) > 3300, 6000, 100);
+  // (A mouse's drag ends in a click on the card: no tap, all the same.)
+  const b = await q(page, "tienda-pa-closing").boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2 + 10, b.y + b.height / 2 - 90, { steps: 4 });
+  await page.mouse.up();
+  check("...3 s up, dragged up with a mouse: gone", !!(await swiped("tienda-pa-closing")), JSON.stringify(await page.evaluate(() => window.__PA_GONE__)));
+  await page.waitForTimeout(800);
+  check("...and that's no tap: no trip to the register", !(await has(page, "story-cut")) && (await cart()) === 0);
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

@@ -103,7 +103,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   let tour = await tourOf(page);
   check("Try a Game: the welcome card", tour.step === "welcome" && /Welcome to your first game of El Cabeza\./.test(t), t);
   check("...the year under it, as on the box", (await page.locator('[data-testid="tour-sub"]').innerText()).includes("© 1975"));
-  check("...you're Ash, ringed in yellow; the computer Walnut, ringed in red", /You play Ash: the light pieces on your side, ringed in yellow\./.test(t) && /The computer plays Walnut: the dark pieces across the board, ringed in red\./.test(t), t);
+  check("...you're Ash, ringed in yellow; the computer Walnut, ringed in red", /You play Ash: the light pieces on your side, ringed in yellow\./.test(t) && /Your opponent, the computer, plays Walnut: the dark pieces across the board, ringed in red\./.test(t), t);
   let cardBox = await card(page).boundingBox();
   check("...a card at the top, the board not dimmed (no screen over it)", cardBox && cardBox.y < 140 && (await page.locator('[data-testid="tour-scrim"]').count()) === 0, JSON.stringify(cardBox));
   let r = await rings(page);
@@ -118,7 +118,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   // Two ways to win, before either: both Cabezas ringed and numbered.
   await next(page);
   t = await cardText(page);
-  check("Next: there are two ways to win, both said", /There are two ways to win\./.test(t) && /1\. Get your Cabeza across the board to Walnut's back row\./.test(t) && /2\. Crush opponent's Cabeza with one of your blocks\./.test(t) && /2 of 8/i.test(t), t);
+  check("Next: there are two ways to win, both said", /There are two ways to win\./.test(t) && /1\. Get your Cabeza across the board to your opponent's back row\./.test(t) && /2\. Crush opponent's Cabeza with one of your blocks\./.test(t) && /2 of 8/i.test(t), t);
   r = await rings(page);
   cardBox = await card(page).boundingBox();
   const way1 = await tagBox(page, "way-1"), way2 = await tagBox(page, "way-2");
@@ -129,7 +129,12 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   // The first: your Cabeza, the row lit green, an arrow there.
   await next(page);
   t = await cardText(page);
-  check("Next: the first way, your Cabeza to Walnut's back row, lit green", /1\. Get your Cabeza across\./.test(t) && /Walnut's back row, the far edge lit green/.test(t), t);
+  // (After the welcome names Walnut, it's "your opponent", user: "This
+  // should say your opponent ... not walnut".)
+  check("Next: the first way, your Cabeza to your opponent's back row, lit green", /1\. Get your Cabeza across\./.test(t) && /your opponent's back row, the far edge lit green/.test(t) && !/Walnut/.test(t), t);
+  // (Not "one square at a time": user, "a novice ... assume it only moves
+  // one space per turn, when in fact it can move two".)
+  check("...how far a turn takes it: up to two squares, any direction, diagonals too", /It can step up to two squares a turn, in any direction, even diagonally\./.test(t) && !/one square at a time/.test(t), t);
   r = await rings(page);
   check("...your Cabeza ringed, Walnut's back row lit on the board", r.length === 1 && r[0].id === "light-cabeza" && r[0].pulse && (await band(page)) === 0, JSON.stringify({ r, band: await band(page) }));
   const path = await arrowD(page, "arrow-path");
@@ -142,7 +147,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await page.locator('[data-testid="tour-next"]').click();
   await page.waitForTimeout(250);
   t = await cardText(page);
-  check("Next: the second way, crush Walnut's Cabeza: roll a block onto it", /2\. Crush Walnut's Cabeza\./.test(t) && /Roll one of your blocks onto Walnut's Cabeza and it's crushed: you win\./.test(t) && /up close/.test(t), t);
+  check("Next: the second way, crush your opponent's Cabeza: roll a block onto it", /2\. Crush opponent's Cabeza\./.test(t) && /Roll one of your blocks onto your opponent's Cabeza and it's crushed: you win\./.test(t) && /up close/.test(t) && /Your opponent wins the same two ways, so keep your own Cabeza out from under their blocks\./.test(t) && !/Walnut/.test(t), t);
   let cut = await page.evaluate(() => window.__EC_TEST_CAM__());
   check("...a cut, not a glide: the view there at once, in close and lower", Math.abs(cut.view.radius - cut.radius) < 0.01 && Math.abs(cut.view.phi - cut.phi) < 0.01 && Math.abs(cut.phi - 0.85) < 0.02 && cut.radius < 0.6 * boardCam.radius, JSON.stringify({ boardCam, goal: { phi: cut.phi, radius: cut.radius }, view: cut.view }));
   tour = await tourOf(page);
@@ -151,7 +156,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   r = await rings(page);
   cardBox = await card(page).boundingBox();
   const crushCab = await tagBox(page, "crush-cabeza"), crushBlock = await tagBox(page, "crush-block");
-  check("...the copied Cabeza ringed red, both named on the screen below the card", r.some((x) => x.id === "tour-crush-cabeza" && x.tone === "foe" && x.pulse) && !!crushCab && /Walnut's Cabeza/i.test(crushCab.text) && !!crushBlock && /Your Turrito/i.test(crushBlock.text) && [crushCab, crushBlock].every((b) => inView(b, W, H) && !overlap(b, cardBox)), JSON.stringify({ r, crushCab, crushBlock, cardBox }));
+  check("...the copied Cabeza ringed red, both named on the screen below the card", r.some((x) => x.id === "tour-crush-cabeza" && x.tone === "foe" && x.pulse) && !!crushCab && /Opponent's Cabeza/i.test(crushCab.text) && !!crushBlock && /Your Turrito/i.test(crushBlock.text) && [crushCab, crushBlock].every((b) => inView(b, W, H) && !overlap(b, cardBox)), JSON.stringify({ r, crushCab, crushBlock, cardBox }));
   const seen = new Set();
   let pressed = 0, loops = 0, blockAt0 = null, blockAt1 = null;
   for (let i = 0; i < 90 && !(seen.has("crushed") && loops >= 1 && seen.has("in")); i++) {
@@ -243,7 +248,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await tap(at.x, at.y);
   await page.waitForTimeout(2800);
   t = await cardText(page);
-  check("your Cabeza tapped: one square any way, step twice a turn, Walnut's back row", /Your Cabeza/.test(t) && /One square any way, corners too/.test(t) && /step twice a turn/.test(t) && /Walnut's back row/.test(t), t);
+  check("your Cabeza tapped: one square any way, step twice a turn, your opponent's back row", /Your Cabeza/.test(t) && /One square any way, corners too/.test(t) && /step twice a turn/.test(t) && /your opponent's back row/.test(t), t);
 
   // The Flaco: a roll by tapping its square, then End turn pointed out.
   at = await posOf("light-flaco");
@@ -270,7 +275,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   if (await page.locator('[data-testid="end-turn-ask-end"]').count()) await page.locator('[data-testid="end-turn-ask-end"]').click();
   for (let i = 0; i < 30 && (await tourOf(page)).step === "pieces"; i++) await page.waitForTimeout(250);
   t = await cardText(page);
-  check("End turn: Walnut's turn, its own card", (await tourOf(page)).step === "foe" && /(Walnut's turn\.|Walnut moved its|Your turn again\.)/.test(t), t);
+  check("End turn: Walnut's turn, its own card", (await tourOf(page)).step === "foe" && /(Your opponent's turn\.|Your opponent moved its|Your turn again\.)/.test(t), t);
 
   // The computer moves: what it moved, an arrow from where it stood.
   for (let i = 0; i < 60 && !(await page.evaluate(() => window.__EC_TEST_TO_MOVE__() === "light")); i++) await page.waitForTimeout(500);
@@ -279,10 +284,10 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   tour = await tourOf(page);
   const moved = tour.marks.arrows.find((a) => a.key.startsWith("moved-"));
   const movedId = moved ? moved.key.slice("moved-".length) : null;
-  check("the computer's moved: the card names what, and it's your turn again", /Walnut moved its (Turrito|Flaco|Chato|Opa|Cabeza)/.test(t) && /Your turn again/.test(t), t);
+  check("the computer's moved: the card names what, and it's your turn again", /Your opponent moved its (Turrito|Flaco|Chato|Opa|Cabeza)/.test(t) && /Your turn again/.test(t), t);
   r = await rings(page);
   check("...an arrow from where it stood, the piece ringed red there and where it was", !!movedId && ((await arrowD(page, `arrow-${moved.key}`)) || "").length > 10 && r.filter((x) => x.id === movedId && x.tone === "foe").length === 2 && r.some((x) => x.id === movedId && x.faint), JSON.stringify({ moved, r }));
-  check("...and labelled", /Walnut's/i.test(((movedId && (await tagBox(page, movedId))) || {}).text || ""));
+  check("...and labelled", /Opponent's/i.test(((movedId && (await tagBox(page, movedId))) || {}).text || ""));
   const saved = tour.saved;
   await page.locator('[data-testid="tour-done"]').click();
   await page.waitForTimeout(2600);

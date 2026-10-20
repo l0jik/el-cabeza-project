@@ -76,7 +76,9 @@ function cardText(t) {
         sub: (t.copy && t.copy.fine) || null,
         body: [
           `You play ${t.mine}: the ${t.mineHint || "near"} pieces on your side, ringed in ${TONE_NAMES.mine}.`,
-          `The computer plays ${foe}: the ${t.foeHint ? `${t.foeHint} pieces` : "pieces"} across the board, ringed in ${TONE_NAMES.foe}.`,
+          // (Named once, here; after this it's "your opponent", user: "This
+          // should say your opponent ... not walnut".)
+          `Your opponent, the computer, plays ${foe}: the ${t.foeHint ? `${t.foeHint} pieces` : "pieces"} across the board, ringed in ${TONE_NAMES.foe}.`,
           "This short tour shows you how to play. The computer waits until you're ready.",
         ],
       };
@@ -84,7 +86,7 @@ function cardText(t) {
       return {
         title: "There are two ways to win.",
         body: [
-          `1. Get your Cabeza across the board to ${foe}'s back row.`,
+          "1. Get your Cabeza across the board to your opponent's back row.",
           // ("opponent's", not the side's name, user: "the word should be
           // changed to 'opponent's'".)
           "2. Crush opponent's Cabeza with one of your blocks.",
@@ -95,16 +97,19 @@ function cardText(t) {
       return {
         title: "1. Get your Cabeza across.",
         body: [
-          `This disc is your Cabeza. Bring it all the way to ${foe}'s back row, the far edge lit ${TONE_NAMES.goal}, and you win.`,
-          "It steps one square at a time, any way, corners too.",
+          `This disc is your Cabeza. Bring it all the way to your opponent's back row, the far edge lit ${TONE_NAMES.goal}, and you win.`,
+          // (How far a turn takes it, not "one square at a time", user: "it
+          // will cause a novice to assume it only moves one space per turn,
+          // when in fact it can move two".)
+          `It can step up to ${word(t.budget)} squares a turn, in any direction, even diagonally.`,
         ],
       };
     case "crush":
       return {
-        title: `2. Crush ${foe}'s Cabeza.`,
+        title: "2. Crush opponent's Cabeza.",
         body: [
-          `Roll one of your blocks onto ${foe}'s Cabeza and it's crushed: you win. Here it is, up close.`,
-          `${foe} wins the same two ways, so keep your own Cabeza out from under ${foe}'s blocks.`,
+          "Roll one of your blocks onto your opponent's Cabeza and it's crushed: you win. Here it is, up close.",
+          "Your opponent wins the same two ways, so keep your own Cabeza out from under their blocks.",
         ],
       };
     case "blocks":
@@ -118,13 +123,13 @@ function cardText(t) {
       };
     case "turn":
       return {
-        title: t.youFirst ? "You move first." : `${foe} moves first.`,
+        title: t.youFirst ? "You move first." : "Your opponent moves first.",
         body: [
           `Each turn you get ${word(t.budget)} actions${t.split ? `, shared by up to ${word(t.split)} pieces` : ", all for one piece"}. A roll or a step costs one${t.hasOpa ? "; the Opa's roll costs two" : ""}.`,
           // (The Punto law cuts the opening turn by one: said where it's on.)
-          t.punto ? `${t.youFirst ? "Your" : `${foe}'s`} very first turn has one action fewer: this game plays the Punto law.` : null,
+          t.punto ? `${t.youFirst ? "Your" : "Your opponent's"} very first turn has one action fewer: this game plays the Punto law.` : null,
           t.dots || null,
-          `When they're used up, your turn ends and ${foe} moves.`,
+          "When they're used up, your turn ends and your opponent moves.",
         ],
       };
     case "board":
@@ -136,7 +141,7 @@ function cardText(t) {
         ],
       };
     case "pieces": {
-      if (t.waiting) return { title: `${foe} is moving.`, body: ["Your turn's next."] };
+      if (t.waiting) return { title: "Your opponent is moving.", body: ["Your turn's next."] };
       const l = t.lesson;
       if (!l) {
         return {
@@ -153,9 +158,9 @@ function cardText(t) {
       return { title: l.name, sub: l.what || null, rows, note: t.status || null };
     }
     case "foe":
-      if (t.waiting) return { title: `${foe}'s turn.`, body: ["Watch the board: the computer moves one of its pieces."] };
+      if (t.waiting) return { title: "Your opponent's turn.", body: ["Watch the board: the computer moves one of its pieces."] };
       return t.moved.length
-        ? { title: `${foe} moved its ${list(t.moved)}.`, body: [`The ${TONE_NAMES.foe} arrow shows where from.`, `Your turn again: ${tap} any of your pieces to see what it does. Good luck!`] }
+        ? { title: `Your opponent moved its ${list(t.moved)}.`, body: [`The ${TONE_NAMES.foe} arrow shows where from.`, `Your turn again: ${tap} any of your pieces to see what it does. Good luck!`] }
         : { title: "Your turn again.", body: [`${cap(tap)} any of your pieces to see what it does. Good luck!`] };
     default:
       return null;

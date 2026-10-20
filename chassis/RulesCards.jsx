@@ -833,7 +833,7 @@ export function pieceLesson(piece, laws = {}, name = piece.type, budget = 2, foe
   const crush = `Roll it onto ${foe}'s Cabeza to crush it.`;
   const rolls = `One action a roll: it can roll ${times} a turn.`;
   const LESSON = {
-    cabeza: ["Your Cabeza", "The disc: the piece you win with.", "One square any way, corners too.", `One action a step: it can step ${times} a turn.`, `Reach ${foe}'s back row to win. It can't crush, so keep it out from under ${foe}'s blocks.`],
+    cabeza: ["Your Cabeza", "The disc: the piece you win with.", "One square any way, corners too.", `One action a step: it can step ${times} a turn.`, `Reach ${foe}'s back row to win. It can't crush, so keep it out from under their blocks.`],
     turrito: ["The Turrito", "The small cube.", "It rolls over an edge into the next square, never corner to corner.", rolls, crush],
     opa: ["The Opa", "The big cube.", "It rolls two squares at once, over an edge.", budget > cost ? `Its move takes ${cost} of your ${budget} actions, so it moves once a turn.` : "Its move takes both your actions, so it moves once a turn.", crush],
     chato: ["The Chato", "The flat block.", "It tips over an edge into the next squares; how far depends on how it's lying.", rolls, crush],

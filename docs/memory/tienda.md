@@ -203,3 +203,16 @@ box art and an ad standee (assets/tienda/*.jpg).
   (ElCabeza3D.jsx way-2): "2 · Crush opponent's Cabeza". The other
   lines keep the side's name ("to Walnut's back row", the crush card's
   own title "2. Crush Walnut's Cabeza."): only the circled two changed.
+
+- **The PA's cards swipe away** (2026-10-20; user: "You should be able to
+  swipe dismiss these after about 3 seconds"): tienda-shopping.js
+  useSwipeAway, from 3 s up (SWIPE_AFTER_MS; __EC_TEST_PA_SWIPE_MS__):
+  left, right or up, past 28% of the width or 28 px up or flicked, off it
+  goes; sooner it gives 15% and springs back; a drag never taps (the
+  mouse's click at the end swallowed). `translate` for the offset, the
+  entrance's fill `backwards` (its held end frame had hidden the fade).
+- **The walkthrough's words** (2026-10-20): the Cabeza "can step up to two
+  squares a turn, in any direction, even diagonally" (user: "one square at
+  a time" read as one a turn); "your opponent" after the welcome names
+  Walnut once (user: "This should say your opponent ... not walnut");
+  board labels "Opponent's ...".

@@ -336,13 +336,20 @@ await closeOverlay();
 // vault past it; landing on a real (wrong) label still takes a full
 // step onward. The guard is generous (not "2 drags always suffice")
 // precisely because drag distance isn't reliable here.
-// A category's label tapped as a player would: if it's facing the camera
-// (well clear of the sphere's rim), a tap on it, wherever it is on screen;
-// if not, the sphere dragged a little its way, and a look again. (It used
-// to tap the middle and drag set distances between, hoping the coast had
-// brought the label there; how far a drag coasts goes with how fast the
-// moves came, so on a slow or busy machine it could go round and round and
-// never land: CI on 2ffe0f9, and once on cc1ad27.)
+// A category's label tapped as a player would: if it's on the front of the
+// sphere (clear of its rim), a tap on it, wherever it is on screen; if not,
+// the sphere dragged a little its way, and a look again. (It used to tap
+// the middle and drag set distances between, hoping the coast had brought
+// the label there; how far a drag coasts goes with how fast the moves
+// came, so on a slow or busy machine it could go round and round and never
+// land: CI on 2ffe0f9, and once on cc1ad27.) The sphere's levelled first:
+// seen from the camera's height a level sphere's labels face it at 0.63 at
+// best (a facing of 1 is head on), and every 0.1 of tilt the wrong way
+// takes about 0.09 off that. So the old mark, 0.55, was a narrow window a
+// drag (0.44 a time, more on a slow machine) could hop clean over, and out
+// of reach with the 0.15 of tilt tiltBackToEquator() allowed: CI on b709aca,
+// after CONFIGURATIONS had the sphere tipped up 1.9.
+const FACING_TO_TAP = 0.3;
 async function navigateToCategory(targetKey) {
   for (let guard = 0; guard < 16; guard++) {
     let s = await sphereState();
@@ -351,9 +358,13 @@ async function navigateToCategory(targetKey) {
       await closeOverlay();
       s = await sphereState();
     }
+    if (Math.abs(Math.atan2(Math.sin(s.sphereRotationX), Math.cos(s.sphereRotationX))) > 0.05) {
+      await tiltBackToEquator(0.05);
+      s = await sphereState();
+    }
     const spot = (s.rootLabelSpots || []).find((l) => l.key === targetKey);
-    if (process.env.EC_DEBUG_NAV) console.error(`  [nav->${targetKey}] guard=${guard} stage=${s.stage} rot=${s.sphereRotationY} spot=${JSON.stringify(spot)}`);
-    if (spot && spot.facing > 0.55) {
+    if (process.env.EC_DEBUG_NAV) console.error(`  [nav->${targetKey}] guard=${guard} stage=${s.stage} rot=${s.sphereRotationY} tilt=${s.sphereRotationX} spot=${JSON.stringify(spot)}`);
+    if (spot && spot.facing > FACING_TO_TAP) {
       await page.mouse.click(spot.x, spot.y);
       await page.waitForTimeout(250);
       const after = await sphereState();
@@ -941,8 +952,15 @@ if (state.activeCategory === "laws") {
   check("...Set 2 chosen: the line says so (blue), its pair pulsing now",
     /^Now placing Set 2 \(blue\)/.test((await page.locator('[data-testid="blackhole-picker-status"]').innerText()).trim()) && (await livePair()) === "2,2",
     `${await page.locator('[data-testid="blackhole-picker-status"]').innerText()} · ${await livePair()}`);
-  const bhCols = (await sphereState()).selections.topologies.cols;
-  const nearCell = `bh-cell-${m[1]}-${Number(m[2]) + (Number(m[2]) < bhCols - 1 ? 1 : -1)}`;
+  // (A square beside it on its row that's free: one of the missing squares,
+  // placed at random, can sit there, and isn't barred, just taken.)
+  const nearCell = await page.evaluate(([r, c]) => {
+    for (const dc of [1, -1]) {
+      const el = document.querySelector(`[data-testid="bh-cell-${r}-${c + dc}"]`);
+      if (el && !el.dataset.occupiedBy && !el.dataset.holeSet) return el.dataset.testid;
+    }
+    return `bh-cell-${r}-${c + 1}`;
+  }, [Number(m[1]), Number(m[2])]);
   hc = await holeCells();
   check("...Set 2 chosen: both still shown, Set 1's dimmed, a square beside the hand-placed one barred",
     (await page.locator('[data-testid="blackhole-picker"] [data-chosen]').count()) === 2 && hc.every((c) => c.dim === (c.set === "1")) &&
@@ -1210,7 +1228,7 @@ if (state.activeCategory === "topologies") {
   // once, with nothing to say why; it passed locally.)
   const now = await sphereState();
   check("(setup) a rule was changed after saving",
-    now.selections.topologies.missingSquares === false, JSON.stringify({ reached: state.activeCategory, stage: state.stage, missingSquares: now.selections.topologies.missingSquares }));
+    now.selections.topologies.missingSquares === false, JSON.stringify({ reached: state.activeCategory, stage: state.stage, missingSquares: now.selections.topologies.missingSquares, tilt: now.sphereRotationX, spot: (now.rootLabelSpots || []).find((l) => l.key === "topologies") }));
 }
 await openConfigurations();
 await page.locator('[data-testid="config-item"][data-name="Test Setup"] [data-testid="config-load"]').click();

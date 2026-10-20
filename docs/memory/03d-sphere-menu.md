@@ -363,3 +363,11 @@ the same ones aren't retried:
   TOPOLOGY ... activeCategory=null"; locally "(setup) a rule was changed
   after saving", reached null; once before on cc1ad27). Each category now
   in at most six steps, passing at 3x CPU throttling as well.
+
+- **The test's way to a category, levelled** (2026-10-20, CI on b709aca):
+  a level sphere's equator labels face the camera at 0.63 at best (the
+  camera's above it), less with tilt; navigateToCategory levels to 0.05
+  first and taps at facing > 0.3 (the old 0.55 could be hopped over or out
+  of reach after CONFIGURATIONS' 1.9 tilt). The black-hole picker's
+  "barred beside the hand-placed one" picks a free neighbour (a random
+  missing square can sit there).

@@ -4585,7 +4585,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const tourMine = aiPlayer ? (aiPlayer === "dark" ? "light" : "dark") : currentPlayer;
   const tourFoe = tourMine === "dark" ? "light" : "dark";
   const tourYours = tourStep === "pieces" && currentPlayer === tourMine && !!selectedPiece && selectedPiece.owner === tourMine;
-  const tourLesson = tourYours ? pieceLesson(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name, turnBudget(), sideName(tourFoe)) : null;
+  // (The walkthrough says "your opponent", not the side's name, user.)
+  const tourLesson = tourYours ? pieceLesson(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name, turnBudget(), "your opponent") : null;
   const tourLeft = turnBudget() - stepsUsed;
   let tourStatus = null;
   if (tourYours) {
@@ -4675,7 +4676,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (foeCab) { ring(foeCab, "foe", { pulse: true }); tag("way-2", { piece: foeCab.id }, "2 · Crush opponent's Cabeza", "foe"); }
     } else if (tourStep === "goal") {
       t3.band = { row: goalRow, tone: "goal" };
-      tag("goal", { row: goalRow }, `${sideName(tourFoe)}'s back row · your goal`, "goal");
+      tag("goal", { row: goalRow }, "Opponent's back row · your goal", "goal");
       if (myCab) {
         ring(myCab, "mine", { pulse: true });
         t2.arrows.push({ key: "path", from: { piece: myCab.id }, to: { box: { type: "square", row: goalRow, col: myCab.col, w: 1, h: 1, z: 0 } }, tone: "goal", bend: 0.08 });
@@ -4686,10 +4687,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (tourCrushSite) {
         ring(tourCrushSite.cab, "foe", { pulse: true });
         // (Set off to either side, so the block's label, following it as it rolls, never swaps sides.)
-        tag("crush-cabeza", { box: tourCrushSite.cab }, `${sideName(tourFoe)}'s Cabeza`, "foe", "right");
+        tag("crush-cabeza", { box: tourCrushSite.cab }, "Opponent's Cabeza", "foe", "right");
         tag("crush-block", { crush: "block", box: tourCrushSite.from }, `Your ${tourCrushSite.blockName}`, "mine", "left");
       } else {
-        if (foeCab) { ring(foeCab, "foe", { pulse: true }); tag("foe-cabeza", { piece: foeCab.id }, `${sideName(tourFoe)}'s Cabeza · crush it`, "foe"); }
+        if (foeCab) { ring(foeCab, "foe", { pulse: true }); tag("foe-cabeza", { piece: foeCab.id }, "Opponent's Cabeza · crush it", "foe"); }
         if (myCab) { ring(myCab, "mine"); tag("cabeza", { piece: myCab.id }, "Yours · keep it safe", "mine"); }
       }
     } else if (tourStep === "blocks") {
@@ -4726,7 +4727,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         ring(b, "foe", { faint: true });
         ring(now, "foe", { pulse: true });
         t2.arrows.push({ key: `moved-${now.id}`, from: { box: at(b) }, to: { piece: now.id }, tone: "foe", bend: 0.18, trimEnd: true });
-        tag(now.id, { piece: now.id }, `${sideName(tourFoe)}'s ${nameOf(now)}`, "foe");
+        tag(now.id, { piece: now.id }, `Opponent's ${nameOf(now)}`, "foe");
       });
     }
   }

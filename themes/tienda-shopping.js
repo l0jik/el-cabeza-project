@@ -18,6 +18,10 @@
    - closing time: later, the lights go down a step (a flicker, then
      dimmer, and they stay so), and the PA: the store closing in ten
      minutes, final purchases to the front; a tap on it checks out;
+   - each announcement can be swiped away once it's been up 3 s (user:
+     "You should be able to swipe dismiss these after about 3 seconds"):
+     left, right or up, it goes with the finger and off; sooner, it only
+     gives a little and comes back; a swipe is never a tap;
    - the last minutes (user: "After the 10-minute closing announcement is
      made, after 5 more minutes, have a new announcement made on every
      subsequent minute, announcing how many more minutes there are until
@@ -120,7 +124,7 @@ const CSS = `
   .td-pa { all: unset; box-sizing: border-box; position: fixed; z-index: 41; left: 50%; top: max(64px, calc(env(safe-area-inset-top) + 56px)); transform: translateX(-50%) rotate(-0.6deg);
     width: min(440px, calc(100vw - 28px)); padding: 9px 12px 8px 40px; background: #F3D85A; color: #17110D; border: 2px solid #17110D; box-shadow: 3px 3px 0 rgba(23,17,13,0.85);
     font: 700 12.5px/1.3 'EC Comic', 'Comic Sans MS', ${COURIER}; letter-spacing: 0.03em; text-transform: uppercase; cursor: pointer;
-    animation: tdPaIn 0.4s ease both; }
+    touch-action: none; animation: tdPaIn 0.4s ease backwards; }
   .td-pa::before { content: ""; position: absolute; left: 11px; top: 50%; width: 18px; height: 18px; margin-top: -9px;
     background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2317110D' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 10v4h4l5 4V6L7 10z'/%3E%3Cpath d='M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12'/%3E%3C/svg%3E"); }
   .td-pa small { display: block; margin-top: 4px; font: 700 10.5px/1 ${COURIER}; letter-spacing: 0.06em; text-transform: none; text-decoration: underline; }
@@ -238,6 +242,68 @@ function ClosingNotice({ onCheckout, onLater }) {
       h("div", { className: "hours" }, "Store hours: Mon.–Sat. 9 a.m. to 9 p.m. · Sun. noon to 6 p.m.")),
   ];
 }
+/* The PA's card put away with a swipe (user: "You should be able to swipe
+   dismiss these after about 3 seconds"): from SWIPE_AFTER_MS up it goes
+   with the finger, left, right or up, and let go far enough along (or
+   flicked) it flies off that way; a drag begun sooner only gives a little
+   and comes back. A drag is never the card's tap (the cart, the register):
+   the click a mouse makes at its end is swallowed. (The offset's the
+   `translate` property, so the card's own tilt and entrance stay as they
+   are.) */
+const SWIPE_AFTER_MS = 3000;
+function useSwipeAway(shownKey, onAway) {
+  const ref = React.useRef(null);
+  const shownAt = React.useRef(0);
+  const drag = React.useRef(null);
+  const dragged = React.useRef(false);
+  React.useEffect(() => { shownAt.current = performance.now(); }, [shownKey]);
+  const place = (x, y, opacity, transition) => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = transition || "none";
+    el.style.translate = `${x}px ${y}px`;
+    el.style.opacity = opacity == null ? "" : String(opacity);
+  };
+  const onPointerDown = (e) => {
+    if (e.button > 0) return;
+    dragged.current = false;
+    // (A test can hold it back longer: __EC_TEST_PA_SWIPE_MS__.)
+    const now = performance.now(), after = typeof window.__EC_TEST_PA_SWIPE_MS__ === "number" ? window.__EC_TEST_PA_SWIPE_MS__ : SWIPE_AFTER_MS;
+    drag.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: 0, y: 0, vx: 0, vy: 0, at: now, on: false, ready: now - shownAt.current >= after };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* as it is */ }
+  };
+  const onPointerMove = (e) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const dx = e.clientX - d.x0, dy = e.clientY - d.y0;
+    if (!d.on && Math.hypot(dx, dy) < 8) return;
+    d.on = true;
+    dragged.current = true;
+    // (Down's no way off: it only gives.)
+    const k = d.ready ? 1 : 0.15, x = dx * k, y = (dy < 0 ? dy : dy * 0.2) * k;
+    const now = performance.now(), dt = Math.max(1, now - d.at);
+    d.vx = (x - d.x) / dt; d.vy = (y - d.y) / dt; d.x = x; d.y = y; d.at = now;
+    const w = ref.current ? ref.current.offsetWidth : 300;
+    place(x, y, d.ready ? Math.max(0.2, 1 - Math.hypot(x, Math.min(0, y)) / w) : null);
+  };
+  const onPointerUp = (e) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    drag.current = null;
+    if (!d.on) return;
+    const el = ref.current, w = el ? el.offsetWidth : 300;
+    const up = -d.y > Math.abs(d.x);
+    const away = d.ready && e.type === "pointerup" && (up ? d.y < -28 || d.vy < -0.4 : Math.abs(d.x) > w * 0.28 || Math.abs(d.vx) > 0.45);
+    if (!away) { place(0, 0, null, "translate 0.35s cubic-bezier(0.2, 1.4, 0.4, 1), opacity 0.35s ease"); return; }
+    const side = Math.sign(d.x || d.vx) || 1, bottom = el ? el.getBoundingClientRect().bottom : 160;
+    place(up ? d.x : side * window.innerWidth, up ? -(bottom + 24) : d.y, 0, "translate 0.25s ease-in, opacity 0.25s ease-in");
+    setTimeout(onAway, 250);
+  };
+  // (True once, for the click that ends a drag.)
+  const wasDrag = () => { if (!dragged.current) return false; dragged.current = false; return true; };
+  return { ref, onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, wasDrag };
+}
+
 export function StorePA({ active, game, audio, onPurchase }) {
   const [say, setSay] = React.useState(null);   // "instock" | "closing" | "5min" ... "2min" | null
   const [going, setGoing] = React.useState(false);
@@ -318,14 +384,17 @@ export function StorePA({ active, game, audio, onPurchase }) {
     addToCart(); onPurchase && onPurchase();
   }, [audio, onPurchase]);
   const later = React.useCallback(() => { audio && audio.playMenu && audio.playMenu(); setNotice(false); }, [audio]);
+  const swipe = useSwipeAway(say, React.useCallback(() => { setSay(null); setGoing(false); }, []));
   if (!active) return null;
   if (notice) return h(ClosingNotice, { onCheckout: checkout, onLater: later });
   if (!say) return null;
   const toRegister = say !== "instock";
   // (Each announcement its own caption, come in afresh.)
   return h("button", {
-    key: say, type: "button", className: "td-pa", "data-testid": `tienda-pa-${say}`, "data-going": going ? "true" : "false", role: "status", "aria-live": "polite",
+    key: say, ref: swipe.ref, type: "button", className: "td-pa", "data-testid": `tienda-pa-${say}`, "data-going": going ? "true" : "false", role: "status", "aria-live": "polite",
+    onPointerDown: swipe.onPointerDown, onPointerMove: swipe.onPointerMove, onPointerUp: swipe.onPointerUp, onPointerCancel: swipe.onPointerCancel,
     onClick: () => {
+      if (swipe.wasDrag()) return;
       if (toRegister) { checkout(); return; }
       audio && audio.playSelect && audio.playSelect();
       setSay(null);
