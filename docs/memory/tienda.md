@@ -147,3 +147,16 @@ box art and an ad standee (assets/tienda/*.jpg).
   its arc and goes on (the card's glow still cues at 6 s). Before the
   first game only; not with reduced motion, nor under the tests unless
   asked (__EC_TEST_PAN__). tests/e2e-store-pan.mjs.
+- **The cart and the standee changed places (2026-10-20; user: "In
+  Tienda / store theme, swap the locations of the silver shopping cart
+  and the El Cabeza advertising standee").** tienda-store.js: the
+  standee (its stand and its NOW IN STOCK card follow it) now stands at
+  (36, 24), turned to face the table (atan2(-36, -24)), where the cart
+  was; the cart is at (-34, -30), turned half round (π − 0.7) so it sits
+  to the table as it did. From the opening framing the standee is at
+  the back on the left; the cart is by the camera's right, so at the far
+  right end of the opening pan (+60°) its basket is in the foreground at
+  the bottom left (the standee stood there before). standeeAside (the
+  fade when the camera's in it or close behind it) keys off the
+  standee's own place, so it moved with it. Same in the store after the
+  story (the housewares ad).

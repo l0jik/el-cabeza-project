@@ -619,8 +619,11 @@ export function buildStore() {
   const adMat = new THREE.MeshBasicMaterial({ map: adTex, toneMapped: false, fog: true, color: 0xf2eee4 });
   const ad = add(vplane(15, 33.4, 0, 0, 0, 0), adMat);
   ad.matrixAutoUpdate = true;
-  ad.position.set(-34, FLOOR + 2 + 16.7 + 7, -30);
-  ad.rotation.y = Math.atan2(34, 30);
+  // (Where the cart was, and the cart where it stood: user, "swap the
+  // locations of the silver shopping cart and the El Cabeza advertising
+  // standee". Turned to face the table as before.)
+  ad.position.set(36, FLOOR + 2 + 16.7 + 7, 24);
+  ad.rotation.y = Math.atan2(-36, -24);
   const standGeos = [bake(box(16.4, 34.8, 1.2, 0, 0, -0.7), { tint: [0.55, 0.42, 0.3] }), bake(box(17, 7, 5, 0, -20.4, 0.8), { tint: [0.76, 0.62, 0.44] })];
   const stand = add(merge(standGeos), flat(null));
   stand.matrixAutoUpdate = true; stand.position.copy(ad.position); stand.rotation.copy(ad.rotation);
@@ -632,9 +635,9 @@ export function buildStore() {
   // (tienda-fx.js), so their materials may be see-through.
   adMat.transparent = true; stand.material.transparent = true;
   disposables.push(adTex);
-  // An empty shopping cart, left in the aisle.
+  // An empty shopping cart, left in the aisle (where the standee was).
   const cart = buildCart();
-  cart.position.set(36, FLOOR, 24); cart.rotation.y = -0.7;
+  cart.position.set(-34, FLOOR, -30); cart.rotation.y = Math.PI - 0.7;
   group.add(cart);
 
   /* ---- the TV display at the records and TV endcap ---- */
