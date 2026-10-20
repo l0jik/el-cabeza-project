@@ -37,6 +37,7 @@
    visit; the PA's moments once each, per visit. */
 
 import React from "react";
+import { loadFaces } from "./faces.js";
 
 const h = React.createElement;
 const INK = "#2E2118", RED = "#A33F33", PAPER = "#EFE6CD";
@@ -118,7 +119,7 @@ const CSS = `
   /* The PA's words, lettered as the clerk scene's PA is; a tap acts on them. */
   .td-pa { all: unset; box-sizing: border-box; position: fixed; z-index: 41; left: 50%; top: max(64px, calc(env(safe-area-inset-top) + 56px)); transform: translateX(-50%) rotate(-0.6deg);
     width: min(440px, calc(100vw - 28px)); padding: 9px 12px 8px 40px; background: #F3D85A; color: #17110D; border: 2px solid #17110D; box-shadow: 3px 3px 0 rgba(23,17,13,0.85);
-    font: 700 12.5px/1.3 'Comic Neue', 'Comic Sans MS', ${COURIER}; letter-spacing: 0.03em; text-transform: uppercase; cursor: pointer;
+    font: 700 12.5px/1.3 'EC Comic', 'Comic Sans MS', ${COURIER}; letter-spacing: 0.03em; text-transform: uppercase; cursor: pointer;
     animation: tdPaIn 0.4s ease both; }
   .td-pa::before { content: ""; position: absolute; left: 11px; top: 50%; width: 18px; height: 18px; margin-top: -9px;
     background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2317110D' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 10v4h4l5 4V6L7 10z'/%3E%3Cpath d='M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12'/%3E%3C/svg%3E"); }
@@ -243,6 +244,9 @@ export function StorePA({ active, game, audio, onPurchase }) {
   const [notice, setNotice] = React.useState(false); // Big Glutts' notice, a minute from closing
   const [spoken, setSpoken] = React.useState(0); // (counts what's been said, for the minutes' timer)
   const arrivedAt = React.useRef(performance.now());
+  // (Its lettering, the clipping's, fetched as the store opens: in long
+  // before it speaks.)
+  React.useEffect(() => { loadFaces("comic"); }, []);
   const moves = game && game.log ? game.log.length : 0;
   const finished = !!(game && (game.status === "finished" || game.status === "ended"));
   const t = (k, d) => (typeof window !== "undefined" && typeof window[k] === "number" ? window[k] : d);

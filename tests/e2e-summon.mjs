@@ -376,7 +376,20 @@ console.log("the link straight to it: left alone, a menu opens by itself and com
   const q = (id) => page.locator(`[data-testid="${id}"]`);
   // After the commercial (user): the paper beside the board, the order
   // form, glows; only it takes a tap, and its tap brings the note.
-  check("...after the commercial, the paper on the table glows (the order form)", !!(await poll(() => page.evaluate(() => !!(window.__DEN_ORDER_PAPER__ && window.__DEN_ORDER_PAPER__().on)), 90000)));
+  // As the camera comes away from the set after it, the paper's due but
+  // not up yet: the set doesn't take a press back into Futuris then (user:
+  // "after the commercial ended, I was able to get back into Futuris").
+  const gliding = await poll(() => page.evaluate(() => { const s = window.__DEN_TV__ && window.__DEN_TV__(); const p = window.__DEN_ORDER_PAPER__ && window.__DEN_ORDER_PAPER__(); return !!s && s.goal === 0 && s.focus > 0.1 && /^(closing|off)$/.test(s.phase) && document.documentElement.classList.contains("ec-order-paper") && p && !p.on && { focus: +s.focus.toFixed(2), phase: s.phase }; }), 90000, 50);
+  check(`...the commercial over, the camera coming back from the set, the paper due (${JSON.stringify(gliding)})`, !!gliding);
+  await page.evaluate(() => window.__DEN_TV_PRESS__());
+  await page.waitForTimeout(1200);
+  const stayed = await page.evaluate(() => { const s = window.__DEN_TV__ && window.__DEN_TV__(); return s && { phase: s.phase, portalAt: s.portalAt }; });
+  check(`...a press on the set then: it stays off, no way back into Futuris before the paper (${JSON.stringify(stayed)})`, !!stayed && /^(closing|off)$/.test(stayed.phase) && !stayed.portalAt);
+  // And the paper's ring only once the camera's back on the table, round
+  // the paper (user: it "appeared immediately, and as the camera floated
+  // over towards the table, the blue ring was like able to be seen").
+  const paperOn = await poll(() => page.evaluate(() => { const p = window.__DEN_ORDER_PAPER__ && window.__DEN_ORDER_PAPER__(); const s = window.__DEN_TV__ && window.__DEN_TV__(); return p && p.on && { focus: s ? s.focus : null, goal: s ? s.goal : null, phase: s ? s.phase : null }; }), 90000, 50);
+  check(`...after the commercial, the paper on the table glows (the order form), once the camera's back on the table (${JSON.stringify(paperOn)})`, !!paperOn && paperOn.focus === 0 && paperOn.goal === 0 && paperOn.phase === "off");
   check("...and no note yet", (await q("tienda-special-note").count()) === 0);
   await page.waitForTimeout(3500);
   await page.screenshot({ path: process.env.EC_SHOTS ? `${process.env.EC_SHOTS}/order-paper.png` : "/dev/null" }).catch(() => {});

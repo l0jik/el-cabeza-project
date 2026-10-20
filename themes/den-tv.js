@@ -453,7 +453,10 @@ export function buildTelevision(yF, RZ, X = -40) {
   /* ---- the set's life ---- */
   // The commercial (den-commercial.js: the user's spot, a video), made
   // when it's first shown.
-  let commercial = null, adLead = 0;
+  let commercial = null, adLead = 0, adWaitAt = 0;
+  // (How long the commercial waits in the snow for its picture before it
+  // goes on without one.)
+  const AD_WAIT_MS = 6000;
   let phase = "off", t0 = 0, portal = false, entered = false, onEnter = null;
   let knobA = -0.9, knobGoal = -0.9;
   const u = screen.uniforms;
@@ -637,8 +640,17 @@ export function buildTelevision(yF, RZ, X = -40) {
       commercial.draw(-delay / 1000);
       u.uTex.value = commercial.texture;
       adLead = delay;
+      adWaitAt = commercial.canShow ? now : 0;
       set("commercial", now + delay);
     },
+    /* Whether the commercial's picture has come (user: "Wait… is that my
+       house?" came with nothing on the set yet): "picture" once it has
+       one, "snow" if it waited AD_WAIT_MS without (it starts then) or
+       can't have one (from disk), null while it waits. Its hold (adLead)
+       counts from the picture, not from showCommercial. */
+    commercialShown: () => (phase !== "commercial" ? null : adWaitAt ? null : commercial && commercial.ready() ? "picture" : "snow"),
+    // How long (ms) till it starts, held till then (its sound's delay).
+    commercialIn: (now) => (phase === "commercial" ? Math.max(0, -since(now)) : 0),
     /* The lure (den-fx.js): called each frame while the set's off and
        waiting to be noticed, with how far along it is (0 to 1), and
        whether the camera's come over to look (`watched`). Something every
@@ -721,11 +733,19 @@ export function buildTelevision(yF, RZ, X = -40) {
         // loading, or from disk). (s is negative before it starts: held
         // on its first frame.) Out of the snow it locks in, from the
         // moment it's shown (adLead before it starts).
-        commercial.draw(s / 1000);
+        // (Waiting for its picture: the clock held at the hold's start, so
+        // it locks in and holds from the moment there is one.)
+        // (None by AD_WAIT_MS: it starts now, in the snow.)
+        if (adWaitAt) {
+          if (commercial.ready()) adWaitAt = 0;
+          else if (now - adWaitAt >= AD_WAIT_MS) { adWaitAt = 0; t0 = now; }
+          else t0 = now + adLead;
+        }
+        commercial.draw(since(now) / 1000);
         const on = commercial.ready();
-        lock = on ? ease(clamp01((s + adLead) / TV_TIMES.resolve)) : 1;
+        lock = on ? ease(clamp01((since(now) + adLead) / TV_TIMES.resolve)) : 1;
         raster = 1; glow = 1; pat = on ? lock : 0; snow = on ? 1 - lock : 1;
-        if (commercial.done(s)) set("aired", now);
+        if (commercial.done(since(now))) set("aired", now);
       } else if (phase === "channel") {
         // Another reality on the set (after the story): a clean picture,
         // a burst of snow as it clicks over.

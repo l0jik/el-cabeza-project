@@ -57,8 +57,18 @@ const DEN_RECORDS = {
 const SPHERE_FILES = { "el-cabeza-futuris-sphere-drone.mp3": "assets/futuris/sphere-drone.mp3" };
 DEN_RECORDS["el-cabeza-futuris-sphere-drone.mp3"] = SPHERE_FILES["el-cabeza-futuris-sphere-drone.mp3"];
 
-// Beside every page: ABOUT's original-game cue (chassis ORIGINAL_CUE_URL).
-const COMMON_FILES = { "el-cabeza-original-cue.mp3": "assets/original-cue.mp3" };
+// Beside every page: ABOUT's original-game cue (chassis ORIGINAL_CUE_URL),
+// and the faces of the lines between scenes (themes/faces.js: Bodoni Moda,
+// Comic Neue Bold and Bangers, their latin letters, SIL Open Font License,
+// assets/fonts/OFL-*.txt), kept with the pages so a change of place can't
+// take them away mid-fade.
+const FACE_FILES = {
+  "el-cabeza-face-bodoni.woff2": "assets/fonts/bodoni-moda.woff2",
+  "el-cabeza-face-bodoni-italic.woff2": "assets/fonts/bodoni-moda-italic.woff2",
+  "el-cabeza-face-comic-neue-bold.woff2": "assets/fonts/comic-neue-bold.woff2",
+  "el-cabeza-face-bangers.woff2": "assets/fonts/bangers.woff2",
+};
+const COMMON_FILES = { "el-cabeza-original-cue.mp3": "assets/original-cue.mp3", ...FACE_FILES };
 // Beside the pages with Futuris's Singularity: the lost hand (futuris-singularity.js).
 const LOST_HAND = { "el-cabeza-lost-hand-wire.webp": "assets/futuris/lost-hand-wire.webp", "el-cabeza-lost-hand-skin.webp": "assets/futuris/lost-hand-skin.webp" };
 Object.assign(SPHERE_FILES, LOST_HAND);

@@ -161,10 +161,39 @@ console.log("\ndesktop: the store, the purchase, home");
   await q(page, "story-purchase").click();
   check("Check out starts the scene", await poll(() => has(page, "story-cut"), 5000, 100));
   check("...the purchase is remembered at once", (await owned(page) || {}).owned === true);
+  // (What the cut does as it goes: the tape's lines when it turns to the
+  // black, and the caption's face as it comes up.)
+  await page.evaluate(() => {
+    const cut = document.querySelector('[data-testid="story-cut"]');
+    const rec = window.__CUT_REC__ = { maxLines: 0, linesAtDark: null, caption: null };
+    const look = () => {
+      const r = cut.querySelector('[data-testid="story-receipt"]');
+      rec.maxLines = Math.max(rec.maxLines, r ? +r.getAttribute("data-lines") : 0);
+      if (rec.linesAtDark == null && cut.getAttribute("data-stage") !== "tape") rec.linesAtDark = rec.maxLines;
+      const c = cut.querySelector('[data-testid="story-caption"]');
+      if (!rec.caption && c && c.classList.contains("on")) rec.caption = { faces: window.__EC_FACES__ ? window.__EC_FACES__().caption : null, family: getComputedStyle(c).fontFamily };
+    };
+    new MutationObserver(look).observe(cut, { subtree: true, attributes: true, attributeFilter: ["data-lines", "data-stage", "class"] });
+    look();
+  });
+  // The tape prints to its end: a tap while it prints does nothing (user:
+  // "taps shouldn't be allowed during the time that it's so it can
+  // complete the animation"; a tap went straight to the black).
+  await poll(async () => +(await q(page, "story-receipt").getAttribute("data-lines").catch(() => 0)) >= 2, 8000, 50);
+  await page.mouse.click(500, 380);
+  await page.waitForTimeout(200);
+  const tapped = await page.evaluate(() => ({ stage: document.querySelector('[data-testid="story-cut"]').getAttribute("data-stage"), lines: window.__CUT_REC__.maxLines }));
+  check(`...a tap while the tape prints doesn't cut it short (${JSON.stringify(tapped)})`, tapped.stage === "tape" && tapped.lines < 11);
   const printed = await poll(async () => +(await q(page, "story-receipt").getAttribute("data-lines").catch(() => 0)) >= 11 && q(page, "story-receipt").innerText(), 15000, 150);
   check("the receipt prints: El Cabeza, 7.97, total 8.45", !!printed && /EL CABEZA/.test(printed) && /7\.97/.test(printed) && /8\.45/.test(printed), printed || "no receipt");
   const caption = await poll(async () => (await q(page, "story-caption").innerText()).trim(), 15000, 150);
   check(`black, and "${caption}"`, caption === "Later, at home.");
+  const rec = await page.evaluate(() => window.__CUT_REC__);
+  check(`...only once all eleven lines had printed (${rec.linesAtDark})`, rec.linesAtDark === 11);
+  // In its own face from its first frame (user: "it starts as a certain
+  // font, and then ... it changes like to a different font"): the page's
+  // Bodoni Moda (themes/faces.js), in before the line comes up.
+  check(`...in its own face, in before it comes up (${JSON.stringify(rec.caption)})`, !!rec.caption && /^"?EC Caption"?,/.test(rec.caption.family) && rec.caption.faces === "loaded loaded");
   const arrived = await throughCut(page, "home");
   check("...then the den", arrived.gone && arrived.there, JSON.stringify(arrived));
   // Its first look (user's screenshot: "the perspective they should see

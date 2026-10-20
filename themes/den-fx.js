@@ -276,10 +276,21 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     }
     // Each frame: on (html.ec-order-paper) it starts; the halo follows the
     // paper on screen and the paper's own glow breathes with it.
+    // (Once the set's let go of the camera and the camera's settled on the
+    // board, a moment on: not on the first frame back from Singularity,
+    // before the set's taken the camera, nor while it glides back from the
+    // set to the table; user: the ring "appeared immediately, and as the
+    // camera floated over towards the table, the blue ring was like able
+    // to be seen ... It should only appear once you've centered on the
+    // table, and it should be around the order form".)
+    const PAPER_SETTLE = 500;
+    let paperSettleAt = 0;
     function paperFrame(t, now) {
       const want = typeof document !== "undefined" && document.documentElement.classList.contains("ec-order-paper");
-      // (Once the set's let go of the camera: the board's view, the paper in it.)
-      if (want && !paper && !paperTaken && !holdsCamera()) paperStart();
+      const settled = !holdsCamera() && !returning && !tvLeaveAt && !(den && den.tv && den.tv.phase && den.tv.phase() !== "off");
+      if (!settled) paperSettleAt = 0;
+      else if (!paperSettleAt) paperSettleAt = now + PAPER_SETTLE;
+      if (want && !paper && !paperTaken && settled && now >= paperSettleAt) paperStart();
       if (!want && paper) paper.stop();
       if (!paper || !t.camera || !t.renderer) return;
       const lf = den.table.rules.leaflet, c = t.renderer.domElement.getBoundingClientRect();
@@ -916,11 +927,16 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        camera slowly pushes in on it and the thought comes and goes, then
        plays (its sound set to start with it, so they're as together as
        ever). Meanwhile the set's taps wait, and drags do, as while it has
-       the camera. */
+       the camera. The hold, the push, the sound and the thought all wait
+       for the picture to be on the set (user: the thought "is popping up
+       and nothing's on the TV yet ... what are they reacting to"; a phone
+       still loading the spot showed snow): the thought once it has locked
+       in and been seen a moment (HOUSE_AT); with no picture after a few
+       seconds (den-tv.js AD_WAIT_MS), it plays on in the snow, no thought. */
     const PHEW = "Phew… I'm home. What just happened?!", PHEW_AT = 800, PHEW_MS = 3200;
     const WAKE_AT = 2800, WAKE_TO_AD = 2000;
-    const HOUSE = "Wait… is that my house?", HOUSE_HOLD = 4200, HOUSE_AT = 900, HOUSE_MS = 2600, PUSH_MS = 3800;
-    let wake = null, phewCard = null, phewEnd = 0, houseAt = 0, houseCard = null, houseEnd = 0, pushAt = 0;
+    const HOUSE = "Wait… is that my house?", HOUSE_HOLD = 4200, HOUSE_AT = 1300, HOUSE_MS = 2600, PUSH_MS = 3800;
+    let wake = null, phewCard = null, phewEnd = 0, houseAt = 0, houseCard = null, houseEnd = 0, pushAt = 0, adWait = false;
     function wakeFrame(now) {
       if (phewCard && now >= phewEnd) { phewCard.remove(700); phewCard = null; }
       if (houseAt && now >= houseAt) {
@@ -929,6 +945,17 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (doc) { houseCard = dealCard(doc, { testid: "den-house", l1: HOUSE }); houseEnd = now + HOUSE_MS; }
       }
       if (houseCard && now >= houseEnd) { houseCard.remove(700); houseCard = null; }
+      // The picture's on the set (or it's going on without): the hold
+      // from now, the sound with it, the push and the thought.
+      if (adWait && den && den.tv && den.tv.commercialShown) {
+        const shown = den.tv.commercialShown();
+        if (shown) {
+          adWait = false;
+          if (audio && audio.tvCommercial) audio.tvCommercial(den.tv.commercialIn(now) / 1000);
+          pushAt = now;
+          if (shown === "picture") houseAt = now + HOUSE_AT;
+        }
+      }
       if (!wake || !den || !den.tv) return;
       if (wake.phewAt && now >= wake.phewAt) {
         wake.phewAt = 0;
@@ -947,8 +974,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         // thought, then on.)
         den.tv.showCommercial(now, HOUSE_HOLD);
         setCommercialOn(true);
-        if (audio && audio.tvCommercial) audio.tvCommercial(HOUSE_HOLD / 1000);
-        houseAt = now + HOUSE_AT; pushAt = now;
+        adWait = true;
       }
     }
     const easeInOutCubic = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
@@ -1383,6 +1409,11 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         }
         return true;
       }
+      // (The order paper's due, after the commercial: it's what's next,
+      // and the set won't take you off to Futuris before it; user: back
+      // into Futuris as the camera came away from the set, and home again
+      // to the paper's ring.)
+      if (!paper && !paperTaken && typeof document !== "undefined" && document.documentElement.classList.contains("ec-order-paper")) return true;
       const portal = !!(novaTv && novaTv.portal && novaTv.portal());
       // If Nova can't go after all (something else under way), the set
       // goes off and the camera comes back.
@@ -1401,7 +1432,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     const PORTAL_LOCK_MS = 500;
     if (novaTv && novaTv.register) novaTv.register({ press: pressTv });
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-      window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, waking: wake ? (wake.woke ? "woke" : "dark") : null, lureWaited: lureStart ? performance.now() - lureStart - LURE_WAIT : null, glance: glance ? (glance.fix ? "fix" : "round") : null, glanceAt: glance && glance.seen.length ? glance.seen[glance.seen.length - 1] : null, lock: lockOn, fixed: lureFix, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0 });
+      window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, waking: wake ? (wake.woke ? "woke" : "dark") : null, lureWaited: lureStart ? performance.now() - lureStart - LURE_WAIT : null, glance: glance ? (glance.fix ? "fix" : "round") : null, glanceAt: glance && glance.seen.length ? glance.seen[glance.seen.length - 1] : null, lock: lockOn, fixed: lureFix, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, adShown: den && den.tv && den.tv.commercialShown ? den.tv.commercialShown() : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0 });
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
       // Test-only: the look round's thought for a pick (true: who's messing
@@ -1573,11 +1604,12 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           if (!on && !wake) setCommercialOn(false);
           // In close on the picture: the slow push from the set onto its
           // first frame, as it locks in; else eased.
+          // (Not before its picture's there: adWait.)
           if (pushAt) {
             const k = Math.min(1, Math.max(0, (now - pushAt) / PUSH_MS));
             tvWatch = Math.max(tvWatch, k * k * (3 - 2 * k));
             if (k >= 1 || !on) pushAt = 0;
-          } else tvWatch += ((on ? 1 : 0) - tvWatch) * (1 - Math.exp(-dt * 1.2));
+          } else if (!(adWait && on)) tvWatch += ((on ? 1 : 0) - tvWatch) * (1 - Math.exp(-dt * 1.2));
         }
         // While the camera visits the set, the title and the dock's piece
         // step aside (standard.js styleSheet, html.ec-tv-visit).
@@ -1793,7 +1825,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (paper) paper.stop();
         okayAt = 0;
         if (okayCard) { okayCard.el.remove(); okayCard = null; }
-        wake = null; houseAt = 0; pushAt = 0;
+        wake = null; houseAt = 0; pushAt = 0; adWait = false;
         glance = null; lureFix = false; lureLock(false); restOff(); offJourney(); huhAt = 0; bangAt = 0;
         if (huhCard) { huhCard.el.remove(); huhCard = null; }
         if (bangCard) { bangCard.el.remove(); bangCard = null; }

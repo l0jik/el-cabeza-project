@@ -23,6 +23,7 @@
    44 px tall, and scroll inside the sheet when a short screen needs it. */
 
 import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
+import { facesIn, facesReady, loadFaces } from "./faces.js";
 import React from "react";
 import {
   PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, BIG_ARMY, BIG_ARMY_NOTE, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
@@ -790,7 +791,7 @@ function renderOverlaysHere(x) {
     onChange: (s) => { x.selRef.current = s; },
     onCancel: () => { x.audio && x.audio.playRulesClose && x.audio.playRulesClose(); x.closeOverlay(); },
     onPlace: guided
-      ? (sel) => { orderInHand = cloneSelections(sel); keptOrder = cloneSelections(sel); x.story.onOrderAtStore(); }
+      ? (sel) => { orderInHand = cloneSelections(sel); keptOrder = cloneSelections(sel); loadFaces("comic"); x.story.onOrderAtStore(); }
       : (sel) => { if (where === "home") keptOrder = cloneSelections(sel); beginCustomGame(sel, x, (s) => x.reopenOrder && x.reopenOrder(s), { labels: TIENDA_VARIANT_LABELS }); },
     audio: x.audio,
     where,
@@ -1109,7 +1110,7 @@ const STORY_CSS = `
   /* The narrator's box and the PA, lettered as the comics were. */
   .td-clerk-narration, .td-clerk-pa { position: absolute; z-index: 2; margin: 0; padding: 5px 9px 4px; background: #F3D85A; color: #17110D;
     border: 2px solid #17110D; box-shadow: 2px 2px 0 rgba(23, 17, 13, 0.85);
-    font: 700 12px/1.25 'Comic Neue', 'Comic Sans MS', ${COURIER}; letter-spacing: 0.04em; text-transform: uppercase;
+    font: 700 12px/1.25 'EC Comic', 'Comic Sans MS', ${COURIER}; letter-spacing: 0.04em; text-transform: uppercase;
     animation: tdClerkIn 0.35s ease both; }
   /* The narrator's caption sits in the margin under the panel, as a box
      pasted there, and the Next beside it, small, at the right. */
@@ -1118,7 +1119,7 @@ const STORY_CSS = `
   .td-clerk-captions .td-clerk-narration { position: static; max-width: 100%; }
   .td-clerk-next { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 3px 10px 1px 12px; cursor: pointer;
     background: #F3D85A; color: #17110D; border: 2px solid #17110D; border-radius: 2px; box-shadow: 2px 2px 0 #17110D;
-    font: 400 17px/1 'Bangers', ${FRANKLIN}; letter-spacing: 0.08em; text-transform: uppercase; transform: rotate(1.2deg);
+    font: 400 17px/1 'EC Comic Title', ${FRANKLIN}; letter-spacing: 0.08em; text-transform: uppercase; transform: rotate(1.2deg);
     transition: transform 0.08s ease, box-shadow 0.08s ease; }
   .td-clerk-next i { width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 11px solid #17110D; margin-top: -1px; }
   .td-clerk-next:hover i { transform: translateX(2px); }
@@ -1152,11 +1153,11 @@ const STORY_CSS = `
   @keyframes tdClerkTopIn { from { opacity: 0; transform: translateX(-50%) translateY(-4px) rotate(-1.4deg); } to { opacity: 0.92; transform: translateX(-50%) rotate(-1.4deg); } }
   .td-clerk-pa { left: 8px; right: 8px; bottom: 8px; text-align: center; background: #FBF6E6; }
   .td-clerk-fallback { position: absolute; z-index: 2; inset: auto 12px 12px; margin: 0; padding: 12px 14px; background: #FBF8F0; color: ${INK};
-    border: 2px solid #17110D; border-radius: 16px; font: 700 15px/1.35 'Comic Neue', ${COURIER}; }
+    border: 2px solid #17110D; border-radius: 16px; font: 700 15px/1.35 'EC Comic', ${COURIER}; }
   .td-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   /* The buttons, lettered too. */
   .td-clerk-actions .td-btn { min-height: 44px; padding: 6px 16px 4px; border: 2.5px solid #17110D; border-radius: 2px;
-    box-shadow: 3px 3px 0 #17110D; font: 400 21px/1 'Bangers', ${FRANKLIN}; letter-spacing: 0.07em; text-transform: uppercase;
+    box-shadow: 3px 3px 0 #17110D; font: 400 21px/1 'EC Comic Title', ${FRANKLIN}; letter-spacing: 0.07em; text-transform: uppercase;
     transition: transform 0.08s ease, box-shadow 0.08s ease; }
   .td-clerk-actions .td-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #17110D; }
   .td-clerk-pages { display: flex; justify-content: center; gap: 2px; padding: 10px 0 0; }
@@ -1371,14 +1372,6 @@ const CLIP_EDGE = (() => {
   for (let i = n; i > 0; i--) at(0, (i / n) * 100);
   return `polygon(${pts.join(", ")})`;
 })();
-// Comic lettering for the clipping (Google Fonts, once).
-function ensureComicFonts() {
-  if (typeof document === "undefined" || document.getElementById("td-comic-fonts")) return;
-  const l = document.createElement("link");
-  l.id = "td-comic-fonts"; l.rel = "stylesheet";
-  l.href = "https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@700&display=swap";
-  document.head.appendChild(l);
-}
 export const CLERK_SHOT_FILES = CLERK_STEPS.map((s) => `el-cabeza-${s.shot}.jpg`);
 const PA_CAPTION = "Ding-dong. \u201cManager to Games, please. Manager to Games.\u201d";
 
@@ -1396,9 +1389,16 @@ function ClerkScene({ audio, onStay, onGoHome }) {
   const from = fromRef.current >= 0 ? CLERK_STEPS[fromRef.current] : null;
   const fade = from && from.frame === s.frame ? "slow" : "quick";
   // Fetch them all as the scene opens, so no tap waits on one.
+  // Its lettering is the page's own (themes/faces.js: fetched as the
+  // order's placed, at home), and the clipping waits for it, a moment at
+  // most, so "Later that day…" is in it from the first (user: the lines
+  // between scenes changed face as they came up).
+  const [lettered, setLettered] = React.useState(() => facesIn("comic"));
   React.useEffect(() => {
-    ensureComicFonts();
+    let on = true;
+    if (!lettered) facesReady("comic").then(() => { if (on) setLettered(true); });
     CLERK_SHOT_FILES.forEach((src) => { const im = new Image(); im.src = src; });
+    return () => { on = false; };
   }, []);
   // The page goes out a beat after he picks up the phone: each time you
   // come to that panel (user: paging back and forward again, it didn't
@@ -1457,7 +1457,7 @@ function ClerkScene({ audio, onStay, onGoHome }) {
   const lost = failed.has(s.shot);
   return h("div", { className: "td-layer td-clerk-layer", "data-testid": "tienda-clerk", "data-step": step, "data-frame": s.frame, onClick: onLayerClick, onPointerDown: onDown, onPointerUp: onUp },
     h(Style),
-    h("div", { className: "td-clerk", role: "dialog", "aria-label": "At the Games counter" },
+    lettered && h("div", { className: "td-clerk", role: "dialog", "aria-label": "At the Games counter" },
       // A panel clipped out of a 1975 comic book and kept: yellowed
       // newsprint cut by hand, two strips of old tape, the panel in its
       // ink border, printed in Ben-Day dots, a little faded.

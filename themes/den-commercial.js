@@ -141,6 +141,8 @@ export function createCommercial() {
   const rateTo = (r) => { if (Math.abs(v.playbackRate - r) > 0.004) v.playbackRate = r; };
   const api = {
     texture,
+    // (Whether a picture can come at all: from disk there's no video.)
+    canShow: !!v,
     ready() {
       if (!shown && v && v.readyState >= 2) shown = true;
       return shown;
@@ -165,6 +167,13 @@ export function createCommercial() {
       spotLead = heard != null ? Math.min(0.05, Math.max(0.008, frame)) : 0;
       if (heard != null) t = heard + spotLead;
       if (t <= -PREROLL) {
+        // (Till it has a picture, it plays, muted, to get one: a phone
+        // may load none for a paused video. Then back to the top.)
+        if (!shown && v.readyState < 2) {
+          if (v.paused && now - tried > 500) { tried = now; const p = v.play(); if (p && p.catch) p.catch(() => {}); }
+          return;
+        }
+        shown = true;
         if (!v.paused) v.pause();
         if (v.readyState >= 1 && v.currentTime > 0.05) seekTo(0);
         return;

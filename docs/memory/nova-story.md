@@ -156,3 +156,18 @@ in; leaving Singularity, back in the den as the set switches off.
   Never on the game's own ways into the page (?world=, ?scene=, ?switcher,
   ?restart=, ?jump=, Back) nor under automation; ?title forces it for a
   test, ?title=auto applies the player's rules. tests/e2e-title.mjs.
+
+- **Between scenes** (2026-10-20): the receipt prints to its end, taps
+  or not (user: "so it can complete the animation"). The scene changes'
+  lines and the clerk's clipping are in faces kept with the page
+  (themes/faces.js; build/build.js FACE_FILES), never a place's Google
+  sheet, and wait for them (a moment at most), so they keep one face
+  from their first frame to their last (user: "whenever there's any of
+  that sort of segue text font, there's something wrong with it"). The
+  commercial waits on its first frame for the picture before its hold,
+  its sound and "Wait… is that my house?" (user: "what are they reacting
+  to"). After the commercial the order paper's ring comes up only once
+  the camera's back on the table, the set off (user: "only appear once
+  you've centered on the table"), and until it's up a press on the set
+  doesn't go back into Futuris.
+

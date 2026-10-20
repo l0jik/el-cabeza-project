@@ -15,6 +15,7 @@
    themselves are the themes; apps/unified.jsx swaps them under the black. */
 
 import React, { useEffect, useRef, useState } from "react";
+import { facesReady, loadFaces } from "../themes/faces.js";
 
 export const STORY_KEY = "el-cabeza:story";
 
@@ -161,9 +162,9 @@ const CSS = `
   .ns-black.on { animation: ns-in 0.95s ease both; }
   .ns-black.off { animation: ns-out 1.1s ease both; }
   .ns-caption { position: absolute; left: 16px; right: 16px; top: 50%; transform: translateY(-50%); text-align: center; color: #EFE4CB;
-    font: 500 clamp(24px, 4.6vw, 44px)/1.2 'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif; letter-spacing: 0.02em; opacity: 0; text-wrap: balance; }
+    font: 500 clamp(24px, 4.6vw, 44px)/1.2 'EC Caption', 'Didot', 'Bodoni 72', Georgia, serif; letter-spacing: 0.02em; opacity: 0; text-wrap: balance; }
   .ns-caption.on { animation: ns-in 0.6s ease both; }
-  .ns-sub { display: block; max-width: 30em; margin: 0.9em auto 0; font: italic 400 clamp(14px, 2.2vw, 19px)/1.45 'Bodoni Moda', 'Didot', Georgia, serif; color: #CDBF9E; letter-spacing: 0.01em; }
+  .ns-sub { display: block; max-width: 30em; margin: 0.9em auto 0; font: italic 400 clamp(14px, 2.2vw, 19px)/1.45 'EC Caption', 'Didot', Georgia, serif; color: #CDBF9E; letter-spacing: 0.01em; }
   .ns-caption.off { animation: ns-out 0.5s ease both; }
   /* (The second line comes up on its own, two seconds after the first, user.) */
   .ns-caption.on .ns-sub { animation: ns-in 0.8s ease 2s both; }
@@ -180,7 +181,14 @@ const CSS = `
    (the app changes the place there) and waits for cut.arrived: the app
    sets it once the new place has mounted and built its room. Two frames
    later (it has drawn) and a moment to read the caption, it fades up on it
-   and calls onDone. A tap during the tape goes straight to the black. */
+   and calls onDone. The tape prints to its end: taps do nothing while
+   it does (user: "taps shouldn't be allowed during the time that it's so
+   it can complete the animation"; a tap used to go straight to the
+   black). The caption's face is the page's own (themes/faces.js: Bodoni
+   Moda, fetched as the cut begins), and the caption waits for it, a
+   moment at most, so it's in its face from its first frame to its last
+   (user: "it starts as a certain font, and then ... it changes like to a
+   different font"). */
 export function StoryCut({ cut, onSwap, onDone, sfx }) {
   const reduced = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const purchase = cut.kind === "purchase";
@@ -195,19 +203,30 @@ export function StoryCut({ cut, onSwap, onDone, sfx }) {
   const clear = () => { timers.current.forEach(clearTimeout); timers.current = []; };
   const darkened = useRef(false);
   const captionAt = useRef(0);
+  const onCaption = useRef(null);
+  const alive = useRef(true);
 
-  // The fade to black and the swap under it.
+  // The fade to black and the swap under it; the caption once it's black
+  // and its face is in.
   const toDark = () => {
     if (darkened.current) return;
     darkened.current = true;
     clear();
     setStage("dark");
     const fade = reduced ? 50 : 950;
-    after(fade, () => { setCaption("on"); captionAt.current = performance.now(); });
+    let faceIn = false, black = false;
+    const show = () => {
+      if (!faceIn || !black || captionAt.current || !alive.current) return;
+      setCaption("on"); captionAt.current = performance.now();
+      if (onCaption.current) { const f = onCaption.current; onCaption.current = null; f(); }
+    };
+    facesReady("caption").then(() => { faceIn = true; show(); });
+    after(fade, () => { black = true; show(); });
     after(fade + 250, () => { setSwapped(true); onSwap(); });
   };
 
   useEffect(() => {
+    loadFaces("caption");
     if (!purchase) { toDark(); return clear; }
     const times = printLineTimes(lines.length);
     const tearAt = PRINT_AT_MS + PRINT_BURSTS[PRINT_BURSTS.length - 1][1] * 1000 + TEAR_AFTER_MS;
@@ -224,7 +243,8 @@ export function StoryCut({ cut, onSwap, onDone, sfx }) {
     return clear;
   }, []);
 
-  // The fade up, once the new place is there and has drawn.
+  // The fade up, once the new place is there and has drawn (and the
+  // caption's been up long enough to read).
   useEffect(() => {
     if (!cut.arrived) return undefined;
     let raf = requestAnimationFrame(() => {
@@ -232,16 +252,19 @@ export function StoryCut({ cut, onSwap, onDone, sfx }) {
         // (A second line takes longer to read, and comes up 2 s after the
         // first: 2 s, its fade, and about four seconds on it.)
         // (cut.linger: longer on it, ms; the restart's, user.)
-        const read = Math.max(0, (reduced ? 400 : (cut.sub ? 6800 : 1700) + (cut.linger || 0)) - (performance.now() - captionAt.current));
-        after(read, () => setCaption("off"));
-        after(read + (reduced ? 50 : 500), () => setStage("reveal"));
-        after(read + (reduced ? 100 : 1650), () => onDone());
+        const fadeUp = () => {
+          const read = Math.max(0, (reduced ? 400 : (cut.sub ? 6800 : 1700) + (cut.linger || 0)) - (performance.now() - captionAt.current));
+          after(read, () => setCaption("off"));
+          after(read + (reduced ? 50 : 500), () => setStage("reveal"));
+          after(read + (reduced ? 100 : 1650), () => onDone());
+        };
+        if (captionAt.current) fadeUp(); else onCaption.current = fadeUp;
       });
     });
     return () => cancelAnimationFrame(raf);
   }, [cut.arrived]);
 
-  useEffect(() => clear, []);
+  useEffect(() => () => { alive.current = false; clear(); }, []);
 
   const lineH = 12.5 * 1.5;
   const clip = tapeClip(torn);
@@ -251,7 +274,6 @@ export function StoryCut({ cut, onSwap, onDone, sfx }) {
       data-testid="story-cut"
       data-stage={stage}
       data-kind={cut.kind}
-      onClick={() => { if (stage === "tape") toDark(); }}
     >
       <style>{CSS}</style>
       {purchase && !swapped && (
