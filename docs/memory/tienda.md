@@ -160,3 +160,24 @@ box art and an ad standee (assets/tienda/*.jpg).
   fade when the camera's in it or close behind it) keys off the
   standee's own place, so it moved with it. Same in the store after the
   story (the housewares ad).
+- **The Try it! card's glow without the line (2026-10-20; user: "The
+  card glow on the table has ... a distinct line as it pans ... the glow
+  is not correct", a phone screenshot circling the card's right side).**
+  Two faults, found in close-ups round the card (the camera's target on
+  a leaf, radius 16, every 20 degrees from -60 to 60):
+  the haze, a sprite facing the camera from the tent's middle, cut
+  through the near leaf, so the part of the card behind its plane was
+  washed blue and the rest not, the line moving across the card as the
+  view turned; and each rim was a solid, hard-edged leaf of light just
+  inside the tent, seen as a flat blue fill through the open ends and a
+  sharp sliver at the edges. tienda-store.js now: while it glows
+  (setGlow, k > 0.002) the leaves, fronts and backs, go transparent
+  (opacity 1, still writing depth) with renderOrder 4, the haze at 3
+  before them, the rims and the pool at 5 after; so the haze is behind
+  the card wherever the card is. The rim texture is worked out per pixel
+  (256x206): brightest at the leaf's edge, falling away outside it, gone
+  0.14 in from it (nothing inside), gone at its own edges and fading out
+  toward the table. The haze fades out a little below its middle (the
+  table cuts it at 0.53 of its half-height seen from level, lower from
+  above). Looked at from -60 to 60 degrees close up, and through the pan
+  on a desktop and a phone.

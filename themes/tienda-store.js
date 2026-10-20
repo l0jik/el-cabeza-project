@@ -999,7 +999,7 @@ export function buildTable(slabX, slabZ) {
   const cardBack = lit({ color: 0xe9e0c8, roughness: 0.9, side: THREE.BackSide });
   const cx = -(slabX / 2 + 1.1 + 2.0), cz = 0;
   // (Its leaves take a tap: "Try it!", tienda-fx.js pickScene.)
-  const tent = [];
+  const tent = [], tentFaces = [];
   if (!revisited) [1, -1].forEach((s) => {
     const g = new THREE.PlaneGeometry(3.4, 2.55);
     const m = mk(g, cardMat, true);
@@ -1008,6 +1008,7 @@ export function buildTable(slabX, slabZ) {
     m.rotation.set(0, s > 0 ? 0 : Math.PI, 0);
     m.rotateX(-0.34);
     const b = new THREE.Mesh(g, cardBack); b.position.copy(m.position); b.quaternion.copy(m.quaternion); group.add(b);
+    tentFaces.push(m, b);
   });
   /* The card glowing the store's neon blue (user: the camera glides back
      "to the table where the placard is going to be glowing the neon
@@ -1016,23 +1017,48 @@ export function buildTable(slabX, slabZ) {
      just behind it), the light pooled on the table under the card, a
      haze round it all, and the card itself just touched with the blue
      (its red still red). setGlow(k, pulse) from tienda-fx.js; dark until
-     then. */
+     then. (User: "a distinct line as it pans ... the glow is not
+     correct": the haze, a sheet facing the camera at the tent's middle,
+     cut through the near leaf, so one side of the card was washed blue
+     and the other not, the line moving across it as the view turned; and
+     each rim was a solid leaf of light, hard-edged, seen through the
+     tent's open ends and as a sharp sliver at the card's edges. Now the
+     leaves are drawn after the haze while it glows, so it shows round the
+     card and never across it; the rims are hollow, soft inside the
+     card's edge; and the haze fades out above where the table meets it.) */
   const glowParts = [];
   const glowTex = (w, h, paint) => { const t = canvasTexture(w, h, paint, { scale: false }); disposables.push(t); return t; };
   const glowMat = (map, params) => { const m = new THREE.MeshBasicMaterial({ map, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false, ...params }); disposables.push(m); return m; };
   if (!revisited) {
-    // The rim: a soft-edged leaf of light, a little larger than the card.
-    const rimTex = glowTex(128, 96, (g, CW, CH) => {
-      g.clearRect(0, 0, CW, CH);
-      g.shadowColor = "rgba(150,232,255,1)"; g.shadowBlur = 20;
-      g.fillStyle = "rgba(170,238,255,1)";
-      for (let i = 0; i < 2; i++) g.fillRect(CW * 0.2, CH * 0.21, CW * 0.6, CH * 0.58);
+    // The rim: neon round the leaf's edge, in a sheet a little larger
+    // than the card just behind it: brightest at the edge, falling away
+    // outside it, nothing a little way in from it (the card's own face,
+    // and what's behind it, show there, whatever the angle), nothing at
+    // the sheet's own edges, and fading out toward the table, where the
+    // pool's light takes over.
+    const RIM_W = 3.4 * 1.62, RIM_H = 2.55 * 1.74, HX = 3.4 / 2, HY = 2.55 / 2;
+    const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    const rimTex = glowTex(256, 206, (g, CW, CH) => {
+      const img = g.createImageData(CW, CH);
+      for (let j = 0; j < CH; j++) for (let i = 0; i < CW; i++) {
+        // (In the card's units from its middle; d, how far outside its edge.)
+        const u = ((i + 0.5) / CW - 0.5) * RIM_W, v = (0.5 - (j + 0.5) / CH) * RIM_H;
+        const dx = Math.abs(u) - HX, dy = Math.abs(v) - HY;
+        const d = Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) + Math.min(Math.max(dx, dy), 0);
+        const out = Math.max(d, 0), edge = Math.min(RIM_W / 2 - Math.abs(u), RIM_H / 2 - Math.abs(v));
+        const a = Math.min(1, 0.95 * Math.exp(-out / 0.16) + 0.45 * Math.exp(-out / 0.5)) * smooth(-0.14, 0, d) * smooth(0, 0.4, edge) * smooth(-HY - 0.05, -HY + 0.55, v);
+        const t = Math.min(1, out / 0.6), o = (j * CW + i) * 4;
+        img.data[o] = Math.round(190 - 80 * t); img.data[o + 1] = Math.round(245 - 25 * t); img.data[o + 2] = 255; img.data[o + 3] = Math.round(255 * a);
+      }
+      g.putImageData(img, 0, 0);
     });
     tent.forEach((leaf) => {
-      const rim = new THREE.Mesh(new THREE.PlaneGeometry(3.4 * 1.62, 2.55 * 1.74), glowMat(rimTex, { side: THREE.DoubleSide }));
+      const rim = new THREE.Mesh(new THREE.PlaneGeometry(RIM_W, RIM_H), glowMat(rimTex, { side: THREE.DoubleSide }));
       disposables.push(rim.geometry);
       rim.position.copy(leaf.position); rim.quaternion.copy(leaf.quaternion);
       rim.translateZ(-0.05);
+      // (After the leaves, so each hides what of the other's is behind it.)
+      rim.renderOrder = 5;
       rim.visible = false; group.add(rim); glowParts.push({ o: rim, base: 1 });
     });
     // The light on the table round it.
@@ -1044,22 +1070,43 @@ export function buildTable(slabX, slabZ) {
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 6), glowMat(poolTex, { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }));
     disposables.push(pool.geometry);
     pool.rotation.x = -Math.PI / 2; pool.position.set(cx, topY + 0.02, cz);
+    pool.renderOrder = 5;
     pool.visible = false; group.add(pool); glowParts.push({ o: pool, base: 0.9 });
     // The haze round it all, cyan to a violet edge (the dock's aura).
     const hazeTex = glowTex(128, 128, (g, CW, CH) => {
       const grd = g.createRadialGradient(CW / 2, CH / 2, 0, CW / 2, CH / 2, CW / 2);
       grd.addColorStop(0, "rgba(170,238,255,0.8)"); grd.addColorStop(0.32, "rgba(102,217,255,0.48)"); grd.addColorStop(0.62, "rgba(140,110,255,0.16)"); grd.addColorStop(1, "rgba(140,110,255,0)");
       g.fillStyle = grd; g.fillRect(0, 0, CW, CH);
+      // Gone a little below its middle: the table goes through it lower
+      // down (lowest seen from level, a little over half way down), and
+      // where it went into the top showed as a hard edge.
+      g.globalCompositeOperation = "destination-in";
+      const fade = g.createLinearGradient(0, 0, 0, CH);
+      fade.addColorStop(0, "rgba(0,0,0,1)"); fade.addColorStop(0.52, "rgba(0,0,0,1)"); fade.addColorStop(0.645, "rgba(0,0,0,0.5)"); fade.addColorStop(0.77, "rgba(0,0,0,0)"); fade.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = fade; g.fillRect(0, 0, CW, CH);
+      g.globalCompositeOperation = "source-over";
     });
     const hazeMat = new THREE.SpriteMaterial({ map: hazeTex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false });
     disposables.push(hazeMat);
     const haze = new THREE.Sprite(hazeMat);
     haze.position.set(cx, topY + 1.7, cz);
     haze.scale.set(8.4, 6.4, 1);
+    // (Before the leaves, which are drawn after it while it shows: setGlow.)
+    haze.renderOrder = 3;
     haze.visible = false; group.add(haze); glowParts.push({ o: haze, base: 0.85, grow: true });
     if (cardMat.emissive) { cardMat.emissive.set(0x66d9ff); cardMat.emissiveIntensity = 0; }
   }
+  // While it glows, the leaves (fronts and backs) go with the see-through
+  // things, after the haze and before the rims and the pool (their order,
+  // above), so the haze is behind the card wherever the card is.
+  let tentLate = false;
   function setGlow(k, pulse = 0.5) {
+    const on = k > 0.002;
+    if (on !== tentLate) {
+      tentLate = on;
+      cardMat.transparent = on; cardBack.transparent = on;
+      tentFaces.forEach((m) => { m.renderOrder = on ? 4 : 0; });
+    }
     glowParts.forEach(({ o, base, grow }) => {
       o.visible = k > 0.002;
       o.material.opacity = k * base * (0.62 + 0.38 * pulse);
