@@ -216,3 +216,9 @@ box art and an ad standee (assets/tienda/*.jpg).
   a time" read as one a turn); "your opponent" after the welcome names
   Walnut once (user: "This should say your opponent ... not walnut");
   board labels "Opponent's ...".
+- **The opponent's first move, watched** (2026-10-20; user: "The camera
+  should slowly pan in to watch the opponent's piece move"): the tour's
+  foe step glides in (1.8 s) on the planned piece and its path, the move
+  starting 2 s in, steps 0.9 s apart; then from-and-to framed under the
+  "moved" card (ElCabeza3D.jsx frameTourBoxes, TOUR_FOE_*). The PA holds
+  its words while the walkthrough's up (html.ec-tour-up).

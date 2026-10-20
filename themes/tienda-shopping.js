@@ -309,6 +309,7 @@ export function StorePA({ active, game, audio, onPurchase }) {
   const [going, setGoing] = React.useState(false);
   const [notice, setNotice] = React.useState(false); // Big Glutts' notice, a minute from closing
   const [spoken, setSpoken] = React.useState(0); // (counts what's been said, for the minutes' timer)
+  const [held, setHeld] = React.useState(0); // (ticks while the first game's walkthrough holds it back)
   const arrivedAt = React.useRef(performance.now());
   // (Its lettering, the clipping's, fetched as the store opens: in long
   // before it speaks.)
@@ -317,6 +318,10 @@ export function StorePA({ active, game, audio, onPurchase }) {
   const finished = !!(game && (game.status === "finished" || game.status === "ended"));
   const t = (k, d) => (typeof window !== "undefined" && typeof window[k] === "number" ? window[k] : d);
   const speak = React.useCallback((which) => {
+    // Not over the first game's walkthrough (its card is where the words
+    // come up): a moment later, once it's put away (html.ec-tour-up, the
+    // chassis).
+    if (typeof document !== "undefined" && document.documentElement.classList.contains("ec-tour-up")) { setTimeout(() => setHeld((n) => n + 1), 1200); return; }
     if (which === "instock" || which === "closing") PA.said[which] = true;
     PA.at = performance.now();
     if (which === "closing") PA.closingAt = PA.at;
@@ -332,7 +337,7 @@ export function StorePA({ active, game, audio, onPurchase }) {
     if (moves >= IN_STOCK_MOVES) { speak("instock"); return undefined; }
     const id = setTimeout(() => speak("instock"), Math.max(0, t("__EC_TEST_PA_MS__", IN_STOCK_MS) - (performance.now() - arrivedAt.current)));
     return () => clearTimeout(id);
-  }, [active, moves, speak]);
+  }, [active, moves, speak, held]);
   // Closing time: a while after that, or when a game ends (not too soon).
   React.useEffect(() => {
     if (!active || !PA.said.instock || PA.said.closing) return undefined;
@@ -341,7 +346,7 @@ export function StorePA({ active, game, audio, onPurchase }) {
     const wait = finished ? min - since : t("__EC_TEST_CLOSING_MS__", CLOSING_MS) - since;
     const id = setTimeout(() => speak("closing"), Math.max(0, wait));
     return () => clearTimeout(id);
-  }, [active, finished, say, speak]);
+  }, [active, finished, say, speak, held]);
   /* The last minutes: ten from the closing words, said at five, four,
      three and two to go (the one it is, if one was missed while the PA
      was quiet: a sheet or the clerk up), and at one the notice, the

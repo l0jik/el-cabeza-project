@@ -277,6 +277,23 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   t = await cardText(page);
   check("End turn: Walnut's turn, its own card", (await tourOf(page)).step === "foe" && /(Your opponent's turn\.|Your opponent moved its|Your turn again\.)/.test(t), t);
 
+  // The computer's move watched (user: "it happens too abruptly. The camera
+  // should slowly pan in to watch the opponent's piece move so the user can
+  // see it happening"): the camera glides in, lower, on the piece it moves,
+  // and the piece goes only once it's there.
+  const foeAt = () => page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.filter((p) => p.owner === "dark").map((p) => [p.id, p.row, p.col, p.w, p.h, p.z])));
+  const foe0 = await foeAt();
+  const watch = [];
+  for (let i = 0; i < 150; i++) {
+    const v = (await page.evaluate(() => window.__EC_TEST_CAM__().view));
+    const moved = (await foeAt()) !== foe0;
+    watch.push({ phi: +v.phi.toFixed(3), radius: +v.radius.toFixed(2), moved });
+    if (moved) break;
+    await page.waitForTimeout(100);
+  }
+  const movedAt = watch.findIndex((w) => w.moved);
+  const inFirst = watch.slice(0, Math.max(0, movedAt)).findIndex((w) => Math.abs(w.phi - 0.72) < 0.03);
+  check("the computer's turn: the camera glides in on its piece, and it moves only once the camera's there", movedAt > 0 && inFirst >= 0 && inFirst < movedAt && watch[0].phi < 0.69, JSON.stringify({ movedAt, inFirst, watch: watch.filter((w, i) => i % 3 === 0 || w.moved) }));
   // The computer moves: what it moved, an arrow from where it stood.
   for (let i = 0; i < 60 && !(await page.evaluate(() => window.__EC_TEST_TO_MOVE__() === "light")); i++) await page.waitForTimeout(500);
   await page.waitForTimeout(2600);

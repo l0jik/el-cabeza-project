@@ -247,6 +247,11 @@ const TOUR_PHI = 0.6;
 const TOUR_BOARD_PHI = 0.45;
 // The crush card's close-up looks in lower, to see the roll (tourCrush).
 const TOUR_CRUSH_PHI = 0.85;
+// The other side's first move in the walkthrough, watched (user: "it
+// happens too abruptly. The camera should slowly pan in to watch the
+// opponent's piece move"): looked at from this low, the camera's slow glide
+// in on it, the move begun as that ends, and the pause between its steps.
+const TOUR_FOE_PHI = 0.72, TOUR_FOE_GLIDE_MS = 1800, TOUR_FOE_LEAD_MS = 2000, TOUR_FOE_STEP_MS = 900;
 // The close-up's crush, once round: the copies in, the roll, held, out.
 const TOUR_CRUSH_LOOP_MS = 3400, TOUR_CRUSH_ROLL_AT = 650, TOUR_CRUSH_ROLL_MS = 620, TOUR_CRUSH_OUT_AT = 2700;
 // Other realities (theme.cornerAction) waits this long for its second tap.
@@ -3272,6 +3277,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // (While a card's up a tap on the board picks nothing: it's being shown.)
   const tourCardUpRef = useRef(false);
   tourCardUpRef.current = tourCardUp;
+  const tourStepRef = useRef(null);
+  tourStepRef.current = tourStep;
   const tourCamRef = useRef(null); // the view before the tour first turned the board
   const tourCardRef = useRef(null);
   const tourSawMineRef = useRef(false); // your turn has come round (the computer may open)
@@ -4611,6 +4618,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      once it's moved and has an action left). The other side's turn: what
      it moved, an arrow from where it stood. */
   const tourShown = !!tourStep && isPlaying && !awaitingBegin && !replaying && dockView !== "panel";
+  // (Said on the page while it's up, html.ec-tour-up: a world's own words
+  // wait for it, as the store's PA does, tienda-shopping.js.)
+  useEffect(() => {
+    if (!tourShown || typeof document === "undefined") return undefined;
+    document.documentElement.classList.add("ec-tour-up");
+    return () => document.documentElement.classList.remove("ec-tour-up");
+  }, [tourShown]);
   const tourCanGo = React.useMemo(
     () => (tourStep === "pieces" ? new Set(pieces.filter((p) => p.owner === tourMine && Object.keys(legalMovesFor(pieces, p, Math.max(1, turnBudget()))).length).map((p) => p.id)) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -5004,6 +5018,65 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     c.phi = phi; c.radius = best.r; c.target.copy(best.target); c.dollhouse = false;
     glideRef.current = {};
   }
+  /* The other side's move, watched (user: "The camera should slowly pan in
+     to watch the opponent's piece move so the user can see it happening
+     rather than react after the move is almost completed"): the pieces it
+     moves, where each step takes them, and board round them, as close as
+     they fill most of the room the card leaves, from your side and lower
+     than the lessons' look so the roll reads. `boxes`: every place
+     they stand, before, between and after; `ms`, the glide. */
+  function frameTourBoxes(boxes, ms) {
+    const t = three.current;
+    const size = t.getMountSize && t.getMountSize();
+    if (!boxes.length || !t.camera || !t.renderer || !size) return;
+    const c = cam.current;
+    if (!tourCamRef.current) tourCamRef.current = { theta: c.theta, phi: c.phi, radius: c.radius, target: c.target.clone(), dollhouse: !!c.dollhouse };
+    // (Half a square of board round them, three across at least: in close,
+    // a phone's narrow screen being what it fits to.)
+    let r0 = Infinity, r1 = -Infinity, c0 = Infinity, c1 = -Infinity, high = PIECE_SCALE;
+    boxes.forEach((b) => {
+      r0 = Math.min(r0, b.row - 0.5); r1 = Math.max(r1, b.row + b.h + 0.5);
+      c0 = Math.min(c0, b.col - 0.5); c1 = Math.max(c1, b.col + b.w + 0.5);
+      // (A block's corner rises as it rolls.)
+      high = Math.max(high, Math.max(b.w, b.h, b.z || 1) * 1.42 * PIECE_SCALE);
+    });
+    const grow = (a, b) => { const d = Math.max(0, 3 - (b - a)) / 2; return [a - d, b + d]; };
+    [r0, r1] = grow(r0, r1); [c0, c1] = grow(c0, c1);
+    const foot = [[c0, r0], [c1, r0], [c0, r1], [c1, r1]].map(([cc, rr]) => [cc * SQUARE_SIZE - OFF_X, rr * SQUARE_SIZE - OFF_Z]);
+    const phi = Math.min(theme.maxPitch ?? 1.25, TOUR_FOE_PHI);
+    // (In close, as the crush card's example: only the world's own nearest.)
+    const best = fitFootInRegion(c.theta, phi, foot, high, tourRegion(size, 24), 0.8, zoomMin);
+    c.phi = phi; c.radius = best.r; c.target.copy(best.target); c.dollhouse = false;
+    glideRef.current = { ms };
+  }
+  // Its turn as planned, played through on paper: where each step puts it.
+  function tourPlanBoxes(planSteps) {
+    let sim = pieces;
+    const boxes = [];
+    for (const st of planSteps) {
+      const p = sim.find((q) => q.id === st.pieceId);
+      if (!p) break;
+      boxes.push(p);
+      const m = legalMovesFor(sim, p)[st.dir];
+      if (!m || !m.candidate) break;
+      const moved = { ...p, ...m.candidate };
+      sim = sim.map((q) => (q.id === p.id ? moved : q));
+      boxes.push(moved);
+    }
+    return boxes;
+  }
+  // ...and once it's moved, what it moved, from where to where (the card
+  // that says so is taller: the view fitted to what it leaves).
+  function frameTourFoeMoved() {
+    const before = tourFoeBeforeRef.current || [];
+    const boxes = [];
+    before.forEach((b) => {
+      const now = pieces.find((p) => p.id === b.id);
+      if (now && !(now.row === b.row && now.col === b.col && now.w === b.w && now.h === b.h && now.z === b.z)) boxes.push(b, now);
+    });
+    if (boxes.length) frameTourBoxes(boxes, 900);
+    else frameTourBoard();
+  }
   // Each step's view, a frame on (the card in its place first): the board,
   // or the piece you've picked in your first turn (again after each move
   // it makes). A piece of yours picked once that turn's over, the tour's
@@ -5015,11 +5088,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const raf = requestAnimationFrame(() => {
       if (tourYours) frameTourPiece(selectedPiece);
       else if (tourStep === "crush" && tourCrushSite) cutToTourCrush(tourCrushSite);
+      // (The other side's move: watched where it's played, then framed
+      // from where to where.)
+      else if (tourStep === "foe" && aiDirsRef.current && aiDirsRef.current.watched) return;
+      else if (tourStep === "foe" && currentPlayer === tourMine && tourFoeBeforeRef.current) frameTourFoeMoved();
       else if (!(tourStep === "pieces" && selectedId)) frameTourBoard();
     });
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tourStep, tourShown, selectedId, tourYours && turnLocked ? stepsUsed : -1]);
+  }, [tourStep, tourShown, selectedId, tourYours && turnLocked ? stepsUsed : -1, tourStep === "foe" ? currentPlayer : null]);
   /* The close-up's crush, played over and over while the card's up: copies
      of the pieces' own meshes (the world's own look) in a group of their
      own, at tourCrushSite. The two come in; the block rolls east onto the
@@ -8009,6 +8086,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const onlineDrives = !!queued && queued.side === currentPlayer;
     if (currentPlayer !== foeSide && !onlineDrives && !(aiDirsRef.current && aiDirsRef.current.online)) return;
 
+    // The walkthrough's watched move: begun once the camera's in on it
+    // (a run of this effect while it waits picks the wait up).
+    const startWatched = (plan) => {
+      if (aiDirsRef.current !== plan || !plan.leadUntil) return;
+      plan.leadUntil = 0;
+      const p = pieces.find((q) => q.id === plan.planSteps[0].pieceId);
+      if (p) beginMoveRef.current(p, plan.planSteps[0].dir);
+    };
+    if (stepsUsed === 0 && aiDirsRef.current && aiDirsRef.current.leadUntil) {
+      const plan = aiDirsRef.current;
+      const lead = setTimeout(() => startWatched(plan), Math.max(0, plan.leadUntil - performance.now()));
+      return () => clearTimeout(lead);
+    }
+
     if (stepsUsed === 0 && !aiDirsRef.current) {
       if (onlineDrives) {
         const planSteps = queued.steps;
@@ -8093,6 +8184,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           const streaks = {};
           for (const st of planSteps) streaks[st.pieceId] = (aiPieceStreaksRef.current[st.pieceId] || 0) + 1;
           aiPieceStreaksRef.current = streaks;
+          // The walkthrough's look at the other side's first turn (user:
+          // "it happens too abruptly"): the camera glides in on the piece
+          // and its way first, and the move begins as it gets there.
+          if (tourStepRef.current === "foe") {
+            const plan = aiDirsRef.current;
+            plan.watched = true;
+            plan.leadUntil = performance.now() + TOUR_FOE_LEAD_MS;
+            frameTourBoxes(tourPlanBoxes(planSteps), TOUR_FOE_GLIDE_MS);
+            timer = setTimeout(() => startWatched(plan), TOUR_FOE_LEAD_MS);
+            return;
+          }
           beginMoveRef.current(piece, planSteps[0].dir);
         }
       });
@@ -8121,7 +8223,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           if (!piece) return;
           plan.next += 1;
           beginMoveRef.current(piece, step.dir);
-        }, 500);
+        }, plan.watched ? TOUR_FOE_STEP_MS : 500);
         return () => clearTimeout(timer);
       }
       const lastId = plan.planSteps[plan.planSteps.length - 1].pieceId;
