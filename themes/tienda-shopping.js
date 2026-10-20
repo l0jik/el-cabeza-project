@@ -10,14 +10,15 @@
    - the cart: once one's in it, the tag becomes the cart ("Cart · 1
      item"), and "Check out" is the purchase (story.onPurchase); the
      dock's own button says the same (tienda.js);
-   - the store's PA (on the first visit): a few moves into the first
-     game, or a while after arriving, the chime and an announcement (its
-     words as a caption, lettered as the clerk scene's PA is): El Cabeza
-     in stock in Aisle 9, Register 3 open; a tap on it puts one in the
-     cart;
-   - closing time: later, the lights go down a step (a flicker, then
-     dimmer, and they stay so), and the PA: the store closing in ten
-     minutes, final purchases to the front; a tap on it checks out;
+   - the store's PA (on the first visit): the player's first move after
+     the first game's walkthrough, or a while after arriving, the chime
+     and an announcement (its words as a caption, lettered as the clerk
+     scene's PA is): El Cabeza in stock in Aisle 9, Register 3 open; a
+     tap on it puts one in the cart;
+   - closing time: the second move, or later by the clock, the lights go
+     down a step (a flicker, then dimmer, and they stay so), and the PA:
+     the store closing in ten minutes, final purchases to the front; a
+     tap on it checks out;
    - each announcement can be swiped away once it's been up 3 s (user:
      "You should be able to swipe dismiss these after about 3 seconds"):
      left, right or up, it goes with the finger and off; sooner, it only
@@ -35,13 +36,23 @@
      purchases to the front registers; its button checks out, "Just a
      minute" puts it away. Real minutes, from the ten-minute words (a
      minute missed while something else was up is skipped: the PA says
-     the time it is).
+     the time it is);
+   - in a game it's all sooner, by the player's moves (user: "The user
+     will be encouraged to purchase the game and leave the store 3 moves
+     after they have started playing once the tutorial has been
+     completed, because it seems like they're just kind of stuck in a low
+     light situation with no game momentum"): Big Glutts' notice comes
+     after the third move since the walkthrough (MOVES), the store closing
+     now; each moment once the computer has answered the move and the
+     words before it are down, whichever comes first, the move or the
+     clock.
 
    The cart is kept for the page (module level) and emptied at each new
    visit; the PA's moments once each, per visit. */
 
 import React from "react";
 import { loadFaces } from "./faces.js";
+import { tourDone } from "../chassis/FirstGameTour.jsx";
 
 const h = React.createElement;
 const INK = "#2E2118", RED = "#A33F33", PAPER = "#EFE6CD";
@@ -63,9 +74,27 @@ export function useCart() {
 
 /* ---- the PA's moments, once each a visit ---- */
 // (closingAt: when the ten minutes began; left: the last minute said, 5
-// down to 1, the notice; 0 none yet.)
-const PA = { said: { instock: false, closing: false }, at: 0, closingAt: 0, left: 0 };
-export function resetShopping() { PA.said = { instock: false, closing: false }; PA.at = 0; PA.closingAt = 0; PA.left = 0; emptyCart(); setDim(false); }
+// down to 1, the notice; 0 none yet; early: the notice came by the moves;
+// moves: the player's since the walkthrough, the log read up to seen, -1
+// not yet.)
+const PA = { said: { instock: false, closing: false }, at: 0, closingAt: 0, left: 0, early: false, moves: 0, seen: -1 };
+export function resetShopping() { PA.said = { instock: false, closing: false }; PA.at = 0; PA.closingAt = 0; PA.left = 0; PA.early = false; PA.moves = 0; PA.seen = -1; emptyCart(); setDim(false); }
+/* The player's own moves since the first game's walkthrough was over (or
+   from the first game, where it was walked through before): each turn
+   the log gains that isn't the computer's, once, across the visit's games
+   (a new game's log starts again; a turn taken back and played again
+   counts again). */
+function movesSinceTour(game) {
+  const log = game && game.log;
+  if (!log) return PA.moves;
+  if (PA.seen < 0 || log.length < PA.seen) PA.seen = log.length;
+  if (log.length > PA.seen) {
+    const over = tourDone() && !(typeof document !== "undefined" && document.documentElement.classList.contains("ec-tour-up"));
+    for (let i = PA.seen; i < log.length; i++) if (over && log[i] && log[i].player !== game.aiPlayer) PA.moves++;
+    PA.seen = log.length;
+  }
+  return PA.moves;
+}
 const LINES = {
   instock: "Attention shoppers: El Cabeza, the game of unparalleled intention, is now in stock in the Games Department, Aisle 9. Register 3 is open.",
   closing: "Attention shoppers: the store will be closing in ten minutes. Please bring your final purchases to the front registers. Thank you for shopping with us.",
@@ -173,10 +202,12 @@ export function ShopCorner({ inGame, audio, onPurchase }) {
       h("button", { type: "button", className: "td-shop-go", "data-testid": "tienda-price-cart", onClick: () => { sel(); addToCart(); setOpen(false); } }, "Put one in the cart ›")));
 }
 
-/* The PA, on the first visit: in stock (a few moves into the first game,
-   or a while after arriving), then, later, closing time; then the last
-   minutes, and Big Glutts' notice a minute from closing (NOTICE_CSS). */
-const IN_STOCK_MOVES = 4, IN_STOCK_MS = 75000, CLOSING_MS = 120000, CLOSING_MIN_MS = 35000, MINUTE_MS = 60000;
+/* The PA, on the first visit: in stock (a while after arriving), then,
+   later, closing time; then the last minutes, and Big Glutts' notice a
+   minute from closing (NOTICE_CSS). In a game, sooner: each at the
+   player's move after the walkthrough given here (MOVES). */
+const IN_STOCK_MS = 75000, CLOSING_MS = 120000, CLOSING_MIN_MS = 35000, MINUTE_MS = 60000;
+const MOVES = { instock: 1, closing: 2, notice: 3 };
 // (The notice's stripes, the store's four earth tones, as on the flyer.)
 const STRIPES = ["#6B3A1E", "#B4451F", "#E07B22", "#E9B23A"];
 const NOTICE_CSS = `
@@ -215,7 +246,7 @@ function logoFont() {
   if (typeof document === "undefined" || document.querySelector('link[href*="family=Caprasimo"]')) return;
   const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Caprasimo&display=swap"; document.head.appendChild(l);
 }
-function ClosingNotice({ onCheckout, onLater }) {
+function ClosingNotice({ onCheckout, onLater, early }) {
   const ref = React.useRef(null);
   React.useEffect(() => {
     logoFont();
@@ -234,7 +265,8 @@ function ClosingNotice({ onCheckout, onLater }) {
         STRIPES.map((c, i) => h("rect", { key: c, x: 0, y: i * 8.5, width: 380, height: 7.5, fill: c }))),
       h("div", { className: "logo" }, h("b", null, "Big Glutts"), h("span", null, "Your savings headquarters")),
       h("div", { className: "band" }, "Closing time"),
-      h("h2", { id: "td-closing-title" }, "The store closes in one minute."),
+      // (Come by the moves, before the clock's last minute: closing now.)
+      h("h2", { id: "td-closing-title" }, early ? "The store is now closing." : "The store closes in one minute."),
       h("p", { id: "td-closing-words" }, "We’re going to have to ask you to leave. Please take all purchases to the front registers."),
       h("p", { className: "thanks" }, "Thank you for shopping at Big Glutts."),
       h("button", { type: "button", className: "go", "data-testid": "tienda-closing-checkout", onClick: onCheckout }, "Take El Cabeza to the register ›"),
@@ -314,8 +346,13 @@ export function StorePA({ active, game, audio, onPurchase }) {
   // (Its lettering, the clipping's, fetched as the store opens: in long
   // before it speaks.)
   React.useEffect(() => { loadFaces("comic"); }, []);
-  const moves = game && game.log ? game.log.length : 0;
+  const moves = movesSinceTour(game);
   const finished = !!(game && (game.status === "finished" || game.status === "ended"));
+  // (The computer's answered the move: the player's turn, nothing moving.)
+  const yours = !!(game && game.status === "playing" && !game.awaitingBegin && game.currentPlayer !== game.aiPlayer && !game.busy);
+  // A moment the moves have brought: the move made, and answered or the
+  // game over (MOVES).
+  const byMoves = (k) => moves >= MOVES[k] && (yours || finished);
   const t = (k, d) => (typeof window !== "undefined" && typeof window[k] === "number" ? window[k] : d);
   const speak = React.useCallback((which) => {
     // Not over the first game's walkthrough (its card is where the words
@@ -331,22 +368,42 @@ export function StorePA({ active, game, audio, onPurchase }) {
     if (which === "closing") setDim(true);
     setGoing(false); setSay(which); setSpoken((n) => n + 1);
   }, [audio]);
-  // In stock: four moves into a game, or a while after arriving.
+  // Big Glutts' notice, the lights down another step: by the clock's last
+  // minute, or early, by the moves.
+  const ask = React.useCallback((early) => {
+    PA.left = 1; PA.early = early;
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("td-pa-speak"));
+    if (audio && audio.playPage) audio.playPage();
+    setDim(true, 2);
+    setSay(null); setNotice(true); setSpoken((n) => n + 1);
+  }, [audio]);
+  // In stock: the first move after the walkthrough, or a while after
+  // arriving.
+  const stockDue = byMoves("instock");
   React.useEffect(() => {
     if (!active || PA.said.instock) return undefined;
-    if (moves >= IN_STOCK_MOVES) { speak("instock"); return undefined; }
+    if (stockDue) { speak("instock"); return undefined; }
     const id = setTimeout(() => speak("instock"), Math.max(0, t("__EC_TEST_PA_MS__", IN_STOCK_MS) - (performance.now() - arrivedAt.current)));
     return () => clearTimeout(id);
-  }, [active, moves, speak, held]);
-  // Closing time: a while after that, or when a game ends (not too soon).
+  }, [active, stockDue, speak, held]);
+  // Closing time: the second move (once the in-stock words are down), or
+  // a while after them, or when a game ends (not too soon).
+  const closingDue = byMoves("closing");
   React.useEffect(() => {
     if (!active || !PA.said.instock || PA.said.closing) return undefined;
+    if (closingDue && !say) { speak("closing"); return undefined; }
     const since = performance.now() - PA.at, min = t("__EC_TEST_CLOSING_MIN_MS__", CLOSING_MIN_MS);
     if (finished && since >= min) { speak("closing"); return undefined; }
     const wait = finished ? min - since : t("__EC_TEST_CLOSING_MS__", CLOSING_MS) - since;
     const id = setTimeout(() => speak("closing"), Math.max(0, wait));
     return () => clearTimeout(id);
-  }, [active, finished, say, speak, held]);
+  }, [active, finished, say, speak, held, closingDue]);
+  // Asked to leave: the third move, with the player to move again (not
+  // over a game's end) and closing time's words down.
+  const noticeDue = moves >= MOVES.notice && yours;
+  React.useEffect(() => {
+    if (active && PA.said.closing && PA.left !== 1 && !say && noticeDue) ask(true);
+  }, [active, say, noticeDue, ask]);
   /* The last minutes: ten from the closing words, said at five, four,
      three and two to go (the one it is, if one was missed while the PA
      was quiet: a sheet or the clerk up), and at one the notice, the
@@ -357,12 +414,8 @@ export function StorePA({ active, game, audio, onPurchase }) {
     const tick = () => {
       const left = Math.max(1, 10 - Math.floor((performance.now() - PA.closingAt) / minute));
       if (left > 5 || (PA.left && left >= PA.left)) return;
-      PA.left = left;
-      if (left > 1) { speak(`${left}min`); return; }
-      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("td-pa-speak"));
-      if (audio && audio.playPage) audio.playPage();
-      setDim(true, 2);
-      setSay(null); setNotice(true); setSpoken((n) => n + 1);
+      if (left > 1) { PA.left = left; speak(`${left}min`); return; }
+      ask(false);
     };
     tick();
     if (PA.left === 1) return undefined;
@@ -373,7 +426,7 @@ export function StorePA({ active, game, audio, onPurchase }) {
     const wait = () => { id = setTimeout(() => { const was = PA.left; tick(); if (PA.left === was) wait(); }, Math.max(0, PA.closingAt + (10 - nextLeft) * minute - performance.now()) + 50); };
     wait();
     return () => clearTimeout(id);
-  }, [active, spoken, speak, audio]);
+  }, [active, spoken, speak, ask]);
   // The words stay a while, then go.
   React.useEffect(() => {
     if (!say) return undefined;
@@ -391,7 +444,7 @@ export function StorePA({ active, game, audio, onPurchase }) {
   const later = React.useCallback(() => { audio && audio.playMenu && audio.playMenu(); setNotice(false); }, [audio]);
   const swipe = useSwipeAway(say, React.useCallback(() => { setSay(null); setGoing(false); }, []));
   if (!active) return null;
-  if (notice) return h(ClosingNotice, { onCheckout: checkout, onLater: later });
+  if (notice) return h(ClosingNotice, { onCheckout: checkout, onLater: later, early: PA.early });
   if (!say) return null;
   const toRegister = say !== "instock";
   // (Each announcement its own caption, come in afresh.)
@@ -418,4 +471,4 @@ export function useShoppingVisit(active) {
   }, [active]);
 }
 
-if (typeof window !== "undefined") window.__TIENDA_SHOP__ = () => ({ cart: CART.n, said: { ...PA.said }, left: PA.left, dim: !!document.querySelector('.td-closing-dim[data-on="true"], .td-closing-dim[data-on="2"]'), dim2: !!document.querySelector('.td-closing-dim[data-on="2"]') });
+if (typeof window !== "undefined") window.__TIENDA_SHOP__ = () => ({ cart: CART.n, said: { ...PA.said }, left: PA.left, early: PA.early, moves: PA.moves, dim: !!document.querySelector('.td-closing-dim[data-on="true"], .td-closing-dim[data-on="2"]'), dim2: !!document.querySelector('.td-closing-dim[data-on="2"]') });

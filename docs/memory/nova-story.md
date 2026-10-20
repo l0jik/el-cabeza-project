@@ -112,6 +112,12 @@ in; leaving Singularity, back in the den as the set switches off.
   registers.", the lights down another step): its button checks out (the
   purchase), "Just a minute" (or Escape) puts it away for good. Tests
   shorten a minute with `__EC_TEST_CLOSING_MINUTE_MS__` (e2e-store-nudge).
+  In a game it all comes sooner (2026-10-20, user: "encouraged to
+  purchase the game and leave the store 3 moves after they have started
+  playing once the tutorial has been completed"): in stock, closing time
+  and the notice ("The store is now closing.") after the player's first,
+  second and third moves since the walkthrough (MOVES), whichever's
+  first, the moves or the clock.
 - **The first game in the store** (2026-10-17): a new player is Ash and
   opens, against the computer as Walnut on Easy (tienda.js
   defaultOpponent), and their first Try a Game is walked through

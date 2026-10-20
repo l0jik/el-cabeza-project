@@ -264,6 +264,107 @@ console.log("\nthe last minutes: to the register");
   await ctx.close();
 }
 
+/* Three moves after the walkthrough (user: "The user will be encouraged
+   to purchase the game and leave the store 3 moves after they have
+   started playing once the tutorial has been completed, because it seems
+   like they're just kind of stuck in a low light situation with no game
+   momentum"): a new player's first game, walked through (its turn and
+   the computer's don't count), then the PA by the moves alone (the clock
+   held off): in stock once the computer has answered the first move,
+   closing time after the second (the in-stock words down first), and
+   after the third Big Glutts' notice, the store closing now; its button
+   the purchase. (The check alert off: it can hold a turn's end.) */
+const MOVE_TRIES = [["light-flaco", "N"], ["light-chato", "N"], ["light-turrito", "N"], ["light-flaco", "S"], ["light-chato", "S"], ["light-turrito", "S"],
+  ["light-flaco", "E"], ["light-flaco", "W"], ["light-chato", "E"], ["light-chato", "W"], ["light-turrito", "E"], ["light-turrito", "W"]];
+const logLen = (page) => page.evaluate(() => (window.__EC_TEST_LOG__ || []).length);
+const placeOf = (page, id) => page.evaluate((i) => { const p = (window.__EC_TEST_PIECES__ || []).find((x) => x.id === i); return p ? [p.row, p.col, p.w, p.h, p.z].join(",") : null; }, id);
+// One of the player's turns through the moves' own path, a step at a
+// time (each piece and way tried till one moves), till the turn passes;
+// then the computer's, till it's the player's again.
+async function playTurn(page) {
+  const n0 = await logLen(page);
+  for (let step = 0; step < 6 && (await logLen(page)) === n0; step++) {
+    let moved = false;
+    for (const [id, dir] of MOVE_TRIES) {
+      const before = await placeOf(page, id);
+      if (!before) continue;
+      await page.evaluate(([i, d]) => window.__EC_TEST_MOVE__(i, d), [id, dir]);
+      const t0 = Date.now();
+      while (!moved && Date.now() - t0 < 2500) {
+        moved = (await placeOf(page, id)) !== before || (await logLen(page)) > n0;
+        if (!moved) await page.waitForTimeout(120);
+      }
+      if (moved) break;
+    }
+    if (!moved) return false;
+    await page.waitForTimeout(500);
+  }
+  return !!(await poll(async () => (await logLen(page)) >= n0 + 2 && (await page.evaluate(() => window.__EC_TEST_TO_MOVE__())) === "light", 60000, 250));
+}
+console.log("\nthree moves after the walkthrough: asked to take it to the register and leave");
+{
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
+  await ctx.addInitScript(() => {
+    window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NUDGE_MS__ = 600000;
+    window.__EC_TEST_PA_MS__ = 600000; window.__EC_TEST_CLOSING_MS__ = 600000;
+    try { localStorage.setItem("el-cabeza:check-alert", "0"); } catch (e) { /* none */ }
+    // What the PA put up, with the turns the log had and whose turn it
+    // was; and when each card went.
+    window.__PA_SAID__ = []; window.__PA_GONE_AT__ = {};
+    new MutationObserver((ms) => ms.forEach((m) => {
+      m.addedNodes.forEach((n) => {
+        const id = n.nodeType === 1 && n.getAttribute("data-testid");
+        if (id && /^tienda-(pa-|closing-notice)/.test(id)) window.__PA_SAID__.push({ id, at: performance.now(), log: (window.__EC_TEST_LOG__ || []).length, toMove: window.__EC_TEST_TO_MOVE__ && window.__EC_TEST_TO_MOVE__() });
+      });
+      m.removedNodes.forEach((n) => { const id = n.nodeType === 1 && n.getAttribute("data-testid"); if (id && /^tienda-pa-/.test(id)) window.__PA_GONE_AT__[id] = performance.now(); });
+    })).observe(document, { childList: true, subtree: true });
+  });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  const said = () => page.evaluate(() => window.__PA_SAID__);
+  const shop = () => page.evaluate(() => window.__TIENDA_SHOP__());
+  const step = () => page.evaluate(() => window.__EC_TEST_TOUR__ && window.__EC_TEST_TOUR__().step);
+  await page.goto(URL);
+  await poll(() => page.evaluate(() => !!window.__TIENDA_THREE__), 30000);
+  await poll(() => has(page, "tienda-open-box"), 10000);
+  await q(page, "tienda-open-box").click();
+  await poll(async () => !(await has(page, "tienda-lid")), 8000);
+  await openDockPanel(page);
+  await q(page, "tienda-try-game").click({ force: true });
+  check("a new player's first game: the walkthrough", !!(await poll(() => has(page, "tour-card"), 15000)));
+  for (let i = 0; i < 7 && (await has(page, "tour-next")); i++) { await q(page, "tour-next").click(); await page.waitForTimeout(800); }
+  check("...its cards through: your first turn", (await poll(async () => (await step()) === "pieces", 8000)) === true, String(await step()));
+  check("...that turn played, and the computer's (still walked through)", await playTurn(page), `log ${await logLen(page)}`);
+  await poll(() => has(page, "tour-done"), 15000);
+  check("...neither counts: nothing said, no moves", (await said()).length === 0 && (await shop()).moves === 0, JSON.stringify({ said: await said(), shop: await shop() }));
+  await q(page, "tour-done").click();
+  check("Got it: the walkthrough's over", await poll(async () => (await step()) === null, 6000));
+
+  check("the first move after it, answered", await playTurn(page), `log ${await logLen(page)}`);
+  const stock = await poll(async () => (await said()).find((s) => s.id === "tienda-pa-instock"), 8000, 100);
+  check("...the PA: in stock, once the computer had answered", !!stock && stock.log === 4 && stock.toMove === "light" && (await shop()).moves === 1, JSON.stringify({ stock, shop: await shop() }));
+  check("...and nothing more yet", (await said()).length === 1 && !(await shop()).said.closing);
+
+  check("the second move, answered", await playTurn(page), `log ${await logLen(page)}`);
+  const closing = await poll(async () => (await said()).find((s) => s.id === "tienda-pa-closing"), 20000, 100);
+  const goneAt = await page.evaluate(() => window.__PA_GONE_AT__["tienda-pa-instock"]);
+  check("...closing time, the in-stock words down first", !!closing && closing.log >= 6 && closing.toMove === "light" && !!goneAt && goneAt <= closing.at, JSON.stringify({ closing, goneAt }));
+  check("...the lights down a step, and no notice yet", (await poll(() => page.evaluate(() => window.__TIENDA_SHOP__().dim), 3000)) && !(await has(page, "tienda-closing-notice")) && (await shop()).moves === 2);
+
+  check("the third move, answered", await playTurn(page), `log ${await logLen(page)}`);
+  const notice = await poll(async () => (await said()).find((s) => s.id === "tienda-closing-notice"), 25000, 100);
+  check("...Big Glutts' notice, the player to move (the closing words down first)", !!notice && notice.log >= 8 && notice.toMove === "light" && (await page.evaluate(() => window.__PA_GONE_AT__["tienda-pa-closing"])) <= notice.at && (await shop()).early === true, JSON.stringify({ notice, shop: await shop() }));
+  const text = notice ? (await q(page, "tienda-closing-notice").innerText()).replace(/\s+/g, " ") : "";
+  check("...the store closing now: asked to leave, take it to the front", /The store is now closing\./.test(text) && /We’re going to have to ask you to leave\. Please take all purchases to the front registers\./.test(text) && /Take El Cabeza to the register/i.test(text), text);
+  check("...the lights down another step", await poll(() => page.evaluate(() => window.__TIENDA_SHOP__().dim2), 3000));
+  check("...in order: in stock, closing time, the notice", JSON.stringify((await said()).map((s) => s.id)) === JSON.stringify(["tienda-pa-instock", "tienda-pa-closing", "tienda-closing-notice"]), JSON.stringify((await said()).map((s) => s.id)));
+  await q(page, "tienda-closing-checkout").click();
+  check("...its button: the purchase", await poll(() => has(page, "story-cut"), 6000, 100));
+  check("no page errors", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failures ? `\n${failures} failed` : "\nall passed");
 process.exit(failures ? 1 : 0);

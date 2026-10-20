@@ -222,3 +222,14 @@ box art and an ad standee (assets/tienda/*.jpg).
   starting 2 s in, steps 0.9 s apart; then from-and-to framed under the
   "moved" card (ElCabeza3D.jsx frameTourBoxes, TOUR_FOE_*). The PA holds
   its words while the walkthrough's up (html.ec-tour-up).
+- **Asked to leave three moves after the walkthrough** (2026-10-20; user:
+  "The user will be encouraged to purchase the game and leave the store 3
+  moves after they have started playing once the tutorial has been
+  completed, because it seems like they're just kind of stuck in a low
+  light situation with no game momentum"): tienda-shopping.js counts the
+  player's own turns once the walkthrough's over (movesSinceTour, across
+  the visit's games); in stock after the first, closing time (the lights
+  down) after the second, Big Glutts' notice after the third ("The store
+  is now closing."), each once the computer's answered and the card
+  before it is down. The clock's timings stay for a player who doesn't
+  play.
