@@ -38,7 +38,8 @@ export const SCHEME = {
   L2: { ink: "#EFE5D2", light: "#EFE5D2", nova: "#D4A65E", rule: "#B98D4C", glow: [238, 186, 108], sheen: "#FFF1D6", ground: "dark", pulse: true },
   L3: { ink: "#F0E7D4", light: "#F0E7D4", nova: "#D3A862", rule: "#B99050", glow: [232, 188, 112], sheen: "#FFF3DA", ground: "dark", pulse: true },
   L4: { ink: "#1A1714", light: "#F3D4A2", nova: "#8C6830", rule: "#8C6830", glow: [200, 150, 76], sheen: "#C99A4B", ground: "light", pulse: true },
-  L5: { ink: "#EBCB93", light: "#EBCB93", nova: "#CFA35E", rule: "#C29A5C", glow: [240, 192, 116], sheen: "#FFF0D2", ground: "dark", pulse: true },
+  // (Three breaths: the app's title screen loops the last two, the board's ghost coming and going once in them, v-build.js.)
+  L5: { ink: "#EBCB93", light: "#EBCB93", nova: "#CFA35E", rule: "#C29A5C", glow: [240, 192, 116], sheen: "#FFF0D2", ground: "dark", pulse: 3 },
 };
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));

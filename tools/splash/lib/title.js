@@ -12,13 +12,17 @@ export const NOVA_AT = 0.3; // after the poster settles
 export const NOVA_LEN = 1.5;
 export const HOLD = 1.4;
 // The breaths: from just after NOVA is in, each this long, then a moment still.
+// (pulse: true for BREATHS of them, or how many: the title screen's Horizon
+// has three, and loops the last two.)
 export const BREATH = 1.7, BREATHS = 2;
-const BREATH_AT = 1.6, STILL = 0.2;
+export const BREATH_AT = 1.6;
+const STILL = 0.2;
+const breaths = (pulse) => (pulse === true ? BREATHS : pulse || 0);
 
-export const length = (settle, pulse = false) => settle + NOVA_AT + (pulse ? BREATH_AT + BREATHS * BREATH + STILL : NOVA_LEN + HOLD);
+export const length = (settle, pulse = false) => settle + NOVA_AT + (pulse ? BREATH_AT + breaths(pulse) * BREATH + STILL : NOVA_LEN + HOLD);
 
-// A breath's swell at p seconds into the breaths: out and back, slowly.
-const breath = (p) => (p <= 0 || p >= BREATHS * BREATH ? 0 : 0.5 - 0.5 * Math.cos((2 * Math.PI * p) / BREATH));
+// A breath's swell at p seconds into the n breaths: out and back, slowly.
+const breath = (p, n) => (p <= 0 || p >= n * BREATH ? 0 : 0.5 - 0.5 * Math.cos((2 * Math.PI * p) / BREATH));
 
 /* The title's state at t. settle: when the version's poster is whole;
    inkAt: when the ground under the name turns light (poster 5's paper), or
@@ -31,6 +35,6 @@ export function titleState(t, settle, inkAt, pulse = false) {
     halo: 1 - smooth(span(t, settle - 0.3, settle + 0.3)),
     nova: span(t, n0, n0 + NOVA_LEN),
     sheen: span(t, n0 + 0.5 * NOVA_LEN, n0 + 1.3 * NOVA_LEN),
-    pulse: pulse ? breath(t - n0 - BREATH_AT) : 0,
+    pulse: pulse ? breath(t - n0 - BREATH_AT, breaths(pulse)) : 0,
   };
 }

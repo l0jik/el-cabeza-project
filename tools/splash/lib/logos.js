@@ -83,7 +83,7 @@ export const LOGO = {
     ],
   },
   L5: {
-    name: "Horizon", C: [540, 860], R: 320, cut: 1.18, whole: true,
+    name: "Horizon", C: [540, 860], R: 320, cut: 1.18, whole: true, ghost: true,
     ground: { c0: "#5E452D", c1: "#21160D", empty: "#3E2C1C", at: [540, 820], r: 1300, mott: 0.045, fine: true, fleck: [236, 206, 150], flecks: 1400 },
     stone: { lo: [17, 12, 9], hi: [96, 79, 58], speck: 0.012, seed: 51, fleckGold: true },
     gold: { lo: [112, 80, 42], mid: [184, 146, 90], hi: [230, 198, 140], seed: 52, kind: "leaf", aged: true },

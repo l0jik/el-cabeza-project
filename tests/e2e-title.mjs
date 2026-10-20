@@ -9,15 +9,14 @@
    - It's up as the page opens (?title: the tests' browsers are automated,
      where it otherwise stays out of the way), the splash playing, the app
      not mounted under it.
-   - A new player: 2 s after the splash opens the menu (user: "The user
-     should only have to wait ... two seconds once the begin button
-     appears on the opening splash screen in order to be able to hit the
-     begin button"; before, "Make it 6.2 seconds before the button
-     appears"), the video playing on into its last breath, then looping
-     it, never past it; Begin alone. A tap off the button does nothing;
-     Begin begins: the title goes and the story's at Big Glutts, the lid
-     on the box. On a phone, Begin tapped the moment it's in: heard at
-     once.
+   - A new player: the menu once EL CABEZA and NOVA are both in, 6.9 s
+     into the video (user: "BEGIN should be the last thing to show up on
+     the screen"), the video playing on into its last two breaths, then
+     looping them, never past them; Begin alone. A tap off the button does
+     nothing; Begin begins: the title goes and the story's at Big Glutts,
+     the lid on the box. On a phone, Begin tapped the moment it's in, the
+     page's first tap: full screen and begun, both ("as soon as BEGIN is
+     on screen ... you should immediately be able to click on it").
    - The first tap, wherever it lands, puts the page full screen and does
      nothing else: it plays on. Then, the logo held, Enter does nothing
      until a button has the keyboard; then it's that button. Escape skips
@@ -59,15 +58,13 @@ const fullScreen = (page) => page.evaluate(() => !!document.fullscreenElement);
 const gateWorld = (page) => q(page, "reality-gate").getAttribute("data-world").catch(() => null);
 const AFTER = { owned: true, storeGone: true, ended: true, hallDue: false };
 
-// (menuMs: the menu that much later, for the checks made while it plays.)
-async function open({ story = null, last = null, phone = false, path = "?title", menuMs = null } = {}) {
+async function open({ story = null, last = null, phone = false, path = "?title" } = {}) {
   const ctx = await browser.newContext(phone
     ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
     : { viewport: { width: 1280, height: 800 } });
-  await ctx.addInitScript(({ story, last, menuMs }) => {
+  await ctx.addInitScript(({ story, last }) => {
     window.__EC_TEST_HOOKS__ = true;
     window.__TIENDA_MUSIC_ONLY__ = "none";
-    if (menuMs) window.__EC_TEST_TITLE_MENU_MS__ = menuMs;
     // When the title came up, and when it first went to each state.
     const T = (window.__TITLE_T__ = {});
     new MutationObserver(() => {
@@ -84,7 +81,7 @@ async function open({ story = null, last = null, phone = false, path = "?title",
       if (story && story.ended) ["el-cabeza:singularity-seen", "el-cabeza:special-order-noted", "el-cabeza:commercial-aired"].forEach((k) => localStorage.setItem(k, "1"));
       if (last) localStorage.setItem("el-cabeza:last-world", last);
     } catch (e) { /* none */ }
-  }, { story, last, menuMs });
+  }, { story, last });
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
@@ -110,17 +107,16 @@ console.log("\na new player: the splash, the logo held, Begin");
   check("...the address as it was (no ?title)", !(await page.evaluate(() => location.search.includes("title"))));
   check("the app's not mounted under it", !(await mounted(page)));
   const vt = () => page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime);
-  const T = await poll(() => page.evaluate(() => window.__TITLE_T__.held != null && window.__TITLE_T__), 20000, 50);
-  const after = T ? T.held - T.open : NaN;
-  check(`2 s after the splash opens: the menu (${after.toFixed(0)} ms)`, after >= 1950 && after < 2800, JSON.stringify(T));
-  const heldAt = await vt();
+  const heldAt = await poll(async () => (await state(page)) === "held" && vt(), 20000, 50);
+  check(`Begin the last thing in: NOVA in by 6.7 s, the menu at 6.9 s of video (${heldAt ? heldAt.toFixed(2) : "?"} s)`, !!heldAt && heldAt >= 6.85 && heldAt < 7.6);
   check("...the video playing on", !!(await poll(async () => (await vt()) > heldAt + 0.8, 4000, 100)));
-  // Held, it loops the last breath, never running on into the end.
-  await poll(async () => (await vt()) > 8.8, 8000, 100);
-  await poll(async () => (await vt()) < 8.6, 4000, 50);
+  // Held, it loops the last two breaths (the board's ghost once round in
+  // them), never running on into the end.
+  await poll(async () => (await vt()) > 11.6, 10000, 100);
+  await poll(async () => (await vt()) < 11.0, 4000, 50);
   const times = [];
   for (let i = 0; i < 12; i++) { times.push(await page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime)); await page.waitForTimeout(400); }
-  check("...breathing: the last breath again and again (7.5 to 9.2 s)", times.every((t) => t >= 7.4 && t <= 9.45) && new Set(times.map((t) => t.toFixed(1))).size > 3, times.map((t) => t.toFixed(2)).join(" "));
+  check("...breathing: the last two breaths again and again (8.5 to 11.9 s)", times.every((t) => t >= 8.4 && t <= 12.15) && new Set(times.map((t) => t.toFixed(1))).size > 3, times.map((t) => t.toFixed(2)).join(" "));
   check("...the menu: Begin alone", (await q(page, "title-primary").innerText()).trim().toUpperCase() === "BEGIN" && !(await has(page, "title-realities")) && !(await has(page, "title-restart")));
   await page.screenshot({ path: "/tmp/title-new-held.png" });
   // Only the button (user: "you have to hit the buttons").
@@ -139,7 +135,7 @@ console.log("\na new player: the splash, the logo held, Begin");
 /* ---------------- the first tap: full screen ---------------- */
 console.log("\nthe first tap, while it plays: full screen, nothing else");
 {
-  const { ctx, page, errs } = await open({ menuMs: 6000 });
+  const { ctx, page, errs } = await open();
   await poll(async () => (await state(page)) === "playing", 8000);
   await page.waitForTimeout(700);
   check("not full screen before a tap (a page can't by itself)", !(await fullScreen(page)));
@@ -164,10 +160,10 @@ console.log("\nthe first tap, while it plays: full screen, nothing else");
 /* ---------------- partway ---------------- */
 console.log("\npartway through the story: Continue, Restart the story");
 {
-  const { ctx, page, errs } = await open({ story: { owned: true }, menuMs: 8000 });
+  const { ctx, page, errs } = await open({ story: { owned: true } });
   const t0 = Date.now();
   check("Escape skips to the logo, held, with the menu", !!(await toMenu(page)) && Date.now() - t0 < 6000);
-  check("...the video at the last breath", await page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime >= 7.4));
+  check("...the video at the last breaths", await page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime >= 8.4));
   const t = (await q(page, "title-primary").innerText()).toUpperCase();
   check("Continue, where you left off", /CONTINUE/.test(t) && /WHERE YOU LEFT OFF/.test(t), t);
   check("...Restart the story, no Other realities yet", (await has(page, "title-restart")) && !(await has(page, "title-realities")));
@@ -180,7 +176,7 @@ console.log("\npartway through the story: Continue, Restart the story");
 /* ---------------- after the story ---------------- */
 console.log("\nafter the story: Continue in the last world, Other realities");
 {
-  const { ctx, page, errs } = await open({ story: AFTER, last: "lluvia", menuMs: 8000 });
+  const { ctx, page, errs } = await open({ story: AFTER, last: "lluvia" });
   await toMenu(page);
   const t = (await q(page, "title-primary").innerText()).toUpperCase();
   check("Continue in Lluvia", /CONTINUE/.test(t) && /IN LLUVIA/.test(t), t);
@@ -193,7 +189,7 @@ console.log("\nafter the story: Continue in the last world, Other realities");
   await ctx.close();
 }
 {
-  const { ctx, page, errs } = await open({ story: AFTER, last: "futuris", menuMs: 8000 });
+  const { ctx, page, errs } = await open({ story: AFTER, last: "futuris" });
   await toMenu(page);
   check("Continue in Futuris", /IN FUTURIS/.test((await q(page, "title-primary").innerText()).toUpperCase()));
   await q(page, "title-primary").click();
@@ -202,14 +198,14 @@ console.log("\nafter the story: Continue in the last world, Other realities");
   await ctx.close();
 }
 {
-  const { ctx, page } = await open({ story: AFTER, last: "lluvia", menuMs: 8000 });
+  const { ctx, page } = await open({ story: AFTER, last: "lluvia" });
   await toMenu(page);
   await q(page, "title-primary").click();
   check("Continue in Lluvia: its page", !!(await poll(() => page.evaluate(() => /el-cabeza-lluvia\.html/.test(location.href)), 20000)));
   await ctx.close();
 }
 {
-  const { ctx, page, errs } = await open({ story: AFTER, last: "den", menuMs: 8000 });
+  const { ctx, page, errs } = await open({ story: AFTER, last: "den" });
   await toMenu(page);
   await q(page, "title-restart").click();
   check("Restart the story asks a second tap", /TAP AGAIN/i.test(await q(page, "title-restart").innerText()) && (await has(page, "title-screen")));
@@ -246,7 +242,7 @@ console.log("\nnot on the game's own ways in");
 /* ---------------- a phone ---------------- */
 console.log("\na phone: room made for the menu");
 {
-  const { ctx, page, errs } = await open({ story: AFTER, last: "den", phone: true, menuMs: 8000 });
+  const { ctx, page, errs } = await open({ story: AFTER, last: "den", phone: true });
   await toMenu(page);
   await page.waitForTimeout(1200);
   const m = await page.evaluate(() => {
@@ -270,14 +266,15 @@ console.log("\na phone: room made for the menu");
 console.log("\na phone, a new player: Begin tapped the moment it's in");
 {
   const { ctx, page, errs } = await open({ phone: true });
-  const T = await poll(() => page.evaluate(() => window.__TITLE_T__.held != null && window.__TITLE_T__), 20000, 50);
-  const after = T ? T.held - T.open : NaN;
-  check(`Begin in 2 s after the splash opens (${after.toFixed(0)} ms)`, after >= 1950 && after < 2800, JSON.stringify(T));
+  const T = await poll(() => page.evaluate(() => window.__TITLE_T__.held != null && window.__TITLE_T__), 25000, 50);
+  const at = await page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime);
+  check(`Begin in once NOVA is (the video at ${at.toFixed(2)} s)`, !!T && at >= 6.85 && at < 7.8, JSON.stringify(T));
   // (By its place, as it fades in: a finger doesn't wait for it to settle.)
   const b = await page.evaluate(() => { const r = document.querySelector('[data-testid="title-primary"]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   await page.touchscreen.tap(b.x, b.y);
   const L = await poll(() => page.evaluate(() => window.__TITLE_T__.leaving != null && window.__TITLE_T__), 5000, 25);
-  check(`...tapped at once, heard at once (${L ? (L.leaving - L.held).toFixed(0) : "?"} ms after it came in)`, !!L && L.leaving - L.held < 1500, JSON.stringify(L));
+  check(`...tapped at once, the page's first tap, heard at once (${L ? (L.leaving - L.held).toFixed(0) : "?"} ms after it came in)`, !!L && L.leaving - L.held < 1500, JSON.stringify(L));
+  check("...and that one tap put the page full screen too", await poll(() => fullScreen(page), 3000, 100));
   check("...the title goes, the store", !!(await gone(page)) && (await poll(() => place(page), 20000)) === "store");
   check("no errors", errs.length === 0, errs.join(" | "));
   await ctx.close();

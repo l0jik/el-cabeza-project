@@ -13,6 +13,7 @@ import { W, H, V1, V2, V5, posterCanvas, hexPoints, poly, wedge, v1Frame, v2Fans
 import { BOARD, XS, YS, REST, PHOTO, drawStart, toFrame } from "./board.js";
 import { LOGO, halves, blockBox, drawBlock, drawGround, drawRings, drawHairlines, drawLines, star, planet } from "./logos.js";
 import { clamp, lerp, span, smooth, smoother, easeIn, easeOut, easeInOut, backOut, hex, mix, mixRgb, rgb, canvas } from "./anim.js";
+import { BREATH } from "./title.js";
 import { makeCam, superellipse, drawPrism, planeXform, pathPts, ISO_EPS } from "./iso3d.js";
 
 const k = REST.k;
@@ -643,8 +644,46 @@ function pieceAt(ctx, p, x, y, k, lift, alpha = 1) {
   ctx.restore();
 }
 
-function buildLogo(ctx, id, t) {
-  if (t < 0.6) return drawStart(ctx, t);
+/* A little slower than it was (user: "I want the transition from the board
+   and the pieces forming the art to happen just a little bit more slowly"):
+   from the photo's handing over at 0.6 s, the change runs over 4.3 s, not
+   3.3, so the emblem is whole at 4.9 s. */
+const LOGO_MORPH = 4.3 / 3.3;
+const LOGO_SETTLE = 0.6 + 3.3 * LOGO_MORPH;
+/* The board's ghost in the disc once the emblem's whole (user: "when it's
+   completed, there can be a ghost appearance, a ghosting of the board behind
+   the two semicircles, like superimposed underneath it, but it comes and
+   goes"): the board as it went into the disc, laid softly into the halves
+   (soft light, so it reads as under them), never over the blocks standing
+   in front; in and out again every two breaths, so the title screen's loop
+   of the last two meets itself. */
+const GHOST = 0.6, GHOST_ROUND = 2 * BREATH;
+// (The ghost itself made once: the board in the disc, the blocks cut out of it.)
+const GHOSTS = {};
+function ghostLayer(id) {
+  if (GHOSTS[id]) return GHOSTS[id];
+  const L = LOGO[id], [cx, cy] = L.C, R = L.R, c = canvas(W, H), g = c.getContext("2d");
+  g.drawImage(BOARD.clean, cx - R, cy - R, 2 * R, 2 * R);
+  g.globalCompositeOperation = "destination-in";
+  g.beginPath();
+  g.arc(cx, cy, R, 0, Math.PI * 2);
+  g.fill();
+  g.globalCompositeOperation = "destination-out";
+  L.blocks.forEach((_, i) => { const [x0, y0, x1, y1] = blockBox(id, i); g.fillRect(x0, y0, x1 - x0, y1 - y0); });
+  return (GHOSTS[id] = c);
+}
+function ghostBoard(ctx, id, a) {
+  if (a <= 0.002) return;
+  ctx.save();
+  ctx.globalCompositeOperation = "soft-light";
+  ctx.globalAlpha = GHOST * a;
+  ctx.drawImage(ghostLayer(id), 0, 0);
+  ctx.restore();
+}
+
+function buildLogo(ctx, id, T) {
+  if (T < 0.6) return drawStart(ctx, T);
+  const t = 0.6 + (T - 0.6) / LOGO_MORPH;
   const L = LOGO[id], [cx, cy] = L.C, R = L.R;
   // the board: square to round, shrinking into the disc
   const m = easeInOut(span(t, 0.9, 2.3));
@@ -725,12 +764,13 @@ function buildLogo(ctx, id, t) {
   if (op > 0) { ctx.globalAlpha = op; drawStart(ctx, t); ctx.globalAlpha = 1; }
   const fin = smooth(span(t, 3.55, 3.9));
   if (fin > 0) { ctx.globalAlpha = fin; ctx.drawImage(posterCanvas(id, { title: false }), 0, 0); ctx.globalAlpha = 1; }
+  if (L.ghost && T > LOGO_SETTLE) ghostBoard(ctx, id, 0.5 - 0.5 * Math.cos((2 * Math.PI * (T - LOGO_SETTLE)) / GHOST_ROUND));
 }
 
 /* ---------------- the version ---------------- */
 
 export const build = {
-  settle: (id) => (LOGO[id] ? 3.9 : { v1: 3.8, v2: 4.2, v5: 3.95 }[id]),
+  settle: (id) => (LOGO[id] ? LOGO_SETTLE : { v1: 3.8, v2: 4.2, v5: 3.95 }[id]),
   frame(ctx, id, t) {
     if (LOGO[id]) return buildLogo(ctx, id, t);
     if (id === "v1") return buildV1(ctx, t);

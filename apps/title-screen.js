@@ -3,13 +3,17 @@
    splash screen that appears when the app is first opened"). Asked, the
    user chose: a title menu on the splash ("When the video ends, the logo
    stays on screen with NOVA breathing, and a few choices fade in under
-   it"; then, "Make it 6.2 seconds before the button appears"; then,
-   "The user should only have to wait ... two seconds once the begin
-   button appears on the opening splash screen in order to be able to hit
-   the begin button": the choices come in 2 s after the splash opens,
-   wherever the video's got to, and it plays on into the held breath),
-   every time the app opens, and held on the logo until a choice;
-   then (user: "Tapping anywhere on the splash screen, I don't want that.
+   it"; then, "Make it 6.2 seconds before the button appears"; then, "I
+   don't want begin to show up until both El Cabeza and the word Nova have
+   already shown up. BEGIN should be the last thing to show up on the
+   screen. Also, as soon as BEGIN is on screen, though, you should
+   immediately be able to click on it": the choices come in once NOVA is
+   in, and a finger's tap on one counts as it lifts), every time the app
+   opens, and held on the logo until a choice. (The video's board turns
+   into the emblem a little more slowly now, and once it's whole the
+   board's ghost comes and goes in the disc, user; tools/splash.)
+   Then
+   (user: "Tapping anywhere on the splash screen, I don't want that.
    I want it to, you have to hit the buttons") only the buttons choose:
    a tap off them, while the video plays or after, chooses nothing. (On a
    keyboard, Escape skips the rest of the video.) And full screen first
@@ -42,14 +46,15 @@
   W.ecTitle = title;
 
   // The video: the splash's build-L5 (tools/splash), key framed at HOLD_FROM.
-  // Its last breath runs HOLD_FROM to HOLD_TO (title.js: NOVA from 0.3 s
-  // after the poster settles at 3.9 s, the breaths from 1.6 s after that,
-  // each 1.7 s); held, it breathes that one again and again.
-  const HOLD_FROM = 7.5, HOLD_TO = 9.2;
-  // The choices come in this long after the splash opens, by the clock,
-  // so a slow line that's still loading the video doesn't hold them back
-  // (user: "two seconds"; it was 6.2 s into the video); the video plays on.
-  const MENU_AFTER = (W.__EC_TEST_HOOKS__ && W.__EC_TEST_TITLE_MENU_MS__) || 2000;
+  // Its last two breaths run HOLD_FROM to HOLD_TO (title.js: the emblem
+  // whole at 4.9 s, NOVA from 0.3 s after, in by 6.7 s, three breaths from
+  // 1.6 s after it came, each 1.7 s; the board's ghost in the disc once
+  // round in two, v-build.js); held, it plays those two again and again.
+  const HOLD_FROM = 8.5, HOLD_TO = 11.9;
+  // The choices come in this far into it, the last thing to: EL CABEZA
+  // and NOVA both in (user: "BEGIN should be the last thing to show up on
+  // the screen"); the video plays on.
+  const MENU_AT = 6.9;
   const WORLD_NAMES = __WORLD_NAMES__;
 
   let forced = false;
@@ -204,14 +209,18 @@ html.ec-splash-on { background: #120C08; }
       if (p && p.catch) p.catch(() => {});
     }
   };
+  const menuDue = () => { if (state === "playing" && video.currentTime >= MENU_AT) hold(); };
   if (video.requestVideoFrameCallback) {
-    const onFrame = () => { paint(); holdLoop(); video.requestVideoFrameCallback(onFrame); };
+    const onFrame = () => { paint(); menuDue(); holdLoop(); video.requestVideoFrameCallback(onFrame); };
     video.requestVideoFrameCallback(onFrame);
   } else {
-    const tick = () => { if (!root.isConnected) return; paint(); holdLoop(); W.requestAnimationFrame(tick); };
+    const tick = () => { if (!root.isConnected) return; paint(); menuDue(); holdLoop(); W.requestAnimationFrame(tick); };
     W.requestAnimationFrame(tick);
   }
-  W.setTimeout(() => { if (state === "playing") hold(); }, MENU_AFTER);
+  video.addEventListener("timeupdate", menuDue);
+  // (A video that stalls on a slow line never gets there: the logo, still,
+  // and the choices under it, a few seconds on.)
+  W.setTimeout(() => { if (state === "playing") hold(true); }, (MENU_AT + 6) * 1000);
   video.addEventListener("ended", () => { if (state === "playing") hold(); else holdLoop(); });
   video.addEventListener("seeked", paint);
   video.addEventListener("error", () => { if (state === "playing") hold(); });
@@ -243,8 +252,8 @@ html.ec-splash-on { background: #120C08; }
   };
   W.addEventListener("resize", fit);
 
-  // 2 s in (or the video over, or skipped): the menu, the logo held
-  // breathing once it's into its last breath.
+  // 6.9 s in (or the video over, or skipped): the menu, the logo held
+  // breathing once it's into its last two breaths.
   function hold(still = false) {
     if (state !== "playing" && state !== "skipping") return;
     setState("held");
@@ -333,14 +342,33 @@ html.ec-splash-on { background: #120C08; }
     }, 760);
   };
 
-  // The buttons alone (a tap anywhere else is nothing).
+  /* The buttons alone (a tap anywhere else is nothing). A finger's tap on
+     one counts as it lifts (user: "as soon as BEGIN is on screen ... you
+     should immediately be able to click on it"): the first tap asks for
+     full screen too, and the page growing to fill it can move the button
+     out from under the click that would come after. A mouse's click, or
+     a key on a button, as ever. */
+  const which = (b) => (b === primary ? first.action : b === second ? "realities" : b === restart ? "restart" : null);
+  let fingerOn = null, tappedAt = -1e4;
+  root.addEventListener("pointerdown", (e) => {
+    const b = e.pointerType !== "mouse" && e.target && e.target.closest ? e.target.closest(".ec-splash button") : null;
+    fingerOn = b ? { b, x: e.clientX, y: e.clientY } : null;
+  }, true);
+  root.addEventListener("pointerup", (e) => {
+    const f = fingerOn;
+    fingerOn = null;
+    if (!f || state !== "held" || Math.hypot(e.clientX - f.x, e.clientY - f.y) > 14) return;
+    const a = which(f.b);
+    if (!a) return;
+    tappedAt = W.performance.now();
+    choose(a);
+  }, true);
   root.addEventListener("click", (e) => {
-    if (state !== "held") return;
+    // (The click a finger's tap makes after it, already counted.)
+    if (state !== "held" || W.performance.now() - tappedAt < 800) return;
     const b = e.target && e.target.closest ? e.target.closest(".ec-splash button") : null;
-    if (!b) return;
-    if (b === primary) choose(first.action);
-    else if (b === second) choose("realities");
-    else if (b === restart) choose("restart");
+    const a = b && which(b);
+    if (a) choose(a);
   });
   W.addEventListener("keydown", (e) => {
     if (!root.isConnected || gone) return;
