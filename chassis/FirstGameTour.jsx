@@ -34,7 +34,9 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
    arrow runs to every square it can reach. Once your turn's done, a
    card for the other side's turn, which shows what it moved (an arrow
    from where it was) and stays until it's put away or a piece is picked
-   on your next; then it's over. Any card can skip it. Kept as done on the
+   on your next; then it's over. Any card can skip it; from the second on
+   a quiet Back steps back a card (from your first turn too, until a piece
+   has moved: tour.back, the chassis's). Kept as done on the
    device (TOUR_KEY), so it comes once; ?fresh forgets it. A world offers
    it with theme.firstGameTour (the store, before the game's bought:
    tienda.js). */
@@ -217,6 +219,8 @@ export default function FirstGameTour({ tour, cardRef }) {
   const link = card
     ? { label: "Skip the tour", onClick: tour.skip, testid: "tour-skip" }
     : { label: "End the tour", onClick: tour.finish, testid: "tour-end" };
+  // A quiet step back, beside Next (the chassis says when there's one).
+  const back = tour.back ? { label: "‹ Back", onClick: tour.back, testid: "tour-back" } : null;
   const css = "@keyframes ecTourIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}@keyframes ecTourDrop{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}@media (prefers-reduced-motion: reduce){[data-testid=\"tour-card\"]{animation:none!important}}";
   return (
     <>
@@ -284,21 +288,30 @@ export default function FirstGameTour({ tour, cardRef }) {
             {text.note}
           </div>
         )}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: primary ? "space-between" : "flex-end", gap: 12, marginTop: narrow ? 6 : 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: primary || back ? "space-between" : "flex-end", gap: 12, marginTop: narrow ? 6 : 10 }}>
           <button type="button" data-testid={link.testid} onClick={link.onClick} style={{ background: "none", border: "none", padding: "6px 0", cursor: "pointer", color: C.slate, fontFamily: sans, fontSize: 12.5, textDecoration: "underline", textUnderlineOffset: 3 }}>
             {link.label}
           </button>
-          {primary && (
-            <button
-              type="button"
-              className="ec-btn"
-              data-testid={primary.testid}
-              onClick={primary.onClick}
-              autoFocus={card}
-              style={{ background: C.charcoal, color: C.cream, border: `1px solid ${C.charcoal}`, borderRadius: 6, padding: narrow ? "8px 15px" : "9px 17px", cursor: "pointer", fontFamily: mono, fontSize: 11.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}
-            >
-              {primary.label}
-            </button>
+          {(back || primary) && (
+            <div style={{ display: "flex", alignItems: "center", gap: narrow ? 6 : 10 }}>
+              {back && (
+                <button type="button" data-testid={back.testid} onClick={back.onClick} aria-label="Back a step" style={{ background: "none", border: "none", padding: "8px 6px", cursor: "pointer", color: C.slate, fontFamily: mono, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                  {back.label}
+                </button>
+              )}
+              {primary && (
+                <button
+                  type="button"
+                  className="ec-btn"
+                  data-testid={primary.testid}
+                  onClick={primary.onClick}
+                  autoFocus={card}
+                  style={{ background: C.charcoal, color: C.cream, border: `1px solid ${C.charcoal}`, borderRadius: 6, padding: narrow ? "8px 15px" : "9px 17px", cursor: "pointer", fontFamily: mono, fontSize: 11.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}
+                >
+                  {primary.label}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

@@ -353,6 +353,45 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
+/* A step back (user: "small back button on the tutorial if somebody goes
+   forward and then they want to revisit a step earlier. Wanted to be
+   subtle though, but still within theme"): none on the first card; from
+   the second, the card before; out of the crush card's close-up; and from
+   your first turn to the last card, until a piece has moved. */
+{
+  console.log("\n[desktop: back a step]");
+  const { ctx, page, errs } = await open(false);
+  await begin(page);
+  const backs = () => page.locator('[data-testid="tour-back"]').count();
+  const go = async (id, ms = 450) => { await page.locator(`[data-testid="${id}"]`).click(); await page.waitForTimeout(ms); };
+  check("the welcome card: no Back (nothing before it)", (await tourOf(page)).step === "welcome" && (await backs()) === 0);
+  await go("tour-next");
+  const backBox = await page.locator('[data-testid="tour-back"]').boundingBox();
+  const nextBox = await page.locator('[data-testid="tour-next"]').boundingBox();
+  check("the second card: a Back, just left of Next", (await tourOf(page)).step === "ways" && !!backBox && !!nextBox && backBox.x + backBox.width <= nextBox.x + 1 && Math.abs((backBox.y + backBox.height / 2) - (nextBox.y + nextBox.height / 2)) < 4, JSON.stringify({ backBox, nextBox }));
+  check("...quiet: the button's lettering, no box of its own", await page.evaluate(() => { const b = getComputedStyle(document.querySelector('[data-testid="tour-back"]')); return b.backgroundColor === "rgba(0, 0, 0, 0)" && b.borderTopStyle === "none" && /Franklin/.test(b.fontFamily); }));
+  await go("tour-back");
+  check("...Back: the welcome card again", (await tourOf(page)).step === "welcome");
+  for (let i = 0; i < 3; i++) await go("tour-next");
+  await page.waitForTimeout(900);
+  const c = await tourOf(page);
+  check("on to the crush card, its close-up playing", c.step === "crush" && !!c.crush, JSON.stringify(c.crush));
+  await go("tour-back", 900);
+  const g = await tourOf(page);
+  check("...Back: the goal card, the close-up put away", g.step === "goal" && !g.crush, JSON.stringify(g.crush));
+  for (let i = 0; i < 5; i++) await go("tour-next");
+  check("your first turn (8 of 8): a Back while nothing's moved", (await tourOf(page)).step === "pieces" && (await backs()) === 1);
+  await go("tour-back");
+  check("...Back: the board card again, 7 of 8", (await tourOf(page)).step === "board" && /7 of 8/i.test(await page.locator('[data-testid="tour-band"]').innerText()));
+  await go("tour-next", 900);
+  const f0 = await page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === "light-flaco")));
+  await page.evaluate(() => window.__EC_TEST_MOVE__("light-flaco", "N"));
+  for (let i = 0; i < 40 && (await page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === "light-flaco")))) === f0; i++) await page.waitForTimeout(250);
+  await page.waitForTimeout(500);
+  check("...a piece moved: no Back (the turn's begun)", (await tourOf(page)).step === "pieces" && (await backs()) === 0);
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
 {
   console.log("\n[desktop: Escape]");
   const { ctx, page } = await open(false);

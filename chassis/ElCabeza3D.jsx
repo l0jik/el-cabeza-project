@@ -11498,6 +11498,15 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             boxed: tourBoxed,
             moved: tourMoved,
             next: () => setTourStep((st) => TOUR_CARDS[TOUR_CARDS.indexOf(st) + 1] || "pieces"),
+            // A step back (user: "small back button on the tutorial if
+            // somebody goes forward and then they want to revisit a step
+            // earlier"): the card before, from the second on; and from your
+            // first turn to the last card, while nothing's been moved.
+            back: TOUR_CARDS.indexOf(tourStep) > 0
+              ? () => setTourStep((st) => (TOUR_CARDS.indexOf(st) > 0 ? TOUR_CARDS[TOUR_CARDS.indexOf(st) - 1] : st))
+              : tourStep === "pieces" && currentPlayer === tourMine && !log.length && !stepsUsed && !busy
+                ? () => { setSelectedId(null); setTourStep(TOUR_CARDS[TOUR_CARDS.length - 1]); }
+                : null,
             skip: () => endTour(),
             finish: () => endTour(),
           }}

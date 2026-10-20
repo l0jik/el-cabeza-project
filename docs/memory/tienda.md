@@ -247,3 +247,10 @@ box art and an ad standee (assets/tienda/*.jpg).
   zoom in or out." (a mouse: "right-drag to move it"; the chassis pans
   on a right-drag or Alt-drag). The board's label below stays "Drag to
   turn · pinch to zoom" (a third item won't fit a phone).
+- **‹ Back on the walkthrough** (2026-10-20; user: "small back button on
+  the tutorial if somebody goes forward and then they want to revisit a
+  step earlier. Wanted to be subtle though, but still within theme"):
+  from card 2, a quiet "‹ BACK" just left of Next (tienda.js: the red
+  button's Franklin caps, muted ink, no box); on your first turn (8 of 8)
+  it goes back to card 7 until a piece has moved. The crush close-up and
+  the camera follow the step, so going back works as going on does.

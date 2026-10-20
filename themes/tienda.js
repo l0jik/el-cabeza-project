@@ -354,6 +354,13 @@ export const styleSheet = `
     font-family: 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; font-weight: 800 !important; letter-spacing: 0.14em !important;
     box-shadow: 3px 3px 0 #2E2118 !important;
   }
+  /* Its Back: the button's lettering without the button, quiet beside it
+     (user: "subtle though, but still within theme"). */
+  [data-testid="tour-back"] {
+    font: 800 10.5px/1 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; letter-spacing: 0.14em !important;
+    color: rgba(46,33,24,0.58) !important;
+  }
+  [data-testid="tour-back"]:hover, [data-testid="tour-back"]:focus-visible { color: #2E2118 !important; }
   /* The move log is register tape: narrow, whiter paper, typed, torn off. */
   [data-testid="movelog-sheet"] {
     width: min(360px, 92vw) !important; background: #F4F0E4 !important; backdrop-filter: none !important;
