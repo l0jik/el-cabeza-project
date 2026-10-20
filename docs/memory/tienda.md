@@ -135,3 +135,15 @@ box art and an ad standee (assets/tienda/*.jpg).
   (brighter studio lights had made it orange). Test hook
   `window.__TIENDA_PIECE_VIEWER__` (yaw, wood).
 
+- **The opening's slow pan (2026-10-20; user: "When tienda opens on
+  first / new game the store should be slowly panning from left to right
+  120°", a soft bounce at each end, stopped by the player's hand, back to
+  panning "after about 10 seconds").** tienda-fx.js PAN_*: the camera, at
+  the opening framing, goes round the table 60° either side of
+  OPENING_VIEW, rightward first, about 40 s for the 120°; past an end a
+  soft spring turns it back. It turns through the lid. A press on the
+  scene, a drag, a pinch, the wheel, a view button or anything open over
+  the store stops it; ten seconds after the last, it glides back onto
+  its arc and goes on (the card's glow still cues at 6 s). Before the
+  first game only; not with reduced motion, nor under the tests unless
+  asked (__EC_TEST_PAN__). tests/e2e-store-pan.mjs.

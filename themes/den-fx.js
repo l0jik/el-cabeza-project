@@ -45,7 +45,7 @@ import { createGovernor } from "../chassis/device-fit.js";
 import { setCommercialOn, onJourneyChange } from "../engine/journey.js";
 import { createDenCall } from "./den-call.js";
 import { createTrip } from "./den-trip.js";
-import { createHall } from "./den-hall.js";
+import { createHall, echoRoom } from "./den-hall.js";
 import { createEnding, prewarmFigure, prefetchVoidMusic } from "./den-ending.js";
 import { WORLDS } from "./realities.js";
 
@@ -1048,6 +1048,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     function lookAtTv(on) {
       if (on === lureLook) return;
       lureLook = on;
+      // (Over to it, or away again: the pull's clock from here.)
+      if (blastAt) pullBase = performance.now();
       if (on) {
         letGoGlance();
         tvGoal = 1; tvLeaveAt = 0;
@@ -1261,6 +1263,149 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       if (bangAt && now >= bangAt) { bangAt = 0; if (doc) { bangCard = dealCard(doc, { testid: "den-bang", l1: BANG, loud: true }); bangCard.el.style.zIndex = "1401"; bangEnd = now + BANG_MS; } }
       if (bangCard && now >= bangEnd) { bangCard.remove(700); bangCard = null; }
     }
+    /* The pull (user: "the user still has the option of ignoring it, going
+       back to the table. Eventually, the TV has to pull the player into
+       the TV ... It should be short, quick ... a yell of some sort, where
+       they're being like, they get stretched out, and just shows them the
+       camera moving to where toward the television, that they're getting
+       sucked into it"). The lure can be ignored a while: its look round
+       lets go, and once the set's been looked at a tap elsewhere goes back
+       to the table. But after the blast, if it's still not been turned on,
+       the set takes the player itself: PULL_FIXED after the blast while the
+       head's still held on it (never tapped), else PULL_LATE after they
+       last went over to it or came away. The set slams on into its dive,
+       everything else is put away and nothing takes a tap; the camera is
+       yanked from wherever it is across the room and into the glass
+       (PULL_RUSH, slow then all at once), the lens widening as it goes and
+       the picture drawn out toward the set, streaks of light pouring into
+       it; the set drawing breath (den-audio.js tvHaunt "pull") and his yell
+       (the hall's shout, den-hall.js: the same voice, with its echo); and at
+       the glass (PULL_ENTER) Nova's transition takes over, as when it's
+       turned on. Nova busy: a while later (PULL_RETRY). */
+    const PULL_FIXED = 9000, PULL_LATE = 20000, PULL_RUSH = 1150, PULL_ENTER = 1350, PULL_RETRY = 4000, PULL_YELL_AT = 180;
+    let blastAt = 0, pullBase = 0, tvPullIn = null, pullHeld = false, pullSoon = 0, pullFx = null;
+    // His yell: the hall's recording, fetched once the set's acting up.
+    let yellBuf = null, yellAsked = false, yellRoom = null;
+    function loadYell() {
+      if (yellAsked || typeof fetch === "undefined" || (typeof location !== "undefined" && location.protocol === "file:")) return;
+      const o = audio && audio.phoneOutput ? audio.phoneOutput() : null;
+      if (!o || !o.ctx) return;
+      yellAsked = true;
+      fetch("el-cabeza-hall-scream.mp3").then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => o.ctx.decodeAudioData(b))
+        .then((buf) => { yellBuf = buf; }).catch(() => { /* the set's own sound, then */ });
+    }
+    function yell() {
+      const o = audio && audio.phoneOutput ? audio.phoneOutput() : null;
+      if (!o || !o.ctx || !yellBuf) return false;
+      const { ctx } = o, t = ctx.currentTime + 0.01;
+      // (From its first sound: decoders differ in the silence before it.)
+      const d = yellBuf.getChannelData(0);
+      let i = 0; while (i < d.length && i < yellBuf.sampleRate * 0.3 && Math.abs(d[i]) < 1e-4) i++;
+      const src = ctx.createBufferSource(); src.buffer = yellBuf;
+      const g = ctx.createGain(); g.gain.value = 0.85;
+      src.connect(g).connect(o.ear);
+      // Its echo, swelling as it goes, ringing on into the set.
+      if (!yellRoom || yellRoom.sampleRate !== ctx.sampleRate) yellRoom = echoRoom(ctx);
+      const send = ctx.createGain(), room = ctx.createConvolver(), wet = ctx.createGain();
+      room.normalize = false; room.buffer = yellRoom;
+      send.gain.setValueAtTime(0.35, t); send.gain.linearRampToValueAtTime(1, t + 1.1);
+      wet.gain.value = 1.3;
+      g.connect(send).connect(room).connect(wet).connect(o.ear);
+      src.start(t, i / yellBuf.sampleRate, 1.3);
+      setTimeout(() => { [src, g, send, room, wet].forEach((x) => { try { x.disconnect(); } catch (e) { /* gone */ } }); }, 4500);
+      return true;
+    }
+    // The stretch: the picture drawn out toward the set, streaks of light
+    // pouring into it (a layer over the scene, under nothing that takes a tap).
+    function pullStretch(k, at) {
+      const t = three.current, el = t && t.renderer && t.renderer.domElement;
+      if (!el || typeof document === "undefined") return;
+      if (!pullFx) {
+        const streaks = document.createElement("div");
+        streaks.setAttribute("data-testid", "den-pull");
+        streaks.setAttribute("aria-hidden", "true");
+        streaks.style.cssText = "position:fixed;inset:0;z-index:1399;pointer-events:none;opacity:0;mix-blend-mode:screen";
+        document.body.appendChild(streaks);
+        pullFx = { el, streaks, transform: el.style.transform, origin: el.style.transformOrigin, spin: Math.random() * 360 };
+      }
+      const r = el.getBoundingClientRect(), x = at ? at.x - r.left : r.width / 2, y = at ? at.y - r.top : r.height / 2;
+      el.style.transformOrigin = `${x.toFixed(1)}px ${y.toFixed(1)}px`;
+      el.style.transform = `scale(${(1 + 0.1 * k).toFixed(4)}, ${(1 + 0.32 * k * k).toFixed(4)})`;
+      const ax = at ? at.x : innerWidth / 2, ay = at ? at.y : innerHeight / 2, inner = Math.round(70 - 55 * k);
+      pullFx.spin += 2 + 9 * k;
+      pullFx.streaks.style.background = `repeating-conic-gradient(from ${pullFx.spin.toFixed(1)}deg at ${ax.toFixed(0)}px ${ay.toFixed(0)}px, rgba(190,225,255,0) 0deg 2.6deg, rgba(205,232,255,0.85) 3.1deg, rgba(190,225,255,0) 3.6deg 7deg)`;
+      const mask = `radial-gradient(circle at ${ax.toFixed(0)}px ${ay.toFixed(0)}px, transparent ${inner}px, #000 ${inner + 160}px)`;
+      pullFx.streaks.style.webkitMaskImage = mask; pullFx.streaks.style.maskImage = mask;
+      pullFx.streaks.style.opacity = String(Math.min(0.9, k * 1.3).toFixed(3));
+    }
+    function pullStretchOff() {
+      if (!pullFx) return;
+      pullFx.el.style.transform = pullFx.transform; pullFx.el.style.transformOrigin = pullFx.origin;
+      pullFx.streaks.remove();
+      pullFx = null;
+    }
+    function startPull(now) {
+      const set = den && den.tv;
+      if (!set || tvPullIn) return;
+      // (Nova can't go just now, or the set's on its way already: later.)
+      if (!(novaTv && novaTv.portal && novaTv.portal()) || set.isOn()) { pullSoon = now + PULL_RETRY; return; }
+      pullSoon = 0;
+      // Everything put away, every hold let go: it takes the camera from
+      // wherever it is.
+      if (sheets && sheets.close) sheets.close();
+      focusGoal = 0; bookGoal = 0; phoneVisit(false);
+      if (lureLook) { lureLook = false; showTvHint(false); }
+      huhAt = 0; bangAt = 0;
+      if (huhCard) { huhCard.remove(300); huhCard = null; }
+      if (bangCard) { bangCard.remove(300); bangCard = null; }
+      lureFix = false; glance = null;
+      lureDone = true;
+      lureLock(true);
+      const t = three.current;
+      tvPullIn = { t0: now, from: tvW, fov0: t && t.camera ? t.camera.fov : null, cam: t && t.camera, entered: false, yelled: false };
+      tvGoal = 1; tvLeaveAt = 0; offAt = 0;
+      set.pull(now, () => {
+        if (novaTv && novaTv.enter && novaTv.enter() !== false) { if (tvPullIn) tvPullIn.entered = true; return; }
+        endPull(true);
+      }, PULL_ENTER);
+      portalAt = now;
+      if (audio && audio.tvHaunt) audio.tvHaunt("pull", 1);
+      if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_PULLED__ = (window.__DEN_PULLED__ || 0) + 1;
+    }
+    // Over (the den going, or Nova couldn't go after all: the set off, the
+    // camera back, the lure on again, a while later).
+    function endPull(failed = false) {
+      if (!tvPullIn) return;
+      if (tvPullIn.cam && tvPullIn.fov0) { tvPullIn.cam.fov = tvPullIn.fov0; tvPullIn.cam.updateProjectionMatrix(); }
+      pullStretchOff();
+      tvPullIn = null;
+      lureLock(false);
+      if (failed && den && den.tv) {
+        if (den.tv.powerOff(performance.now(), true) && audio && audio.tvOff) audio.tvOff();
+        tvGoal = 0; tvLeaveAt = performance.now() + 200;
+        lureDone = false; pullBase = performance.now(); pullSoon = performance.now() + PULL_RETRY;
+      }
+    }
+    // Each frame, in placeCamera: the rush (tvW), the lens and the stretch.
+    function pullFrame(camera) {
+      if (!tvPullIn) return;
+      const now = performance.now(), s = now - tvPullIn.t0;
+      const k = Math.min(1, s / PULL_RUSH);
+      // (Slow, then all at once.)
+      tvW = tvPullIn.from + (1 - tvPullIn.from) * k * k * k;
+      tvGoal = 1; tvLeaveAt = 0;
+      if (!tvPullIn.yelled && s >= PULL_YELL_AT) { tvPullIn.yelled = true; tvPullIn.yell = yell() ? "recording" : "none"; }
+      const e = Math.min(1, s / PULL_ENTER);
+      if (tvPullIn.fov0 && camera) { camera.fov = Math.min(118, tvPullIn.fov0 * (1 + 0.95 * e * e)); camera.updateProjectionMatrix(); }
+      let at = null;
+      if (den && den.tv && three.current && three.current.boardGroup && camera) {
+        const p = three.current.boardGroup.localToWorld(pullPt.copy(den.tv.focus.target)).project(camera);
+        const r = three.current.renderer.domElement.getBoundingClientRect();
+        if (p.z < 1) at = { x: r.left + ((p.x + 1) / 2) * r.width, y: r.top + ((1 - p.y) / 2) * r.height };
+      }
+      pullStretch(e, at);
+    }
+    const pullPt = new THREE.Vector3();
     let lookListenersOn = null;
     /* While the set has the camera (watching it, the commercial, the way
        in and out), a drag, a pinch, a two-finger swipe or the wheel on the
@@ -1377,6 +1522,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     function pressTv() {
       const set = den && den.tv;
       if (!set) return false;
+      // (Being pulled in: nothing to press.)
+      if (tvPullIn) return true;
       // (Waking by itself into the commercial: the tap waits.)
       if (wake) return true;
       const now = performance.now();
@@ -1432,7 +1579,13 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     const PORTAL_LOCK_MS = 500;
     if (novaTv && novaTv.register) novaTv.register({ press: pressTv });
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-      window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, waking: wake ? (wake.woke ? "woke" : "dark") : null, lureWaited: lureStart ? performance.now() - lureStart - LURE_WAIT : null, glance: glance ? (glance.fix ? "fix" : "round") : null, glanceAt: glance && glance.seen.length ? glance.seen[glance.seen.length - 1] : null, lock: lockOn, fixed: lureFix, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, adShown: den && den.tv && den.tv.commercialShown ? den.tv.commercialShown() : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0 });
+      window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, waking: wake ? (wake.woke ? "woke" : "dark") : null, lureWaited: lureStart ? performance.now() - lureStart - LURE_WAIT : null, glance: glance ? (glance.fix ? "fix" : "round") : null, glanceAt: glance && glance.seen.length ? glance.seen[glance.seen.length - 1] : null, lock: lockOn, fixed: lureFix, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, adShown: den && den.tv && den.tv.commercialShown ? den.tv.commercialShown() : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0,
+        // (The pull: how far in (ms), his yell, through the glass; else how long till it's due.)
+        pull: tvPullIn ? { s: Math.round(performance.now() - tvPullIn.t0), yell: tvPullIn.yell || null, entered: tvPullIn.entered, fov: three.current && three.current.camera ? +three.current.camera.fov.toFixed(1) : null, fov0: tvPullIn.fov0 ? +tvPullIn.fov0.toFixed(1) : null } : null,
+        pullIn: blastAt && !tvPullIn && !lureDone ? Math.round((pullSoon || pullBase + (lureFix ? PULL_FIXED : PULL_LATE)) - performance.now()) : null });
+      // Test-only: hold the pull off (the tests of the set's own way in), or have it now.
+      window.__DEN_PULL_HOLD__ = (on) => { pullHeld = on !== false; };
+      window.__DEN_PULL_NOW__ = () => { if (!lureDone) startPull(performance.now()); return !!tvPullIn; };
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
       // Test-only: the look round's thought for a pick (true: who's messing
@@ -1567,10 +1720,15 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
             }
             if (!blasted && waited >= (lureLook ? BLAST_AFTER_LOOK : BLAST_AFTER) && den.tv.blast(now)) {
               blasted = true; lureEvents++; lastHaunt = "blast";
+              blastAt = pullBase = now;
               if (audio && audio.tvHaunt) audio.tvHaunt("blast", 1);
               // Still not looked at: "!!", and the head turns to it and stays.
               if (!lureLook) startFix(performance.now());
             }
+            // (His yell, for the pull, fetched as the set acts up.)
+            loadYell();
+            // The pull (above), once it's due.
+            if (blasted && !tvPullIn && !pullHeld && now >= (pullSoon || pullBase + (lureFix ? PULL_FIXED : PULL_LATE))) startPull(now);
             // (After the blast, it's never quite settled again.)
             const level = Math.max(Math.min(1, waited / LURE_RAMP), blasted ? 0.85 : 0);
             den.tv.haunt(now, lureLook ? Math.max(level, 0.55) : level, (kind, strength) => { lureEvents++; lastHaunt = kind; if (audio && audio.tvHaunt) audio.tvHaunt(kind, strength); }, lureLook);
@@ -1722,12 +1880,14 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           tvW += (tvGoal - tvW) * (1 - Math.exp(-(dtMs / 1000) * 2.2));
           if (Math.abs(tvGoal - tvW) < 0.001) tvW = tvGoal;
         }
+        // (Pulled in: the rush, the lens and the stretch, pullFrame.)
+        if (tvPullIn) pullFrame(camera);
         if (den && t && t.boardGroup && tvW > 0) {
           /* The television: far enough back to have the set in view (on a
              tall screen its sides may go), a little above it; then, as the
              picture pulls, right up to the glass. */
           const f = den.tv.focus, dv = den.tv.dive;
-          const vt = Math.tan((camera.fov * Math.PI) / 360);
+          const vt = Math.tan((((tvPullIn && tvPullIn.fov0) || camera.fov) * Math.PI) / 360);
           // Watching the commercial: in close, on the picture itself.
           const w = tvWatch * tvWatch * (3 - 2 * tvWatch);
           const halfH = f.halfH + (8.2 - f.halfH) * w, halfW = f.halfW + (10.6 - f.halfW) * w;
@@ -1740,7 +1900,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           if (tvDive > 0) aim.lerp(dv.target, tvDive);
           t.boardGroup.localToWorld(eye); t.boardGroup.localToWorld(aim);
           // (The timed leave is already eased; the others ease here.)
-          const e = tvLeaveAt ? tvW : tvW * tvW * (3 - 2 * tvW);
+          const e = tvLeaveAt || tvPullIn ? tvW : tvW * tvW * (3 - 2 * tvW);
           camera.getWorldDirection(dir);
           look.copy(camera.position).addScaledVector(dir, camera.position.length());
           look.lerp(aim, e);
@@ -1826,6 +1986,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         okayAt = 0;
         if (okayCard) { okayCard.el.remove(); okayCard = null; }
         wake = null; houseAt = 0; pushAt = 0; adWait = false;
+        endPull();
         glance = null; lureFix = false; lureLock(false); restOff(); offJourney(); huhAt = 0; bangAt = 0;
         if (huhCard) { huhCard.el.remove(); huhCard = null; }
         if (bangCard) { bangCard.el.remove(); bangCard = null; }

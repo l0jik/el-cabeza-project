@@ -171,3 +171,20 @@ in; leaving Singularity, back in the den as the set switches off.
   you've centered on the table"), and until it's up a press on the set
   doesn't go back into Futuris.
 
+- **The set takes them** (2026-10-20; user: "Eventually, the TV has to
+  pull the player into the TV ... short, quick ... a yell ... they get
+  stretched out ... the camera moving ... toward the television"): the
+  lure can be ignored a while, but after the blast, if the set's not
+  been turned on, it pulls the player in itself (9 s on if the head's
+  still held on it, else 20 s after they last went over or came away): a
+  1.35 s rush from wherever the camera is into the glass, slow then all
+  at once, the lens widening, the picture drawn out toward the set with
+  streaks of light, the set's roar and his yell (the hall's shout), then
+  Nova's own way into Futuris. den-fx.js PULL_*; tests/e2e-tv-pull.mjs.
+- **The clerk's clipping on a big screen** (2026-10-20; user: its
+  captions "are really small on a desktop or laptop ... Maybe not on the
+  phone"): from 700 x 560 up the clipping grows with the screen's height
+  and its lettering with it (the time's caption 15-21px, was 11px), with
+  room kept above it for that caption (on a 768px-tall laptop it ran off
+  the top); a phone's unchanged.
+

@@ -393,6 +393,14 @@ export function createAudio() {
       }
       d.linearRampToValueAtTime(1, at + 0.12);
     }
+    if (kind === "pull") {
+      // Pulled in (den-fx.js): the music dragged down and away, sucked
+      // into the set with you (back a while later, should Nova not go).
+      const w = music.warp.delayTime, d = music.drop.gain;
+      w.cancelScheduledValues(t); w.setValueAtTime(w.value, t); w.linearRampToValueAtTime(0.16, t + 1.3); w.linearRampToValueAtTime(0.03, t + 4);
+      d.cancelScheduledValues(t); d.setValueAtTime(d.value, t); d.linearRampToValueAtTime(0, t + 1.2); d.setValueAtTime(0, t + 3.5); d.linearRampToValueAtTime(1, t + 4.5);
+      return;
+    }
     if (kind === "roll" || kind === "tune" || kind === "ghost" || kind === "voice" || kind === "flash" || kind === "pilot" || kind === "knob" || kind === "surge") {
       /* The warp: the pitch sags a long way (the delay drawn out: -8% at
          full strength) and comes back, sometimes overshooting into a
@@ -745,6 +753,28 @@ export function createAudio() {
       burst(W, hauntBus, 0.42 * k, 1.6, [["lowpass", 1400]], 0.004);
       burst(W, hauntBus, 0.16 * k, 0.9, [["highpass", 3000]], 0.002);
       tone(3950, 3900, 2.8, 0.02, "sine", 0, W + 0.1);
+    } else if (kind === "pull") {
+      /* Pulled in (den-fx.js, PULL_ENTER 1.35 s to the glass): the set
+         drawing breath, everything going toward it. A rushing roar
+         climbing (noise, its band swept up and widening), a whine with
+         it, a sub-bass suck rising (a boom run backwards), the glitch
+         recording swelling; at the glass, a muffled whump and the rush
+         cut off. */
+      const G2 = t + 1.35;
+      { const n = noise(t, 1.45); const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 0.55;
+        bp.frequency.setValueAtTime(180, t); bp.frequency.exponentialRampToValueAtTime(3400, G2);
+        const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.42 * k, G2 - 0.04); g.gain.linearRampToValueAtTime(0.0001, G2 + 0.03);
+        n.connect(bp).connect(g).connect(hauntBus); }
+      { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(2600, G2);
+        const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 5000;
+        const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06 * k, G2 - 0.05); g.gain.linearRampToValueAtTime(0.0001, G2 + 0.02);
+        o.connect(lp).connect(g).connect(hauntBus); o.start(t); o.stop(G2 + 0.1); }
+      { const o = ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(34, t); o.frequency.exponentialRampToValueAtTime(96, G2);
+        const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.45 * k, G2 - 0.03); g.gain.linearRampToValueAtTime(0.0001, G2 + 0.02);
+        o.connect(g).connect(hauntBus); o.start(t); o.stop(G2 + 0.1); }
+      glitchSlice(t + 0.1, 1.2, G * 1.3, { swell: true, rate: [0.6, 1.6] });
+      tone(72, 30, 0.7, 0.4, "sine", 0, G2);
+      burst(G2, hauntBus, 0.3 * k, 0.5, [["lowpass", 900]], 0.003);
     } else if (kind === "surge") {
       // A surge through the dead set: a whine climbing to the flyback's
       // pitch, static rising under it, and a thump as it lets go.

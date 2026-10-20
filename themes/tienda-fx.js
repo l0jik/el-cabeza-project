@@ -47,6 +47,26 @@ export const TRY_IT_EVENT = "el-cabeza:tienda-try-it";
    back to the table should be reduced by 9 seconds": LOOK_MS was 10 s). */
 export const OPENING_VIEW = { theta: Math.PI - 0.1, phi: 1.25, radius: 66, target: [2.2, -2.87, 0] };
 const LOOK_MS = 1000, IDLE_MS = 6000, GLIDE_MS = 3200;
+/* The slow pan (user: "When tienda opens on first / new game the store
+   should be slowly panning from left to right 120°. When the extreme
+   right end is reached, it will just do a soft bounce and start to pan
+   back toward the left side. When the user takes control of the screen,
+   it will stop moving. If they stop moving the screen voluntarily, then
+   it will after about 10 seconds ... return back to panning left and
+   right."): from the opening view the camera goes round the table, 60°
+   either side of it (PAN_HALF), slowly (PAN_SPEED, rad/s: the 120° in
+   about 40 s), rightward first; past either end it runs into a soft
+   spring (PAN_K, a little damped) that turns it back the other way. It
+   turns through the lid, too. A finger or the mouse down on the scene, a
+   drag, a pinch, the wheel, a view button, or anything opened over the
+   store (the dock's menu, the catalog, Try it!'s flyer): it stops where
+   it is. PAN_IDLE_MS after the last of them, with nothing open, it glides
+   back onto its arc (at the opening framing, the nearest point of the
+   arc) and turns on from there; the card still glows its cue at IDLE_MS.
+   Not with reduced motion (the old gentle return then), nor under the
+   tests unless one asks (__EC_TEST_PAN__): it moves everything on the
+   screen. */
+const PAN_HALF = Math.PI / 3, PAN_SPEED = 0.052, PAN_K = 4.4, PAN_DAMP = 0.6, PAN_IDLE_MS = 10000;
 let boxOpenedAt = 0, storeQuiet = false, storyStore = false, lidUp = false;
 /* (tienda-overlay.js, each time it draws: this is the story's store (only
    there: the store page on its own keeps its own camera), the lid's up,
@@ -70,9 +90,62 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, awaiting
   const goalOf = () => { const c = cam.current; return [c.theta, c.phi, c.radius, c.target.x, c.target.y, c.target.z]; };
   const turnOf = (d) => ((d % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
   const near = (a, b, eps) => !!(a && b) && a.every((v, i) => Math.abs(i === 0 ? turnOf(v - b[i]) : v - b[i]) < eps);
-  function frameOpening() {
+  // (The opening framing but for which way round: the pan's.)
+  const nearFrame = (a, eps) => !!a && a.every((v, i) => i === 0 || Math.abs(v - OPEN[i]) < eps);
+  // The slow pan (PAN_* above): on, its turning speed (rad/s) and which way
+  // it's headed; when it may start again (after its glide back); a finger
+  // or the mouse down on the scene; when anything was last open over it.
+  let panOn = true, panW = 0, panDir = 1, panFrom = 0, busyAt = 0;
+  const pressed = new Set();
+  const reduceMotion = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  const panOk = () => typeof window !== "undefined" && !(reduceMotion && reduceMotion.matches) && !(window.__EC_TEST_HOOKS__ && !window.__EC_TEST_PAN__);
+  function pan(now, dt) {
+    if (!panOk() || now < panFrom || !dt) return;
+    const c = cam.current, off = turnOf(c.theta - OPENING_VIEW.theta);
+    let acc;
+    if (Math.abs(off) > PAN_HALF) {
+      // The soft bounce: a spring past the end, and back the other way.
+      acc = -PAN_K * (off - Math.sign(off) * PAN_HALF) - PAN_DAMP * panW;
+      panDir = off > 0 ? -1 : 1;
+    } else acc = (panDir * PAN_SPEED - panW) * 1.5;
+    panW += acc * dt;
+    c.theta += panW * dt;
+  }
+  // Back onto its arc (the nearest point of it, at the opening framing),
+  // gliding, and on from there; at an end, back the other way.
+  function panBack(now) {
+    const c = cam.current, off = turnOf(c.theta - OPENING_VIEW.theta);
+    const to = Math.max(-PAN_HALF, Math.min(PAN_HALF, off));
+    if (to >= PAN_HALF - 0.05) panDir = -1;
+    else if (to <= -PAN_HALF + 0.05) panDir = 1;
+    // (Round from where it is, never a whole turn the long way; already
+    // there, it simply goes on.)
+    const view = { ...OPENING_VIEW, theta: c.theta - off + to };
+    const there = Math.abs(off - to) < 0.01 && nearFrame(goalOf(), 0.02);
+    if (!there && glideTo) glideTo(view, GLIDE_MS); else if (!there) frameOpening(view.theta);
+    panOn = true; panW = 0; panFrom = now + (!there && glideTo ? GLIDE_MS : 0);
+  }
+  // (Test-only: put the pan this far round from the opening view, rad.)
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__TIENDA_PAN_AT__ = (off) => {
+    const c = cam && cam.current;
+    if (!c) return;
+    c.theta = OPENING_VIEW.theta + off;
+    if (c.view) c.view.theta = c.theta;
+    lastGoal = goalOf();
+  };
+  // (Window, capture: ahead of the chassis's own.)
+  const onPress = (e) => { const t = three.current; if (t && t.renderer && e.target === t.renderer.domElement) { pressed.add(e.pointerId); lastInput = performance.now(); } };
+  const onLift = (e) => { if (pressed.delete(e.pointerId)) lastInput = performance.now(); };
+  const onWheel = (e) => { const t = three.current; if (t && t.renderer && e.target === t.renderer.domElement) lastInput = performance.now(); };
+  if (typeof window !== "undefined") {
+    window.addEventListener("pointerdown", onPress, true);
+    window.addEventListener("pointerup", onLift, true);
+    window.addEventListener("pointercancel", onLift, true);
+    window.addEventListener("wheel", onWheel, { capture: true, passive: true });
+  }
+  function frameOpening(theta = OPENING_VIEW.theta) {
     const c = cam.current;
-    c.theta = OPENING_VIEW.theta; c.phi = OPENING_VIEW.phi; c.radius = OPENING_VIEW.radius;
+    c.theta = theta; c.phi = OPENING_VIEW.phi; c.radius = OPENING_VIEW.radius;
     c.target.set(OPENING_VIEW.target[0], OPENING_VIEW.target[1], OPENING_VIEW.target[2]);
     c.dollhouse = false;
     // (Placed: the chassis's pre-game fit leaves it be.)
@@ -89,15 +162,25 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, awaiting
       if (!framed) { frameOpening(); framed = true; lastGoal = goalOf(); lastInput = now; }
       else {
         const g = goalOf();
-        // The player moved it (a drag, a pinch, the wheel, a view button).
-        if (!near(g, lastGoal, 1e-5)) lastInput = now;
+        // The player moved it (a drag, a pinch, the wheel, a view button),
+        // or has a finger on it.
+        const moved = !near(g, lastGoal, 1e-5);
+        if (moved || pressed.size) lastInput = now;
         if (lidUp) {
-          // Held while the lid's on (a refit, a resize).
-          if (!near(g, OPEN, 1e-4)) frameOpening();
+          // Held while the lid's on (a refit, a resize), turning.
+          if (!nearFrame(g, 1e-4)) frameOpening(g[0]);
+          pan(now, dt);
         } else if (boxOpenedAt) {
           const quiet = storeQuiet && !document.querySelector(".td-tryit, .td-special-note");
+          if (!quiet) busyAt = now;
+          if (panOk()) {
+            if (panOn && (moved || pressed.size || !quiet)) { panOn = false; panW = 0; }
+            else if (!panOn && quiet && now - Math.max(lastInput, busyAt) > PAN_IDLE_MS) panBack(now);
+            if (panOn) pan(now, dt);
+          }
           if (quiet && !cardTapped && now - boxOpenedAt > LOOK_MS && now - lastInput > IDLE_MS) {
-            if (!near(g, OPEN, 0.02) && now > glideUntil && glideTo) { glideTo(OPENING_VIEW, GLIDE_MS); glideUntil = now + GLIDE_MS; }
+            // (Without the pan, it glides back to the table itself.)
+            if (!panOk() && !near(g, OPEN, 0.02) && now > glideUntil && glideTo) { glideTo(OPENING_VIEW, GLIDE_MS); glideUntil = now + GLIDE_MS; }
             if (!glowOn) glowAt = now - boxOpenedAt;
             glowOn = true;
           }
@@ -112,7 +195,13 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, awaiting
     if (table && table.setGlow) table.setGlow(glowK, 0.5 + 0.5 * Math.sin((now / 2400) * Math.PI * 2));
     // (glowAt: how long after the box was opened the card's cue came, ms;
     // still: how long the camera had been still then.)
-    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__TIENDA_OPENING__ = { framed, glow: glowK, opened: !!boxOpenedAt, played, cardTapped, glowAt: glowAt === null ? null : Math.round(glowAt), still: Math.round(now - lastInput) };
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
+      window.__TIENDA_OPENING__ = { framed, glow: glowK, opened: !!boxOpenedAt, played, cardTapped, glowAt: glowAt === null ? null : Math.round(glowAt), still: Math.round(now - lastInput) };
+      // (The pan: on, turning, which way, how far round from the opening
+      // view (rad), and how long it's been still.)
+      const c = cam && cam.current;
+      window.__TIENDA_PAN__ = { ok: panOk(), on: panOn && first && waiting, w: +panW.toFixed(4), dir: panDir, off: c ? +turnOf(c.theta - OPENING_VIEW.theta).toFixed(4) : null, still: Math.round(now - Math.max(lastInput, busyAt)), gliding: now < panFrom };
+    }
   }
   ensurePaper();
   ensureNewsprint();
@@ -284,6 +373,12 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, awaiting
     },
     dispose() {
       const t = three.current;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("pointerdown", onPress, true);
+        window.removeEventListener("pointerup", onLift, true);
+        window.removeEventListener("pointercancel", onLift, true);
+        window.removeEventListener("wheel", onWheel, { capture: true });
+      }
       if (attachedTo) {
         attachedTo.remove(store.group);
         if (table) attachedTo.remove(table.group);

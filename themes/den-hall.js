@@ -133,7 +133,7 @@ const SCREAM_CUE = SCREAM_AT - Math.round((PRE + PRE_LEAD) * 1000);
    offline against the scream itself: from about 6 dB under the scream's
    loudest as it ends, 16 dB under a second on, 22 dB at 1.2-1.5 s, then
    gone; the void's music only comes up as it goes (at 1.5 s, 39 dB down). */
-function echoRoom(ctx) {
+export function echoRoom(ctx) {
   const sr = ctx.sampleRate, n = Math.round(ECHO_SECS * sr), buf = ctx.createBuffer(2, n, sr);
   const GAP = 0.21, ECHOES = Array.from({ length: Math.floor(1.6 / GAP) }, (_, j) => GAP * (j + 1));
   let peak = 0;

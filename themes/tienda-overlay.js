@@ -1172,6 +1172,29 @@ const STORY_CSS = `
   .td-clerk-actions [data-testid="tienda-clerk-go-home"], .td-clerk-actions [data-testid="tienda-clerk-go-home"]:hover { background: #C8392B; color: #FBF6E6; }
   @media (prefers-reduced-motion: reduce) { .td-clerk-shot, .td-clerk-print[data-fade="slow"] .td-clerk-shot { transition-duration: 0.01s; } .td-clerk-narration, .td-clerk-pa, .td-clerk-narration.td-clerk-when.td-clerk-top { animation: none; } }
   .td-clerk-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; padding: 14px 6px 16px; }
+  /* A larger screen (user: the captions "are really small on a desktop or
+     laptop ... Maybe not on the phone, but definitely on desktop or laptop
+     experiences, or larger screen experiences"): the clipping takes more
+     of the screen's height (its width no longer held to 420px), and its
+     lettering grows with it: the time's caption up top, the narrator's
+     under the panel, the PA's, Next. Room is kept above the clipping for
+     the caption up top (on a laptop's 768px it ran off the top of the
+     screen), its stripes scaled with it. A phone keeps its sizes. */
+  @media (min-width: 700px) and (min-height: 560px) {
+    .td-clerk { width: min(100%, 720px); }
+    .td-clerk-print { --cap-room: clamp(84px, 11.5vh, 130px); margin-top: var(--cap-room);
+      width: min(100%, calc((100dvh - 170px - var(--cap-room)) * 368 / 474 + 32px)); }
+    .td-clerk-narration.td-clerk-when.td-clerk-top { font-size: clamp(15px, 2vh, 21px); max-width: min(84vw, 27em);
+      padding: 1.45em 0.9em 0.45em 1.64em; bottom: calc(100% + 18px); }
+    .td-clerk-narration.td-clerk-when.td-clerk-top.td-clerk-long { bottom: calc(100% + 26px); }
+    .td-clerk-top .td-clerk-stripes i { right: 0.27em; bottom: 0.27em; border-width: 0.18em 0 0 0.18em; }
+    .td-clerk-top .td-clerk-stripes i:nth-child(1) { top: 0.18em; left: 0.18em; border-top-left-radius: 1.1em; }
+    .td-clerk-top .td-clerk-stripes i:nth-child(2) { top: 0.45em; left: 0.45em; border-top-left-radius: 0.82em; }
+    .td-clerk-top .td-clerk-stripes i:nth-child(3) { top: 0.73em; left: 0.73em; border-top-left-radius: 0.55em; }
+    .td-clerk-top .td-clerk-stripes i:nth-child(4) { top: 1em; left: 1em; border-top-left-radius: 0.27em; }
+    .td-clerk-captions .td-clerk-narration, .td-clerk-pa { font-size: clamp(12px, 1.65vh, 18px); padding: 0.45em 0.75em 0.35em; }
+    .td-clerk-next { font-size: clamp(17px, 2.2vh, 24px); }
+  }
   .td-offer { position: fixed; z-index: 1150; left: 50%; top: max(12px, env(safe-area-inset-top)); transform: translateX(-50%);
     display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: min(560px, calc(100vw - 24px));
     padding: 10px 14px; background: #EFE6CD; color: ${INK}; border: 1px solid rgba(46,33,24,0.35); box-shadow: 0 10px 30px rgba(20,12,6,0.35);

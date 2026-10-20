@@ -36,6 +36,8 @@ const errs = [];
 page.on("pageerror", (e) => errs.push(e.message));
 await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html");
 check("home, in the den", await poll(() => page.evaluate(() => !!window.__DEN_TV__), 30000));
+// (The set's own way in, here: its pull, left too long, is e2e-tv-pull's.)
+await page.evaluate(() => window.__DEN_PULL_HOLD__(true));
 await page.waitForTimeout(1500);
 const tv = () => page.evaluate(() => window.__DEN_TV__());
 const near = () => page.evaluate(() => (window.__DEN_AUDIO__ && window.__DEN_AUDIO__().haunt.near) || 0);

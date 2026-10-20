@@ -61,6 +61,8 @@ const E2E = [
   ["e2e-first-game-tour.mjs"],
   // ...and before it, the store's menu: only See the pieces and Try a Game.
   ["e2e-first-look.mjs"],
+  // The store's slow pan at its opening; the set pulling the player in.
+  ["e2e-store-pan.mjs"], ["e2e-tv-pull.mjs"],
   // Other realities from Futuris's sphere: the switcher on top, scrolling.
   ["e2e-realities-over-sphere.mjs"],
   // A slow machine: the governor's steps (floor, shadow map, 30 a second), kept; shaders compiled early.

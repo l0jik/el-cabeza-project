@@ -454,6 +454,8 @@ export function buildTelevision(yF, RZ, X = -40) {
   // The commercial (den-commercial.js: the user's spot, a video), made
   // when it's first shown.
   let commercial = null, adLead = 0, adWaitAt = 0;
+  // (How much faster than its own the dive runs: pulled in, den-fx.js.)
+  let diveRate = 1;
   // (How long the commercial waits in the snow for its picture before it
   // goes on without one.)
   const AD_WAIT_MS = 6000;
@@ -610,7 +612,21 @@ export function buildTelevision(yF, RZ, X = -40) {
       u.uTex.value = pattern;
       portal = !!withPortal; onEnter = enter; entered = false;
       knobGoal = -0.9 + 0.75;
+      diveRate = 1;
       set("warming", now);
+      return true;
+    },
+    /* Pulled in (den-fx.js: the lure ignored till the set takes the
+       player itself): on at once, straight into the dive, quicker than
+       when it's turned on, enter() at its glass `ms` on. */
+    pull(now, enter, ms) {
+      if (phase === "dive") return false;
+      haunt = null;
+      u.uTex.value = pattern;
+      portal = true; onEnter = enter; entered = false;
+      knobA = knobGoal = -0.9 + 0.75;
+      diveRate = TV_TIMES.enterAt / ms;
+      set("dive", now);
       return true;
     },
     // (Not once the dive has begun, unless `force`: Nova couldn't go.)
@@ -726,8 +742,9 @@ export function buildTelevision(yF, RZ, X = -40) {
         if (portal && s >= TV_TIMES.diveAfter) set("dive", now);
       } else if (phase === "dive") {
         raster = 1; glow = 1; pat = 1; snow = 0.1;
-        dive = ease(clamp01(s / TV_TIMES.dive));
-        if (!entered && s >= TV_TIMES.enterAt) { entered = true; if (onEnter) onEnter(); }
+        const sd = s * diveRate;
+        dive = ease(clamp01(sd / TV_TIMES.dive));
+        if (!entered && sd >= TV_TIMES.enterAt) { entered = true; if (onEnter) onEnter(); }
       } else if (phase === "commercial") {
         // A clean picture (user); snow until the spot has one (still
         // loading, or from disk). (s is negative before it starts: held
