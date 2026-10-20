@@ -240,3 +240,10 @@ box art and an ad standee (assets/tienda/*.jpg).
   (Just a minute or Escape) comes back three of the player's moves later
   (MOVES.again, PA.back), "The store is now closed.", and again after
   each Just a minute; with no moves it stays away.
+- **Two fingers on the board card** (2026-10-20; user: "a good place to
+  also mention the two-finger panning, up, down, left, right ... I want
+  to be super concise"): card 7 of 8 now reads "Drag one finger to turn
+  it all the way around, two to move it up, down or sideways. Pinch to
+  zoom in or out." (a mouse: "right-drag to move it"; the chassis pans
+  on a right-drag or Alt-drag). The board's label below stays "Drag to
+  turn · pinch to zoom" (a third item won't fit a phone).

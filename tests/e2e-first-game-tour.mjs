@@ -198,6 +198,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await next(page);
   t = await cardText(page);
   check("Next: the board turns any way (a finger's words: drag, pinch)", /Turn the board any way you like\./.test(t) && /Pinch to zoom/.test(t), t);
+  check("...and two fingers move it (user: \"mention the two-finger panning, up, down, left, right\")", /Drag one finger to turn it all the way around, two to move it up, down or sideways\./.test(t), t);
   tour = await tourOf(page);
   const near = await page.evaluate(() => { const e = document.querySelector('[data-orbit="near"] path.ec-tour-march'); return e ? e.getAttribute("d") || "" : ""; });
   const f0 = await page.evaluate(() => +document.querySelector('[data-orbit="finger"]').getAttribute("cx"));
@@ -338,7 +339,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await page.waitForTimeout(600);
   const t = await cardText(page);
   const tour = await tourOf(page);
-  check("a mouse's words for the board: drag, scroll", /Scroll to zoom/.test(t) && !/pinch/i.test(t), t);
+  check("a mouse's words for the board: drag, right-drag, scroll", /Scroll to zoom/.test(t) && /right-drag to move it up, down or sideways/.test(t) && !/pinch|finger/i.test(t), t);
   check("...and the arrows round it a mouse's way", !!tour.marks.orbit && tour.marks.orbit.mouse === true, JSON.stringify(tour.marks.orbit));
   await page.locator('[data-testid="tour-skip"]').click();
   await page.waitForTimeout(800);

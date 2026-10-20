@@ -136,7 +136,10 @@ function cardText(t) {
       return {
         title: "Turn the board any way you like.",
         body: [
-          t.touch ? "Drag a finger across it to turn it all the way around. Pinch to zoom in or out." : "Drag across it to turn it all the way around. Scroll to zoom in or out.",
+          // (Moving it too, as briefly, user: "a good place to also mention
+          // the two-finger panning, up, down, left, right ... I want to be
+          // super concise". A mouse moves it with a right-drag, or Alt.)
+          t.touch ? "Drag one finger to turn it all the way around, two to move it up, down or sideways. Pinch to zoom in or out." : "Drag across it to turn it all the way around, right-drag to move it up, down or sideways. Scroll to zoom in or out.",
           "It doesn't change the game: look from wherever helps.",
         ],
       };
