@@ -9,8 +9,9 @@
    - It's up as the page opens (?title: the tests' browsers are automated,
      where it otherwise stays out of the way), the splash playing, the app
      not mounted under it.
-   - A new player: when the video's over, the logo held (looping its last
-     breath, never past it) and the menu: Begin alone. A tap off the
+   - A new player: 6.2 s into the video the menu (user: "Make it 6.2
+     seconds before the button appears"), the video playing on into its
+     last breath, then looping it, never past it; Begin alone. A tap off the
      button does nothing; Begin begins: the title goes and the story's at
      Big Glutts, the lid on the box.
    - The first tap, wherever it lands, puts the page full screen and does
@@ -94,9 +95,13 @@ console.log("\na new player: the splash, the logo held, Begin");
   check("...the address as it was (no ?title)", !(await page.evaluate(() => location.search.includes("title"))));
   await page.waitForTimeout(1500);
   check("the app's not mounted under it", !(await mounted(page)));
-  const held = await poll(async () => (await state(page)) === "held", 20000);
-  check("the video over: the logo held", !!held);
+  const vt = () => page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime);
+  const heldAt = await poll(async () => (await state(page)) === "held" && vt(), 20000, 50);
+  check(`6.2 s in: the menu (the video at ${heldAt ? heldAt.toFixed(2) : "?"} s)`, !!heldAt && heldAt >= 6.15 && heldAt < 6.9);
+  check("...the video playing on", !!(await poll(async () => (await vt()) > heldAt + 0.8, 4000, 100)));
   // Held, it loops the last breath, never running on into the end.
+  await poll(async () => (await vt()) > 8.8, 8000, 100);
+  await poll(async () => (await vt()) < 8.6, 4000, 50);
   const times = [];
   for (let i = 0; i < 12; i++) { times.push(await page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime)); await page.waitForTimeout(400); }
   check("...breathing: the last breath again and again (7.5 to 9.2 s)", times.every((t) => t >= 7.4 && t <= 9.45) && new Set(times.map((t) => t.toFixed(1))).size > 3, times.map((t) => t.toFixed(2)).join(" "));
@@ -127,7 +132,7 @@ console.log("\nthe first tap, while it plays: full screen, nothing else");
   const at = await page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime);
   check("the first tap: full screen", await fullScreen(page));
   check("...and only that: it plays on", (await state(page)) === "playing" && at < 7, `${await state(page)} at ${at.toFixed(2)} s`);
-  check("the video over: the logo held, the menu", !!(await poll(async () => (await state(page)) === "held", 15000)));
+  check("6.2 s in: the menu", !!(await poll(async () => (await state(page)) === "held", 15000)));
   check("...the app still waiting", !(await mounted(page)));
   await page.keyboard.press("Enter");
   await page.waitForTimeout(1200);
