@@ -251,7 +251,7 @@ console.log("\nthe last minutes: Just a minute");
   await page.waitForTimeout(600);
   check("Just a minute: the notice put away, still in the store", !(await has(page, "tienda-closing-notice")) && !(await has(page, "story-cut")) && (await has(page, "tienda-price-tag")));
   await page.waitForTimeout(2500);
-  check("...and the PA says no more", !(await has(page, "tienda-closing-notice")) && (await page.evaluate(() => window.__PA_SAID__.filter((id) => id === "tienda-closing-notice").length)) === 1);
+  check("...and, no moves made, it stays away (it's back only after more moves)", !(await has(page, "tienda-closing-notice")) && (await page.evaluate(() => window.__PA_SAID__.filter((id) => id === "tienda-closing-notice").length)) === 1);
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
@@ -354,11 +354,26 @@ console.log("\nthree moves after the walkthrough: asked to take it to the regist
 
   check("the third move, answered", await playTurn(page), `log ${await logLen(page)}`);
   const notice = await poll(async () => (await said()).find((s) => s.id === "tienda-closing-notice"), 25000, 100);
-  check("...Big Glutts' notice, the player to move (the closing words down first)", !!notice && notice.log >= 8 && notice.toMove === "light" && (await page.evaluate(() => window.__PA_GONE_AT__["tienda-pa-closing"])) <= notice.at && (await shop()).early === true, JSON.stringify({ notice, shop: await shop() }));
+  check("...Big Glutts' notice, the player to move (the closing words down first)", !!notice && notice.log >= 8 && notice.toMove === "light" && (await page.evaluate(() => window.__PA_GONE_AT__["tienda-pa-closing"])) <= notice.at && (await shop()).asked === "now", JSON.stringify({ notice, shop: await shop() }));
   const text = notice ? (await q(page, "tienda-closing-notice").innerText()).replace(/\s+/g, " ") : "";
   check("...the store closing now: asked to leave, take it to the front", /The store is now closing\./.test(text) && /We’re going to have to ask you to leave\. Please take all purchases to the front registers\./.test(text) && /Take El Cabeza to the register/i.test(text), text);
   check("...the lights down another step", await poll(() => page.evaluate(() => window.__TIENDA_SHOP__().dim2), 3000));
   check("...in order: in stock, closing time, the notice", JSON.stringify((await said()).map((s) => s.id)) === JSON.stringify(["tienda-pa-instock", "tienda-pa-closing", "tienda-closing-notice"]), JSON.stringify((await said()).map((s) => s.id)));
+
+  /* Just a minute, and back after three more moves (user: "have Just a
+     minute bring it back after a few moves"); the moves go on counting in
+     a new game (which keeps the computer from getting far). */
+  await q(page, "tienda-closing-later").click();
+  check("Just a minute: put away, still in the store", (await poll(async () => !(await has(page, "tienda-closing-notice")), 4000)) && !(await has(page, "story-cut")) && (await shop()).back === 6, JSON.stringify(await shop()));
+  await page.evaluate(() => window.__EC_TEST_NEW_GAME__());
+  await page.waitForTimeout(2000);
+  await openDockPanel(page);
+  await q(page, "tienda-try-game").click({ force: true });
+  check("...a new game", !!(await poll(() => page.evaluate(() => window.__EC_TEST_ARMED__ === true && (window.__EC_TEST_LOG__ || []).length === 0), 15000)));
+  check("...two more moves: not yet", (await playTurn(page)) && (await playTurn(page)) && !(await has(page, "tienda-closing-notice")) && (await shop()).moves === 5, JSON.stringify(await shop()));
+  check("...the third: back", (await playTurn(page)) && !!(await poll(() => has(page, "tienda-closing-notice"), 10000)));
+  const again = (await has(page, "tienda-closing-notice")) ? (await q(page, "tienda-closing-notice").innerText()).replace(/\s+/g, " ") : "";
+  check("...the store closed now, asked again to leave", /The store is now closed\./.test(again) && /We’re going to have to ask you to leave\./.test(again) && (await shop()).asked === "closed", again);
   await q(page, "tienda-closing-checkout").click();
   check("...its button: the purchase", await poll(() => has(page, "story-cut"), 6000, 100));
   check("no page errors", errs.length === 0, errs.join(" | "));

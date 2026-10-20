@@ -34,9 +34,10 @@
      lights down another step and Big Glutts' notice over the store, its
      logo and stripes: we're going to have to ask you to leave, take all
      purchases to the front registers; its button checks out, "Just a
-     minute" puts it away. Real minutes, from the ten-minute words (a
-     minute missed while something else was up is skipped: the PA says
-     the time it is);
+     minute" puts it away, and three moves on it's back, the store closed
+     now (user: "have Just a minute bring it back after a few moves").
+     Real minutes, from the ten-minute words (a minute missed while
+     something else was up is skipped: the PA says the time it is);
    - in a game it's all sooner, by the player's moves (user: "The user
      will be encouraged to purchase the game and leave the store 3 moves
      after they have started playing once the tutorial has been
@@ -74,11 +75,12 @@ export function useCart() {
 
 /* ---- the PA's moments, once each a visit ---- */
 // (closingAt: when the ten minutes began; left: the last minute said, 5
-// down to 1, the notice; 0 none yet; early: the notice came by the moves;
-// moves: the player's since the walkthrough, the log read up to seen, -1
-// not yet.)
-const PA = { said: { instock: false, closing: false }, at: 0, closingAt: 0, left: 0, early: false, moves: 0, seen: -1 };
-export function resetShopping() { PA.said = { instock: false, closing: false }; PA.at = 0; PA.closingAt = 0; PA.left = 0; PA.early = false; PA.moves = 0; PA.seen = -1; emptyCart(); setDim(false); }
+// down to 1, the notice; 0 none yet; asked: how the notice last came,
+// "minute" by the clock, "now" by the moves, "closed" back again; back:
+// the moves at which it's back, put off, 0 not; moves: the player's since
+// the walkthrough, the log read up to seen, -1 not yet.)
+const PA = { said: { instock: false, closing: false }, at: 0, closingAt: 0, left: 0, asked: "", back: 0, moves: 0, seen: -1 };
+export function resetShopping() { PA.said = { instock: false, closing: false }; PA.at = 0; PA.closingAt = 0; PA.left = 0; PA.asked = ""; PA.back = 0; PA.moves = 0; PA.seen = -1; emptyCart(); setDim(false); }
 /* The player's own moves since the first game's walkthrough was over (or
    from the first game, where it was walked through before): each turn
    the log gains that isn't the computer's, once, across the visit's games
@@ -205,9 +207,10 @@ export function ShopCorner({ inGame, audio, onPurchase }) {
 /* The PA, on the first visit: in stock (a while after arriving), then,
    later, closing time; then the last minutes, and Big Glutts' notice a
    minute from closing (NOTICE_CSS). In a game, sooner: each at the
-   player's move after the walkthrough given here (MOVES). */
+   player's move after the walkthrough given here (MOVES); the notice put
+   off, back this many moves on (again). */
 const IN_STOCK_MS = 75000, CLOSING_MS = 120000, CLOSING_MIN_MS = 35000, MINUTE_MS = 60000;
-const MOVES = { instock: 1, closing: 2, notice: 3 };
+const MOVES = { instock: 1, closing: 2, notice: 3, again: 3 };
 // (The notice's stripes, the store's four earth tones, as on the flyer.)
 const STRIPES = ["#6B3A1E", "#B4451F", "#E07B22", "#E9B23A"];
 const NOTICE_CSS = `
@@ -246,7 +249,10 @@ function logoFont() {
   if (typeof document === "undefined" || document.querySelector('link[href*="family=Caprasimo"]')) return;
   const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Caprasimo&display=swap"; document.head.appendChild(l);
 }
-function ClosingNotice({ onCheckout, onLater, early }) {
+// Its head: by the clock's last minute, by the moves, and back again after
+// Just a minute.
+const NOTICE_TITLES = { minute: "The store closes in one minute.", now: "The store is now closing.", closed: "The store is now closed." };
+function ClosingNotice({ onCheckout, onLater, asked }) {
   const ref = React.useRef(null);
   React.useEffect(() => {
     logoFont();
@@ -265,8 +271,7 @@ function ClosingNotice({ onCheckout, onLater, early }) {
         STRIPES.map((c, i) => h("rect", { key: c, x: 0, y: i * 8.5, width: 380, height: 7.5, fill: c }))),
       h("div", { className: "logo" }, h("b", null, "Big Glutts"), h("span", null, "Your savings headquarters")),
       h("div", { className: "band" }, "Closing time"),
-      // (Come by the moves, before the clock's last minute: closing now.)
-      h("h2", { id: "td-closing-title" }, early ? "The store is now closing." : "The store closes in one minute."),
+      h("h2", { id: "td-closing-title" }, NOTICE_TITLES[asked] || NOTICE_TITLES.minute),
       h("p", { id: "td-closing-words" }, "We’re going to have to ask you to leave. Please take all purchases to the front registers."),
       h("p", { className: "thanks" }, "Thank you for shopping at Big Glutts."),
       h("button", { type: "button", className: "go", "data-testid": "tienda-closing-checkout", onClick: onCheckout }, "Take El Cabeza to the register ›"),
@@ -369,9 +374,9 @@ export function StorePA({ active, game, audio, onPurchase }) {
     setGoing(false); setSay(which); setSpoken((n) => n + 1);
   }, [audio]);
   // Big Glutts' notice, the lights down another step: by the clock's last
-  // minute, or early, by the moves.
-  const ask = React.useCallback((early) => {
-    PA.left = 1; PA.early = early;
+  // minute, early by the moves, or back again (NOTICE_TITLES).
+  const ask = React.useCallback((asked) => {
+    PA.left = 1; PA.asked = asked; PA.back = 0;
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("td-pa-speak"));
     if (audio && audio.playPage) audio.playPage();
     setDim(true, 2);
@@ -402,8 +407,14 @@ export function StorePA({ active, game, audio, onPurchase }) {
   // over a game's end) and closing time's words down.
   const noticeDue = moves >= MOVES.notice && yours;
   React.useEffect(() => {
-    if (active && PA.said.closing && PA.left !== 1 && !say && noticeDue) ask(true);
+    if (active && PA.said.closing && PA.left !== 1 && !say && noticeDue) ask("now");
   }, [active, say, noticeDue, ask]);
+  // Put off with Just a minute, back a few moves on (user: "have Just a
+  // minute bring it back after a few moves"), the store closed now.
+  const backDue = !!PA.back && moves >= PA.back && yours;
+  React.useEffect(() => {
+    if (active && backDue && !say && !notice) ask("closed");
+  }, [active, backDue, say, notice, ask]);
   /* The last minutes: ten from the closing words, said at five, four,
      three and two to go (the one it is, if one was missed while the PA
      was quiet: a sheet or the clerk up), and at one the notice, the
@@ -415,7 +426,7 @@ export function StorePA({ active, game, audio, onPurchase }) {
       const left = Math.max(1, 10 - Math.floor((performance.now() - PA.closingAt) / minute));
       if (left > 5 || (PA.left && left >= PA.left)) return;
       if (left > 1) { PA.left = left; speak(`${left}min`); return; }
-      ask(false);
+      ask("minute");
     };
     tick();
     if (PA.left === 1) return undefined;
@@ -441,10 +452,10 @@ export function StorePA({ active, game, audio, onPurchase }) {
     setNotice(false); setSay(null);
     addToCart(); onPurchase && onPurchase();
   }, [audio, onPurchase]);
-  const later = React.useCallback(() => { audio && audio.playMenu && audio.playMenu(); setNotice(false); }, [audio]);
+  const later = React.useCallback(() => { audio && audio.playMenu && audio.playMenu(); PA.back = PA.moves + MOVES.again; setNotice(false); }, [audio]);
   const swipe = useSwipeAway(say, React.useCallback(() => { setSay(null); setGoing(false); }, []));
   if (!active) return null;
-  if (notice) return h(ClosingNotice, { onCheckout: checkout, onLater: later, early: PA.early });
+  if (notice) return h(ClosingNotice, { onCheckout: checkout, onLater: later, asked: PA.asked });
   if (!say) return null;
   const toRegister = say !== "instock";
   // (Each announcement its own caption, come in afresh.)
@@ -471,4 +482,4 @@ export function useShoppingVisit(active) {
   }, [active]);
 }
 
-if (typeof window !== "undefined") window.__TIENDA_SHOP__ = () => ({ cart: CART.n, said: { ...PA.said }, left: PA.left, early: PA.early, moves: PA.moves, dim: !!document.querySelector('.td-closing-dim[data-on="true"], .td-closing-dim[data-on="2"]'), dim2: !!document.querySelector('.td-closing-dim[data-on="2"]') });
+if (typeof window !== "undefined") window.__TIENDA_SHOP__ = () => ({ cart: CART.n, said: { ...PA.said }, left: PA.left, asked: PA.asked, back: PA.back, moves: PA.moves, dim: !!document.querySelector('.td-closing-dim[data-on="true"], .td-closing-dim[data-on="2"]'), dim2: !!document.querySelector('.td-closing-dim[data-on="2"]') });

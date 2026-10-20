@@ -110,7 +110,8 @@ in; leaving Singularity, back in the den as the set switches off.
   one Big Glutts' notice over the store (logo, stripes, "We're going to
   have to ask you to leave. Please take all purchases to the front
   registers.", the lights down another step): its button checks out (the
-  purchase), "Just a minute" (or Escape) puts it away for good. Tests
+  purchase), "Just a minute" (or Escape) puts it away until three more of
+  the player's moves, then it's back, "The store is now closed." Tests
   shorten a minute with `__EC_TEST_CLOSING_MINUTE_MS__` (e2e-store-nudge).
   In a game it all comes sooner (2026-10-20, user: "encouraged to
   purchase the game and leave the store 3 moves after they have started

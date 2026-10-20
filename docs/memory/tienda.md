@@ -235,3 +235,8 @@ box art and an ad standee (assets/tienda/*.jpg).
   is now closing."), each once the computer's answered and the card
   before it is down. The clock's timings stay for a player who doesn't
   play.
+- **Just a minute, then back** (2026-10-20; user: "Yes, have.Just a
+  minute bring it back after a few moves."): Big Glutts' notice put off
+  (Just a minute or Escape) comes back three of the player's moves later
+  (MOVES.again, PA.back), "The store is now closed.", and again after
+  each Just a minute; with no moves it stays away.
