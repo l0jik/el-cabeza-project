@@ -121,17 +121,25 @@ async function desktop(world) {
     `ring gone after ${ringGone || "never"} ms; turns ended ${afterDrag} by the hold's time, ${afterLift} after the lift; ring ${ringAfterDrag}`);
   await page.evaluate(() => { delete window.__EC_TEST_HOLD_MS__; });
 
-  // Held: the turn ends.
+  /* Held: the turn ends. The first time (none held to its end yet), the
+     slow one, larger, saying what the ring's for (user: "it should last
+     longer or be more prominent in some way, just to kind of teach them
+     how it's done. First and only the first time."); then remembered. */
   await page.waitForTimeout(800);
   p = await at(page, "dark-turrito");
   await page.mouse.move(p.x, p.y);
+  const tHold = Date.now();
   await page.mouse.down();
   await page.waitForTimeout(350);
+  const firstRing = await page.evaluate(() => { const r = document.querySelector('[data-testid="hold-to-end"]'), t = document.querySelector('[data-testid="hold-to-end-teach"]'); return r && { first: r.dataset.first, teach: t ? t.textContent : null }; });
   if (world === "standard") await page.screenshot({ path: "/tmp/e2e-hold-to-end-ring.png" });
-  const ended = await poll(async () => (await turns(page)) === 1, 2500, 50);
+  const ended = await poll(async () => (await turns(page)) === 1 && Date.now() - tHold, 5000, 50);
   await page.mouse.up();
   await page.waitForTimeout(600);
-  check("held: the turn ends (in about two thirds of a second)", !!ended);
+  check(`held: the turn ends (${ended} ms)`, !!ended);
+  check(`...the first hold the teaching one, saying what the ring's for (${JSON.stringify(firstRing)})`, !!firstRing && firstRing.first === "true" && /when the ring closes, your turn ends/i.test(firstRing.teach || ""));
+  check("...and slower, about a second and a half (not two thirds of one)", !!ended && ended >= 1300);
+  check("...then remembered: learned", (await page.evaluate(() => localStorage.getItem("el-cabeza:hold-to-end-learned"))) === "1");
   check("...the ring gone, the lift no tap (Light's turn, nothing chosen)", (await ring(page).count()) === 0 && (await turns(page)) === 1 &&
     (await page.evaluate(() => (window.__EC_TEST_PIECES__ || []).length)) === 4);
 
@@ -172,7 +180,8 @@ await desktop("ciudad");
 
 console.log("The den on a phone, the bar layout");
 {
-  const seed = { "el-cabeza:story": JSON.stringify({ owned: true }), "el-cabeza:singularity-seen": "1", "el-cabeza:commercial-aired": "1", "el-cabeza:special-order-noted": "1", "el-cabeza:nova-layout": "bar" };
+  // (The hold learned already: the usual one, quick and plain.)
+  const seed = { "el-cabeza:story": JSON.stringify({ owned: true }), "el-cabeza:singularity-seen": "1", "el-cabeza:commercial-aired": "1", "el-cabeza:special-order-noted": "1", "el-cabeza:nova-layout": "bar", "el-cabeza:hold-to-end-learned": "1" };
   const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
   await ctx.addInitScript((seed) => {
     window.__EC_TEST_HOOKS__ = true;
@@ -212,12 +221,12 @@ console.log("The den on a phone, the bar layout");
   p = await at(page, "dark-turrito");
   await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: Math.round(p.x), y: Math.round(p.y) }] });
   await page.waitForTimeout(300);
-  const shownOnPhone = (await ring(page).count()) === 1;
+  const shownOnPhone = (await ring(page).count()) === 1 && (await ring(page).getAttribute("data-first")) === "false";
   await page.screenshot({ path: "/tmp/e2e-hold-to-end-phone.png" });
   const endedOnPhone = await poll(async () => (await turns(page)) === 1, 2500, 50);
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await page.waitForTimeout(500);
-  check("a touch held on it: the ring, then the turn ends", shownOnPhone && !!endedOnPhone);
+  check("a touch held on it: the ring (the usual one, learned), then the turn ends", shownOnPhone && !!endedOnPhone);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

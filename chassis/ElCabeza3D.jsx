@@ -386,6 +386,24 @@ function noteMoveSound(kind, piece, played) {
    stays as it is. */
 const HOLD_END_KEY = "el-cabeza:hold-to-end";
 const HOLD_END_MS = 650;
+/* Till a hold has once been held to its end, it's the slow, big one
+   that says what it does (user: "The first time that somebody wants to
+   manually stop a piece and not use its second move, and you press and
+   hold on it, it should last longer or be more prominent in some way,
+   just to kind of teach them how it's done. First and only the first
+   time."): HOLD_END_FIRST_MS, the ring larger and lit, two lines under
+   it. Let go early and it's still to learn. */
+const HOLD_END_FIRST_MS = 1500;
+const HOLD_LEARNED_KEY = "el-cabeza:hold-to-end-learned";
+let holdLearnedNow = false; // (if storage can't keep it, this visit does)
+function holdLearned() {
+  if (holdLearnedNow) return true;
+  try { return window.localStorage.getItem(HOLD_LEARNED_KEY) === "1"; } catch (e) { return false; }
+}
+function markHoldLearned() {
+  holdLearnedNow = true;
+  try { window.localStorage.setItem(HOLD_LEARNED_KEY, "1"); } catch (e) { /* storage unavailable */ }
+}
 function loadHoldToEnd() {
   try { return window.localStorage.getItem(HOLD_END_KEY) !== "0"; } catch (e) { return true; }
 }
@@ -4653,7 +4671,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         t2.arrows.push({ key: "path", from: { piece: myCab.id }, to: { box: { type: "square", row: goalRow, col: myCab.col, w: 1, h: 1, z: 0 } }, tone: "goal", bend: 0.08 });
         tag("way-1", { piece: myCab.id }, "1 · Your Cabeza across", "mine");
       }
-      if (foeCab) { ring(foeCab, "foe", { pulse: true }); tag("way-2", { piece: foeCab.id }, `2 · Crush ${sideName(tourFoe)}'s`, "foe"); }
+      // (User: it "should read, 'Crush opponent's Cabeza'".)
+      if (foeCab) { ring(foeCab, "foe", { pulse: true }); tag("way-2", { piece: foeCab.id }, "2 · Crush opponent's Cabeza", "foe"); }
     } else if (tourStep === "goal") {
       t3.band = { row: goalRow, tone: "goal" };
       tag("goal", { row: goalRow }, `${sideName(tourFoe)}'s back row · your goal`, "goal");
@@ -8651,11 +8670,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             // reach the page a frame at a time, so one that moved off
             // before then has let it go by then.)
             // (Tests may hold it longer, to picture it: __EC_TEST_HOLD_MS__.)
-            const ms = (window.__EC_TEST_HOOKS__ && window.__EC_TEST_HOLD_MS__) || HOLD_END_MS;
-            const hold = { id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, done: false, timer: 0 };
+            // (The first, till one's held to its end: the slow one.)
+            const first = !holdLearned();
+            const ms = (window.__EC_TEST_HOOKS__ && window.__EC_TEST_HOLD_MS__) || (first ? HOLD_END_FIRST_MS : HOLD_END_MS);
+            const hold = { id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, done: false, timer: 0, first };
             hold.timer = setTimeout(() => requestAnimationFrame(() => holdDoneRef.current(hold)), ms);
             endHoldRef.current = hold;
-            setEndHold({ x: sp.x, y: sp.y, key: Date.now(), touch: ev.pointerType === "touch", ms });
+            setEndHold({ x: sp.x, y: sp.y, key: Date.now(), touch: ev.pointerType === "touch", ms, first });
           }
         }
       } else {
@@ -9790,6 +9811,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   holdDoneRef.current = (h) => {
     if (!h || h !== endHoldRef.current || h.done) return;
     h.done = true;
+    if (h.first) markHoldLearned();
     setEndHold(null);
     setHoldHint(null);
     try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) { /* no vibration here */ }
@@ -11427,19 +11449,25 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
 
       {/* Hold to end (see endHoldRef): the ring round the piece filling
          while it's held, and under it what to do; drawn a moment after the
-         press, so a quick tap or a drag never shows it. */}
+         press, so a quick tap or a drag never shows it. The first, till
+         one's been held to its end (HOLD_END_FIRST_MS): slower, the ring
+         larger and lit with a light breathing round it, and a second line
+         saying what the ring's for. */}
       {endHold && (() => {
-        const r = endHold.touch ? 50 : 40, S = r + 8;
+        const f = !!endHold.first;
+        const r = (endHold.touch ? 50 : 40) + (f ? 14 : 0), S = r + (f ? 18 : 8), w = f ? 7 : 5;
         return (
-          <div key={endHold.key} data-testid="hold-to-end" aria-hidden="true" style={{ position: "fixed", left: endHold.x, top: endHold.y, width: 0, height: 0, zIndex: 14, pointerEvents: "none" }}>
-            <style>{"@keyframes ecHoldFill{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}@keyframes ecHoldIn{from{opacity:0}to{opacity:1}}"}</style>
-            <svg width={2 * S} height={2 * S} viewBox={`0 0 ${2 * S} ${2 * S}`} style={{ position: "absolute", left: -S, top: -S, overflow: "visible", animation: "ecHoldIn 140ms ease 90ms both" }}>
-              <circle cx={S} cy={S} r={r} fill="none" stroke={COLORS.charcoal} strokeOpacity="0.45" strokeWidth="9" />
-              <circle cx={S} cy={S} r={r} fill="none" stroke={COLORS.cream} strokeOpacity="0.35" strokeWidth="5" />
-              <circle cx={S} cy={S} r={r} fill="none" stroke={COLORS.cream} strokeWidth="5" strokeLinecap="round" pathLength="100" strokeDasharray="100" transform={`rotate(-90 ${S} ${S})`} style={{ animation: `ecHoldFill ${endHold.ms}ms linear both` }} />
+          <div key={endHold.key} data-testid="hold-to-end" data-first={f ? "true" : "false"} aria-hidden="true" style={{ position: "fixed", left: endHold.x, top: endHold.y, width: 0, height: 0, zIndex: 14, pointerEvents: "none" }}>
+            <style>{"@keyframes ecHoldFill{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}@keyframes ecHoldIn{from{opacity:0}to{opacity:1}}@keyframes ecHoldBreathe{0%,100%{opacity:0.2;transform:scale(0.97)}50%{opacity:0.75;transform:scale(1.05)}}"}</style>
+            <svg width={2 * S} height={2 * S} viewBox={`0 0 ${2 * S} ${2 * S}`} style={{ position: "absolute", left: -S, top: -S, overflow: "visible", animation: "ecHoldIn 140ms ease 90ms both", filter: f ? "drop-shadow(0 0 7px rgba(255,246,226,0.8))" : undefined }}>
+              {f && <circle cx={S} cy={S} r={r + 10} fill="none" stroke={COLORS.cream} strokeWidth="2.5" style={{ transformOrigin: `${S}px ${S}px`, animation: "ecHoldBreathe 1000ms ease-in-out infinite" }} />}
+              <circle cx={S} cy={S} r={r} fill="none" stroke={COLORS.charcoal} strokeOpacity="0.45" strokeWidth={w + 4} />
+              <circle cx={S} cy={S} r={r} fill="none" stroke={COLORS.cream} strokeOpacity="0.35" strokeWidth={w} />
+              <circle cx={S} cy={S} r={r} fill="none" stroke={COLORS.cream} strokeWidth={w} strokeLinecap="round" pathLength="100" strokeDasharray="100" transform={`rotate(-90 ${S} ${S})`} style={{ animation: `ecHoldFill ${endHold.ms}ms linear both` }} />
             </svg>
-            <div style={{ position: "absolute", left: 0, top: S + 6, transform: "translateX(-50%)", whiteSpace: "nowrap", padding: "6px 12px", borderRadius: 999, background: COLORS.charcoal, color: COLORS.cream, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 600, boxShadow: "0 4px 14px rgba(0,0,0,0.3)", animation: "ecHoldIn 160ms ease 160ms both" }}>
+            <div style={{ position: "absolute", left: 0, top: S + 6, transform: "translateX(-50%)", whiteSpace: f ? "normal" : "nowrap", width: f ? "max-content" : undefined, maxWidth: f ? "min(80vw, 300px)" : undefined, textAlign: "center", padding: f ? "8px 14px 9px" : "6px 12px", borderRadius: f ? 14 : 999, background: COLORS.charcoal, color: COLORS.cream, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: f ? 14.5 : 13, fontWeight: 600, boxShadow: "0 4px 14px rgba(0,0,0,0.3)", animation: "ecHoldIn 160ms ease 160ms both" }}>
               Keep holding to end your turn
+              {f && <div data-testid="hold-to-end-teach" style={{ marginTop: 3, fontSize: 12.5, fontWeight: 400, lineHeight: 1.35, opacity: 0.88 }}>When the ring closes, your turn ends. Let go to keep playing.</div>}
             </div>
           </div>
         );

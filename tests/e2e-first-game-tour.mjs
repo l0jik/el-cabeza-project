@@ -118,12 +118,12 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   // Two ways to win, before either: both Cabezas ringed and numbered.
   await next(page);
   t = await cardText(page);
-  check("Next: there are two ways to win, both said", /There are two ways to win\./.test(t) && /1\. Get your Cabeza across the board to Walnut's back row\./.test(t) && /2\. Crush Walnut's Cabeza with one of your blocks\./.test(t) && /2 of 8/i.test(t), t);
+  check("Next: there are two ways to win, both said", /There are two ways to win\./.test(t) && /1\. Get your Cabeza across the board to Walnut's back row\./.test(t) && /2\. Crush opponent's Cabeza with one of your blocks\./.test(t) && /2 of 8/i.test(t), t);
   r = await rings(page);
   cardBox = await card(page).boundingBox();
   const way1 = await tagBox(page, "way-1"), way2 = await tagBox(page, "way-2");
   check("...both Cabezas ringed and pulsing, the row you'd win on lit", r.length === 2 && r.some((x) => x.id === "light-cabeza" && x.tone === "mine" && x.pulse) && r.some((x) => x.id === "dark-cabeza" && x.tone === "foe" && x.pulse) && (await band(page)) === 0, JSON.stringify({ r, band: await band(page) }));
-  check("...each numbered, on the screen and clear of the card", !!way1 && /1 · Your Cabeza across/i.test(way1.text) && !!way2 && /2 · Crush Walnut's/i.test(way2.text) && [way1, way2].every((b) => inView(b, W, H) && !overlap(b, cardBox)) && !overlap(way1, way2), JSON.stringify({ way1, way2, cardBox }));
+  check("...each numbered, on the screen and clear of the card", !!way1 && /1 · Your Cabeza across/i.test(way1.text) && !!way2 && /2 · Crush opponent's Cabeza/i.test(way2.text) && [way1, way2].every((b) => inView(b, W, H) && !overlap(b, cardBox)) && !overlap(way1, way2), JSON.stringify({ way1, way2, cardBox }));
   check("...an arrow from your Cabeza up to the row", ((await arrowD(page, "arrow-path")) || "").length > 10);
 
   // The first: your Cabeza, the row lit green, an arrow there.

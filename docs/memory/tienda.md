@@ -181,3 +181,25 @@ box art and an ad standee (assets/tienda/*.jpg).
   table cuts it at 0.53 of its half-height seen from level, lower from
   above). Looked at from -60 to 60 degrees close up, and through the pan
   on a desktop and a phone.
+- **The order form's stamp, seen (2026-10-20; user: "it is frequently
+  over dark areas where you simply cannot see the stamp. There has to be
+  a way to make the stamp more visible and maybe have it stick just maybe
+  half a second longer").** tienda-overlay.js .td-filled-stamp: no longer
+  multiplied into the form (mix-blend-mode multiply, faded red, a 0.2
+  paper wash, so over the piece photographs and the dark section bars it
+  vanished); full red (#A33F33) on a slip of the form's paper (0.97),
+  a soft paper margin and a drop shadow to lift it, larger (clamp(26px,
+  7vw, 52px)), each line kept whole (nowrap; the box may use 94% of the
+  form, not the half an absolutely placed box gets, so "Take to store"
+  isn't broken over three lines on a phone). Up half a second longer:
+  tdFormAway at 2.6 s (was 2.1), onPlace at 3.2 s (was 2.7; 1.4 s with
+  reduced motion, was 0.9). Same for the store's "Order filled" and the
+  special order's "Take to store".
+- **"Crush opponent's Cabeza" (2026-10-20; user, a screenshot of the
+  tour's card 2 of 8: "Red circle on top indicates that the word should
+  be changed to "opponent's". The lower red circle shows where it should
+  read, " Crush opponent's Cabeza"").** chassis/FirstGameTour.jsx ways:
+  "2. Crush opponent's Cabeza with one of your blocks."; the board's tag
+  (ElCabeza3D.jsx way-2): "2 · Crush opponent's Cabeza". The other
+  lines keep the side's name ("to Walnut's back row", the crush card's
+  own title "2. Crush Walnut's Cabeza."): only the circled two changed.

@@ -85,7 +85,9 @@ function cardText(t) {
         title: "There are two ways to win.",
         body: [
           `1. Get your Cabeza across the board to ${foe}'s back row.`,
-          `2. Crush ${foe}'s Cabeza with one of your blocks.`,
+          // ("opponent's", not the side's name, user: "the word should be
+          // changed to 'opponent's'".)
+          "2. Crush opponent's Cabeza with one of your blocks.",
           "Here's each one.",
         ],
       };

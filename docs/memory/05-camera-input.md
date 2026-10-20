@@ -102,3 +102,22 @@ window resize. Begin Game now opens every game in **Top-Down View** by
 default (changed from Current Player View) and calls `recenterView()`
 immediately.
 
+
+- **Hold to end: the first one teaches (2026-10-20; user: "The first
+  time that somebody wants to manually stop a piece and not use its
+  second move, and you press and hold on it, it should last longer or be
+  more prominent in some way, just to kind of teach them how it's done.
+  First and only the first time.").** chassis/ElCabeza3D.jsx: till a
+  hold has once been held to its end (localStorage
+  `el-cabeza:hold-to-end-learned`, and a module flag for a visit that
+  can't store it), a press on the moved piece takes HOLD_END_FIRST_MS
+  (1.5 s, not 650 ms) and draws the teaching ring (data-first="true"):
+  14 px larger, thicker, lit (a cream drop-shadow glow), a thin ring
+  breathing round it, and under "Keep holding to end your turn" a second
+  line, "When the ring closes, your turn ends. Let go to keep playing."
+  (testid hold-to-end-teach). Let go early and it's still to learn; once
+  one completes (holdDoneRef, h.first) it's marked learned and every hold
+  after is the usual one. `__EC_TEST_HOLD_MS__` still overrides the
+  time. tests/e2e-hold-to-end.mjs: the first hold the teaching one,
+  ending after 1.3 s or more, then learned; the phone (seeded as learned)
+  the usual one.

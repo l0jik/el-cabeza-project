@@ -1057,14 +1057,21 @@ const MORE_CSS = `
   .td-diagram-hole { width: 76%; height: 76%; border-radius: 50%; background: #17110C; box-shadow: 0 0 0 1.5px #A33F33; }
   .td-diagram-hole[data-set="2"] { box-shadow: 0 0 0 1.5px #1F3A6B; }
   .td-opponent .td-dim { border-bottom: none; }
-  /* The order going through: the stamp comes down, and the form goes. */
-  .td-filled-stamp { position: absolute; left: 50%; top: 42%; z-index: 5; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 2px;
-    padding: 10px 22px 8px; border: 4px double rgba(163,63,51,0.85); color: rgba(163,63,51,0.9); background: rgba(239,230,205,0.2);
-    transform: translate(-50%, -50%) rotate(-9deg); animation: tdStamp 0.22s cubic-bezier(0.3, 0, 0.4, 1) both; mix-blend-mode: multiply; }
-  .td-filled-stamp b { font: 900 clamp(26px, 6vw, 44px)/1 ${FRANKLIN}; letter-spacing: 0.08em; text-transform: uppercase; }
-  .td-filled-stamp span { font: 700 11px/1.2 ${COURIER}; letter-spacing: 0.12em; text-transform: uppercase; }
+  /* The order going through: the stamp comes down, and the form goes.
+     (Full red on a slip of the form's own paper, lifted off it, not
+     multiplied into whatever was under it: over the piece photographs
+     and the dark section bars it couldn't be seen, user: "it is
+     frequently over dark areas where you simply cannot see the stamp".) */
+  .td-filled-stamp { position: absolute; left: 50%; top: 42%; z-index: 5; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    width: max-content; max-width: 94%; padding: 12px 26px 10px; border: 5px double #A33F33; border-radius: 3px; color: #A33F33; background: rgba(244,238,221,0.97);
+    box-shadow: 0 0 0 5px rgba(244,238,221,0.7), 0 12px 30px rgba(20,12,6,0.45);
+    transform: translate(-50%, -50%) rotate(-9deg); animation: tdStamp 0.22s cubic-bezier(0.3, 0, 0.4, 1) both; }
+  .td-filled-stamp b { white-space: nowrap; font: 900 clamp(26px, 7vw, 52px)/1 ${FRANKLIN}; letter-spacing: 0.08em; text-transform: uppercase; }
+  .td-filled-stamp span { white-space: nowrap; font: 700 clamp(9px, 2.6vw, 12px)/1.2 ${COURIER}; letter-spacing: 0.12em; text-transform: uppercase; }
   @keyframes tdStamp { 0% { transform: translate(-50%, -50%) rotate(-9deg) scale(1.7); opacity: 0; } 100% { transform: translate(-50%, -50%) rotate(-9deg) scale(1); opacity: 1; } }
-  .td-filled { animation: tdFormAway 0.5s ease 2.1s both; }
+  /* (Up half a second longer than it was, user: "maybe have it stick just
+     maybe half a second longer"; onPlace waits the same, place below.) */
+  .td-filled { animation: tdFormAway 0.5s ease 2.6s both; }
   @keyframes tdFormAway { to { transform: translateY(24px); opacity: 0; } }
   @media (max-width: 560px) { .td-sub, .td-warn { margin-left: 0; } }
   @media (prefers-reduced-motion: reduce) { .td-filled-stamp, .td-filled { animation: none; } }
@@ -1835,8 +1842,9 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
     setFilled(true);
     audio && audio.playOrderFilled && audio.playOrderFilled();
     const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // (The stamp stays long enough to read before the form goes: user.)
-    setTimeout(() => onPlace(sel), reduced ? 900 : 2700);
+    // (The stamp stays long enough to read before the form goes: user;
+    // half a second more since, tdFormAway.)
+    setTimeout(() => onPlace(sel), reduced ? 1400 : 3200);
   };
   // (The standard order: no law, the first-turn handicap included.)
   const standard = () => { click(); replace(standardSelections()); };
