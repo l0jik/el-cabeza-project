@@ -2741,6 +2741,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (!ev.isTrusted || ev.timeStamp - lastMultiTouchRef.current < 600) return;
       if (ev.type === "touchend" && ev.touches && ev.touches.length) return;
       const own = ev.target instanceof Element && ev.target.closest("[data-fullscreen-toggle]");
+      // (Not when it's full screen already as an app opened from a home
+      // screen, Nova's manifest.)
+      if (window.matchMedia && window.matchMedia("(display-mode: fullscreen)").matches) return;
       if (!own && !fullscreenDeclined && !document.fullscreenElement && document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(() => {});
       }

@@ -70,6 +70,22 @@ const CLERK_SHOTS = ["clerk-hello", "clerk-sure", "clerk-go", "clerk-hmm", "cler
 // The City's recorded hours and horns, beside its page and beside Nova's.
 const CIUDAD_FILES = Object.fromEntries(
   ["morning", "afternoon", "golden", "overcast", "night"].map((h) => [`el-cabeza-ciudad-city-${h}.mp3`, `assets/ciudad/city-${h}.mp3`]).concat([["el-cabeza-ciudad-honks.mp3", "assets/ciudad/honks.mp3"]]));
+/* Nova as an app on a phone's home screen (user: "Need the splash screen
+   to automatically go full screen. That should be the first thing it
+   does."): in a browser's tab only a tap can put a page full screen (the
+   title screen does it at the first, apps/title-screen.js), but opened
+   from its icon, the manifest's display "fullscreen" has it full screen
+   from the start on Android; an iPhone opens it without Safari's bars.
+   Its icons are the Horizon logo, from the title's held frame. */
+const APP_HEAD = '<link rel="manifest" href="el-cabeza-nova.webmanifest"><link rel="icon" href="el-cabeza-icon-192.png"><link rel="apple-touch-icon" href="el-cabeza-icon-180.png">'
+  + '<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black"><meta name="apple-mobile-web-app-title" content="El Cabeza">';
+const APP_FILES = {
+  "el-cabeza-nova.webmanifest": "assets/app/manifest.webmanifest",
+  "el-cabeza-icon-180.png": "assets/app/icon-180.png",
+  "el-cabeza-icon-192.png": "assets/app/icon-192.png",
+  "el-cabeza-icon-512.png": "assets/app/icon-512.png",
+  "el-cabeza-icon-maskable-512.png": "assets/app/icon-maskable-512.png",
+};
 const targets = [
   // The den's records (themes/standard.js DEN_TRACKS), files beside the
   // page like Tienda's reels: fetched when played. Nova's den reads the same.
@@ -104,9 +120,9 @@ const targets = [
   // it's up before the app has loaded): the Horizon · Build splash
   // (tools/splash), sharp and light, and its first frame.
   { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover",
-    head: '<meta name="theme-color" content="#120C08"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400&display=swap">',
+    head: '<meta name="theme-color" content="#120C08">' + APP_HEAD + '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400&display=swap">',
     bodyStart: "title",
-    files: { ...DEN_RECORDS, ...CIUDAD_FILES, "el-cabeza-title.mp4": "assets/title/title.mp4", "el-cabeza-title-720.mp4": "assets/title/title-720.mp4", "el-cabeza-title-720.webm": "assets/title/title-720.webm", "el-cabeza-title-poster.jpg": "assets/title/poster.jpg" } },
+    files: { ...DEN_RECORDS, ...CIUDAD_FILES, "el-cabeza-title.mp4": "assets/title/title.mp4", "el-cabeza-title-720.mp4": "assets/title/title-720.mp4", "el-cabeza-title-720.webm": "assets/title/title-720.webm", "el-cabeza-title-poster.jpg": "assets/title/poster.jpg", ...APP_FILES } },
   // Tienda's page can draw under a phone's
   // notch and home bar (the theme keeps its controls clear of them).
   // Its files beside the page: the store's reels (the 1974 Muzak tape and

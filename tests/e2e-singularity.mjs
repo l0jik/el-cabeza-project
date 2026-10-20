@@ -1084,16 +1084,27 @@ check("dragging the sphere actually rotates it", rotAfter !== rotBefore, `before
 // Drag upward until it faces the camera, tap it, save the current rules
 // under a name, then load it back (which jumps to the BEGIN GAME summary),
 // and finally delete it. ----
+// Steered, not pushed blind (GitHub's run on 737ba3b: fourteen drags up,
+// each begun while the tilt still coasted on a slow runner, carried the
+// label round past the front to the back, facing -0.93): the tilt let stop
+// before each look, then a drag toward the sphere's middle from where the
+// label is (below it, or round the back: up; past it, above: down), the
+// shorter the closer it is.
 async function bringConfigLabelToFront() {
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 24; i++) {
+    await waitForTiltSettle();
     const c = (await sphereState()).configLabel;
     if (c && c.facing > 0.85) return c;
-    await page.mouse.move(cx, cy + 120);
+    const behind = !c || c.facing < 0;
+    const up = behind || c.y > cy;
+    const len = behind ? 150 : Math.max(24, Math.min(150, 160 * (1 - c.facing)));
+    await page.mouse.move(cx, up ? cy + len / 2 : cy - len / 2);
     await page.mouse.down();
-    await page.mouse.move(cx, cy - 30, { steps: 8 });
+    await page.mouse.move(cx, up ? cy - len / 2 : cy + len / 2, { steps: 8 });
     await page.mouse.up();
     await waitForSphereSettle();
   }
+  await waitForTiltSettle();
   return (await sphereState()).configLabel;
 }
 // The CONFIGURATIONS panel opened as a player would: the label brought

@@ -245,6 +245,26 @@ console.log("\na phone: room made for the menu");
   await ctx.close();
 }
 
+/* ---------------- on a home screen ---------------- */
+// (Opened from its icon it's full screen from the start: the manifest.)
+console.log("\nas an app on a home screen: full screen from the start");
+{
+  const fs = await import("node:fs");
+  const dist = "/home/user/el-cabeza-project/dist/";
+  const m = JSON.parse(fs.readFileSync(dist + "el-cabeza-nova.webmanifest", "utf8"));
+  check("the manifest: full screen, opening Nova's page", m.display === "fullscreen" && m.start_url === "el-cabeza-nova.html", JSON.stringify(m));
+  const png = (f) => { const b = fs.readFileSync(dist + f); return `${b.readUInt32BE(16)}x${b.readUInt32BE(20)}`; };
+  check("...its icons there, the sizes they say, one for a launcher's mask", m.icons.every((i) => png(i.src) === i.sizes) && m.icons.some((i) => i.purpose === "maskable"));
+  const { ctx, page } = await open({ path: "" });
+  const head = await page.evaluate(() => ({
+    manifest: (document.querySelector('link[rel="manifest"]') || {}).getAttribute?.("href"),
+    apple: (document.querySelector('meta[name="apple-mobile-web-app-capable"]') || {}).content,
+    touch: (document.querySelector('link[rel="apple-touch-icon"]') || {}).getAttribute?.("href"),
+  }));
+  check("...Nova's page names it, and an iPhone's home-screen icon", head.manifest === "el-cabeza-nova.webmanifest" && head.apple === "yes" && head.touch === "el-cabeza-icon-180.png" && png("el-cabeza-icon-180.png") === "180x180", JSON.stringify(head));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failures ? `\n${failures} check(s) failed` : "\nall title screen checks passed");
 process.exit(failures ? 1 : 0);

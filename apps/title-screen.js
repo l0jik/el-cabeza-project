@@ -269,6 +269,9 @@ html.ec-splash-on { background: #120C08; }
     try {
       const de = D.documentElement, req = de.requestFullscreen || de.webkitRequestFullscreen;
       if (!req || D.fullscreenElement || D.webkitFullscreenElement) return;
+      // (Opened from its icon on a home screen it's full screen already:
+      // the app's manifest, build/build.js APP_HEAD.)
+      if (W.matchMedia && W.matchMedia("(display-mode: fullscreen)").matches) return;
       const now = W.performance.now();
       if (now - askedAt < 1000) return; // (one ask a touch: its end, then its click)
       askedAt = now;

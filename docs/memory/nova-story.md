@@ -145,7 +145,10 @@ in; leaving Singularity, back in the den as the set switches off.
   tap elsewhere, held or while the video plays, chooses nothing; Escape
   skips the video on a keyboard. The first tap, click or key anywhere
   puts the page full screen (user: "That should be the first thing it
-  does"; a page can't by itself).
+  does"; a page can't by itself). Added to a phone's home screen (the
+  manifest, display fullscreen, build/build.js APP_HEAD) it opens full
+  screen with no tap at all on Android, without Safari's bars on an
+  iPhone.
   Never on the game's own ways into the page (?world=, ?scene=, ?switcher,
   ?restart=, ?jump=, Back) nor under automation; ?title forces it for a
   test, ?title=auto applies the player's rules. tests/e2e-title.mjs.
