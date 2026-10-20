@@ -9,7 +9,9 @@
    opponent and the difficulty, the check alert, the start, the cart, the
    footer's links and corner switches, the side to move first) is in
    sight, faded, and taps on it change nothing. See the pieces opens the
-   catalog. Try a Game begins the walkthrough; skipped, and the game
+   catalog, with no Purchase and bring home in it yet (user: "should not be
+   available unless they have already gone through the tutorial and played
+   the game a little bit first"). Try a Game begins the walkthrough; skipped, and the game
    ended, New Game's setup is the whole menu again. On a desktop the same,
    by mouse. With the phone's control bar, its setup holds back the same.
    A player whose first game's been walked through has the whole menu.
@@ -143,6 +145,7 @@ console.log("\nphone: a new player's first look at the store's menu");
   // See the pieces: the catalog.
   await q(page, "tienda-order-form").tap();
   check("See the pieces opens the catalog", await poll(() => has(page, "tienda-catalog"), 8000));
+  check("...with no Purchase and bring home yet, only Close (user)", (await has(page, "tienda-catalog-close")) && !(await has(page, "tienda-catalog-purchase")));
   await q(page, "tienda-catalog-close").tap();
   await poll(async () => !(await has(page, "tienda-catalog")), 8000);
 
@@ -223,6 +226,8 @@ console.log("\nafter the first game: the whole menu");
   check("...Put one in the cart pressable", !!cart && !cart.disabled && cart.opacity > 0.95 && cart.takesTaps, JSON.stringify(cart));
   const sound = await look(page, '[data-testid="sound-button"]');
   check("...the sound pressable", !!sound && !sound.disabled && sound.takesTaps, JSON.stringify(sound));
+  await q(page, "tienda-order-form").tap();
+  check("See the pieces: the catalog, Purchase and bring home in it", await poll(() => has(page, "tienda-catalog-purchase"), 8000));
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

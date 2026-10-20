@@ -132,7 +132,10 @@ in; leaving Singularity, back in the den as the set switches off.
   the 3D rotating piece menu is the ones that are circled in red", See
   the pieces and Try a Game): until the walkthrough's done (TOUR_KEY),
   the dock's setup is that first game's, the rest of the panel faded and
-  not to be pressed (the chassis's firstLook; the bar's setup too).
+  not to be pressed (the chassis's firstLook; the bar's setup too); and
+  the catalog's page (See the pieces) has no Purchase and bring home
+  until then (user: "unless they have already gone through the tutorial
+  and played the game a little bit first").
   tests/e2e-first-look.mjs.
 
 - **The title screen** (2026-10-19; apps/title-screen.js, in Nova's page

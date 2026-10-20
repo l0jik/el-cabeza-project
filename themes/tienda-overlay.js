@@ -771,7 +771,11 @@ function renderOverlaysHere(x) {
       key: "catalog",
       audio: x.audio,
       onClose: () => { x.audio && x.audio.playRulesClose && x.audio.playRulesClose(); x.closeOverlay(); },
-      onPurchase: store ? () => { x.closeOverlay(); x.story.onPurchase(); } : null,
+      // (Not for a new player before the first game's walkthrough, the
+      // chassis's firstLook; user: "Purchase and bring home should not be
+      // available unless they have already gone through the tutorial and
+      // played the game a little bit first.")
+      onPurchase: store && !x.firstLook ? () => { x.closeOverlay(); x.story.onPurchase(); } : null,
       specialOpen: !!x.specialOpen,
       onSpecialOrder: () => { x.audio && x.audio.playSelect && x.audio.playSelect(); x.openCustomRules(); },
     });

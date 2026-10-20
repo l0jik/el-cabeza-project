@@ -14674,7 +14674,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         </div>
       </div>
 
-      {theme.renderExtraOverlays && theme.renderExtraOverlays(setupExtras)}
+      {theme.renderExtraOverlays && theme.renderExtraOverlays(setupExtras && { ...setupExtras, firstLook })}
       {cornerMenu && <CornerMenu key={cornerMenu.look} look={cornerMenu.look} rules={rulesNow} extra={cornerMenu.extra || null} audio={audioRef.current} below={cornerBelow} />}
       {gate && (
         <RealityGate
