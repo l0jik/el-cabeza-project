@@ -155,6 +155,10 @@ if (SCENE_PARAM && !LURE_PARAM) setSceneLink();
 if (STORY_PREVIEW) { journeyPreview(); storyPreview(); }
 const takeScene = () => { const r = SCENE_PARAM; SCENE_PARAM = null; return r; };
 const storyBridge = { purchase() {}, backToStore() {}, restartNow() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null, callNext: false, finishStory() {}, goWorld() {}, openRealities() {} };
+// (Tests: home with the special order, so Big Glutts' call comes, without
+// the whole story's way there: window.__EC_TEST_DEN_CALL__ set before the
+// page loads.)
+if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__ && window.__EC_TEST_DEN_CALL__) storyBridge.callNext = true;
 // The realities menu's Restart story starts over here, in place.
 onStoryRestart(() => storyBridge.restartNow());
 // How the place just mounted was reached (read once): false for the page

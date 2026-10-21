@@ -41,6 +41,8 @@ const E2E = [
   ["e2e-press.mjs"],
   // A finger whose lift never arrived (the den's settle-in): one finger panned.
   ["e2e-ghost-finger.mjs"],
+  // The zoom-out glass held off through the den's phone call (the receiver floated up with it).
+  ["e2e-den-phone.mjs"],
   // The corner menu: the game's rules at the top left, every world's look.
   ["e2e-corner-menu.mjs"],
   // Ciudad: the city at the hour picked, its lots and cranes, its streets.

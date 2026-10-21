@@ -298,3 +298,30 @@ in; leaving Singularity, back in the den as the set switches off.
   e2e-check-alert (the chip goes and nothing comes back for that threat;
   with the card up, the card goes and no chip; the threat gone and back,
   the card again).
+
+- **The zoom-out glass is held off through the phone call** (2026-10-21;
+  user: "Hitting the zoom out button when on the phone causes you to
+  keep hanging on to the receiver, but you're floating up. It doesn't
+  make sense. That button should be unable to be clicked during the phone
+  sequence"). Why it floated: the held receiver is posed at the ear of
+  the room's own camera (den-call.js earPose reads t.camera before the
+  den's visit takes it over), so the Room view took it up over the room
+  with you; seen from the phone, its cord ran up into the sky; let go of
+  the phone, you were up there holding it. Now den-call.js holds the Room
+  view off (`el-cabeza:room-view-lock`, { on, why, down }) from the first
+  ring till the receiver's back on the cradle (stage done), or it gives up
+  ringing, or the den goes. The chassis (roomLock) greys the corner glass
+  (disabled; the den ghosts it at 0.32 as for the commercial, standard.js
+  `button[...]:disabled`), the dock's Room view and the phone menu's row
+  ("Not while you're on the phone" in their titles / detail), and
+  roomView() does nothing. Going over to the phone (the slip) or picking
+  it up while up in the Room view sends { down }: the camera comes back
+  down to the board (recenterView), so the receiver lifts to you there,
+  never over the room. Test hook: window.__EC_TEST_DEN_CALL__ before the
+  page loads makes the den's first mount the special-order homecoming
+  (the call to come) without the story's way there. Tests:
+  e2e-den-phone (the glass and dock dead from the first ring; on the
+  phone a click on it leaves the camera in the room, the receiver where
+  it was; a tap away, the board with the receiver at your ear; hung up,
+  the glass works; Room view first, then the slip or a pick-up: down to
+  the board; the phone bar's menu row greyed, saying why).

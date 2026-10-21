@@ -9679,6 +9679,30 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     glideCamera();
   }
 
+  /* The Room view held off (user, of the zoom-out glass pressed on the
+     den's telephone: "you keep hanging on to the receiver, but you're
+     floating up. It doesn't make sense. That button should be unable to
+     be clicked during the phone sequence"). While a story's moment holds
+     it (el-cabeza:room-view-lock, { on, why }: the den's phone, from its
+     first ring till the receiver's back down), the glass, the dock's Room
+     view and the phone menu's are greyed and do nothing, `why` in their
+     titles. With { down }, a camera up there already comes back down to
+     the board (Current Player View). */
+  const [roomLock, setRoomLock] = useState(null);
+  const roomLockRef = useRef(null);
+  const roomDownRef = useRef(null);
+  roomDownRef.current = () => { if (cam.current.dollhouse) recenterView(); };
+  useEffect(() => {
+    const onLock = (e) => {
+      const d = (e && e.detail) || {};
+      roomLockRef.current = d.on ? d.why || "Not now" : null;
+      setRoomLock(roomLockRef.current);
+      if (d.on && d.down) roomDownRef.current();
+    };
+    window.addEventListener("el-cabeza:room-view-lock", onLock);
+    return () => window.removeEventListener("el-cabeza:room-view-lock", onLock);
+  }, []);
+
   /* The Room view (a theme with freeCamera.dollhouse: the den, the store):
      the user wanted "a dollhouse view... something that can just go to
      maximum zoom out". Up above the room at a slant, the ceiling and the
@@ -9687,7 +9711,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      into the room (applyCamera). */
   function roomView() {
     const d = theme.freeCamera && theme.freeCamera.dollhouse;
-    if (!d) return;
+    if (!d || roomLockRef.current) return;
     setFocusMode(false);
     cam.current.dollhouse = true;
     cam.current.phi = d.phi;
@@ -12276,24 +12300,26 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
          up over the room, the roof off, the whole of it below. (It was a
          little house, user: "It kind of makes people think, go home.
          That's not what this is ... it's to zoom up"; of six drawn, "Go
-         with option 4, Zoom out".) */}
+         with option 4, Zoom out".) Held off (roomLock: the den's phone),
+         greyed and dead to a tap. */}
       {!shell && theme.freeCamera && theme.freeCamera.dollhouse && (
         <button
           type="button"
           data-testid="room-view-corner"
           data-active={viewMode === "room" ? "true" : "false"}
           data-dim={focusMode ? "true" : "false"}
+          disabled={!!roomLock}
           onClick={roomView}
-          aria-label="Zoom out: the Room view"
-          title="Zoom out: up over the whole room"
+          aria-label={roomLock ? `Zoom out: the Room view. ${roomLock}` : "Zoom out: the Room view"}
+          title={roomLock || "Zoom out: up over the whole room"}
           style={{
             position: "fixed", ...cornerStyle("room"), zIndex: cornerControlsZ, width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
-            color: COLORS.charcoal, opacity: cornerColumnCovered ? 0 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5,
-            pointerEvents: cornerColumnCovered ? "none" : "auto", visibility: cornerColumnCovered ? "hidden" : "visible", cursor: viewMode === "room" ? "default" : "pointer", transition: "opacity 0.5s ease",
+            color: COLORS.charcoal, opacity: cornerColumnCovered ? 0 : roomLock ? 0.16 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5,
+            pointerEvents: cornerColumnCovered ? "none" : "auto", visibility: cornerColumnCovered ? "hidden" : "visible", cursor: roomLock ? "not-allowed" : viewMode === "room" ? "default" : "pointer", transition: "opacity 0.5s ease",
           }}
-          onMouseEnter={(e) => { if (!cornerColumnCovered && viewMode !== "room") e.currentTarget.style.opacity = 1; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerColumnCovered ? 0 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5; }}
+          onMouseEnter={(e) => { if (!cornerColumnCovered && !roomLock && viewMode !== "room") e.currentTarget.style.opacity = 1; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerColumnCovered ? 0 : roomLock ? 0.16 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5; }}
         >
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="10.5" cy="10.5" r="6.6" />
@@ -12931,7 +12957,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
                 {[
                   { key: "player", label: dockWords.views[0], title: "Current player's view", on: recenterView, testid: "view-player" },
                   { key: "top", label: dockWords.views[1], title: "Top-down view", on: () => topDownView(), testid: "view-top" },
-                  ...(theme.freeCamera && theme.freeCamera.dollhouse ? [{ key: "room", label: dockWords.views[2], title: "Room view: the whole room, the roof off", on: roomView, testid: "room-view" }] : []),
+                  ...(theme.freeCamera && theme.freeCamera.dollhouse ? [{ key: "room", label: dockWords.views[2], title: roomLock ? `Room view: ${roomLock}` : "Room view: the whole room, the roof off", on: roomView, testid: "room-view", off: !!roomLock }] : []),
                 ].map((v, i) => (
                   <button
                     key={v.key}
@@ -12940,6 +12966,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
                     data-dock-role="view"
                     aria-pressed={viewMode === v.key}
                     title={v.title}
+                    disabled={!!v.off}
                     onClick={v.on}
                     style={{
                       fontFamily: "'IBM Plex Mono', monospace",
@@ -12951,7 +12978,8 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
                       borderLeft: i ? `1px solid ${COLORS.slateSoft}` : "none",
                       background: viewMode === v.key ? hexToRgba(COLORS.charcoal, 0.1) : "transparent",
                       color: COLORS.charcoal,
-                      cursor: "pointer",
+                      cursor: v.off ? "not-allowed" : "pointer",
+                      opacity: v.off ? 0.4 : 1,
                     }}
                   >
                     {v.label}
@@ -13822,6 +13850,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             onTopDown: () => topDownView(),
             onPlayerView: recenterView,
             onRoomView: theme.freeCamera && theme.freeCamera.dollhouse ? roomView : null,
+            roomViewLock: roomLock,
             focusMode,
             onToggleFocus: focusable ? toggleFocus : null,
             // Menu

@@ -1,0 +1,217 @@
+/* The zoom-out glass (the Room view) held off through the den's
+   telephone call (user: "Hitting the zoom out button when on the phone
+   causes you to keep hanging on to the receiver, but you're floating up.
+   It doesn't make sense. That button should be unable to be clicked
+   during the phone sequence").
+
+   Home with the special order (window.__EC_TEST_DEN_CALL__: Big Glutts'
+   call to come, without the story's way there), a game under way, the
+   phone rushed to ring (__DEN_CALL_NOW__).
+
+   - Desktop: from the first ring the glass and the dock's Room view are
+     greyed and dead to a click. Over at the phone and picked up, a click
+     on the glass leaves the room's camera where it was (not up over the
+     room), the receiver low by it; a tap away brings the view back to
+     the board, the receiver at your ear there, not in the sky. Hung up,
+     the glass works again.
+   - Up in the Room view already when it rings: going over to the phone
+     (the slip) brings the room's camera down to the board, and so does
+     picking it up from up there, the receiver lifting to you at the
+     board.
+   - A phone with the control bar: the menu's Room view greyed, saying
+     why, while it rings.
+
+   node tests/e2e-den-phone.mjs */
+import { chromium } from "playwright";
+import { openDockPanel } from "./dock-helpers.mjs";
+
+const URL = "file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html";
+const DEN_SEED = { "el-cabeza:story": JSON.stringify({ owned: true }), "el-cabeza:singularity-seen": "1", "el-cabeza:commercial-aired": "1", "el-cabeza:special-order-noted": "1" };
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--autoplay-policy=no-user-gesture-required", "--allow-file-access-from-files"] });
+let failures = 0;
+const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
+const poll = async (page, fn, ms = 20000, step = 200) => {
+  const end = Date.now() + ms;
+  for (;;) {
+    const v = await fn().catch(() => null);
+    if (v) return v;
+    if (Date.now() > end) return null;
+    await page.waitForTimeout(step);
+  }
+};
+
+async function open({ phone = false, bar = false } = {}) {
+  const ctx = await browser.newContext(phone
+    ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
+    : { viewport: { width: 1280, height: 800 } });
+  await ctx.addInitScript(({ seed, bar }) => {
+    window.__EC_TEST_HOOKS__ = true;
+    window.__EC_TEST_DEN_CALL__ = true;
+    window.__TIENDA_MUSIC_ONLY__ = "none";
+    try {
+      if (!sessionStorage.getItem("seeded")) {
+        sessionStorage.setItem("seeded", "1");
+        localStorage.clear();
+        for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, v);
+        if (bar) localStorage.setItem("el-cabeza:nova-layout", "bar");
+      }
+    } catch (e) { /* none */ }
+  }, { seed: DEN_SEED, bar });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto(URL);
+  return { ctx, page, errs };
+}
+
+async function begin(page) {
+  await poll(page, () => page.evaluate(() => !!window.__DEN_THREE__ && !!window.__EC_TEST_CAM__ && !!window.__DEN_CALL__), 40000);
+  await page.waitForTimeout(2500);
+  if (await page.locator('[data-testid="shell-begin"]').count()) await page.locator('[data-testid="shell-begin"]').first().click().catch(() => {});
+  else {
+    await openDockPanel(page).catch(() => {});
+    const b = page.locator('[data-testid="dock-panel"] button:text-matches("Begin Game|Try a Game")').first();
+    if (await b.count()) await b.click().catch(() => {});
+  }
+  return !!(await poll(page, () => page.evaluate(() => window.__EC_TEST_ARMED__ === true), 15000));
+}
+
+const ring = async (page) => {
+  await page.evaluate(() => window.__DEN_CALL_NOW__());
+  return !!(await poll(page, () => page.evaluate(() => window.__DEN_CALL__().stage === "ringing"), 30000));
+};
+
+// The room's camera (up: in the Room view), the handset in the world, the
+// call, and the Room view's ways in.
+const where = (page) => page.evaluate(() => {
+  const t = window.__DEN_THREE__;
+  let hand = null;
+  t.boardGroup.parent.traverse((o) => { if (!hand && o.userData && o.userData.phone && o.userData.rest) hand = o; });
+  const hp = hand ? hand.getWorldPosition(new t.camera.position.constructor()) : null;
+  const glass = document.querySelector('[data-testid="room-view-corner"]');
+  const dockRoom = document.querySelector('[data-testid="room-view"]');
+  return {
+    up: !!window.__EC_TEST_CAM__().dollhouse,
+    camY: +t.camera.position.y.toFixed(1),
+    handY: hp ? +hp.y.toFixed(1) : null,
+    handToCam: hp ? +hp.distanceTo(t.camera.position).toFixed(1) : null,
+    stage: window.__DEN_CALL__().stage, hs: window.__DEN_CALL_HANDSET__(), visit: +window.__DEN_PHONE_VISIT__().w.toFixed(2),
+    glass: glass ? { off: glass.disabled, op: +(+getComputedStyle(glass).opacity).toFixed(2), title: glass.title } : null,
+    dockRoom: dockRoom ? dockRoom.disabled : null,
+  };
+});
+const pressGlass = (page) => page.locator('[data-testid="room-view-corner"]').click({ force: true, timeout: 3000 }).catch(() => {});
+const toPhone = async (page) => {
+  await page.locator('[data-testid="den-call"]').click();
+  return !!(await poll(page, () => page.evaluate(() => window.__DEN_PHONE_VISIT__().w > 0.97), 6000));
+};
+const pickUp = async (page) => {
+  const at = await page.evaluate(() => window.__DEN_PHONE_AT__());
+  await page.mouse.click(at.x, at.y);
+  return !!(await poll(page, () => page.evaluate(() => window.__DEN_CALL_HANDSET__() === "held"), 5000));
+};
+
+/* ---------------- desktop: the call taken ---------------- */
+console.log("\ndesktop: the phone rings, and you take it");
+{
+  const { ctx, page, errs } = await open();
+  check("a game under way", await begin(page));
+  let s = await where(page);
+  check("before it rings, the glass works", !!s.glass && !s.glass.off, JSON.stringify(s.glass));
+  check("the phone rings", await ring(page));
+  // (Ghosted over its half-second fade.)
+  s = (await poll(page, async () => { const w = await where(page); return w.glass && w.glass.op < 0.5 ? w : null; }, 2500)) || (await where(page));
+  check(`from the first ring, the glass is greyed and dead (opacity ${s.glass && s.glass.op}), and says why`, !!s.glass && s.glass.off && s.glass.op < 0.5 && /on the phone/i.test(s.glass.title), JSON.stringify(s.glass));
+  check("...and the dock's Room view with it", s.dockRoom === true, String(s.dockRoom));
+  await pressGlass(page);
+  await page.waitForTimeout(1500);
+  check("...a click on it does nothing: the camera stays in the room", !(await where(page)).up);
+  check("the slip: over to the phone", await toPhone(page));
+  check("a tap on the phone: picked up, the receiver lifted", await pickUp(page));
+  await page.waitForTimeout(600);
+  const held = await where(page);
+  await pressGlass(page);
+  await page.waitForTimeout(2500);
+  s = await where(page);
+  check(`on the phone, a click on the glass: no Room view, the receiver stays where it was (y ${s.handY}, was ${held.handY})`, !s.up && s.glass.off && Math.abs(s.handY - held.handY) < 1, JSON.stringify(s));
+  // A tap away from the phone: the view's back on the board.
+  await page.mouse.click(640, 520);
+  await page.waitForTimeout(2500);
+  s = await where(page);
+  check(`a tap away: the view back on the board, not up over the room (camera y ${s.camY})`, s.visit < 0.03 && !s.up && s.camY < 40, JSON.stringify(s));
+  check(`...the receiver at your ear there, not in the sky (${s.handToCam} away, y ${s.handY})`, s.hs === "held" && s.handToCam < 15 && s.handY < 40, JSON.stringify(s));
+  check("they hang up", !!(await poll(page, () => page.evaluate(() => window.__DEN_CALL__().stage === "done"), 60000)));
+  s = await where(page);
+  check("hung up: the glass and the dock's Room view work again", !!s.glass && !s.glass.off && s.dockRoom === false, JSON.stringify(s));
+  await pressGlass(page);
+  check("...and up over the room it goes", !!(await poll(page, async () => (await where(page)).up, 4000)));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+/* ---------------- desktop: up in the Room view when it rings ---------------- */
+console.log("\ndesktop: up in the Room view when it rings, over to the phone");
+{
+  const { ctx, page, errs } = await open();
+  check("a game under way", await begin(page));
+  await pressGlass(page);
+  check("up in the Room view", !!(await poll(page, async () => (await where(page)).up, 4000)));
+  await page.waitForTimeout(1200);
+  check("the phone rings", await ring(page));
+  const s0 = await where(page);
+  check("...the glass greyed, the camera still up there", s0.glass.off && s0.up, JSON.stringify(s0));
+  check("the slip: over to the phone", await toPhone(page));
+  check("...and the room's own camera down from the Room view to the board", !!(await poll(page, async () => !(await where(page)).up, 6000)));
+  check("a tap on the phone: picked up", await pickUp(page));
+  await page.waitForTimeout(800);
+  await page.mouse.click(640, 520);
+  await page.waitForTimeout(2500);
+  const s = await where(page);
+  check(`a tap away: the board, the receiver at your ear there, not in the sky (camera y ${s.camY}, receiver y ${s.handY})`, s.visit < 0.03 && !s.up && s.camY < 40 && s.handY < 40 && s.handToCam < 15, JSON.stringify(s));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+console.log("\ndesktop: up in the Room view when it rings, picked up from up there");
+{
+  const { ctx, page, errs } = await open();
+  check("a game under way", await begin(page));
+  await pressGlass(page);
+  check("up in the Room view", !!(await poll(page, async () => (await where(page)).up, 4000)));
+  await page.waitForTimeout(1200);
+  check("the phone rings", await ring(page));
+  await page.evaluate(() => window.__DEN_CALL_PICKUP__());
+  check("picked up from up there: the camera comes down to the board", !!(await poll(page, async () => !(await where(page)).up, 6000)));
+  await poll(page, () => page.evaluate(() => window.__DEN_CALL_HANDSET__() === "held"), 5000);
+  await page.waitForTimeout(1500);
+  const s = await where(page);
+  check(`...the receiver lifted to you at the board (camera y ${s.camY}, receiver ${s.handToCam} away, y ${s.handY})`, s.hs === "held" && s.camY < 40 && s.handToCam < 15 && s.handY < 40, JSON.stringify(s));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+/* ---------------- a phone with the control bar ---------------- */
+console.log("\nphone, with the control bar: the menu's Room view");
+{
+  const { ctx, page, errs } = await open({ phone: true, bar: true });
+  check("a game under way", await begin(page));
+  const row = page.locator('[data-testid="shell-menu-room"]');
+  const menu = page.locator('[data-testid="shell-menu-button"]');
+  await menu.click();
+  check("before it rings, the menu's Room view works", (await row.count()) > 0 && !(await row.isDisabled()));
+  await menu.click().catch(() => {});
+  await page.waitForTimeout(500);
+  check("the phone rings", await ring(page));
+  if (!(await row.isVisible().catch(() => false))) await menu.click();
+  await page.waitForTimeout(400);
+  check("...the menu's Room view greyed, saying why", (await row.isDisabled()) && /on the phone/i.test(await row.innerText()), await row.innerText());
+  await row.click({ force: true, timeout: 3000 }).catch(() => {});
+  await page.waitForTimeout(1500);
+  check("...and a tap on it does nothing", !(await where(page)).up);
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+await browser.close();
+console.log(failures ? `\n${failures} FAILED` : "\nall passed");
+process.exit(failures ? 1 : 0);

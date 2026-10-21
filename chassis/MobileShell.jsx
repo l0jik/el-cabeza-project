@@ -867,7 +867,8 @@ function MenuSheet({ ctl, t, open, onClose, landscape, safe }) {
             <Section label="View" t={t}>
               {inGame && <Row label="Top-down view" testid="shell-menu-top" check={ctl.viewMode === "top"} onClick={run(ctl.onTopDown)} t={t} />}
               {inGame && <Row label="Player view" testid="shell-menu-player" check={ctl.viewMode === "player"} onClick={run(ctl.onPlayerView)} t={t} />}
-              {ctl.onRoomView && <Row label="Room view" detail="The whole room, the roof off" testid="shell-menu-room" check={ctl.viewMode === "room"} onClick={run(ctl.onRoomView)} t={t} />}
+              {/* (Held off through the den's phone call: ctl.roomViewLock says why.) */}
+              {ctl.onRoomView && <Row label="Room view" detail={ctl.roomViewLock || "The whole room, the roof off"} testid="shell-menu-room" check={ctl.viewMode === "room"} disabled={!!ctl.roomViewLock} onClick={run(ctl.onRoomView)} t={t} />}
               {ctl.onToggleFocus && <Toggle label="Focus" hint="The room dims away; just the board" testid="shell-menu-focus" on={!!ctl.focusMode} onChange={ctl.onToggleFocus} t={t} />}
               {ctl.canFullscreen && <Toggle label="Full screen" testid="shell-menu-fullscreen" on={ctl.isFullscreen} onChange={ctl.onToggleFullscreen} t={t} />}
             </Section>

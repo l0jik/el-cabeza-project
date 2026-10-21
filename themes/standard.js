@@ -334,6 +334,12 @@ export const styleSheet = `
      the house ghost, and taps on them go nowhere until it's over. */
   html.ec-commercial [data-testid="room-view-corner"], html.ec-commercial [data-testid="focus-corner"], html.ec-commercial [data-testid="action-corner"] {
     opacity: 0.32 !important; box-shadow: none !important; pointer-events: none !important; transition: opacity 0.5s ease !important; }
+  /* The zoom-out glass held off through the phone call (the chassis's
+     roomLock, den-call.js; user: "That button should be unable to be
+     clicked during the phone sequence"): ghosted as for the commercial,
+     and a tap on it does nothing. */
+  button[data-testid="room-view-corner"]:disabled, button[data-testid="room-view-corner"]:disabled:hover {
+    opacity: 0.32 !important; box-shadow: none !important; cursor: not-allowed !important; }
   /* The masthead goes down with the lights too (the chassis puts
      ec-lights-down on the page while focus is on). */
   [data-masthead] > div { transition: filter 0.9s ease, opacity 0.9s ease; }

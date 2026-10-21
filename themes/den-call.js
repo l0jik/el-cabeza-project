@@ -108,6 +108,20 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
      own. */
   const quietCheck = () => { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("el-cabeza:check-quiet")); };
   const onCall = (on) => { if (doc) doc.documentElement.classList.toggle("ec-den-call", on); };
+  /* The Room view held off through the phone (user, of the zoom-out
+     glass pressed mid-call: "you keep hanging on to the receiver, but
+     you're floating up. It doesn't make sense. That button should be
+     unable to be clicked during the phone sequence"): from the first ring
+     till the receiver's back on the cradle, or it gives up ringing (the
+     chassis hears el-cabeza:room-view-lock). Going to the phone or
+     picking it up from up there brings the camera down to the board
+     first (down), so the receiver's never held up over the room. */
+  let roomHeld = false;
+  const holdRoom = (on, down = false) => {
+    if (typeof window === "undefined" || (roomHeld === on && !down)) return;
+    roomHeld = on;
+    window.dispatchEvent(new CustomEvent("el-cabeza:room-view-lock", { detail: { on, down, why: "Not while you're on the phone" } }));
+  };
 
   function style() {
     if (styleEl || !doc) return;
@@ -439,12 +453,14 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
   function goToPhone() {
     if (stage !== "ringing") return;
     hold(true);
+    holdRoom(true, true);
     if (box) { const h = box.querySelector(".hint"); if (h) h.textContent = "tap the phone to pick it up"; }
     if (onGoToPhone) onGoToPhone();
   }
   function startRinging(now) {
     stage = "ringing"; ringStart = now; ringsDone = 0;
     quietCheck();
+    holdRoom(true);
     showBox("ringing");
   }
   // "Free pieces?! Nice!... Thank you, Big Glutts!" (user).
@@ -462,10 +478,10 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     if (stage !== "ringing") return false;
     stopRinging();
     stage = "call";
-    quietCheck(); onCall(true);
+    quietCheck(); onCall(true); holdRoom(true, true);
     hs = { mode: "lift", t0: performance.now() };
     const o = output();
-    if (!o) { stage = "done"; onCall(false); hideBox(); if (onPhoneDone) onPhoneDone(); return true; }
+    if (!o) { stage = "done"; onCall(false); holdRoom(false); hideBox(); if (onPhoneDone) onPhoneDone(); return true; }
     hold(true);
     const { ctx } = o;
     let t = ctx.currentTime + 0.05;
@@ -492,7 +508,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     const down = t - 0.2;
     at(down - 0.75, () => { hs = { mode: "down", t0: performance.now() }; });
     at(down, () => { clunk(output().ctx.currentTime + 0.02, true); hold(false); });
-    at(down + 0.9, () => { stage = "done"; hideBox(); if (onPhoneDone) onPhoneDone(); });
+    at(down + 0.9, () => { stage = "done"; holdRoom(false); hideBox(); if (onPhoneDone) onPhoneDone(); });
     at(down + 1.5, () => yay());
     return true;
   }
@@ -613,7 +629,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
         // Nobody's home: it tries again later.
         stopRinging(); hideBox();
         stage = "wait"; ringAt = now + CALL_BACK;
-        hold(false);
+        hold(false); holdRoom(false);
         if (onPhoneDone) onPhoneDone();
       }
     }
@@ -646,7 +662,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     answer,
     dispose() {
       timers.forEach(clearTimeout); timers = [];
-      onCall(false);
+      onCall(false); holdRoom(false);
       if (yayCard) { yayCard.el.remove(); yayCard = null; }
       clearTimeout(ringElStop);
       if (ringEl) { try { ringEl.pause(); ringEl.removeAttribute("src"); } catch (e) { /* fine */ } }
