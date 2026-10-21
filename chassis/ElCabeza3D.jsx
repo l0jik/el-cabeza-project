@@ -32,7 +32,7 @@ import {
   pieceName as setOutPieceName, SET_OUT_ACCENT,
 } from "./set-out.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo, pieceLesson } from "./RulesCards.jsx";
-import FirstGameTour, { TourMarks, tourDone, markTourDone, TOUR_CARDS, TOUR_TONES } from "./FirstGameTour.jsx";
+import FirstGameTour, { TourMarks, tourDone, markTourDone, TOUR_CARDS, TOUR_MENU, TOUR_TONES } from "./FirstGameTour.jsx";
 import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
 const FOCUS_EVENT = "el-cabeza:focus";
@@ -1765,7 +1765,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   useEffect(() => {
     if (dockView !== "panel") return;
     const onPointerDown = (ev) => {
-      if (ev.target && ev.target.closest && ev.target.closest('[data-testid="sound-menu"]')) return;
+      if (ev.target && ev.target.closest && ev.target.closest('[data-testid="sound-menu"], [data-testid="tour-card"]')) return;
       if (cardRef.current && !cardRef.current.contains(ev.target)) {
         setDockView(awaitingBegin ? "piece" : "corner");
       }
@@ -1818,7 +1818,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [dockCallSeen, setDockCallSeen] = useState(false);
   useEffect(() => { if (!gameOver) setDockCallSeen(false); }, [gameOver]);
   useEffect(() => { if (gameOver && dockView === "panel") setDockCallSeen(true); }, [gameOver, dockView]);
-  const dockCall = !shell && gameOver && dockView === "corner" && !dockCallSeen && !replaying;
+  // (And while the first game's tour shows what the piece is for: its card
+  // for it says "it glows like this", tourStep "menu", set below.)
+  const [dockCallTour, setDockCallTour] = useState(false);
+  const dockCall = !shell && dockView === "corner" && !replaying && ((gameOver && !dockCallSeen) || dockCallTour);
   // The hop: the squash and stretch of opening it, smaller, nothing
   // opened (its own flag: a tap meanwhile gets its bounce, which takes
   // the piece over).
@@ -3303,7 +3306,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const tourOfferRef = useRef(null);
   tourOfferRef.current = tourOffer;
   const [tourStep, setTourStep] = useState(null);
-  const tourCardUp = TOUR_CARDS.includes(tourStep);
+  const tourCardUp = TOUR_CARDS.includes(tourStep) || TOUR_MENU.includes(tourStep);
   // (While a card's up a tap on the board picks nothing: it's being shown.)
   const tourCardUpRef = useRef(false);
   tourCardUpRef.current = tourCardUp;
@@ -4647,7 +4650,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      piece picked, an arrow to each square it can reach (and End turn,
      once it's moved and has an action left). The other side's turn: what
      it moved, an arrow from where it stood. */
-  const tourShown = !!tourStep && isPlaying && !awaitingBegin && !replaying && dockView !== "panel";
+  // (With the menu open, only the cards about what's in it: "panel", "foot".)
+  const tourShown = !!tourStep && isPlaying && !awaitingBegin && !replaying && (dockView !== "panel" || tourStep === "panel" || tourStep === "foot");
+  useEffect(() => { setDockCallTour(tourShown && tourStep === "menu"); }, [tourShown, tourStep]);
   // (The goal card's Cabeza, while it's shown big and brought down: the
   // marks wait on it, below.)
   const [tourCabIntro, setTourCabIntro] = useState(false);
@@ -4693,6 +4698,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return best;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourStep, pieces, tourMine]);
+  /* The menu's cards (TOUR_MENU): what's in it in a game, top to bottom,
+     and the buttons along its foot, left to right; each lit in turn, on
+     the menu and on the card, which says them in this order. */
+  const tourMenuRows = [
+    !turnLocked && turnHistory.length > 0 && !online ? ["undo", '[data-testid="undo-turn"]'] : null,
+    ["views", '[data-dock-role="views"]'],
+    aiPlayer ? ["check", '[data-testid="check-alert-switch"]'] : null,
+    ["hold", '[data-testid="hold-to-end-switch"]'],
+    ["end-game", '[data-testid="end-game"]'],
+  ].filter(Boolean);
+  const tourMenuFoot = [layoutSwitch ? "layout" : null, "guide", theme.moveCostToggle ? "costs" : null, "points", theme.hasAudio ? "sound" : null].filter(Boolean);
   const t3 = { rings: [], band: null };
   const t2 = { tags: [], arrows: [], boxes: [], orbit: null, avoid: ['[data-testid="points-counter"]', '[data-testid="stop-here-float"]', '[data-testid="undo-move-float"]', '[data-testid="shell-points"]', '[data-testid="corner-menu-tab"]', ...(tourOffer && tourOffer.clear ? [tourOffer.clear] : [])] };
   const tourBlocks = [], tourBoxed = [], tourMoved = [];
@@ -4781,6 +4797,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         t2.arrows.push({ key: `moved-${now.id}`, from: { box: at(b) }, to: { piece: now.id }, tone: "foe", bend: 0.18, trimEnd: true });
         tag(now.id, { piece: now.id }, `Opponent's ${nameOf(now)}`, "foe");
       });
+    } else if (tourStep === "menu") {
+      // The piece in the corner: its box runs past the screen's edges with
+      // the piece in its middle, so the ring and the label go round the
+      // piece (inset).
+      t2.boxes.push({ key: "dock", sel: "[data-dock-piece]", inset: 26, tone: "mine" });
+      tag("dock", { el: "[data-dock-piece]", inset: 26 }, `${isCoarsePointer() ? "Tap" : "Click"} to open your menu`, "mine", "above");
+    } else if (tourStep === "panel") {
+      // What's in it, each ringed in turn as its card lights its line.
+      tourMenuRows.forEach(([key, sel], i) => t2.boxes.push({ key, sel: `[data-testid="dock-panel"] ${sel}`, tone: "mine", turn: i, of: tourMenuRows.length }));
+    } else if (tourStep === "foot") {
+      // The buttons along its foot, the same.
+      tourMenuFoot.forEach((k, i) => t2.boxes.push({ key: `foot-${k}`, sel: `[data-testid="dock-panel"] [data-testid="${k === "sound" ? "sound-button" : `${k}-toggle`}"]`, tone: "mine", turn: i, of: tourMenuFoot.length }));
     }
   }
   const tour3dSig = tourShown ? JSON.stringify(t3) : "";
@@ -4813,7 +4841,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           const e = document.querySelector(at.el);
           if (!e) return null;
           const r = e.getBoundingClientRect();
-          return r.width && r.height ? { l: r.left, t: r.top, r: r.right, b: r.bottom } : null;
+          // (Less `inset` all round: the piece in the corner, in its box.)
+          const k = at.inset || 0;
+          return r.width && r.height ? { l: r.left + k, t: r.top + k, r: r.right - k, b: r.bottom - k } : null;
         }
         if (!cr || !ready()) return null;
         const box = { l: Infinity, t: Infinity, r: -Infinity, b: -Infinity };
@@ -5132,6 +5162,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // from where to where.)
       else if (tourStep === "foe" && aiDirsRef.current && aiDirsRef.current.watched) return;
       else if (tourStep === "foe" && currentPlayer === tourMine && tourFoeBeforeRef.current) frameTourFoeMoved();
+      // (The menu's cards: the board stays as it was.)
+      else if (TOUR_MENU.includes(tourStep)) return;
       else if (!(tourStep === "pieces" && selectedId)) frameTourBoard();
     });
     return () => cancelAnimationFrame(raf);
@@ -5403,6 +5435,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourStep, currentPlayer, isPlaying, awaitingBegin, replaying, aiPlayer]);
+  /* The menu's cards keep with the menu (TOUR_MENU): opened (a tap on the
+     piece in the corner, or Open it), the card for what's inside; put
+     away (a tap outside it), the card for the piece again. Moved to the
+     control bar (no piece in the corner), they're over. */
+  useEffect(() => {
+    const st = tourStepRef.current;
+    if (st === "menu" && dockView === "panel") setTourStep("panel");
+    else if ((st === "panel" || st === "foot") && dockView !== "panel") setTourStep("menu");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dockView]);
+  useEffect(() => {
+    if (shell && TOUR_MENU.includes(tourStep)) endTour();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shell, tourStep]);
   if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
     window.__EC_TEST_TOUR__ = () => ({
       step: tourStep,
@@ -11753,7 +11799,24 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             blocks: tourBlocks,
             boxed: tourBoxed,
             moved: tourMoved,
-            next: () => setTourStep((st) => TOUR_CARDS[TOUR_CARDS.indexOf(st) + 1] || "pieces"),
+            // The menu's (TOUR_MENU): there's a piece in the corner to open
+            // it; inside, its rows in its own words; along its foot, which
+            // buttons it has.
+            menu: !shell,
+            undo: tourMenuRows.some(([k]) => k === "undo") ? "Undo turn" : null,
+            views: dockWords.views.slice(0, theme.freeCamera && theme.freeCamera.dollhouse ? 3 : 2),
+            check: aiPlayer ? "Check alert" : null,
+            hold: "Hold to end",
+            endGame: dockWords.endGame,
+            layout: tourMenuFoot.includes("layout"),
+            costs: tourMenuFoot.includes("costs"),
+            sound: tourMenuFoot.includes("sound"),
+            channels: !!soundChannels,
+            next: () => {
+              // (Open it: as a tap on the piece opens it, its bounce and all.)
+              if (tourStep === "menu") { if (dockPieceRef.current) triggerDockBounce(); else setDockView("panel"); return; }
+              setTourStep((st) => (st === "foe" ? "menu" : st === "panel" ? "foot" : TOUR_CARDS[TOUR_CARDS.indexOf(st) + 1] || "pieces"));
+            },
             // A step back (user: "small back button on the tutorial if
             // somebody goes forward and then they want to revisit a step
             // earlier"): the card before, from the second on; and from your
@@ -11762,9 +11825,15 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
               ? () => setTourStep((st) => (TOUR_CARDS.indexOf(st) > 0 ? TOUR_CARDS[TOUR_CARDS.indexOf(st) - 1] : st))
               : tourStep === "pieces" && currentPlayer === tourMine && !log.length && !stepsUsed && !busy
                 ? () => { setSelectedId(null); setTourStep(TOUR_CARDS[TOUR_CARDS.length - 1]); }
-                : null,
-            skip: () => endTour(),
-            finish: () => endTour(),
+                // (The menu's: back to the other side's move from the piece's
+                // card; out of the menu from the card inside it.)
+                : tourStep === "menu" ? () => setTourStep("foe")
+                  : tourStep === "panel" ? () => { setTourStep("menu"); setDockView("corner"); }
+                    : tourStep === "foot" ? () => setTourStep("panel")
+                      : null,
+            // (Over with the menu open: it's put away too.)
+            skip: () => { if (dockView === "panel") setDockView("corner"); endTour(); },
+            finish: () => { if (dockView === "panel") setDockView("corner"); endTour(); },
           }}
         />
       )}
@@ -13029,6 +13098,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             {!turnLocked && !awaitingBegin && !replaying && turnHistory.length > 0 && !online && (
               <button
                 className="ec-btn"
+                data-testid="undo-turn"
                 onClick={handleUndoLastTurn}
                 disabled={busy || aiThinking || !!anim.current}
                 style={{
@@ -13440,6 +13510,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
         {theme.hasAudio && (
           <button
             data-testid="sound-button"
+            data-dock-foot=""
             aria-haspopup="true"
             aria-expanded={!!soundMenuAt}
             disabled={firstLook}
@@ -13597,6 +13668,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
            a hollow one, struck through while it's off. */}
         <button
           data-testid="points-toggle"
+          data-dock-foot=""
           aria-pressed={showPoints}
           disabled={firstLook}
           {...firstLockIcon}
@@ -13640,6 +13712,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
         {theme.moveCostToggle && (
           <button
             data-testid="costs-toggle"
+            data-dock-foot=""
             aria-pressed={showCosts}
             disabled={firstLook}
             {...firstLockIcon}
@@ -13682,6 +13755,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
            struck through while it's off. */}
         <button
           data-testid="guide-toggle"
+          data-dock-foot=""
           aria-pressed={showGuide}
           disabled={firstLook}
           {...firstLockIcon}
@@ -13719,6 +13793,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
         {layoutSwitch && (
           <button
             data-testid="layout-toggle"
+            data-dock-foot=""
             disabled={firstLook}
             {...firstLockIcon}
             onClick={(e) => { showToggleHint(e, "Layout: the control bar. Switch back from its menu."); layoutSwitch("bar"); }}

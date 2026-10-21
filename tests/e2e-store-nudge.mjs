@@ -356,7 +356,8 @@ console.log("\nthree moves after the walkthrough: asked to take it to the regist
   for (let i = 0; i < 7 && (await has(page, "tour-next")); i++) { await q(page, "tour-next").click(); await page.waitForTimeout(800); }
   check("...its cards through: your first turn", (await poll(async () => (await step()) === "pieces", 8000)) === true, String(await step()));
   check("...that turn played, and the computer's (still walked through)", await playTurn(page), `log ${await logLen(page)}`);
-  await poll(() => has(page, "tour-done"), 15000);
+  // (The other side's card, then the menu's three: Next, Open it, Next.)
+  for (let i = 0; i < 40 && !(await has(page, "tour-done")); i++) { if (await has(page, "tour-next")) await q(page, "tour-next").click(); await page.waitForTimeout(700); }
   check("...neither counts: nothing said, no moves", (await said()).length === 0 && (await shop()).moves === 0, JSON.stringify({ said: await said(), shop: await shop() }));
   await q(page, "tour-done").click();
   check("Got it: the walkthrough's over", await poll(async () => (await step()) === null, 6000));

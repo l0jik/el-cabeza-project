@@ -34,7 +34,18 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
    arrow runs to every square it can reach. Once your turn's done, a
    card for the other side's turn, which shows what it moved (an arrow
    from where it was) and stays until it's put away or a piece is picked
-   on your next; then it's over. Any card can skip it; from the second on
+   on your next (that ends it). Then, where the menu has its piece in the
+   corner, three more, about the menu (TOUR_MENU; user, 2026-10-21: "An
+   addendum to the tutorial should be about the UI or user interface. For
+   example, the lower right hand corner has the 3D spinning piece. Maybe
+   there should be a page or two in the tutorial explaining like what
+   that's for, when it opens up, what the buttons inside of it do, that
+   sort of thing"): the piece in the corner, calling as it does after a
+   game, opens it (tap it, or Open it); inside it, its rows, each ringed
+   and said; then the buttons along its foot, each drawn on the card as it
+   is on the menu, and the tour's over. The cards keep with the menu:
+   opened, the one for inside it; put away, the one for the piece. Any
+   card can skip it; from the second on
    a quiet Back steps back a card (from your first turn too, until a piece
    has moved: tour.back, the chassis's). Kept as done on the
    device (TOUR_KEY), so it comes once; ?fresh forgets it. A world offers
@@ -50,8 +61,60 @@ export function markTourDone() {
 }
 
 // The cards before you play, in order; then "pieces" (your first turn)
-// and "foe" (the other side's turn after it).
+// and "foe" (the other side's turn after it); then the menu's (TOUR_MENU):
+// the piece in the corner, inside the menu, and the buttons along its foot.
 export const TOUR_CARDS = ["welcome", "ways", "goal", "crush", "blocks", "turn", "board"];
+export const TOUR_MENU = ["menu", "panel", "foot"];
+
+/* The menu's cards light what they name one at a time, the ring on the
+   menu and its line on the card together (the menu's controls sit too
+   close for a ring round each at once): this long each, round and round,
+   both begun as the card comes up. */
+const TURN_S = 2.6;
+function turnFrames(name, n, on, off) {
+  const slot = 100 / n, fade = 25 / (n * TURN_S); // (a quarter of a second in and out)
+  return `@keyframes ${name}${n}{0%{${off}}${fade.toFixed(2)}%{${on}}${(slot - fade).toFixed(2)}%{${on}}${slot.toFixed(2)}%,100%{${off}}}`;
+}
+const turnAnim = (name, i, n) => `${name}${n} ${(n * TURN_S).toFixed(2)}s linear ${(i * TURN_S).toFixed(2)}s infinite both`;
+// (A line lit: the rings' yellow behind it, its ink dark; unlit, as it was.)
+const LIT_ON = "background:rgba(255,210,63,0.62);color:#1B1209";
+
+/* The menu's buttons along its foot as the menu draws them (the chassis's
+   dock panel), for the card that says what each does. */
+const FOOT_ICONS = {
+  layout: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <rect x="6" y="14.5" width="12" height="3" rx="1" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  guide: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 5h16v10H10l-4 4v-4H4z" />
+      <path d="M8 9h8M8 12h5" />
+    </svg>
+  ),
+  costs: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M10 9.5l2.5-2v9" />
+    </svg>
+  ),
+  points: (
+    <svg width="18" height="16" viewBox="0 0 26 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="5" cy="12" r="3.2" fill="currentColor" />
+      <circle cx="13" cy="12" r="3.2" fill="currentColor" />
+      <circle cx="21" cy="12" r="3.2" />
+    </svg>
+  ),
+  sound: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+    </svg>
+  ),
+};
 
 /* The marks' colours, bright against the board and its pieces, each with
    the name the cards call it by: yours, the other side's, the row you
@@ -171,11 +234,53 @@ function cardText(t) {
       (l.extra || []).forEach((x) => rows.push(["Also", x]));
       return { title: l.name, sub: l.what || null, rows, note: t.status || null };
     }
-    case "foe":
+    case "foe": {
       if (t.waiting) return { title: "Your opponent's turn.", body: ["Watch the board: the computer moves one of its pieces."] };
+      // (Then the menu's cards, where it has its piece in the corner.)
+      if (t.menu) {
+        const on = "Before your next move, a quick look at your menu.";
+        return t.moved.length ? { title: `Your opponent moved its ${list(t.moved)}.`, body: [`The ${TONE_NAMES.foe} arrow shows where from.`, on] } : { title: "Your turn again.", body: [on] };
+      }
       return t.moved.length
         ? { title: `Your opponent moved its ${list(t.moved)}.`, body: [`The ${TONE_NAMES.foe} arrow shows where from.`, `Your turn again: ${tap} any of your pieces to see what it does. Good luck!`] }
         : { title: "Your turn again.", body: [`${cap(tap)} any of your pieces to see what it does. Good luck!`] };
+    }
+    // The menu: what the piece in the corner is for, and when it opens.
+    case "menu":
+      return {
+        title: "Your menu is in the corner.",
+        body: [
+          `The spinning piece at the lower right opens it: the menu you started this game from. ${cap(tap)} it now.`,
+          `${cap(tap)} anywhere outside the menu to put it away again.`,
+          "When a game ends, the piece glows like this until you open it: your next game starts from there.",
+        ],
+      };
+    // Inside it, top to bottom, in its own words.
+    case "panel": {
+      const rows = [];
+      if (t.undo) rows.push([t.undo, "Takes back your last turn, and your opponent's answer."]);
+      if (t.views && t.views.length) rows.push(["Views", `${list(t.views)}: ready-made views of the board.`]);
+      if (t.check) rows.push([t.check, "Warns you when your opponent could crush your Cabeza on its next turn."]);
+      if (t.hold) rows.push([t.hold, "On: hold the piece you moved to end your turn, so a stray tap can't."]);
+      if (t.endGame) rows.push([t.endGame, "Ends this game."]);
+      return { title: "Inside your menu.", rows, lit: true };
+    }
+    // Along its foot: each button drawn as the menu draws it.
+    case "foot": {
+      const icons = [];
+      if (t.layout) icons.push({ icon: "layout", name: "Control bar", text: "moves the menu to a bar along the foot of the screen." });
+      icons.push({ icon: "guide", name: "Piece guide", text: "a card that tells you what the piece you pick does." });
+      if (t.costs) icons.push({ icon: "costs", name: "Move costs", text: "how many actions each move takes, on its marker." });
+      icons.push({ icon: "points", name: "Actions left", text: "the lights at the foot of the screen that count them." });
+      if (t.sound) icons.push({ icon: "sound", name: "Sound", text: t.channels ? "the volume, with the music and the other sounds each on or off." : "the volume." });
+      return {
+        title: "The buttons along the bottom.",
+        body: ["Most switch something on or off: a line through one means it's off."],
+        icons,
+        lit: true,
+        note: `That's the tour. Your turn: ${tap} any of your pieces to see what it does. Good luck!`,
+      };
+    }
     default:
       return null;
   }
@@ -184,6 +289,7 @@ function cardText(t) {
 export default function FirstGameTour({ tour, cardRef }) {
   const { step, C, display } = tour;
   const card = TOUR_CARDS.includes(step);
+  const menuCard = TOUR_MENU.includes(step);
   // A card before you play: Escape skips the tour, as its link does.
   useEffect(() => {
     if (!card) return undefined;
@@ -220,16 +326,20 @@ export default function FirstGameTour({ tour, cardRef }) {
   if (!text) return null;
   const index = TOUR_CARDS.indexOf(step);
   const of = TOUR_CARDS.length + 1;
-  const band = `${(tour.copy && tour.copy.band) || "First game"}${card ? ` · ${index + 1} of ${of}` : step === "pieces" ? ` · ${of} of ${of}` : ""}`;
+  const band = `${(tour.copy && tour.copy.band) || "First game"}${card ? ` · ${index + 1} of ${of}` : step === "pieces" ? ` · ${of} of ${of}` : menuCard ? ` · Your menu · ${TOUR_MENU.indexOf(step) + 1} of ${TOUR_MENU.length}` : ""}`;
   const primary = card
     ? { label: index < TOUR_CARDS.length - 1 ? "Next ›" : "Let's play ›", onClick: tour.next, testid: "tour-next" }
-    : step === "foe" && !tour.waiting ? { label: "Got it", onClick: tour.finish, testid: "tour-done" } : null;
+    : menuCard
+      ? step === "foot" ? { label: "Got it", onClick: tour.finish, testid: "tour-done" } : { label: step === "menu" ? "Open it ›" : "Next ›", onClick: tour.next, testid: "tour-next" }
+      : step === "foe" && !tour.waiting ? (tour.menu ? { label: "Next ›", onClick: tour.next, testid: "tour-next" } : { label: "Got it", onClick: tour.finish, testid: "tour-done" }) : null;
   const link = card
     ? { label: "Skip the tour", onClick: tour.skip, testid: "tour-skip" }
     : { label: "End the tour", onClick: tour.finish, testid: "tour-end" };
   // A quiet step back, beside Next (the chassis says when there's one).
   const back = tour.back ? { label: "‹ Back", onClick: tour.back, testid: "tour-back" } : null;
-  const css = "@keyframes ecTourIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}@keyframes ecTourDrop{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}@media (prefers-reduced-motion: reduce){[data-testid=\"tour-card\"]{animation:none!important}}";
+  const lit = text.lit ? (text.rows || text.icons).length : 0;
+  const css = "@keyframes ecTourIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}@keyframes ecTourDrop{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}@media (prefers-reduced-motion: reduce){[data-testid=\"tour-card\"]{animation:none!important}}"
+    + (lit ? `${turnFrames("ecTourLit", lit, LIT_ON, `background:rgba(255,210,63,0);color:${C.slate}`)}@media (prefers-reduced-motion: reduce){[data-lit]{animation:none!important}}` : "");
   return (
     <>
       <style>{css}</style>
@@ -238,8 +348,8 @@ export default function FirstGameTour({ tour, cardRef }) {
         key={step}
         data-testid="tour-card"
         data-step={step}
-        role={card ? "dialog" : "status"}
-        aria-live={card ? undefined : "polite"}
+        role={card || menuCard ? "dialog" : "status"}
+        aria-live={card || menuCard ? undefined : "polite"}
         aria-labelledby="ec-tour-title"
         style={{
           position: "fixed",
@@ -287,8 +397,18 @@ export default function FirstGameTour({ tour, cardRef }) {
           <div data-testid="tour-rows" style={{ marginTop: narrow ? 6 : 8, display: "grid", gridTemplateColumns: "max-content 1fr", columnGap: 10, rowGap: narrow ? 3 : 5, alignItems: "baseline" }}>
             {text.rows.map(([k, v], i) => (
               <React.Fragment key={k + i}>
-                <span style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: C.slate, whiteSpace: "nowrap" }}>{k}</span>
+                <span data-lit={lit ? i : undefined} style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: C.slate, whiteSpace: "nowrap", ...(lit ? { animation: turnAnim("ecTourLit", i, lit), borderRadius: 3, padding: "2px 5px", margin: "-2px -5px" } : null) }}>{k}</span>
                 <span data-testid={`tour-row-${k.toLowerCase().replace(/\s+/g, "-")}`}>{v}</span>
+              </React.Fragment>
+            ))}
+          </div>
+        )}
+        {text.icons && (
+          <div data-testid="tour-icons" style={{ marginTop: narrow ? 6 : 8, display: "grid", gridTemplateColumns: "22px 1fr", columnGap: 9, rowGap: narrow ? 4 : 6, alignItems: "center" }}>
+            {text.icons.map((x, i) => (
+              <React.Fragment key={x.icon}>
+                <span aria-hidden="true" data-lit={lit ? i : undefined} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, margin: "-2px", borderRadius: "50%", color: C.slate, ...(lit ? { animation: turnAnim("ecTourLit", i, lit) } : null) }}>{FOOT_ICONS[x.icon]}</span>
+                <span data-testid={`tour-icon-${x.icon}`}><b style={{ fontWeight: 600 }}>{x.name}</b>: {x.text}</span>
               </React.Fragment>
             ))}
           </div>
@@ -315,7 +435,7 @@ export default function FirstGameTour({ tour, cardRef }) {
                   className="ec-btn"
                   data-testid={primary.testid}
                   onClick={primary.onClick}
-                  autoFocus={card}
+                  autoFocus={card || menuCard}
                   style={{ background: C.charcoal, color: C.cream, border: `1px solid ${C.charcoal}`, borderRadius: 6, padding: narrow ? "8px 15px" : "9px 17px", cursor: "pointer", fontFamily: mono, fontSize: 11.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}
                 >
                   {primary.label}
@@ -373,7 +493,7 @@ export function TourMarks({ marks, geo, subscribe, cardRef }) {
       (marks.boxes || []).forEach((bx) => {
         const els = boxEls.current[bx.key];
         if (!els) return;
-        const r = geo.rect({ el: bx.sel });
+        const r = geo.rect({ el: bx.sel, inset: bx.inset });
         [els.halo, els.ring].forEach((e) => {
           if (!r) { e.setAttribute("width", 0); return; }
           e.setAttribute("x", r.l - 7); e.setAttribute("y", r.t - 7);
@@ -573,10 +693,11 @@ export function TourMarks({ marks, geo, subscribe, cardRef }) {
   );
   return (
     <div data-testid="tour-marks" aria-hidden="true" style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 12, overflow: "hidden" }}>
-      <style>{"@keyframes ecTourPulse{0%,100%{opacity:1}50%{opacity:.4}}@keyframes ecTourMarch{to{stroke-dashoffset:-46}}.ec-tour-pulse{animation:ecTourPulse 1.3s ease-in-out infinite}.ec-tour-march{animation:ecTourMarch 1.1s linear infinite}@media (prefers-reduced-motion: reduce){.ec-tour-pulse,.ec-tour-march{animation:none}}"}</style>
+      <style>{"@keyframes ecTourPulse{0%,100%{opacity:1}50%{opacity:.4}}@keyframes ecTourMarch{to{stroke-dashoffset:-46}}.ec-tour-pulse{animation:ecTourPulse 1.3s ease-in-out infinite}.ec-tour-march{animation:ecTourMarch 1.1s linear infinite}@media (prefers-reduced-motion: reduce){.ec-tour-pulse,.ec-tour-march,[data-turn]{animation:none!important}}"
+        + [...new Set((marks.boxes || []).filter((b) => b.of).map((b) => b.of))].map((n) => turnFrames("ecTourTurn", n, "opacity:1", "opacity:0")).join("")}</style>
       <svg width="100%" height="100%" style={{ position: "absolute", inset: 0, overflow: "visible" }}>
         {(marks.boxes || []).map((bx) => (
-          <g key={bx.key} data-ring={bx.key}>
+          <g key={bx.key} data-ring={bx.key} {...(bx.of ? { "data-turn": bx.turn, style: { animation: turnAnim("ecTourTurn", bx.turn, bx.of) } } : null)}>
             <rect ref={keep(boxEls, bx.key, "halo")} rx={12} fill="none" stroke={HALO} strokeWidth={7} width={0} height={0} />
             <rect ref={keep(boxEls, bx.key, "ring")} className="ec-tour-pulse" rx={12} fill="none" stroke={tone(bx.tone)} strokeWidth={3.5} width={0} height={0} />
           </g>

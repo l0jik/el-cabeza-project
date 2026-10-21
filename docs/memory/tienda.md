@@ -301,6 +301,55 @@ box art and an ad standee (assets/tienda/*.jpg).
   get the rule. A test build marks each label with data-anchor (what it
   names, on the screen); tests/e2e-first-game-tour.mjs checks no label
   covers its own on any card, and that this one's to the right.
+- **The menu, after the first exchange** (2026-10-21; user, two phone
+  screenshots, the in-game menu's foot icons circled and the corner piece
+  circled: "An addendum to the tutorial should be about the UI or user
+  interface. For example, the lower right hand corner has the 3D spinning
+  piece. Maybe there should be a page or two in the tutorial explaining
+  like what that's for, when it opens up, what the buttons inside of it
+  do, that sort of thing"): the other side's card now ends "Before your
+  next move, a quick look at your menu." with Next (was Got it), and three
+  cards follow (FirstGameTour.jsx TOUR_MENU, banded "Your menu · N of 3"):
+  1. "Your menu is in the corner." The piece ringed (its corner box less
+     26 px all round: the box runs past the screen's edges, the piece in
+     its middle) and labelled TAP TO OPEN YOUR MENU, calling as it does
+     after a game (the chassis's dockCall, dockCallTour: lit, its light
+     round it, a hop now and then). "The spinning piece at the lower right
+     opens it: the menu you started this game from. Tap it now." / "Tap
+     anywhere outside the menu to put it away again." / "When a game ends,
+     the piece glows like this until you open it: your next game starts
+     from there." Open it (or a tap on the piece) opens it, bounce and all.
+  2. "Inside your menu." The menu stays open under the card; rows in the
+     menu's own words: Undo turn, Views (the world's words: Your side,
+     From above, and The aisle), Check alert, Hold to end ("On: hold the
+     piece you moved to end your turn, so a stray tap can't."), Put them
+     down (dockWords.endGame). Lit one at a time, round and round, 2.6 s
+     each: a ring round the control on the menu and its line's label on
+     the card in the rings' yellow, together (both start as the card comes
+     up; TURN_S, turnFrames). All at once, five rings ran into each other:
+     the controls sit about 8 px apart.
+  3. "The buttons along the bottom." Each of the menu's foot buttons
+     drawn on the card as the menu draws it (FOOT_ICONS) with what it does
+     (Control bar where offered, Piece guide, Move costs where the world
+     has them, Actions left, Sound), each ringed on the menu in turn as
+     its glyph on the card lights, and "That's the tour. Your turn: tap
+     any of your pieces to see what it does. Good luck!"; Got it puts the
+     menu away and ends it. With reduced motion, every ring at once.
+  The cards keep with the menu: a tap outside it puts it away and brings
+  back card 1; Back from card 2 closes it; from card 1, back to the other
+  side's card. The board picks nothing while they're up (tourCardUp), and
+  the camera stays where the other side's move left it. In the control
+  bar layout (no corner piece) there are none (the other side's card says
+  Got it as before; switching to the bar mid-way ends the tour). A piece
+  picked on the other side's card still ends the tour, these skipped.
+  Chassis: tourMenuRows / tourMenuFoot say what's lit, in order, for the
+  rings and the card both; tourShown allows the menu open on "panel" and
+  "foot"; a tap on the tour's card doesn't put the menu away; geo.rect({
+  el, inset }); data-testid="undo-turn"; data-dock-foot on the foot's
+  buttons. tests/e2e-first-game-tour.mjs (phone: each card, every ring
+  round its control, a full round lit one at a time with the matching
+  line, a tap outside, Back, Open it, Got it; desktop: a mouse's words,
+  the card beside the open menu); e2e-store-nudge walks the new cards.
 - **Oxford commas** (2026-10-21; user, card 7 with a blue comma after
   "down": "The red circle with the blue comma indicates where an Oxford
   comma should be placed."): "up, down, or sideways", and every list the
