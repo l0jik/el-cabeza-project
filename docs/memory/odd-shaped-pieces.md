@@ -465,3 +465,32 @@ Results, new vs previous:
 - Medium in the user setup: 9–5 (2 draws). Easy: 7–5.
 - Classic Medium: 5–5.
 
+
+## Interlocked pieces run into each other (2026-10-21)
+
+User (a phone video of the City at 10 PM, two Arcos lying as U's, each
+one's leg in the other's gap): "We've got some Z fighting happening when
+two Arcos are laying down next to each other. Not really sure how we can
+handle this. Give me some ideas."
+
+Why: every block is drawn at PIECE_SCALE (0.87 a cube) about its own
+middle, on squares SQUARE_SIZE (1.056) wide (engine/geometry.js
+voxCubeCenters; the City's voxModel the same), so each cube sits
+(1.056 - 0.87) = 0.186 nearer its piece's middle per square out from it.
+A leg in another piece's gap shrinks toward its own middle, the gap's
+walls toward theirs: the two legs overlap by 0.186 (18% of a square),
+roofs at one height, so they flicker (z-fighting); in the wood worlds
+one block sinks into the other. Every world, every interlock of that
+kind (a U's gap, the 2-wide Ancho's too); nested L corners don't.
+Reproduced with __EC_TEST_SET_PIECES__ (light arcoChico row 4 col 3
+"0,0,0;0,1,0;1,0,0;2,0,0;2,1,0", dark row 5 col 4
+"0,0,0;0,1,0;1,1,0;2,0,0;2,1,0").
+
+Offered (a sheet of mock-ups made by moving the live meshes): 1 pressed
+together, what real pieces would do (each slides 0.093 toward the other
+so each leg sits exactly in the other's gap, touching; every world,
+shapes unchanged; recommended); 2 one roof always on top (a hair higher:
+stops the flicker, still overlapping); 3 slim the legs where they meet
+(to keep the usual gap they'd lose ~40%); 4 odd pieces drawn
+square-to-square (14% longer, a length change on standing up); 5 a rule
+against interlocking. Waiting on the pick.

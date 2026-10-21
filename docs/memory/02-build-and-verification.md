@@ -20,6 +20,12 @@
   Single tests here take 1-11 min each on the software renderer.) While
   a sweep is running, a new request's build waits for it or stops it
   (kill by PID): never rebuild `dist/` under it.
+- **Commits: the machine's own identity** (Claude <noreply@anthropic.com>,
+  SSH-signed by its git config), no `-c user.name/-c user.email`
+  overrides. A commit under any other committer email shows on GitHub as
+  Unverified, and the stop hook (stop-hook-git-check.sh) flags it while
+  it's unpushed (2026-10-21; the session's commits had been made under
+  the user's name since 2026-10-15; pushed history left as it is).
 - `npm run build` → `build/build.js`: one esbuild pass for every page's
   entry (ES modules, splitting on: each page's own `el-cabeza-<name>-app.js`
   and the chunks the pages share, `el-cabeza-chunk-*.js`, preloaded by
