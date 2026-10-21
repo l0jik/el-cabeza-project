@@ -353,8 +353,15 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       const onBulb = (e) => !!(e.target instanceof Element && e.target.closest('[data-testid="focus-corner"], [data-fullscreen-toggle]'));
       const throb = () => requestAnimationFrame(() => { const b = bulb(); if (!b) return; b.classList.remove("ec-settle-throb"); void b.offsetWidth; b.classList.add("ec-settle-throb"); });
       const EVENTS = ["pointerdown", "pointerup", "pointermove", "click", "dblclick", "contextmenu", "touchstart", "touchmove", "touchend", "wheel", "mousedown", "mouseup", "gesturestart"];
+      // (A finger already down when it began, the tap that put the home
+      // card away, still moves and lifts: its lift kept from the board
+      // left the board counting a finger that wasn't there, user's video.)
+      const downs = new Set();
       const block = (e) => {
         if (onBulb(e)) return;
+        if (e.type === "pointerdown") downs.add(e.pointerId);
+        else if ((e.type === "pointerup" || (e.type === "pointermove" && e.buttons)) && !downs.has(e.pointerId)) return;
+        else if (e.type === "pointerup") downs.delete(e.pointerId);
         e.stopImmediatePropagation(); e.stopPropagation();
         if (e.cancelable && e.type !== "pointermove") e.preventDefault();
         if (e.type === "pointerdown" || (e.type === "touchstart" && !window.PointerEvent)) throb();
@@ -394,6 +401,9 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       homeCardTimer = setTimeout(() => homeCard(() => settleIn(() => { if (hall) hall.arm(movesNow()); })), 3800);
     } }) : null;
     if (trip && novaTv.call) trip.load(); // (its pictures, well ahead of time)
+    // (Tests: home from the trip at once, the card and then the settle-in,
+    // without the trip itself.)
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_HOME_NOW__ = () => homeCard(() => settleIn(() => { if (hall) hall.arm(movesNow()); }));
     const call = novaTv && novaTv.call ? createDenCall({ audio, awaitingBegin: () => !!(awaitingBeginRef && awaitingBeginRef.current), onTrip: () => trip && trip.start(), onGoToPhone: () => phoneVisit(true), onPhoneDone: () => phoneVisit(false) }) : null;
     /* The end of the story (Nova). Home from the closed Big Glutts, four
        moves into the game the hall starts up (den-hall.js); investigated,

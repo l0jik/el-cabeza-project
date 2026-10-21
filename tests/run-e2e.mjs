@@ -39,6 +39,8 @@ const E2E = [
   ["e2e-luna-floors.mjs"],
   // Interlocked odd shapes pressed together (two Arcos flickered).
   ["e2e-press.mjs"],
+  // A finger whose lift never arrived (the den's settle-in): one finger panned.
+  ["e2e-ghost-finger.mjs"],
   // The corner menu: the game's rules at the top left, every world's look.
   ["e2e-corner-menu.mjs"],
   // Ciudad: the city at the hour picked, its lots and cranes, its streets.

@@ -8651,6 +8651,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // on the board before the game has begun. Once it has, this is
       // just a cheap suspended-context resume on later gestures.
       if (!awaitingBegin) audioRef.current.ensureStarted();
+      /* A first finger (isPrimary) means no other is down: any still
+         counted are ghosts, fingers whose lift never got here (a story
+         scene's lock swallowing pointerup at the window as it began: the
+         den's settle-in, started by the very tap that put the home card
+         away). One left behind made every touch after it a second finger,
+         so one finger panned and nothing could be played (user's video:
+         "The single finger is panning everything"). They're let go first,
+         as if cancelled. */
+      if (ev.isPrimary) for (const id of [...active.keys()]) if (id !== ev.pointerId) onCancel({ pointerId: id });
       active.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
       el.setPointerCapture && el.setPointerCapture(ev.pointerId);
 

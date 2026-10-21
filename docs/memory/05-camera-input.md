@@ -121,3 +121,28 @@ immediately.
   time. tests/e2e-hold-to-end.mjs: the first hold the teaching one,
   ending after 1.3 s or more, then learned; the phone (seeded as learned)
   the usual one.
+
+- **A finger whose lift never arrived** (2026-10-21; user's video, home
+  from the trip: "Something screwed up the spin, zoom, pan. The single
+  finger is panning everything, but I'm trying to continue playing the
+  game and it won't let me. Something locked something else out"). The
+  board counts fingers in the input effect's `active` map (pointerdown
+  adds, pointerup / pointercancel removes). The den's home card is put
+  away by the first tap anywhere; that tap's pointerdown starts the
+  settle-in (den-fx.js settleIn), whose lock blocks every pointer event
+  at the window but the bulb, so the same tap's pointerup never reached
+  the canvas: a ghost finger, and every touch after it a second finger,
+  a two-finger pan (and no taps). Two fixes. The chassis (onDown): a
+  primary pointerdown (`isPrimary`: no other finger of that kind is down)
+  lets go of any others still counted, as if cancelled (onCancel: the
+  hold to end, a set-out drag, slide/pivot/undo drags dropped too); this
+  covers every lock that eats a lift (the order paper, the store's and
+  Futuris's locks too). The settle-in lets a pressed finger it never saw
+  go down (moves with buttons, the lift) through, as the TV lure's lock
+  already did; the order paper's lock is left as it was (its taps must
+  not reach the board; the chassis guard clears what it leaves). Test
+  hook `__DEN_HOME_NOW__` (the home card and settle-in without the trip).
+  tests/e2e-ghost-finger.mjs (Futuris and the den: a lift swallowed at
+  the window, then one finger turns, no pan; the den's own way: the card,
+  a tap on the board, the bulb, then one finger turns). Without both
+  fixes the den's way reproduced it (turned 0, slid 2.97).
