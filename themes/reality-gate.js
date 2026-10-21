@@ -37,6 +37,7 @@ import {
   holeSetsOf, setHoleSets, holeSpotsAfterTap, SPOT_PROBLEMS, holeSetsText, HOLE_ANY_EXIT,
 } from "./rules-selections.js";
 import { WORLDS, createRealitiesMenu, goToWorld, REALITIES_VISIT_KEY } from "./realities.js";
+import { shoveOf } from "../chassis/shove-settings.js";
 import { sideNamesFor, sideLabel, sideDotStyle } from "./side-names.js";
 
 const h = React.createElement;
@@ -634,7 +635,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
         h("span", { className: "rg-name" }, l.name, h("span", { className: "rg-note" }, l.note)),
         h(Switch, { on: sel.laws[l.key], label: l.name, testid: `gate-law-${l.key}`, onClick: () => change((n) => toggleLaw(n, l.key)) })),
       l.key === "shoving" && sel.laws.shoving && h("div", { className: "rg-sub" },
-        shoveShown(sel).map((s) => h(Seg, { key: s.key, label: s.name }, s.options.map((o) => segBtn(String(o.value), (sel.shove[s.key] !== false) === o.value, o.name, () => change((n) => setShove(n, s.key, o.value)),
+        shoveShown(sel).map((s) => h(Seg, { key: s.key, label: s.name }, s.options.map((o) => segBtn(String(o.value), shoveOf(sel.shove)[s.key] === o.value, o.name, () => change((n) => setShove(n, s.key, o.value)),
           s.key === "onRolls" ? `gate-shove-${o.value ? "rolls" : "slides"}` : `gate-shove-${o.value ? "all" : "opponents"}`)))),
         h("span", { className: "rg-note", "data-testid": "gate-shove-now" }, shoveNow(sel))))),
     warnings.map((w) => h("div", { key: w.testid, className: "rg-warn", "data-testid": `gate-${w.testid}`, ...(w.key === "cantileverPivot" ? { onClick: showPivots, style: { cursor: "pointer" }, title: "Show me" } : {}) }, w.text)));

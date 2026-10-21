@@ -83,16 +83,21 @@ import("../themes/rules-selections.js").then(async (m) => {
   s.laws.shoving = true;
   // The line under the setting says what actually shoves (user).
   // (No "Right now", and "can", user: "Only slides can shove...".)
-  check("with Slide off, the line says only rolls can shove", /^Only rolls can shove:/.test(m.shoveNow({ ...s, laws: { ...s.laws, slide: false } })));
-  check("...with Slide on, slides and rolls both", /^Slides and rolls can both shove\./.test(m.shoveNow({ ...s, laws: { ...s.laws, slide: true } })));
+  // (On slides and rolls, all pieces: the defaults are slides only and
+  // only opponents since 2026-10-21.)
+  const rolls = { onRolls: true, own: true, v: 2 };
+  check("with Slide off, the line says only rolls can shove", /^Only rolls can shove:/.test(m.shoveNow({ ...s, shove: rolls, laws: { ...s.laws, slide: false } })));
+  check("...with Slide on, slides and rolls both", /^Slides and rolls can both shove\./.test(m.shoveNow({ ...s, shove: rolls, laws: { ...s.laws, slide: true } })));
   check("...on slides only, only slides", /^Only slides can shove\. A roll into a piece is just blocked\.$/.test(m.shoveNow({ ...s, shove: { onRolls: false } })), m.shoveNow({ ...s, shove: { onRolls: false } }));
   {
     const lone = m.toggleLaw(m.cloneSelections(m.defaultSelections()), "diagonalSlide");
     check("Diagonal slide stands on its own: Orthogonal slide stays off", lone.laws.diagonalSlide && !lone.laws.slide && m.lawsForEngine(lone).diagonalSlide === true);
-    check("...and the line says only rolls shove, diagonal slides never", /diagonal slides never shove/.test(m.shoveNow({ ...lone, laws: { ...lone.laws, shoving: true } })));
+    check("...and the line says only rolls shove, diagonal slides never", /diagonal slides never shove/.test(m.shoveNow({ ...lone, shove: rolls, laws: { ...lone.laws, shoving: true } })));
   }
   check("...and with Diagonal slide on it says diagonal slides never shove", /Diagonal slides never shove/.test(m.shoveNow({ ...s, laws: { ...s.laws, slide: true, diagonalSlide: true } })));
-  check("Shoving reaches the engine, rolls shoving by default", m.lawsForEngine(s).shoving === true && m.lawsForEngine(s).shoveOnRolls === true && !("shoveFar" in m.lawsForEngine(s)));
+  // (Slides only and only opponents by default, user, 2026-10-21: "Make
+  // the orange highlighted buttons the default, globally.")
+  check("Shoving reaches the engine, slides only and only opponents by default", m.lawsForEngine(s).shoving === true && m.lawsForEngine(s).shoveOnRolls === false && m.lawsForEngine(s).shoveOwn === false && !("shoveFar" in m.lawsForEngine(s)));
   // Its one setting: slides only.
   s.shove = { onRolls: false };
   check("slides only reaches the engine", m.lawsForEngine(s).shoveOnRolls === false);
@@ -105,12 +110,13 @@ import("../themes/rules-selections.js").then(async (m) => {
   check("...which 3 actions per turn clears", !m.lawWarnings(s).some((w) => w.key === "shoving"));
   check("...and the summary says slides only", m.variantsOf(s)[0].items.includes("Shoving (slides only)"));
   s.laws.threeActions = false; s.laws.slide = false;
-  s.shove = { onRolls: true };
+  s.shove = { onRolls: true, own: true, v: 2 };
   // ...and which pieces a shove pushes, a slide's or a roll's (user: "all
-  // pieces or only opponents", for slides only as well): all by default;
-  // the choice shows with either.
-  check("shoves push all pieces by default", m.defaultSelections().shove.own === true && m.lawsForEngine(m.defaultSelections()).shoveOwn === true);
-  check("...an older save without the setting reads as all pieces", m.normalizeSelections({ laws: { shoving: true }, shove: { onRolls: true } }).shove.own === true);
+  // pieces or only opponents", for slides only as well): only opponents by
+  // default; the choice shows with either.
+  check("shoves push only the opponent's pieces by default", m.defaultSelections().shove.own === false && m.lawsForEngine(m.defaultSelections()).shoveOwn === false);
+  check("...an older save still on the old defaults (slides and rolls, all pieces) takes today's", (() => { const n = m.normalizeSelections({ laws: { shoving: true }, shove: { onRolls: true } }).shove; return n.onRolls === false && n.own === false; })());
+  check("...one set to them since is kept", (() => { const n = m.normalizeSelections({ laws: { shoving: true }, shove: { onRolls: true, own: true, v: 2 } }).shove; return n.onRolls === true && n.own === true; })());
   check("...one from when it was for rolls only keeps its answer", m.normalizeSelections({ laws: { shoving: true }, shove: { onRolls: true, ownOnRolls: false } }).shove.own === false);
   check("...the choice shows with slides and rolls and with slides only", m.shoveShown({ ...s, shove: { onRolls: true } }).some((st) => st.key === "own") && m.shoveShown({ ...s, shove: { onRolls: false } }).some((st) => st.key === "own"));
   s.shove = { onRolls: true, own: false };
@@ -126,7 +132,7 @@ import("../themes/rules-selections.js").then(async (m) => {
   check("...a game that isn't the default one", !m.isDefaultSelections(s));
   check("...and it survives a save", m.normalizeSelections(m.cloneSelections(s)).shove.own === false);
   s.laws.slide = false;
-  s.shove = { onRolls: true };
+  s.shove = { onRolls: true, own: true, v: 2 };
   s.counts.opa = 1;
   check("...and with an Opa but 2 actions a turn it warns an Opa's shove needs 3", m.lawWarnings(s).some((w) => w.testid === "shove-opa-needs-three"));
   s.laws.threeActions = true;
@@ -156,9 +162,9 @@ import("../themes/rules-selections.js").then(async (m) => {
   }
   check(`hand-placed squares are used as marked (${honoured}/10), the pieces set out round them (${clear}/10)`, honoured === 10 && clear === 10);
   const labelled = m.variantsOf({ ...t, laws: { ...t.laws, shoving: true } }, { laws: "RULES", matter: "PIECES", topologies: "BOARD" });
-  check("the summary uses the theme's words and names Shoving", labelled[0].label === "RULES" && labelled[0].items.includes("Shoving (slides and rolls)"));
+  check("the summary uses the theme's words and names Shoving", labelled[0].label === "RULES" && labelled[0].items.includes("Shoving (slides only, only opponents)"), JSON.stringify(labelled[0].items));
   check("an old save keeps its slides-only choice and drops the push distance", (() => { const n = m.normalizeSelections({ laws: { shoving: true }, shove: { far: true, onRolls: false } }); return n.shove.onRolls === false && !("far" in n.shove); })());
-  check("a save without the setting shoves on rolls too", m.normalizeSelections({ laws: { shoving: true } }).shove.onRolls === true);
+  check("a save without the setting gets today's defaults", (() => { const n = m.normalizeSelections({ laws: { shoving: true } }).shove; return n.onRolls === false && n.own === false; })());
   check("an old save normalises (size → rows × cols, counts clamped)", (() => { const n = m.normalizeSelections({ size: 12, counts: { opa: 9, flaco: 99 } }); return n.rows === 12 && n.cols === 12 && n.counts.opa === 9 && n.counts.flaco === m.MAX_OF_A_KIND && n.missingSpots.length === 0; })());
   // The two Split movements (user): one or the other; three pieces brings 3 actions.
   {
@@ -181,6 +187,10 @@ import("../themes/rules-selections.js").then(async (m) => {
     check("Slide off puts Shoving back on slides and rolls", !w.laws.slide && w.shove.onRolls === true);
     const x = m.defaultSelections(); m.setShove(x, "onRolls", false); m.toggleLaw(x, "shoving");
     check("Shoving on with Slides only already set brings Slide", x.laws.slide);
+    const y = m.defaultSelections(); m.toggleLaw(y, "shoving");
+    check("Shoving on, as it comes, is slides only and only opponents, and brings Slide", y.laws.slide && y.shove.onRolls === false && y.shove.own === false);
+    const z = m.defaultSelections(); m.toggleLaw(z, "slide"); m.toggleLaw(z, "slide");
+    check("Slide on and off with Shoving off leaves the default alone", !z.laws.slide && z.shove.onRolls === false);
     check("a save with both keeps three pieces only", (() => { const n = m.normalizeSelections({ laws: { splitMovement: true, splitThree: true, threeActions: true } }); return n.laws.splitThree && !n.laws.splitMovement; })());
     check("the three-piece choice sits right under two pieces", (() => { const k = m.LAW_OPTIONS.map((l) => l.key); return k.indexOf("splitThree") === k.indexOf("splitMovement") + 1 && k.indexOf("threeActions") === k.indexOf("splitMovement") - 1; })());
   }
@@ -194,13 +204,16 @@ import("../themes/rules-selections.js").then(async (m) => {
     check("...the black holes left alone: they're set with the board", !a.laws.blackHoleSquares && m.holeCellsOf(a).length === 0, JSON.stringify(a.holeSpots));
     m.setAllLaws(a, false);
     check("all laws off: none on", !m.LAW_OPTIONS.some((l) => a.laws[l.key]) && !m.allLawsOn(a));
+    check("...and Shoving's setting is still the default", a.shove.onRolls === false && a.shove.own === false);
     const b = m.defaultSelections(); m.toggleLaw(b, "splitMovement"); m.setShove(b, "onRolls", false);
     m.setAllLaws(b, true);
     check("all on keeps two pieces if that was chosen, and slides only", m.allLawsOn(b) && b.laws.splitMovement && !b.laws.splitThree && b.shove.onRolls === false);
     m.toggleLaw(b, "cantileverPivot");
     check("one switched off after: all laws reads off", !m.allLawsOn(b));
     m.setAllLaws(b, false);
-    check("off from slides only puts Shoving back on slides and rolls", !b.laws.slide && b.shove.onRolls === true);
+    // (All off keeps Shoving's setting: Slide going first had put it on
+    // slides and rolls, away from the default it should come back on.)
+    check("all off keeps Shoving's setting as it was, slides only", !b.laws.slide && b.shove.onRolls === false);
   }
   // Two sets of black holes (user: "add the option to increase the number
   // of black hole sets to 2").

@@ -325,13 +325,16 @@ export let ACTIVE_LAWS = {
   // in rules.js.
   shoving: false,
   // Shoving's settings: whether rolls shove as well as slides ("slides
-  // and rolls", the default) or only slides do ("slides only": a roll into
-  // a piece is simply blocked, as without the law)...
+  // and rolls") or only slides do ("slides only": a roll into a piece is
+  // simply blocked, as without the law)... (Here, the engine's own base,
+  // what a law set without them gets: the menus start every game on slides
+  // only and only opponents, chassis/shove-settings.js DEFAULT_SHOVE, and
+  // pass both.)
   shoveOnRolls: true,
   // ...and which pieces a shove may push, a slide's or a roll's (user:
   // "all pieces or only opponents", for slides only as well): any piece in
-  // its way (the default), or only the other side's (a move into one of
-  // your own is blocked, as without the law). chassis/shove-settings.js.
+  // its way, or only the other side's (a move into one of your own is
+  // blocked, as without the law). chassis/shove-settings.js.
   shoveOwn: true,
   // Punto LAW: the side that opens has one action fewer on the game's
   // first turn, to blunt the first strike: one action with 2 a turn, two

@@ -170,10 +170,10 @@ export function normalizeSelections(sel) {
   LAW_OPTIONS.forEach((l) => { out.laws[l.key] = sel.laws && typeof sel.laws[l.key] === "boolean" ? sel.laws[l.key] : !!l.def; });
   // (One Split movement at a time: three pieces wins.)
   if (out.laws.splitThree) out.laws.splitMovement = false;
-  // Which moves shove (a save from before the setting came back has none:
-  // slides and rolls), and which pieces a shove pushes (none: all; a save
-  // from when it was for rolls only keeps its answer). An older save's
-  // push distance is dropped.
+  // Which moves shove and which pieces a shove pushes (a save from before
+  // either setting has today's default, slides only and only opponents;
+  // one from when the pieces choice was for rolls only keeps its answer).
+  // An older save's push distance is dropped.
   out.shove = shoveOf(sel.shove);
   delete out.arcoSize;
   if (!sel.rows || !sel.cols) { out.rows = sel.size || DEFAULT_BOARD_DIM; out.cols = sel.size || DEFAULT_BOARD_DIM; }
@@ -421,10 +421,11 @@ export function toggleLaw(sel, key) {
   if (key === "splitMovement" && on) sel.laws.splitThree = false;
   if (key === "threeActions" && !on) sel.laws.splitThree = false;
   // Shoving on "Slides only" needs Slide (user): Shoving switched on with
-  // that already set brings Slide; Slide switched off puts Shoving back on
-  // "Slides and rolls".
-  if (key === "shoving" && on && sel.shove && sel.shove.onRolls === false) sel.laws.slide = true;
-  if (key === "slide" && !on && sel.shove && sel.shove.onRolls === false) sel.shove = { ...sel.shove, onRolls: true };
+  // that already set (the default) brings Slide; Slide switched off while
+  // Shoving's on puts it back on "Slides and rolls". (Not while it's off:
+  // Slides only is the default it should come on with, user.)
+  if (key === "shoving" && on && shoveOf(sel.shove).onRolls === false) sel.laws.slide = true;
+  if (key === "slide" && !on && sel.laws.shoving && shoveOf(sel.shove).onRolls === false) sel.shove = { ...shoveOf(sel.shove), onRolls: true };
   return sel;
 }
 /* Every law at once (user: "a switch ... at the top of all custom setting
@@ -442,7 +443,13 @@ export function setAllLaws(sel, on, toggle = toggleLaw) {
       if (sel.laws[l.key] || l.key === "splitMovement" || (l.key === "splitThree" && sel.laws.splitMovement)) return;
       toggle(sel, l.key);
     });
-  } else RULE_LAWS.forEach((l) => { if (sel.laws[l.key]) toggle(sel, l.key); });
+  } else {
+    // (All off: Shoving's setting stays as it was. Slide going off first
+    // would have put it on Slides and rolls, for a Shoving that's going.)
+    const shove = sel.shove;
+    RULE_LAWS.forEach((l) => { if (sel.laws[l.key]) toggle(sel, l.key); });
+    if (shove) sel.shove = shove;
+  }
   return sel;
 }
 // Shoving's setting: "Slides only" brings Slide (user: "make slides only
@@ -472,7 +479,7 @@ export function lawWarnings(sel) {
   if (l.cantileverPivot && !PIVOT_CAPABLE.some((k) => sel.counts[k] > 0))
     out.push({ key: "cantileverPivot", testid: "law-warning-cantileverPivot", text: "Only a Codo, Hombro, Cruce, Rayo or Zeta can pivot. Order one under Pieces." });
   if (l.shoving) {
-    if (!(sel.shove && sel.shove.onRolls === false)) {
+    if (shoveOf(sel.shove).onRolls) {
       // Every Opa move costs 2 and a shove 1 more: an Opa only shoves with 3.
       if (sel.counts.opa > 0 && !l.threeActions)
         out.push({ key: "shoving", testid: "shove-opa-needs-three", text: "An Opa's shove costs 3 actions, so Opas only shove with 3 actions per turn." });

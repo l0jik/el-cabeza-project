@@ -33,6 +33,7 @@ import {
 import { SquarePicker, OpponentSection, CarbonCopies, ORDER_PARTS_CSS } from "./tienda-order.js";
 import { ShopCorner, StorePA, useShoppingVisit } from "./tienda-shopping.js";
 import { ensurePaper, ensureAgedPaper } from "./tienda-textures.js";
+import { shoveOf } from "../chassis/shove-settings.js";
 import { WoodPieceViewer, ensureWoodPhotos, woodPhoto, hasWoodShowcase } from "./tienda-showcase.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
 // The flyer's paper (tools/tienda_flyer_paper.py): the stock multiplied over
@@ -1689,7 +1690,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
           h("span", { className: "td-sub-h" }, st.name),
           h("div", { className: "td-seg", role: "group", "aria-label": st.name },
             ...st.options.map((o) => h("button", {
-              key: String(o.value), type: "button", "aria-pressed": ((sel.shove || {})[st.key] !== false) === o.value ? "true" : "false",
+              key: String(o.value), type: "button", "aria-pressed": shoveOf(sel.shove)[st.key] === o.value ? "true" : "false",
               "data-testid": `tienda-shove-${st.key}-${o.value ? "on" : "off"}`,
               onClick: () => { click(); change((s) => setShove(s, st.key, o.value)); },
             }, o.name))))),

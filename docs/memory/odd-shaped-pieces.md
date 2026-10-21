@@ -117,7 +117,8 @@ could ever be in the way. The rule now, confirmed with the user:
   `shove-opa-needs-three`).
 - Push distance is fixed by the rule (the old "1 square / as far as it
   travels" setting is gone for good). WHICH MOVES SHOVE is a setting again
-  (user request, 2026-09-27): "Slides and rolls" (default, the rule above)
+  (user request, 2026-09-27): "Slides and rolls" (the rule above; the
+  default until 2026-10-21, see DEFAULTS below)
   or "Slides only" (a roll into a piece is simply blocked, as without the
   law). Engine: `ACTIVE_LAWS.shoveOnRolls` (default true) gates
   `rollShove` in legalRolls. Shared model: `sel.shove = { onRolls }`
@@ -143,6 +144,29 @@ could ever be in the way. The rule now, confirmed with the user:
   store, the gate menus), Futuris's sphere, Lluvia, the corner menu and the
   rules cards. Selection `shove: { onRolls, own }`; a save's old
   `ownOnRolls` keeps its answer; replay letter `o: 0` unchanged.
+- DEFAULTS (user, 2026-10-21, a phone screenshot of the Cabeza Nova menu
+  with Slides only and Only opponents ringed: "Make the orange
+  highlighted buttons the default, globally. Right now, it's the other 2,
+  but these should be the defaults."): "Slides only" and "Only
+  opponents", `DEFAULT_SHOVE = { onRolls: false, own: false, v: 2 }` in
+  chassis/shove-settings.js, which every menu starts from (the store's
+  order form, the gate sheets, Futuris's sphere, Lluvia's terminal).
+  Shoving switched on as it comes brings Orthogonal slide (Slides only
+  needs it, the standing rule). Saves: `v: 2` marks a setting saved
+  since; one without it still on both old defaults (slides and rolls,
+  all pieces, or nothing saved) reads as today's, once, so a menu left as
+  it was shows the new ones; any other old answer is kept (`shoveOf`).
+  Slide switched off now flips Slides only to Slides and rolls only while
+  Shoving's on (it did whenever, which moved untouched menus off the new
+  default); All laws off keeps Shoving's setting as it was. The menus'
+  buttons read the setting through `shoveOf`. The engine's own base is
+  unchanged (`ACTIVE_LAWS.shoveOnRolls/shoveOwn: true`, what a law set
+  without them gets: the engine tests, `__EC_LAWS__`); every game states
+  both. Replay codes unchanged (`s: 0` / `o: 0`, absent meaning true), so
+  a default game's code now carries both letters. Tests:
+  rules-selections.smoke (defaults, old saves, Slide off with Shoving off,
+  All off), e2e-tienda / e2e-gate / e2e-lluvia / e2e-singularity (the
+  menus start on Slides only and Only opponents, Slide on with them).
 
 Other pieces:
 - The move carries `shoves: [{ id, row, col, teleports }]`, one per

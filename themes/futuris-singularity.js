@@ -1027,10 +1027,10 @@ function normalizeSelections(saved) {
     // Same key order as createDefaultSelections, so a loaded
     // configuration compares equal to the live selections it came from.
     missingSquare: normalizeMissingSquare(src.missingSquare, cell),
-    // Which moves shove; a save without the setting: slides and rolls. And
-    // which pieces a shove pushes; without it: all (a save from when it
-    // was for rolls only keeps its answer). An older save's push distance
-    // is dropped (the rule fixes it).
+    // Which moves shove and which pieces a shove pushes; a save without
+    // them: today's defaults, slides only and only opponents (a save from
+    // when the pieces choice was for rolls only keeps its answer). An
+    // older save's push distance is dropped (the rule fixes it).
     shove: shoveOf(src.shove),
   };
 }
@@ -2336,7 +2336,7 @@ function renderShoveSettingsRow(t) {
           "div",
           { role: "group", "aria-label": setting.name, style: { display: "flex", border: "1px solid rgba(102,217,255,0.35)", borderRadius: 4, overflow: "hidden" } },
           ...setting.options.map((opt, i) => {
-            const on = (sel.shove[setting.key] !== false) === opt.value;
+            const on = shoveOf(sel.shove)[setting.key] === opt.value;
             return h(
               "button",
               {
@@ -3152,10 +3152,11 @@ function renderCategoryOverlay(t) {
       if (key === "splitThree" && sel.laws.splitThree) { sel.laws.splitMovement = false; sel.laws.threeActions = true; }
       if (key === "splitMovement" && sel.laws.splitMovement) sel.laws.splitThree = false;
       if (key === "threeActions" && !sel.laws.threeActions) sel.laws.splitThree = false;
-      // Shoving on "Slides only" needs Slide: Shoving on with it set
-      // brings Slide; Slide off puts Shoving back on slides and rolls.
-      if (key === "shoving" && sel.laws.shoving && sel.shove && sel.shove.onRolls === false) sel.laws.slide = true;
-      if (key === "slide" && !sel.laws.slide && sel.shove && sel.shove.onRolls === false) sel.shove = { ...sel.shove, onRolls: true };
+      // Shoving on "Slides only" needs Slide: Shoving on with it set (the
+      // default) brings Slide; Slide off while Shoving's on puts it back on
+      // slides and rolls (not while it's off: rules-selections.js toggleLaw).
+      if (key === "shoving" && sel.laws.shoving && shoveOf(sel.shove).onRolls === false) sel.laws.slide = true;
+      if (key === "slide" && !sel.laws.slide && sel.laws.shoving && shoveOf(sel.shove).onRolls === false) sel.shove = { ...shoveOf(sel.shove), onRolls: true };
     };
     // Every law at once, first in LAWS (user: "a switch ... at the top of
     // all custom setting menus to turn all laws on"); rules-selections.js

@@ -7,11 +7,14 @@
    sphere, Lluvia's terminal, the corner menu and the rules cards.
 
    Two choices while the Shoving law is on:
-   - which moves shove: "Slides and rolls" (the default) or "Slides only"
-     (a roll into a piece is simply blocked, as without the law);
+   - which moves shove: "Slides and rolls" or "Slides only" (the default:
+     a roll into a piece is simply blocked, as without the law);
    - which pieces a shove may push, a slide's or a roll's: "All pieces"
-     (the default) or "Only opponents" (one of your own in the way blocks
+     or "Only opponents" (the default: one of your own in the way blocks
      the move, as without the law).
+   (The defaults were Slides and rolls and All pieces until the user,
+   2026-10-21, ringing Slides only and Only opponents: "Make the orange
+   highlighted buttons the default, globally.")
    A selection keeps them as shove: { onRolls, own }; the engine gets
    ACTIVE_LAWS.shoveOnRolls and ACTIVE_LAWS.shoveOwn (engine/rules.js
    tryShove). */
@@ -21,15 +24,23 @@ export const SHOVE_SETTINGS = [
   { key: "onRolls", name: "Shoves on", options: [{ value: true, name: "Slides and rolls" }, { value: false, name: "Slides only" }] },
   { key: "own", name: "Shoves push", options: [{ value: true, name: "All pieces" }, { value: false, name: "Only opponents" }] },
 ];
-export const DEFAULT_SHOVE = { onRolls: true, own: true };
+// (v: saved since these defaults. A save without it is from before.)
+const SHOVE_V = 2;
+export const DEFAULT_SHOVE = { onRolls: false, own: false, v: SHOVE_V };
 
-// A saved setting read back: a save from before a choice existed has its
-// default; one from when the pieces choice was for rolls only (ownOnRolls)
-// keeps its answer, now for every shove. An older save's push distance is
-// dropped (the rule fixes it).
+// A saved setting read back. From before these defaults, an answer it
+// hasn't was the old default (slides and rolls, all pieces), and one
+// from when the pieces choice was for rolls only (ownOnRolls) keeps its
+// answer, now for every shove; and one still on both old defaults takes
+// today's, once ("globally", user: a menu left as it was shows them).
+// An older save's push distance is dropped (the rule fixes it).
 export function shoveOf(saved) {
-  const s = saved || {};
-  return { onRolls: s.onRolls !== false, own: s.own !== undefined ? s.own !== false : s.ownOnRolls !== false };
+  if (!saved || typeof saved !== "object") return { ...DEFAULT_SHOVE };
+  const s = saved, now = s.v === SHOVE_V;
+  const onRolls = typeof s.onRolls === "boolean" ? s.onRolls : now ? DEFAULT_SHOVE.onRolls : true;
+  const own = typeof s.own === "boolean" ? s.own : typeof s.ownOnRolls === "boolean" ? s.ownOnRolls : now ? DEFAULT_SHOVE.own : true;
+  if (!now && onRolls && own) return { ...DEFAULT_SHOVE };
+  return { onRolls, own, v: SHOVE_V };
 }
 
 // What the engine gets (setActiveLaws).
@@ -38,7 +49,9 @@ export function shoveLaws(saved) {
   return { shoveOnRolls: s.onRolls, shoveOwn: s.own };
 }
 
-// The engine's laws back as a setting (the corner menu, the rules cards).
+// The engine's laws back as a setting (the corner menu, the rules cards):
+// as the engine reads them, a law without its settings shoving on rolls
+// and pushing any piece (every game sets both).
 export const shoveFromLaws = (laws = {}) => ({ onRolls: laws.shoveOnRolls !== false, own: laws.shoveOwn !== false });
 
 // Each setting with the name of what's chosen: [["Shoves on", "Slides

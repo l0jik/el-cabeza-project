@@ -128,6 +128,9 @@ console.log("Cabeza Nova: the one menu");
     const n = await p.locator(laws).count();
     const on = await p.$$eval(`${laws}[aria-checked="true"]`, (els) => els.map((e) => e.dataset.testid));
     check(`...on: every rule, Split movement three pieces the one split (${on.length}/${n})`, n === 8 && on.length === 7 && !on.includes("gate-law-splitMovement") && (await all.getAttribute("aria-checked")) === "true");
+    // (Shoving on its defaults: slides only and only opponents, user,
+    // 2026-10-21: "Make the orange highlighted buttons the default, globally.")
+    check("...Shoving on its defaults, slides only and only the opponent's pieces", (await p.locator('[data-testid="gate-shove-slides"][aria-pressed="true"]').count()) === 1 && (await p.locator('[data-testid="gate-shove-opponents"][aria-pressed="true"]').count()) === 1);
     // (No pivot piece in the classic five: it keeps you where you are, the
     // pivot guide's trip to the pieces held back, its note saying why.)
     await p.waitForTimeout(2200);

@@ -102,12 +102,15 @@ check("Diagonal slide stands on its own (Orthogonal slide stays off)",
 // Slide on but 2 points a turn, says a shoving slide needs 3.
 await page.locator('[data-testid="lluvia-law-shoving"]').click();
 await page.waitForTimeout(150);
-check("Shoving shows its setting, slides and rolls chosen",
+// (Slides only and only opponents by default, user, 2026-10-21; Slides
+// only brings Orthogonal slide with it.)
+check("Shoving shows its setting, slides only chosen, and brings Orthogonal slide",
   (await page.locator('[data-testid="lluvia-shove-settings"]').count()) === 1 &&
-  (await page.locator('[data-testid="lluvia-shove-onRolls-on"]').getAttribute("aria-pressed")) === "true");
-check("...and all pieces or only the opponent's (all chosen)",
-  (await page.locator('[data-testid="lluvia-shove-own-on"]').getAttribute("aria-pressed")) === "true" &&
-  (await page.locator('[data-testid="lluvia-shove-own-off"]').count()) === 1);
+  (await page.locator('[data-testid="lluvia-shove-onRolls-off"]').getAttribute("aria-pressed")) === "true" &&
+  (await page.locator('[data-testid="lluvia-law-slide"]').getAttribute("aria-pressed")) === "true");
+check("...and all pieces or only the opponent's (only the opponent's chosen)",
+  (await page.locator('[data-testid="lluvia-shove-own-off"]').getAttribute("aria-pressed")) === "true" &&
+  (await page.locator('[data-testid="lluvia-shove-own-on"]').count()) === 1);
 await page.locator('[data-testid="lluvia-shove-own-off"]').click();
 await page.waitForTimeout(150);
 check("...only the opponent's can be chosen, and the line says so (one of your own pieces in the way blocks the move)",
