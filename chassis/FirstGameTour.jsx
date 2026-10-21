@@ -193,8 +193,7 @@ export default function FirstGameTour({ tour, cardRef }) {
   }, [card, tour.skip]);
   /* The card keeps below what a world fixes at the top over it where the
      two would meet: the corner menu's tab, and whatever the world names
-     (copy.clear; a phone: the store's price tag lay over the card's
-     head). */
+     (copy.clear: the store's cart). */
   const clear = ['[data-testid="corner-menu-tab"]', tour.copy && tour.copy.clear].filter(Boolean).join(", ");
   const [below, setBelow] = useState(0);
   useLayoutEffect(() => {

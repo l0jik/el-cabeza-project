@@ -325,3 +325,20 @@ box art and an ad standee (assets/tienda/*.jpg).
   lettering repainted if more faces have loaded. The receipt's THANK YOU
   PLEASE COME AGAIN and the store slip's THANK YOU — COME AGAIN are as
   they were.
+- **No price tag at the top left** (2026-10-21; user, a phone screenshot
+  of the walkthrough's card with the "● EL CABEZA $7.97" tag circled over
+  it: "Maybe this price tag up here can be done away with. That way the
+  tutorial frame would have more room. And it just seems kind of
+  superfluous because there's other opportunities to purchase it, other
+  ways to do it, right?"): gone, with the shelf ticket it unfolded into
+  (tienda-shopping.js ShopCorner draws only the cart now, once one's in
+  it; the PA no longer sends td-pa-speak to fold it). Still to buy with:
+  the dock's Put one in the cart / Check out (and the phone bar's), the
+  catalog's Purchase and bring home (after the walkthrough), each PA card
+  (a tap fills the cart or checks out), Big Glutts' closing notice, and
+  the cart at the top left. The walkthrough's card keeps below the cart
+  if one's up (tienda.js FIRST_GAME_TOUR clear ".td-shop"; the in-stock
+  PA can fill it before Try a Game), otherwise it sits at the top (12 px
+  on a phone). Tests: e2e-story (no tag in a game; Put one in the cart
+  from the dock after New Game, then Check out), e2e-store-nudge (a game
+  is on: end-game, not the tag).

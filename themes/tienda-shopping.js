@@ -4,12 +4,13 @@
    so nothing in the store talks of orders or rules; it only sells the
    game, the way a 1975 store would:
 
-   - its price tag (top left, in a game; under a replay's bar while one's
-     playing), which unfolds into the shelf ticket: the game, the aisle,
-     the price, and "Put one in the cart";
-   - the cart: once one's in it, the tag becomes the cart ("Cart · 1
-     item"), and "Check out" is the purchase (story.onPurchase); the
-     dock's own button says the same (tienda.js);
+   - the cart: once one's in it, top left (under a replay's bar while
+     one's playing), "Cart · 1 item", and "Check out" is the purchase
+     (story.onPurchase); the dock's own button says the same (tienda.js).
+     No price tag there before then (user, of it over the walkthrough's
+     card: "Maybe this price tag up here can be done away with. That way
+     the tutorial frame would have more room. And it just seems kind of
+     superfluous because there's other opportunities to purchase it");
    - the store's PA (on the first visit): the player's first move after
      the first game's walkthrough, or a while after arriving, the chime
      and an announcement (its words as a caption, lettered as the clerk
@@ -158,19 +159,7 @@ function lightsThought() {
 const CSS = `
   .td-shop { position: fixed; top: max(12px, env(safe-area-inset-top), var(--ec-replay-clear, 0px)); left: max(12px, env(safe-area-inset-left)); z-index: 40;
     display: flex; flex-direction: column; align-items: flex-start; gap: 6px; max-width: calc(100vw - 24px); }
-  .td-shop-tag { position: relative; display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 6px 12px 6px 22px; border: 1px solid rgba(46,33,24,0.45);
-    border-radius: 2px 10px 10px 2px; background-color: ${PAPER}; background-image: var(--tienda-paper); color: ${INK}; cursor: pointer;
-    font: 800 11px/1 ${FRANKLIN}; letter-spacing: 0.14em; text-transform: uppercase; box-shadow: 0 3px 8px rgba(20,12,6,0.35); opacity: 0.86; }
-  .td-shop-tag::before { content: ""; position: absolute; left: 8px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%;
-    background: #3a2a1d; box-shadow: inset 0 0 0 1.5px #c9a24a; }
-  .td-shop-tag small { font: 700 12px/1 ${COURIER}; letter-spacing: 0; text-transform: none; color: ${RED}; }
-  .td-shop[data-open="true"] .td-shop-tag { opacity: 1; }
-  .td-shop-tag:focus-visible, .td-shop-go:focus-visible, .td-pa:focus-visible { outline: 3px solid ${RED}; outline-offset: 2px; }
-  .td-shop-paper { min-width: 210px; max-width: min(280px, calc(100vw - 24px)); padding: 12px 14px; background: #F4F0E4; background-image: var(--tienda-paper);
-    color: ${INK}; font: 400 12px/1.5 ${COURIER}; box-shadow: 0 10px 26px rgba(20,12,6,0.45); }
-  .td-shop-paper b { display: block; font: 800 15px/1.15 ${FRANKLIN}; letter-spacing: 0.06em; text-transform: uppercase; }
-  .td-shop-paper .td-shop-price { display: block; margin-top: 4px; font: 700 18px/1 ${COURIER}; color: ${RED}; }
-  .td-shop-go { all: unset; display: inline-block; margin-top: 8px; min-height: 30px; cursor: pointer; font: 700 12px/30px ${COURIER}; color: ${RED}; text-decoration: underline; }
+  .td-pa:focus-visible { outline: 3px solid ${RED}; outline-offset: 2px; }
   /* The cart, once something's in it. */
   .td-cart { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 4px 6px 4px 10px; background: ${INK}; color: ${PAPER}; border-radius: 3px;
     box-shadow: 0 4px 10px rgba(20,12,6,0.4); font: 800 11px/1 ${FRANKLIN}; letter-spacing: 0.14em; text-transform: uppercase; }
@@ -194,42 +183,18 @@ const CSS = `
 const cartIcon = () => h("svg", { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true" },
   h("path", { d: "M3 4h2l2.4 10.2a1.5 1.5 0 0 0 1.5 1.1h8.6a1.5 1.5 0 0 0 1.4-1l1.6-6.3H6.2" }), h("circle", { cx: 9.5, cy: 19.5, r: 1.4 }), h("circle", { cx: 17, cy: 19.5, r: 1.4 }));
 
-/* The tag (in a game) or the cart (once one's in it), top left. */
-export function ShopCorner({ inGame, audio, onPurchase }) {
+/* The cart, top left, once one's in it (nothing there before). */
+export function ShopCorner({ audio, onPurchase }) {
   const n = useCart();
-  const [open, setOpen] = React.useState(false);
-  const rootRef = React.useRef(null);
   const lastBump = React.useRef(CART.bump);
   const bumped = CART.bump !== lastBump.current;
   React.useEffect(() => { lastBump.current = CART.bump; });
-  React.useEffect(() => {
-    const fold = () => setOpen(false);
-    window.addEventListener("td-pa-speak", fold);
-    return () => window.removeEventListener("td-pa-speak", fold);
-  }, []);
-  React.useEffect(() => {
-    if (!open) return undefined;
-    const onDown = (e) => { if (rootRef.current && e.target && rootRef.current.contains(e.target)) return; setOpen(false); };
-    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("pointerdown", onDown, true); window.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("pointerdown", onDown, true); window.removeEventListener("keydown", onKey); };
-  }, [open]);
+  if (!n) return null;
   const sel = () => { audio && audio.playSelect && audio.playSelect(); };
-  if (n) {
-    return h("div", { ref: rootRef, className: "td-shop", "data-testid": "tienda-shop" }, h("style", null, CSS),
-      h("div", { className: "td-cart", "data-testid": "tienda-cart", "data-bump": bumped ? "true" : "false", role: "status", "aria-label": `Cart: ${n} item` },
-        cartIcon(), h("span", null, `Cart · ${n} item`),
-        h("button", { type: "button", "data-testid": "tienda-cart-checkout", onClick: () => { sel(); onPurchase && onPurchase(); } }, `Check out · ${PRICE}`)));
-  }
-  if (!inGame) return null;
-  return h("div", { ref: rootRef, className: "td-shop", "data-testid": "tienda-shop", "data-open": open ? "true" : "false" }, h("style", null, CSS),
-    h("button", { type: "button", className: "td-shop-tag", "data-testid": "tienda-price-tag", "aria-expanded": open ? "true" : "false",
-      onClick: () => { setOpen((o) => !o); audio && audio.playMenu && audio.playMenu(); } }, "El Cabeza", h("small", null, PRICE)),
-    open && h("div", { className: "td-shop-paper", "data-testid": "tienda-price-paper" },
-      h("b", null, "El Cabeza"),
-      h("span", null, "A Game of Unparalleled Intention. Games Dept. · Aisle 9."),
-      h("span", { className: "td-shop-price" }, PRICE),
-      h("button", { type: "button", className: "td-shop-go", "data-testid": "tienda-price-cart", onClick: () => { sel(); addToCart(); setOpen(false); } }, "Put one in the cart ›")));
+  return h("div", { className: "td-shop", "data-testid": "tienda-shop" }, h("style", null, CSS),
+    h("div", { className: "td-cart", "data-testid": "tienda-cart", "data-bump": bumped ? "true" : "false", role: "status", "aria-label": `Cart: ${n} item` },
+      cartIcon(), h("span", null, `Cart · ${n} item`),
+      h("button", { type: "button", "data-testid": "tienda-cart-checkout", onClick: () => { sel(); onPurchase && onPurchase(); } }, `Check out · ${PRICE}`)));
 }
 
 /* The PA, on the first visit: in stock (a while after arriving), then,
@@ -407,8 +372,6 @@ export function StorePA({ active, game, audio, onPurchase }) {
     if (which === "instock" || which === "closing") PA.said[which] = true;
     PA.at = performance.now();
     if (which === "closing") PA.closingAt = PA.at;
-    // (The price tag folds itself away, so the words don't cover it.)
-    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("td-pa-speak"));
     if (audio && audio.playPage) audio.playPage();
     if (which === "closing") {
       setDim(true);
@@ -424,7 +387,6 @@ export function StorePA({ active, game, audio, onPurchase }) {
   // minute, early by the moves, or back again (NOTICE_TITLES).
   const ask = React.useCallback((asked) => {
     PA.left = 1; PA.asked = asked; PA.back = 0;
-    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("td-pa-speak"));
     if (audio && audio.playPage) audio.playPage();
     setDim(true, 2);
     thoughtOff();

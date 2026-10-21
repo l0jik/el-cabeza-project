@@ -697,16 +697,14 @@ export function useSetupExtras(x) {
 }
 
 /* In the store before the game's bought (Nova's story), what sells it
-   (user: nothing about orders or rules there): its price tag in a game,
-   the cart once one's in it, and the store's PA (tienda-shopping.js),
-   over whatever else is up. */
+   (user: nothing about orders or rules there): the cart once one's in
+   it, and the store's PA (tienda-shopping.js), over whatever else is up. */
 export function renderExtraOverlays(x) {
   const rest = renderOverlaysHere(x);
   if (!x || !x.story || x.story.mode !== "store" || (x.story.after && x.story.after()) || (x.story.realities && x.story.realities())) return rest;
   const quiet = !!x.tiendaOverlay;
-  const inGame = !!(x.isPlaying && !x.awaitingBegin);
   const shop = [
-    !quiet && h(ShopCorner, { key: "shop", inGame, audio: x.audio, onPurchase: x.story.onPurchase }),
+    !quiet && h(ShopCorner, { key: "shop", audio: x.audio, onPurchase: x.story.onPurchase }),
     h(StorePA, { key: "pa", active: !!x.shopPA && !quiet, game: x.game, audio: x.audio, onPurchase: x.story.onPurchase }),
   ];
   return [...shop, ...(Array.isArray(rest) ? rest : rest ? [rest] : [])].filter(Boolean);

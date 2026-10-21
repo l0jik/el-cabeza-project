@@ -741,8 +741,9 @@ export const defaultOpponent = { aiPlayer: "dark", aiDifficulty: "easy", humanSt
    bought, the store's demonstration game (not at home, nor on Big
    Glutts' own page, nor back at the store after the story). Its words:
    the welcome, the year under it as on the box, the band over each card;
-   and its card at the top keeps below the price tag (tienda-shopping.js). */
-const FIRST_GAME_TOUR = { title: "Welcome to your first game of El Cabeza.", fine: "\u00a9 1975", band: "In-store demonstration", clear: ".td-shop-tag" };
+   and its card at the top keeps below the cart, should one be in it
+   (tienda-shopping.js). */
+const FIRST_GAME_TOUR = { title: "Welcome to your first game of El Cabeza.", fine: "\u00a9 1975", band: "In-store demonstration", clear: ".td-shop" };
 export function firstGameTour(x) {
   const story = x && x.story;
   if (!story || story.mode !== "store") return null;

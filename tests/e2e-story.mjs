@@ -133,13 +133,12 @@ console.log("\ndesktop: the store, the purchase, home");
   check("a new player's first game: the tour's welcome", await poll(async () => (await has(page, "tour-card")) && /Welcome to your first game/.test(await q(page, "tour-card").innerText()), 10000));
   await q(page, "tour-skip").click();
   await poll(async () => !(await has(page, "tour-card")), 5000);
-  check("a game begins", await poll(() => has(page, "tienda-price-tag"), 10000));
-  check("...its price tag, not the rules menu", !(await has(page, "corner-menu")) && /El Cabeza/i.test(await q(page, "tienda-price-tag").innerText()) && /7\.97/.test(await q(page, "tienda-price-tag").innerText()));
+  check("a game begins", await poll(() => has(page, "end-game"), 10000));
+  // (Nothing at the top left over it: no price tag, user: "Maybe this
+  // price tag up here can be done away with ... there's other
+  // opportunities to purchase it"; and not the rules menu.)
+  check("...no price tag, and not the rules menu", !(await has(page, "tienda-shop")) && !(await has(page, "corner-menu")));
   check("...with the ten classic pieces", await page.evaluate(() => { const p = window.__EC_TEST_PIECES__ || []; return p.length === 10 && p.every((x) => ["cabeza", "turrito", "flaco", "chato", "opa"].includes(x.type)); }));
-  await q(page, "tienda-price-tag").click();
-  check("the tag unfolds: Put one in the cart", await poll(() => has(page, "tienda-price-cart"), 5000));
-  await q(page, "tienda-price-cart").click();
-  check("...and one's in the cart: Check out", await poll(async () => (await has(page, "tienda-cart")) && /Check out/i.test(await q(page, "tienda-cart-checkout").innerText()), 5000));
   // End it: the clerk's offer.
   const corner = await waitForDockCorner(page);
   check("the dock reopens mid-game", !!corner && (await reopenDockPanelFromCorner(page, corner)));
@@ -157,7 +156,10 @@ console.log("\ndesktop: the store, the purchase, home");
   if (await again.count()) await again.first().evaluate((b) => b.click());
   check("New Game brings the setup row back", await poll(() => has(page, "story-purchase"), 10000) || (await openDockPanel(page) && await has(page, "story-purchase")));
   await openDockPanel(page);
-  check("...its button now Check out (one's in the cart)", /Check out/i.test(await q(page, "story-purchase").innerText()));
+  check("...its button: Put one in the cart", /Put one in the cart/i.test(await q(page, "story-purchase").innerText()));
+  await q(page, "story-purchase").click();
+  check("...one's in the cart: the button's Check out, and the cart at the top left", await poll(async () => /Check out/i.test(await q(page, "story-purchase").innerText()) && (await has(page, "tienda-cart")) && /Check out/i.test(await q(page, "tienda-cart-checkout").innerText()), 5000));
+  await openDockPanel(page);
   await q(page, "story-purchase").click();
   check("Check out starts the scene", await poll(() => has(page, "story-cut"), 5000, 100));
   check("...the purchase is remembered at once", (await owned(page) || {}).owned === true);
