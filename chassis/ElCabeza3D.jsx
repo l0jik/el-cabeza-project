@@ -20,7 +20,7 @@ import {
   boardVerticalOverlapFraction, clampVerticalTarget, pivotFor,
   setGhostLineTarget,
 } from "../engine/geometry.js";
-import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmPoint, maskAt } from "../engine/shapes.js";
+import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmPoint, maskAt, pressOffsets } from "../engine/shapes.js";
 import {
   startSetOut, place as setOutPlace, putBack as setOutPutBack, turn as setOutTurn, setHalf as setOutSetHalf, turnsWhileSettingOut,
   readiness as setOutReadiness, keep as setOutKeep, restore as setOutRestore, canRestore as setOutCanRestore,
@@ -36,6 +36,8 @@ import FirstGameTour, { TourMarks, tourDone, markTourDone, TOUR_CARDS, TOUR_TONE
 import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
 const FOCUS_EVENT = "el-cabeza:focus";
+// (No press: a piece on its own squares. See pressRef.)
+const PRESS_NONE = Object.freeze({ x: 0, z: 0 });
 import MobileShell, { SIDE_MAX_H as SHELL_SIDE_MAX_H } from "./MobileShell.jsx";
 import VolumeFader from "./VolumeFader.jsx";
 import NowPlaying from "./NowPlaying.jsx";
@@ -789,6 +791,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // every piece the move didn't affect — see that function's own comment)
   // and skip disposing/rebuilding their mesh+shell entirely.
   const pieceMeshCacheRef = useRef(new Map());
+  /* Interlocked odd shapes pressed together (engine/shapes.js
+     pressOffsets; user, of two Arcos side by side flickering: "Press them
+     together"). Each cache entry also carries press (how far its mesh and
+     shell are drawn off its squares now) and pressTo (where they're
+     going), eased between while nothing moves; a move takes every press
+     off as it begins (its animation works from the squares) and the
+     board's next build sets them again. */
+  const pressRef = useRef({ moving: false, last: 0, hooked: null });
   const commitRef = useRef(null);
   /* This turn's trail of positions (see commitRef): one entry per move
      made so far, holding the board and the turn's bookkeeping from just
@@ -6674,7 +6684,48 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         cache.delete(id);
       }
     });
+
+    // Interlocked odd shapes: how far each piece is pressed now (a new
+    // mesh starts on its squares and eases there).
+    const press = pressOffsets(pieces);
+    const P = pressRef.current;
+    P.moving = false;
+    cache.forEach((e, id) => {
+      e.press = e.press || PRESS_NONE;
+      e.pressTo = press.get(id) || PRESS_NONE;
+      if (e.pressTo.x !== e.press.x || e.pressTo.z !== e.press.z) P.moving = true;
+    });
+    if (P.hooked !== t.frameHooks) {
+      P.hooked = t.frameHooks;
+      t.frameHooks.add((now) => {
+        const dt = P.last ? Math.min(0.1, Math.max(0, (now - P.last) / 1000)) : 1 / 60;
+        P.last = now;
+        if (!P.moving || anim.current) return;
+        const k = 1 - Math.exp(-dt / 0.08);
+        let still = true;
+        pieceMeshCacheRef.current.forEach((e) => {
+          const at = e.press || PRESS_NONE, to = e.pressTo || PRESS_NONE;
+          let dx = to.x - at.x, dz = to.z - at.z;
+          if (!dx && !dz) return;
+          if (!e.mesh || e.mesh.parent !== group) return;
+          if (Math.abs(dx) > 0.002 || Math.abs(dz) > 0.002) { dx *= k; dz *= k; still = false; }
+          [e.mesh, e.shell].forEach((o) => { if (o) { o.position.x += dx; o.position.z += dz; } });
+          e.press = { x: at.x + dx, z: at.z + dz };
+        });
+        if (still) P.moving = false;
+      });
+    }
   }, [pieces]);
+
+  // (Every press off at once, as a move begins: see pressRef.)
+  const unpressAll = () => {
+    pieceMeshCacheRef.current.forEach((e) => {
+      const at = e.press;
+      if (at && (at.x || at.z)) [e.mesh, e.shell].forEach((o) => { if (o) { o.position.x -= at.x; o.position.z -= at.z; } });
+      e.press = PRESS_NONE; e.pressTo = PRESS_NONE;
+    });
+    pressRef.current.moving = false;
+  };
 
   /* Placing pieces manually: the bench's pieces, each built as the world
      builds its pieces, and the board's marks (chassis/set-out.js), in
@@ -7686,6 +7737,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      lets steps be chained without a rebuild in between. */
   const animateStep = useCallback((state, key, onDone, shove = null) => {
     const t = three.current;
+    // (Pieces pressed together let go first: the move works from the squares.)
+    unpressAll();
     // (Two sets of black holes: the other set's way out is the same
     // movement into the hole.)
     const dir = plainKeyOf(key);

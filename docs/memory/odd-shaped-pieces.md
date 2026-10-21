@@ -517,4 +517,23 @@ shapes unchanged; recommended); 2 one roof always on top (a hair higher:
 stops the flicker, still overlapping); 3 slim the legs where they meet
 (to keep the usual gap they'd lose ~40%); 4 odd pieces drawn
 square-to-square (14% longer, a length change on standing up); 5 a rule
-against interlocking. Waiting on the pick.
+against interlocking.
+
+Picked 1 (user: "go with this.: Press them together (recommended)").
+Built: engine/shapes.js pressOffsets(pieces) -> Map id -> { x, z } (world
+units, a drawing offset only; the squares stay the rules'): every
+piece's cubes at their drawn places (box pieces as their cubes, Cabezas
+left out), each pair of other pieces' cubes on one level in squares side
+by side or corner to corner checked, an overlap split between the two
+pieces along the way it's smaller so they just touch, a few passes,
+capped at 0.3. Two interlocked Arco Chicos: 0.093 each, toward each
+other; a box beside an Ancho's leg in its opening 0.0465 each; ordinary
+neighbours, a box in a Chico's opening: none. The chassis
+(ElCabeza3D.jsx pressRef): the pieces effect sets each cache entry's
+pressTo; a frame hook (t.frameHooks) eases mesh and shell there (80 ms,
+not while anim.current); animateStep begins with unpressAll(), every
+press off at once, so a move's animation and the rebuild after it work
+from the squares as before. Every world (the theme visuals are the
+entry's mesh and shell). tests/e2e-press.mjs (Futuris, the City):
+middles 0.870 apart, not 1.056; one rolls away, the other back on its
+squares.

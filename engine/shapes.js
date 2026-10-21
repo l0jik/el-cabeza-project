@@ -22,7 +22,7 @@
 
    Kept free of React/Three.js like the rest of engine/. */
 
-import { PIECE_SCALE } from "./constants.js";
+import { PIECE_SCALE, SQUARE_SIZE } from "./constants.js";
 
 // ---- the canonical cube-list encoding ----
 
@@ -668,4 +668,76 @@ export function quarterTurnedPose(vox) {
    in themes/futuris.js, which mirrors positions the same way). */
 export function mirrorVox(piece) {
   return voxKey(parseVox(piece.vox).map(([x, y, l]) => [piece.w - 1 - x, piece.h - 1 - y, l]));
+}
+
+/* Odd shapes pressed together where they interlock (user, of two Arcos
+   lying side by side, one roof fighting the other: "Press them together
+   ... Each piece slides about a tenth of a square toward the other, so
+   each leg sits exactly in the other's gap"). Every piece is drawn at
+   PIECE_SCALE about its own box's middle, so a cube at the edge of a wide
+   shape is drawn shifted in toward that middle: an Arco's leg leans into
+   its own opening. Where another piece's cube stands in that opening,
+   shifted toward its own middle the other way, the two overlap (two Arco
+   Chicos by a fifth of a square) and their faces fight. Each overlap is
+   split between the two pieces, along the way it's smaller, so the cubes
+   just touch: two Arco Chicos slide 0.093 toward each other, each leg
+   into the middle of the other's opening. Box pieces take part as their
+   cubes (a box in an Arco Ancho's opening, beside a leg, overlaps it).
+   A drawing offset only, piece id -> { x, z } in world units (x along
+   the columns, z along the rows), for the pieces that move: the squares
+   are still the rules'. */
+const PRESS_MAX = 0.3;
+export function pressOffsets(pieces) {
+  const S = PIECE_SCALE, Q = SQUARE_SIZE;
+  const cubes = [], bySquare = new Map();
+  pieces.forEach((p, i) => {
+    if (!p || p.type === "cabeza" || !(p.w > 0 && p.h > 0 && p.z > 0)) return;
+    let list = p.vox ? parseVox(p.vox) : null;
+    if (!list) {
+      list = [];
+      for (let x = 0; x < p.w; x++) for (let y = 0; y < p.h; y++) for (let l = 0; l < p.z; l++) list.push([x, y, l]);
+    }
+    const mu = (p.col + p.w / 2) * Q, mv = (p.row + p.h / 2) * Q;
+    for (const [x, y, l] of list) {
+      const c = { i, col: p.col + x, row: p.row + y, l, u: mu + (x + 0.5 - p.w / 2) * S, v: mv + (y + 0.5 - p.h / 2) * S };
+      cubes.push(c);
+      const k = `${c.col},${c.row},${l}`;
+      if (bySquare.has(k)) bySquare.get(k).push(c); else bySquare.set(k, [c]);
+    }
+  });
+  // Each pair of other pieces' cubes on the same level, in squares side
+  // by side or corner to corner, once.
+  const pairs = [];
+  for (const a of cubes) {
+    for (let dc = -1; dc <= 1; dc++) for (let dr = -1; dr <= 1; dr++) {
+      const near = bySquare.get(`${a.col + dc},${a.row + dr},${a.l}`);
+      if (near) for (const b of near) if (b.i > a.i) pairs.push([a, b]);
+    }
+  }
+  const off = pieces.map(() => ({ x: 0, z: 0 }));
+  for (let pass = 0; pass < 6; pass++) {
+    let moved = false;
+    for (const [a, b] of pairs) {
+      const A = off[a.i], B = off[b.i];
+      const du = a.u + A.x - (b.u + B.x), dv = a.v + A.z - (b.v + B.z);
+      const ou = S - Math.abs(du), ov = S - Math.abs(dv);
+      if (ou <= 1e-6 || ov <= 1e-6) continue;
+      if (ou <= ov) {
+        const sg = Math.sign(du) || Math.sign(a.col - b.col) || 1;
+        A.x += (sg * ou) / 2; B.x -= (sg * ou) / 2;
+      } else {
+        const sg = Math.sign(dv) || Math.sign(a.row - b.row) || 1;
+        A.z += (sg * ov) / 2; B.z -= (sg * ov) / 2;
+      }
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  const out = new Map();
+  const cap = (v) => Math.max(-PRESS_MAX, Math.min(PRESS_MAX, v));
+  pieces.forEach((p, i) => {
+    const o = off[i];
+    if (p && (Math.abs(o.x) > 1e-6 || Math.abs(o.z) > 1e-6)) out.set(p.id, { x: cap(o.x), z: cap(o.z) });
+  });
+  return out;
 }

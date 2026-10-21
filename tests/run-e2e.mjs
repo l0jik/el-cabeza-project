@@ -37,6 +37,8 @@ const E2E = [
   ["e2e-dock-call.mjs"], ["e2e-hall-sound.mjs"],
   // Luna's pieces closed underneath (a roll showed them hollow).
   ["e2e-luna-floors.mjs"],
+  // Interlocked odd shapes pressed together (two Arcos flickered).
+  ["e2e-press.mjs"],
   // The corner menu: the game's rules at the top left, every world's look.
   ["e2e-corner-menu.mjs"],
   // Ciudad: the city at the hour picked, its lots and cranes, its streets.
