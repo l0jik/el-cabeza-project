@@ -444,6 +444,40 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   check("...Open it: the menu open, its card with it", (await dockOpen()) && (await tourOf(page)).step === "panel");
   await page.locator('[data-testid="tour-next"]').click();
   await page.waitForTimeout(500);
+  /* The control bar pressed on the way (user: "Selecting the non-classic
+     doc when in the new menu tutorial, it got rid of the tutorial ... there
+     should be a way back, or just to have it show it temporarily while
+     you're doing the tutorial"): shown for now, not kept, its own card;
+     Back to the tour, or the bar's own Use the classic dock, and the menu's
+     card again, the menu open. */
+  const layoutKept = () => page.evaluate(() => localStorage.getItem("el-cabeza:nova-layout"));
+  const keptBefore = await layoutKept();
+  const barShown = () => page.evaluate(() => { const b = document.querySelector('[data-testid="shell-bar"]'); return !!b && b.getBoundingClientRect().height > 0; });
+  await page.locator('[data-testid="dock-panel"] [data-testid="layout-toggle"]').click();
+  for (let i = 0; i < 25 && (await tourOf(page)).step !== "bar"; i++) await page.waitForTimeout(150);
+  await page.waitForTimeout(700);
+  t = await cardText(page);
+  check("the control bar pressed in the tour: the bar shown, the tour going on with a card of its own", (await tourOf(page)).step === "bar" && (await barShown()) && /The control bar\./.test(t) && /everything else behind ☰ at the top right\./.test(t) && /To have the spinning piece back any time: ☰, then Use the classic dock\./.test(t) && (await page.locator('[data-testid="tour-bar-back"]').count()) === 1, t);
+  check("...shown for now, not kept as the layout", (await layoutKept()) === keptBefore, String(await layoutKept()));
+  const barRing = await ringRect(page, "shell-bar"), menuRing = await ringRect(page, "shell-menu");
+  const barBox = await boxOf(page, '[data-testid="shell-bar"]'), menuBtn = await boxOf(page, '[data-testid="shell-menu-button"]');
+  const menuTag = await tagBox(page, "shell-menu");
+  cardBox = await card(page).boundingBox();
+  check("...the bar and its ☰ ringed, THE REST OF THE MENU by ☰, the card clear of it", !!barRing && !!barBox && Math.abs(barRing.y - (barBox.y + 1)) < 2 && inView(barRing, W, H) && around(menuRing, menuBtn) && !!menuTag && /the rest of the menu/i.test(menuTag.text) && inView(menuTag, W, H) && !overlap(menuTag, menuBtn) && !!cardBox && cardBox.y >= menuBtn.y + menuBtn.h, JSON.stringify({ barRing, barBox, menuRing, menuBtn, menuTag, cardBox }));
+  await page.locator('[data-testid="tour-bar-back"]').click();
+  for (let i = 0; i < 25 && (await tourOf(page)).step !== "foot"; i++) await page.waitForTimeout(150);
+  await page.waitForTimeout(600);
+  check("...Back to the tour: the classic dock, the menu open, its card where it was", (await tourOf(page)).step === "foot" && !(await barShown()) && (await dockOpen()) && /The buttons along the bottom\./.test(await cardText(page)) && (await layoutKept()) === keptBefore);
+  // The bar's own way back.
+  await page.locator('[data-testid="dock-panel"] [data-testid="layout-toggle"]').click();
+  for (let i = 0; i < 25 && (await tourOf(page)).step !== "bar"; i++) await page.waitForTimeout(150);
+  await page.waitForTimeout(500);
+  await page.locator('[data-testid="shell-menu-button"]').click();
+  await page.waitForTimeout(700);
+  await page.locator('[data-testid="shell-menu-layout"]').click();
+  for (let i = 0; i < 25 && (await tourOf(page)).step !== "foot"; i++) await page.waitForTimeout(150);
+  await page.waitForTimeout(600);
+  check("...or ☰ then Use the classic dock: the same, the tour going on", (await tourOf(page)).step === "foot" && !(await barShown()) && (await dockOpen()));
   await page.locator('[data-testid="tour-done"]').click();
   await page.waitForTimeout(2600);
   cam = await camOf(page);
@@ -537,6 +571,11 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await go("tour-next", 1400);
   const pb = await boxOf(page, '[data-testid="dock-panel"]'), cb = await card(page).boundingBox();
   check("...Open it: the menu open, the card beside it, not over it", (await tourOf(page)).step === "panel" && !!pb && !!cb && !overlap({ x: cb.x, y: cb.y, w: cb.width, h: cb.height }, pb), JSON.stringify({ pb, cb }));
+  await page.locator('[data-testid="dock-panel"] [data-testid="layout-toggle"]').click();
+  for (let i = 0; i < 25 && (await tourOf(page)).step !== "bar"; i++) await page.waitForTimeout(150);
+  check("...its Control bar: the bar's card", (await tourOf(page)).step === "bar" && (await page.locator('[data-testid="tour-bar-keep"]').count()) === 1);
+  await go("tour-bar-keep", 900);
+  check("...Keep it, end the tour: over, the bar kept as the layout", (await tourOf(page)).step === null && (await card(page).count()) === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:nova-layout"))) === "bar" && (await page.locator('[data-testid="shell-bar"]').count()) === 1);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

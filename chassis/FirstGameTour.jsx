@@ -44,8 +44,14 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
    game, opens it (tap it, or Open it); inside it, its rows, each ringed
    and said; then the buttons along its foot, each drawn on the card as it
    is on the menu, and the tour's over. The cards keep with the menu:
-   opened, the one for inside it; put away, the one for the piece. Any
-   card can skip it; from the second on
+   opened, the one for inside it; put away, the one for the piece. Its
+   Control bar pressed meanwhile shows the bar for now, not kept, with a
+   card of its own (TOUR_BAR; user: "Selecting the non-classic doc when in
+   the new menu tutorial, it got rid of the tutorial ... there should be a
+   way back, or just to have it show it temporarily while you're doing the
+   tutorial"): Back to the tour, or the bar's own Use the classic dock,
+   brings the menu and its card back; Keep it ends the tour with the bar
+   kept. Any card can skip it; from the second on
    a quiet Back steps back a card (from your first turn too, until a piece
    has moved: tour.back, the chassis's). Kept as done on the
    device (TOUR_KEY), so it comes once; ?fresh forgets it. A world offers
@@ -65,6 +71,8 @@ export function markTourDone() {
 // the piece in the corner, inside the menu, and the buttons along its foot.
 export const TOUR_CARDS = ["welcome", "ways", "goal", "crush", "blocks", "turn", "board"];
 export const TOUR_MENU = ["menu", "panel", "foot"];
+// (The control bar shown for now from the menu's cards: its own card.)
+export const TOUR_BAR = "bar";
 
 /* The menu's cards light what they name one at a time, the ring on the
    menu and its line on the card together (the menu's controls sit too
@@ -255,6 +263,15 @@ function cardText(t) {
           "When a game ends, the piece glows like this until you open it: your next game starts from there.",
         ],
       };
+    // The control bar, shown for now: what it is, and the way back.
+    case "bar":
+      return {
+        title: "The control bar.",
+        body: [
+          "Your menu, laid out another way: your turn in a bar along the foot of the screen, everything else behind ☰ at the top right.",
+          "To have the spinning piece back any time: ☰, then Use the classic dock.",
+        ],
+      };
     // Inside it, top to bottom, in its own words.
     case "panel": {
       const rows = [];
@@ -289,7 +306,7 @@ function cardText(t) {
 export default function FirstGameTour({ tour, cardRef }) {
   const { step, C, display } = tour;
   const card = TOUR_CARDS.includes(step);
-  const menuCard = TOUR_MENU.includes(step);
+  const menuCard = TOUR_MENU.includes(step) || step === TOUR_BAR;
   // A card before you play: Escape skips the tour, as its link does.
   useEffect(() => {
     if (!card) return undefined;
@@ -300,7 +317,7 @@ export default function FirstGameTour({ tour, cardRef }) {
   /* The card keeps below what a world fixes at the top over it where the
      two would meet: the corner menu's tab, and whatever the world names
      (copy.clear: the store's cart). */
-  const clear = ['[data-testid="corner-menu-tab"]', tour.copy && tour.copy.clear].filter(Boolean).join(", ");
+  const clear = ['[data-testid="corner-menu-tab"]', '[data-testid="shell-menu-button"]', tour.copy && tour.copy.clear].filter(Boolean).join(", ");
   const [below, setBelow] = useState(0);
   useLayoutEffect(() => {
     const place = () => {
@@ -326,15 +343,18 @@ export default function FirstGameTour({ tour, cardRef }) {
   if (!text) return null;
   const index = TOUR_CARDS.indexOf(step);
   const of = TOUR_CARDS.length + 1;
-  const band = `${(tour.copy && tour.copy.band) || "First game"}${card ? ` · ${index + 1} of ${of}` : step === "pieces" ? ` · ${of} of ${of}` : menuCard ? ` · Your menu · ${TOUR_MENU.indexOf(step) + 1} of ${TOUR_MENU.length}` : ""}`;
+  const band = `${(tour.copy && tour.copy.band) || "First game"}${card ? ` · ${index + 1} of ${of}` : step === "pieces" ? ` · ${of} of ${of}` : step === TOUR_BAR ? " · Your menu" : menuCard ? ` · Your menu · ${TOUR_MENU.indexOf(step) + 1} of ${TOUR_MENU.length}` : ""}`;
   const primary = card
     ? { label: index < TOUR_CARDS.length - 1 ? "Next ›" : "Let's play ›", onClick: tour.next, testid: "tour-next" }
+    : step === TOUR_BAR ? { label: "‹ Back to the tour", onClick: tour.next, testid: "tour-bar-back" }
     : menuCard
       ? step === "foot" ? { label: "Got it", onClick: tour.finish, testid: "tour-done" } : { label: step === "menu" ? "Open it ›" : "Next ›", onClick: tour.next, testid: "tour-next" }
       : step === "foe" && !tour.waiting ? (tour.menu ? { label: "Next ›", onClick: tour.next, testid: "tour-next" } : { label: "Got it", onClick: tour.finish, testid: "tour-done" }) : null;
   const link = card
     ? { label: "Skip the tour", onClick: tour.skip, testid: "tour-skip" }
-    : { label: "End the tour", onClick: tour.finish, testid: "tour-end" };
+    // (Over from the bar's card: the bar kept.)
+    : step === TOUR_BAR ? { label: "Keep it, end the tour", onClick: tour.finish, testid: "tour-bar-keep" }
+      : { label: "End the tour", onClick: tour.finish, testid: "tour-end" };
   // A quiet step back, beside Next (the chassis says when there's one).
   const back = tour.back ? { label: "‹ Back", onClick: tour.back, testid: "tour-back" } : null;
   const lit = text.lit ? (text.rows || text.icons).length : 0;

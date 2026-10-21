@@ -32,7 +32,7 @@ import {
   pieceName as setOutPieceName, SET_OUT_ACCENT,
 } from "./set-out.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo, pieceLesson } from "./RulesCards.jsx";
-import FirstGameTour, { TourMarks, tourDone, markTourDone, TOUR_CARDS, TOUR_MENU, TOUR_TONES } from "./FirstGameTour.jsx";
+import FirstGameTour, { TourMarks, tourDone, markTourDone, TOUR_CARDS, TOUR_MENU, TOUR_BAR, TOUR_TONES } from "./FirstGameTour.jsx";
 import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
 const FOCUS_EVENT = "el-cabeza:focus";
@@ -3306,7 +3306,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const tourOfferRef = useRef(null);
   tourOfferRef.current = tourOffer;
   const [tourStep, setTourStep] = useState(null);
-  const tourCardUp = TOUR_CARDS.includes(tourStep) || TOUR_MENU.includes(tourStep);
+  const tourCardUp = TOUR_CARDS.includes(tourStep) || TOUR_MENU.includes(tourStep) || tourStep === TOUR_BAR;
   // (While a card's up a tap on the board picks nothing: it's being shown.)
   const tourCardUpRef = useRef(false);
   tourCardUpRef.current = tourCardUp;
@@ -4650,8 +4650,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      piece picked, an arrow to each square it can reach (and End turn,
      once it's moved and has an action left). The other side's turn: what
      it moved, an arrow from where it stood. */
-  // (With the menu open, only the cards about what's in it: "panel", "foot".)
-  const tourShown = !!tourStep && isPlaying && !awaitingBegin && !replaying && (dockView !== "panel" || tourStep === "panel" || tourStep === "foot");
+  // (With the menu open, only the cards about what's in it: "panel", "foot".
+  // In the control bar the dock's never shown.)
+  const tourShown = !!tourStep && isPlaying && !awaitingBegin && !replaying && (dockView !== "panel" || shell || tourStep === "panel" || tourStep === "foot");
   useEffect(() => { setDockCallTour(tourShown && tourStep === "menu"); }, [tourShown, tourStep]);
   // (The goal card's Cabeza, while it's shown big and brought down: the
   // marks wait on it, below.)
@@ -4809,6 +4810,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     } else if (tourStep === "foot") {
       // The buttons along its foot, the same.
       tourMenuFoot.forEach((k, i) => t2.boxes.push({ key: `foot-${k}`, sel: `[data-testid="dock-panel"] [data-testid="${k === "sound" ? "sound-button" : `${k}-toggle`}"]`, tone: "mine", turn: i, of: tourMenuFoot.length }));
+    } else if (tourStep === TOUR_BAR) {
+      // The control bar along the foot (the screen's width: the ring
+      // inside its edges) and its menu's button at the top right.
+      t2.boxes.push({ key: "shell-bar", sel: '[data-testid="shell-bar"]', inset: 8, tone: "mine" });
+      t2.boxes.push({ key: "shell-menu", sel: '[data-testid="shell-menu-button"]', tone: "mine" });
+      tag("shell-menu", { el: '[data-testid="shell-menu-button"]' }, "The rest of the menu", "mine", "left");
     }
   }
   const tour3dSig = tourShown ? JSON.stringify(t3) : "";
@@ -5163,7 +5170,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       else if (tourStep === "foe" && aiDirsRef.current && aiDirsRef.current.watched) return;
       else if (tourStep === "foe" && currentPlayer === tourMine && tourFoeBeforeRef.current) frameTourFoeMoved();
       // (The menu's cards: the board stays as it was.)
-      else if (TOUR_MENU.includes(tourStep)) return;
+      else if (TOUR_MENU.includes(tourStep) || tourStep === TOUR_BAR) return;
       else if (!(tourStep === "pieces" && selectedId)) frameTourBoard();
     });
     return () => cancelAnimationFrame(raf);
@@ -5438,15 +5445,25 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   /* The menu's cards keep with the menu (TOUR_MENU): opened (a tap on the
      piece in the corner, or Open it), the card for what's inside; put
      away (a tap outside it), the card for the piece again. Moved to the
-     control bar (no piece in the corner), they're over. */
+     control bar (its Control bar, shown for now: user, "there should be a
+     way back, or just to have it show it temporarily while you're doing
+     the tutorial"), the bar's own card; back in the classic dock (Back to
+     the tour, or the bar's Use the classic dock), the card it was on, the
+     menu open again. */
   useEffect(() => {
     const st = tourStepRef.current;
     if (st === "menu" && dockView === "panel") setTourStep("panel");
     else if ((st === "panel" || st === "foot") && dockView !== "panel") setTourStep("menu");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dockView]);
+  const tourBarFromRef = useRef(null);
   useEffect(() => {
-    if (shell && TOUR_MENU.includes(tourStep)) endTour();
+    if (shell && TOUR_MENU.includes(tourStep)) { tourBarFromRef.current = tourStep; setTourStep(TOUR_BAR); }
+    else if (!shell && tourStep === TOUR_BAR) {
+      const back = tourBarFromRef.current || "foot";
+      if (back !== "menu") setDockView("panel");
+      setTourStep(back);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shell, tourStep]);
   if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
@@ -11815,6 +11832,9 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             next: () => {
               // (Open it: as a tap on the piece opens it, its bounce and all.)
               if (tourStep === "menu") { if (dockPieceRef.current) triggerDockBounce(); else setDockView("panel"); return; }
+              // (Back to the tour from the bar: the classic dock again, the
+              // layout kept as it was.)
+              if (tourStep === TOUR_BAR) { if (layoutSwitch) layoutSwitch("dock", { preview: true }); return; }
               setTourStep((st) => (st === "foe" ? "menu" : st === "panel" ? "foot" : TOUR_CARDS[TOUR_CARDS.indexOf(st) + 1] || "pieces"));
             },
             // A step back (user: "small back button on the tutorial if
@@ -11831,9 +11851,10 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
                   : tourStep === "panel" ? () => { setTourStep("menu"); setDockView("corner"); }
                     : tourStep === "foot" ? () => setTourStep("panel")
                       : null,
-            // (Over with the menu open: it's put away too.)
-            skip: () => { if (dockView === "panel") setDockView("corner"); endTour(); },
-            finish: () => { if (dockView === "panel") setDockView("corner"); endTour(); },
+            // (Over with the menu open: it's put away too. Over from the
+            // bar's card: the bar kept, as if chosen.)
+            skip: () => { if (tourStep === TOUR_BAR && layoutSwitch) layoutSwitch("bar"); if (dockView === "panel") setDockView("corner"); endTour(); },
+            finish: () => { if (tourStep === TOUR_BAR && layoutSwitch) layoutSwitch("bar"); if (dockView === "panel") setDockView("corner"); endTour(); },
           }}
         />
       )}
@@ -13796,7 +13817,9 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             data-dock-foot=""
             disabled={firstLook}
             {...firstLockIcon}
-            onClick={(e) => { showToggleHint(e, "Layout: the control bar. Switch back from its menu."); layoutSwitch("bar"); }}
+            // (In the first game's tour, shown for now, not kept: the bar's
+            // own card says what it is and has the way back.)
+            onClick={(e) => { if (TOUR_MENU.includes(tourStep)) { layoutSwitch("bar", { preview: true }); return; } showToggleHint(e, "Layout: the control bar. Switch back from its menu."); layoutSwitch("bar"); }}
             aria-label="Use the control bar layout"
             title="Use the control bar layout"
             style={{

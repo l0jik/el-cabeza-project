@@ -774,8 +774,11 @@ function UnifiedApp() {
   const [layoutPref, setLayoutPref] = useState(() => {
     try { return localStorage.getItem(LAYOUT_KEY) === "bar" ? "bar" : "dock"; } catch (e) { return "dock"; }
   });
-  const onLayoutChange = useCallback((v) => {
+  // ({ preview }: shown for now, not kept: the first game's tour showing
+  // the bar, chassis/FirstGameTour.jsx.)
+  const onLayoutChange = useCallback((v, o) => {
     setLayoutPref(v);
+    if (o && o.preview) return;
     try { localStorage.setItem(LAYOUT_KEY, v); } catch (e) { /* storage blocked: this visit only */ }
   }, []);
   /* The phone layout's menu, by place: in the store the purchase; at home

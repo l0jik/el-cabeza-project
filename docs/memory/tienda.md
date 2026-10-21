@@ -350,6 +350,27 @@ box art and an ad standee (assets/tienda/*.jpg).
   round its control, a full round lit one at a time with the matching
   line, a tap outside, Back, Open it, Got it; desktop: a mouse's words,
   the card beside the open menu); e2e-store-nudge walks the new cards.
+- **The control bar from the menu's cards, shown for now** (2026-10-21;
+  user, a screenshot of the classic dock open and the tour gone:
+  "Selecting the non-classic doc when in the new menu tutorial, it got rid
+  of the tutorial. And I don't know, that seems like there should be a way
+  back, or just to have it show it temporarily while you're doing the
+  tutorial"): the menu's Control bar (layout-toggle) pressed on one of the
+  menu's cards no longer ends the tour (it did: the cards had nothing to
+  point at in the bar). The bar comes up for now, not kept (apps/unified.jsx
+  onLayoutChange(v, { preview }) skips localStorage el-cabeza:nova-layout),
+  with a card of its own (FirstGameTour.jsx TOUR_BAR, banded "Your menu"):
+  "The control bar." / "Your menu, laid out another way: your turn in a bar
+  along the foot of the screen, everything else behind ☰ at the top
+  right." / "To have the spinning piece back any time: ☰, then Use the
+  classic dock."; the bar ringed (inset 8, it's the screen's width), ☰
+  ringed and labelled THE REST OF THE MENU, the card kept below ☰ (its
+  clear list). "‹ Back to the tour" (the classic dock again, still not
+  kept) or the bar's own ☰ > Use the classic dock brings the menu back
+  open on the card it was on (tourBarFromRef); "Keep it, end the tour"
+  ends it with the bar kept as the layout. tests/e2e-first-game-tour.mjs:
+  both ways back on a phone, the layout key untouched; Keep it on a
+  desktop, the key "bar".
 - **Oxford commas** (2026-10-21; user, card 7 with a blue comma after
   "down": "The red circle with the blue comma indicates where an Oxford
   comma should be placed."): "up, down, or sideways", and every list the
