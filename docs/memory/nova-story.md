@@ -177,6 +177,23 @@ in; leaving Singularity, back in the den as the set switches off.
   Escape cuts it short; with reduced motion, or the clip not there in
   time, the title fades as it did.
 
+- **Restart the story leaves nothing of the switcher behind**
+  (2026-10-21; user, with a phone screenshot of the store's Standard
+  Cabeza / Cabeza Nova card over the box: "Selecting Restart the Story at
+  the bottom of the Theme Switcher has this menu overlay that can't be
+  dismissed. This shouldn't be here."). A world reached from the
+  switcher on another page marks the tab's visit (sessionStorage
+  `el-cabeza:realities-visit`, realities.js goToWorld), which
+  reality-gate.js storyOver counts as the story being over, so a world
+  page keeps its way back; the restart forgot the story's own records but
+  not that mark, and the store (whose gate card has no way past it) took
+  the story as over. Now all three restarts forget it
+  (realities.js forgetRealitiesVisit: unified.jsx restartStory, the
+  ?restart=story start and the title's Restart the story), and a fresh
+  start is a fresh mount even from the store to the store (the chassis's
+  key `${themeName}#${freshN}`, freshN counting fresh cuts). Reproduced
+  first (both ways, the card up), then green: tests/e2e-journey.mjs
+  "Restart the story after the theme switcher".
 - **Between scenes** (2026-10-20): the receipt prints to its end, taps
   or not (user: "so it can complete the animation"). The scene changes'
   lines and the clerk's clipping are in faces kept with the page

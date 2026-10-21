@@ -151,6 +151,34 @@ async function page(url, init) {
   await ctx.close();
 }
 
+{
+  /* Restart the story after a visit by the theme switcher (user:
+     "Selecting Restart the Story at the bottom of the Theme Switcher has
+     this menu overlay that can't be dismissed. This shouldn't be here."):
+     a world reached from the switcher marks the tab's visit (realities.js
+     goToWorld, read by reality-gate.js storyOver), and a restart left the
+     mark, so the store took the story as over and put its Standard /
+     Cabeza Nova card up over the box. Both ways: the switcher here, and
+     another page's (?restart=story). */
+  console.log("\nRestart the story after the theme switcher: the store's own, nothing over it");
+  const { p, ctx, errs } = await page("el-cabeza-nova.html?switcher");
+  await p.evaluate(() => sessionStorage.setItem("el-cabeza:realities-visit", "1"));
+  check("the switcher's up over the den", !!(await poll(() => has(p, "realities-restart"), 15000)));
+  await q(p, "realities-restart").click();
+  await q(p, "realities-restart").click();
+  check("Restart story (asked, then sure): the store, the lid on the box", !!(await poll(() => has(p, "tienda-lid"), 20000)));
+  await p.waitForTimeout(1500);
+  check("...no Standard / Cabeza Nova card over it", !(await has(p, "reality-gate")));
+  check("...the switcher's mark forgotten", (await p.evaluate(() => sessionStorage.getItem("el-cabeza:realities-visit"))) === null);
+  await p.evaluate(() => sessionStorage.setItem("el-cabeza:realities-visit", "1"));
+  await p.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html?restart=story");
+  check("another page's Restart story (?restart=story): the store, the lid on the box", !!(await poll(() => has(p, "tienda-lid"), 20000)));
+  await p.waitForTimeout(1500);
+  check("...no card over it either", !(await has(p, "reality-gate")));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failures === 0 ? "\nJOURNEY E2E PASSED" : `\nJOURNEY E2E FAILED (${failures})`);
 process.exit(failures === 0 ? 0 : 1);

@@ -8,7 +8,7 @@ import { mountSummon, summonBridge } from "../themes/futuris-summon.js";
 import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
 import { StoryCut, STORY_KEY, storyPreview, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone, hallDue, saveHallDue, hallFlares, saveHallFlares, storyEnded, saveStoryEnded, forgetStoryEnd } from "./novaStory.jsx";
-import { createRealitiesMenu, goToWorld, onStoryRestart, lastWorld, WORLDS } from "../themes/realities.js";
+import { createRealitiesMenu, goToWorld, onStoryRestart, lastWorld, WORLDS, forgetRealitiesVisit } from "../themes/realities.js";
 import { SINGULARITY_SEEN_KEY, SPECIAL_ORDER_NOTED_KEY, COMMERCIAL_AIRED_KEY, forgetSingularity, journeyPreview, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn, setSceneLink } from "../engine/journey.js";
 import { prepareCommercial } from "../themes/den-ad-audio.js";
 import {
@@ -60,6 +60,7 @@ const FRESH = (() => {
     forgetStoreGone();
     forgetStoryEnd();
     forgetSingularity();
+    forgetRealitiesVisit();
     url.searchParams.delete("restart");
     window.history.replaceState(null, "", url.pathname + url.search + url.hash);
   } catch (e) { /* no URL or storage: nothing to clear */ }
@@ -364,9 +365,12 @@ function UnifiedApp() {
   const denSaveRef = useRef(null);
   const [carry, setCarry] = useState(null);
   const [cut, setCut] = useState(null); // a story scene change: { kind, caption, to, fresh?, swapped?, arrived? }
+  // (Each fresh start a fresh mount, the store's from the store too: the
+  // chassis's key. Kept, a card or a game the store had up stayed.)
+  const [freshN, setFreshN] = useState(0);
   const [connectWord, setConnectWord] = useState(null); // null | "CONNECT" | "DISCONNECT"
   const [transition, setTransition] = useState(null); // null | { direction: "in"|"out", filterId }
-  // Lives here, above <ElCabeza3D key={themeName}> below, specifically
+  // Lives here, above <ElCabeza3D key={themeName#freshN}> below, specifically
   // because that key remounts the whole chassis (a fresh audio engine,
   // fresh useState(false)) on every theme switch — anything the mute
   // toggle needs to survive that has to live outside it. Mirrored into
@@ -707,6 +711,9 @@ function UnifiedApp() {
     setEnded(false);
     // The extras go back behind the Singularity (engine/journey.js).
     forgetSingularity();
+    // (And the switcher's way back: the store's the story's again, no
+    // Standard / Cabeza Nova card over its box.)
+    forgetRealitiesVisit();
     startCut({ kind: "fade", caption: "Once more, from the top\u2026 shelf.", to: "tienda", fresh: true, linger: 750 });
   };
   // The realities menu's Restart story (it has already asked).
@@ -729,7 +736,7 @@ function UnifiedApp() {
   const onCutSwap = useCallback(() => {
     const c = cutRef.current;
     if (!c) return;
-    if (c.fresh) tiendaTheme.resetLid();
+    if (c.fresh) { tiendaTheme.resetLid(); setFreshN((n) => n + 1); }
     restoreBootRules();
     denSaveRef.current = null;
     setCarry(null);
@@ -830,7 +837,7 @@ function UnifiedApp() {
       <div style={{ position: "relative" }}>
         <div ref={contentRef} className={contentClass} style={contentStyle}>
           <ElCabeza3D
-            key={themeName}
+            key={`${themeName}#${freshN}`}
             theme={THEMES[themeName]}
             carry={carry}
             carryRef={carryRef}
@@ -900,6 +907,7 @@ function fromTitle(c, boot) {
     forgetStoreGone();
     forgetStoryEnd();
     forgetSingularity();
+    forgetRealitiesVisit();
     boot();
     return;
   }

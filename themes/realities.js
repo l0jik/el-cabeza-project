@@ -259,6 +259,13 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
    even if the story isn't over in this browser's record (user: from a
    preview link's void, ?scene=hall, Lluvia had no way back). */
 export const REALITIES_VISIT_KEY = "el-cabeza:realities-visit";
+// The story over from the top (apps/unified.jsx): no way back kept. (Left
+// set, the store took the story as over and put its Standard / Cabeza
+// Nova card up over the box, with no way past it; user: "This shouldn't
+// be here.")
+export function forgetRealitiesVisit() {
+  try { window.sessionStorage.removeItem(REALITIES_VISIT_KEY); } catch (e) { /* none kept */ }
+}
 export function goToWorld(w, novaGo) {
   if (w.nova && novaGo) { novaGo(w.nova, w); return; }
   const href = w.nova ? `el-cabeza-nova.html?world=${w.nova}` : w.href;
