@@ -445,10 +445,8 @@ export function mountSummon(three, { delay = 300, audio = null, cam = null } = {
     }
     if (!gesture.moved && Math.hypot(e.clientX - prev.x0, e.clientY - prev.y0) < 7) return;
     gesture.moved = true;
-    // (Which way: the board's original rule, as the chassis's drag, user:
-    // a touch begun on the upper half of the screen turns it one way and
-    // on the lower half the other, kept for the whole drag even across the
-    // middle; finger up tilts toward the horizon.)
+    // (Which way: as the chassis's drag, the turn one way wherever the
+    // touch begins and goes; finger up tilts toward the horizon.)
     cam.current.theta += gesture.turn * (e.clientX - prev.x) * ORBIT_SENS_THETA;
     cam.current.phi = Math.max(home.phi - 0.3, Math.min(Math.min(1.2, home.phi + 0.25), cam.current.phi - (e.clientY - prev.y) * ORBIT_SENS_PHI));
   };
@@ -460,14 +458,9 @@ export function mountSummon(three, { delay = 300, audio = null, cam = null } = {
     try { shield.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
     if (camOk() && !home) home = { radius: cam.current.radius, phi: cam.current.phi };
-    if (ptrs.size === 1) {
-      let turn = 1;
-      try {
-        const r = canvas.getBoundingClientRect();
-        turn = e.clientY - r.top < r.height / 2 ? 1 : -1;
-      } catch (err) { /* the top half's way, then */ }
-      gesture = { moved: false, span: 0, r0: camOk() ? cam.current.radius : 0, at: e.timeStamp, turn };
-    }
+    // (One way wherever the drag begins, as the chassis's: user, "Check to
+    // make sure this never happens anywhere globally".)
+    if (ptrs.size === 1) gesture = { moved: false, span: 0, r0: camOk() ? cam.current.radius : 0, at: e.timeStamp, turn: 1 };
     else if (gesture) { gesture.moved = true; gesture.span = pinchSpan(); gesture.r0 = camOk() ? cam.current.radius : 0; }
   };
   const onUp = (e) => {

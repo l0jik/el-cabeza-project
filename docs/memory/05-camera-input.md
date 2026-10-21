@@ -171,3 +171,27 @@ immediately.
   the flag put back at the board's distance goes by itself. Note: the
   touch test's own pose() sets dollhouse false, which is why it never saw
   this.
+
+- **The turn goes one way everywhere** (2026-10-21; user, back in the den
+  home from the manager: "We're having that same issue with the rotation.
+  If I start rotating at the top of the screen and then cross the 50%
+  threshold to the bottom, it reverses and vice versa. Check to make sure
+  this never happens anywhere globally."). The turn was a turntable
+  (grabLatch, since 244b111): begun above the board's middle on screen a
+  drag right turned it one way, begun below it the other, latched for
+  the drag. The lower half had felt reversed again and again: the store
+  (4903bee, user: "if you drop below the halfway point on the screen, it
+  is reversed", fixed for the store alone with theme.dragTurnOneWay, then
+  undone for a finger by da27afd), the Room view home from the trip, back
+  from the other realities (each time only the middle's measuring was
+  changed). Measured first: a single drag never reversed (den, Futuris,
+  Big Glutts' page, the City; finger and mouse; the den on the user's own
+  route: store revisited, the clerk, Go home confused), but a drag begun
+  low turned the other way from one begun high. Now grabLatch's turn is
+  +1 always (a drag right turns the board as its far side goes, as from
+  the top), any pointer, every world, board view and Room view, before a
+  game and in one; the tilt rules unchanged. theme.dragTurnOneWay gone
+  (tienda.js), Futuris's summon drag (futuris-summon.js) one way too.
+  e2e-drag-latch: begun low, right and up across the middle, as from high
+  (low = 1 for every page); e2e-touch-in-game: begun below the middle,
+  right: theta up too (before Begin and in a game).

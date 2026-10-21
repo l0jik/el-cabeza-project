@@ -1,9 +1,11 @@
-/* The view's turn and tilt under a drag: the original rule (user), kept
-   for the whole drag, even one that crosses the screen's middle either
-   way. Board views: begun on the upper half, a drag right turns the board
-   one way (theta up); begun on the lower half, the other (theta down);
-   finger up tilts toward the horizon (phi up). The Room view: the same
-   turn, the tilt the other way.
+/* The view's turn and tilt under a drag, kept for the whole drag, even
+   one that crosses the screen's middle either way. The turn goes one way
+   wherever the drag begins (user, back in the den from Big Glutts: "If I
+   start rotating at the top of the screen and then cross the 50%
+   threshold to the bottom, it reverses and vice versa. Check to make sure
+   this never happens anywhere globally"): a drag right turns the board
+   one way (theta up), begun high or low; finger up tilts toward the
+   horizon (phi up). The Room view: the same turn, the tilt the other way.
 
    Each drag here runs across the middle, horizontally and vertically, and
    every step of it must move the view the same way as its first.
@@ -54,10 +56,9 @@ const W = vp.width, H = vp.height;
 // (Big Glutts' own page tilts the other way up and down, user: the
 // chassis's invertTilt, apps/tienda.jsx. The latch is the same.)
 const flip = pageName === "el-cabeza-tienda.html" ? -1 : 1;
-// (And there a drag turns the board one way wherever it begins, user:
-// begun below the middle it felt reversed; theme.dragTurnOneWay. Begun
-// low, right turns it as from high: theta up.)
-const low = pageName === "el-cabeza-tienda.html" ? 1 : -1;
+// (A drag turns the board one way wherever it begins, every world now:
+// begun low, right turns it as from high, theta up.)
+const low = 1;
 const VIEWS = [["play view", { dollhouse: false, phi: Math.min(start.phi, 0.8), radius: start.radius, theta: start.theta }, false]];
 if (pageName !== "el-cabeza-futuris.html") VIEWS.push(["Room view", { dollhouse: true, phi: 0.6, radius: 82, theta: start.theta }, true]);
 for (const [name, state, room] of VIEWS) {
@@ -73,7 +74,7 @@ for (const [name, state, room] of VIEWS) {
   check(`begun low, left and up across the middle: the turn keeps its way`, steady(s, 0, -low), JSON.stringify(s.map((v) => v[0].toFixed(3))));
   await reset();
   s = await drag(x, H * 0.7, x + W * 0.5, H * 0.3);
-  check(`begun low, right and up across the middle${low > 0 ? ": as from high" : ""}`, steady(s, 0, low), JSON.stringify(s.map((v) => v[0].toFixed(3))));
+  check("begun low, right and up across the middle: as from high", steady(s, 0, low), JSON.stringify(s.map((v) => v[0].toFixed(3))));
   await reset();
   s = await drag(x, H * 0.3, x, H * 0.45);
   check(`finger down: the tilt ${(room ? 1 : -1) * flip > 0 ? "toward the horizon" : "toward overhead"}`, steady(s, 1, (room ? 1 : -1) * flip), JSON.stringify(s.map((v) => v[1].toFixed(3))));

@@ -1,16 +1,19 @@
 /* A finger on the board once a game's begun, in every world: Futuris's way
    (user: "make all in-game touch movement tilt rotate exactly like it is
    in Futuris. That is the correct way they should all be when playing the
-   game"). Begun above the board's middle (its far side), a drag right
-   turns it one way (theta up); begun below (its near side), the other
-   (theta down); finger up tilts toward the horizon (phi up), down toward
-   overhead. Every step of each drag must go the way the first did.
+   game"). A drag right turns it one way (theta up), begun above the
+   board's middle or below it (user, back in the den from Big Glutts: "If
+   I start rotating at the top of the screen and then cross the 50%
+   threshold to the bottom, it reverses and vice versa. Check to make sure
+   this never happens anywhere globally"; it was a turntable, below the
+   middle the other way); finger up tilts toward the horizon (phi up),
+   down toward overhead. Every step of each drag must go the way the first
+   did.
 
    Before Begin too (user, of the story's first visit to the store: "the
    XY spin axis is reversed"): checked on the store's pages, the story's
-   first visit and Big Glutts'; the store's own ways (a drag turns it one
-   way wherever it begins; up and down the other way) are a mouse's
-   (e2e-drag-latch).
+   first visit and Big Glutts'; the store's own tilt (up and down the
+   other way) is a mouse's (e2e-drag-latch).
 
    In the store, the Room view keeps its own tilt (finger up, overhead)
    only while it's up there: a pinch back in to the board ends it, and
@@ -136,7 +139,7 @@ for (const [name, url, seed, opts = {}] of WORLDS) {
     check("before Begin (no game under way)", armed === false, String(armed));
     const d = await fourDrags();
     check(`before Begin, begun high, right: theta up (${d.where})`, steady(d.high, 0, 1), fmt(d.high, 0));
-    check("before Begin, begun low, right: theta down, as Futuris's", steady(d.low, 0, -1), fmt(d.low, 0));
+    check("before Begin, begun low, right: theta up too, one way wherever it begins", steady(d.low, 0, 1), fmt(d.low, 0));
     check("before Begin, finger up: toward the horizon (phi up)", steady(d.up, 1, 1), fmt(d.up, 1));
     check("before Begin, finger down: toward overhead (phi down)", steady(d.down, 1, -1), fmt(d.down, 1));
   }
@@ -154,7 +157,7 @@ for (const [name, url, seed, opts = {}] of WORLDS) {
   check("a game under way", await page.evaluate(() => window.__EC_TEST_ARMED__ === true));
   const d = await fourDrags();
   check(`begun above the middle, right: theta up all the way (${d.where})`, steady(d.high, 0, 1), fmt(d.high, 0));
-  check("begun below the middle, right: theta down all the way", steady(d.low, 0, -1), fmt(d.low, 0));
+  check("begun below the middle, right: theta up all the way too, as from above", steady(d.low, 0, 1), fmt(d.low, 0));
   check("finger up: toward the horizon (phi up)", steady(d.up, 1, 1), fmt(d.up, 1));
   check("finger down: toward overhead (phi down)", steady(d.down, 1, -1), fmt(d.down, 1));
 

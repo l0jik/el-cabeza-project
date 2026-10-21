@@ -8514,52 +8514,30 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        two gestures mutually exclusive. */
     const active = new Map();
     let dragging = false;
-    /* Which way a drag turns and tilts the view: the original rule, back
-       (user), decided where the finger touches down and kept for the whole
-       drag, so a drag that crosses the screen's middle (or the board's)
-       carries on the way it started instead of reversing. The board is
-       seen at a slant, so it's a turntable: begun on the upper half (its
-       far side), a drag right turns it one way; begun on the lower half
-       (its near side), the other. Finger up tilts the view toward the
-       horizon, down toward overhead. In the Room view (freeCamera.
-       dollhouse: looking round a room from above, user) the turn is the
-       same turntable rule (user: begun low it had been the other way from
-       the board view's, so home from the trip, in the Room view, the lower
-       half felt reversed until the view changed), and the tilt goes the
-       other way.
-       "Upper" and "lower" are measured from where the turning axis (the
-       board's centre) actually is on screen, through the camera as it
-       really is, not the screen's middle: the user still found the lower
-       half reversed coming back from the other realities, where the
-       camera (panned, a theme's own camera, the Room view) needn't have
-       the board in the middle. Above the axis is its far side, below its
-       near side; an axis behind the camera means everything seen is
-       beyond it. So the spot you grab always goes with your finger. */
+    /* Which way a drag turns and tilts the view, decided as the finger
+       touches down and kept for the whole drag. The turn goes one way
+       wherever the drag begins and wherever it goes, as the board's far
+       side does (user, back in the den from Big Glutts: "If I start
+       rotating at the top of the screen and then cross the 50% threshold
+       to the bottom, it reverses and vice versa. Check to make sure this
+       never happens anywhere globally"). It was a turntable, begun below
+       the board's middle the other way, and the lower half kept feeling
+       reversed: the store ("if you drop below the halfway point on the
+       screen, it is reversed"), the Room view home from the trip, back
+       from the other realities. Finger up tilts the view toward the
+       horizon, down toward overhead; in the Room view (freeCamera.
+       dollhouse: looking round a room from above, user) the tilt goes the
+       other way. */
     const grab = { theta: 0, phi: 0 };
-    const axisAt = new THREE.Vector3();
-    function grabLatch(clientY, pointerType) {
-      const rect = el.getBoundingClientRect();
-      let mid = rect.height / 2;
-      const { camera: c, boardGroup: g } = three.current;
-      if (c && g) {
-        g.getWorldPosition(axisAt);
-        c.updateMatrixWorld();
-        axisAt.applyMatrix4(c.matrixWorldInverse);
-        if (axisAt.z >= -1e-3) mid = Infinity; // behind the camera: all of it's beyond
-        else { axisAt.applyMatrix4(c.projectionMatrix); mid = (1 - axisAt.y) / 2 * rect.height; }
-      }
-      // (A theme can have it turn one way wherever the drag begins, as from
-      // the far side: theme.dragTurnOneWay, the store's, user: begun below
-      // the middle, where its low view is mostly table and floor, it felt
-      // reversed.)
-      // A finger turns and tilts as Futuris's does in every world, before a
-      // game as in one (user: "that is the correct way they should all be
-      // when playing the game"; then, of the story's first visit to the
-      // store, before any game: "the XY spin axis is reversed"). The page's
-      // own ways (the store's one-way turn, Big Glutts' tilt the other way)
-      // are a mouse's. The Room view keeps its own tilt.
+    function grabLatch(pointerType) {
+      // A finger tilts as Futuris's does in every world, before a game as
+      // in one (user: "that is the correct way they should all be when
+      // playing the game"; then, of the story's first visit to the store,
+      // before any game: "the XY spin axis is reversed"). The page's own
+      // tilt (Big Glutts' the other way) is a mouse's. The Room view keeps
+      // its own tilt.
       const futurisWay = pointerType === "touch";
-      grab.theta = ((theme.dragTurnOneWay && !futurisWay) || clientY - rect.top < mid) ? 1 : -1;
+      grab.theta = 1;
       grab.phi = (cam.current.dollhouse ? 1 : -1) * (futurisWay ? 1 : invertTiltRef.current ? -1 : 1);
     }
     /* Stays false until cumulative pointer travel since the down event
@@ -8857,7 +8835,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (active.size === 1) {
         dragging = true;
         dragArmed = false;
-        grabLatch(ev.clientY, ev.pointerType);
+        grabLatch(ev.pointerType);
         /* pointerType check is belt-and-braces: a touch contact won't
            carry altKey anyway, so excluding it here simply guarantees
            the touch paths below are reached in exactly the same states

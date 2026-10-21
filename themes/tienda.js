@@ -713,14 +713,11 @@ export const woodPieces = true;
 // the box (chassis: theme.fullscreenOnFirstTap; browsers need a tap first).
 export const fullscreenOnFirstTap = true;
 
-/* A drag turns the board one way wherever it begins (user: "if you drag
-   from the top, the pivot or rotate is correct, but if you drop below the
-   halfway point on the screen, it is reversed"): as from its far side,
-   right turning it as it does from the top. Elsewhere the chassis's
-   turntable rule stands (begun below the board's middle on screen, the
-   near side follows the finger). The tilt's own flip here is the
-   chassis's invertTilt (apps). */
-export const dragTurnOneWay = true;
+/* (A drag turns the board one way wherever it begins: the chassis's own
+   rule now, every world's, first asked for here, user: "if you drag from
+   the top, the pivot or rotate is correct, but if you drop below the
+   halfway point on the screen, it is reversed". The tilt's own flip here,
+   a mouse's, is the chassis's invertTilt, apps.) */
 
 /* A new player's opponent (user: "a new player needs somebody to play
    against ... AI on easy"; then, 2026-10-17: "You get to be the ash
