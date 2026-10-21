@@ -4422,7 +4422,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const dockPanelW = awaitingBegin ? Math.min(480, viewportW * 0.92) : declutter ? Math.min(560, viewportW * 0.92) : Math.min(880, viewportW * 0.96);
   /* A theme whose rules lie in the room (theme.rulesInRoom: the den's
      leaflet on the coffee table, a tap opens them) has no How to play
-     in the corner; the Room view house takes its place beside the
+     in the corner; the Room view glass takes its place beside the
      full-screen button. */
   const rulesInRoom = !!theme.rulesInRoom;
   /* The corner's How to play ("?") only where the masthead can't be
@@ -12193,10 +12193,13 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         </button>
       )}
 
-      {/* The Room view (a theme with freeCamera.dollhouse): a little house
-         above the full-screen button (beside it where the rules lie in
-         the room and there's no How to play), any time, setup included:
-         up over the room, the roof off, the whole of it below. */}
+      {/* The Room view (a theme with freeCamera.dollhouse): a zoom-out
+         glass above the full-screen button (beside it where the rules lie
+         in the room and there's no How to play), any time, setup included:
+         up over the room, the roof off, the whole of it below. (It was a
+         little house, user: "It kind of makes people think, go home.
+         That's not what this is ... it's to zoom up"; of six drawn, "Go
+         with option 4, Zoom out".) */}
       {!shell && theme.freeCamera && theme.freeCamera.dollhouse && (
         <button
           type="button"
@@ -12204,8 +12207,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           data-active={viewMode === "room" ? "true" : "false"}
           data-dim={focusMode ? "true" : "false"}
           onClick={roomView}
-          aria-label="Room view"
-          title="Room view: the whole room, the roof off"
+          aria-label="Zoom out: the Room view"
+          title="Zoom out: up over the whole room"
           style={{
             position: "fixed", ...cornerStyle("room"), zIndex: cornerControlsZ, width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
@@ -12216,9 +12219,9 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerColumnCovered ? 0 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5; }}
         >
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M3 10.5 12 4l9 6.5" strokeDasharray="2.2 2.2" />
-            <path d="M5 10v9.5h14V10" />
-            <path d="M9.5 19.5v-5h5v5" />
+            <circle cx="10.5" cy="10.5" r="6.6" />
+            <path d="m15.5 15.5 5 5" />
+            <path d="M7.4 10.5h6.2" />
           </svg>
         </button>
       )}
@@ -12276,7 +12279,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
       )}
 
       {/* Focus (theme.focusMode): a circle in a frame of corners, beside
-         the Room view house; filled while it's on. */}
+         the Room view glass; filled while it's on. */}
       {!shell && focusable && (
         <button
           type="button"

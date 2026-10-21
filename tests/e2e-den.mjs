@@ -383,7 +383,7 @@ async function waitFor(fn, ms = 8000) {
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-standard.html");
   await waitFor(() => page.evaluate(() => !!window.__DEN_ROOM__ && !!window.__DEN_THREE__));
   check("no How to play in the corner", (await q(page, "how-to-play").count()) === 0);
-  check("...the Room view house is there", await q(page, "room-view-corner").isVisible());
+  check("...the Room view's zoom-out glass is there", await q(page, "room-view-corner").isVisible());
   const leafAt = () => page.evaluate(() => {
     const t = window.__DEN_THREE__;
     let leaf = null; t.scene.traverse((o) => { if (o.userData && o.userData.rules && o.geometry && o.geometry.type === "PlaneGeometry") leaf = o; });
@@ -468,7 +468,7 @@ async function waitFor(fn, ms = 8000) {
   check("...on", (await sw.getAttribute("aria-checked")) === "true" && (await focus()).on);
   await q(page, "room-view").click();
   check("Room View leaves focus", !(await focus()).on && (await sw.getAttribute("aria-checked")) === "false");
-  check("...the corner's house goes grey while it's the view", (await q(page, "room-view-corner").getAttribute("data-active")) === "true");
+  check("...the corner's glass goes grey while it's the view", (await q(page, "room-view-corner").getAttribute("data-active")) === "true");
   check("...and the page's lights are back up", !(await page.evaluate(() => document.documentElement.classList.contains("ec-lights-down"))));
   await page.keyboard.press("Escape");
   await page.waitForTimeout(400);

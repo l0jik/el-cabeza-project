@@ -254,3 +254,9 @@ box art and an ad standee (assets/tienda/*.jpg).
   button's Franklin caps, muted ink, no box); on your first turn (8 of 8)
   it goes back to card 7 until a piece has moved. The crush close-up and
   the camera follow the step, so going back works as going on does.
+- **The Room view button is a zoom-out glass** (2026-10-21; user, of six
+  drawn: "Go with option 4, Zoom out"): the chassis's room-view-corner
+  (every world with the Room view: the store and the den) draws a
+  magnifier with a minus, not the house ("It kind of makes people think,
+  go home"); title "Zoom out: up over the whole room". And card 4 (the
+  crush) lost "Here it is, up close." (user: "It's unnecessary").

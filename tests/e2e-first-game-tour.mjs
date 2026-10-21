@@ -147,7 +147,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await page.locator('[data-testid="tour-next"]').click();
   await page.waitForTimeout(250);
   t = await cardText(page);
-  check("Next: the second way, crush your opponent's Cabeza: roll a block onto it", /2\. Crush opponent's Cabeza\./.test(t) && /Roll one of your blocks onto your opponent's Cabeza and it's crushed: you win\./.test(t) && /up close/.test(t) && /Your opponent wins the same two ways, so keep your own Cabeza out from under their blocks\./.test(t) && !/Walnut/.test(t), t);
+  check("Next: the second way, crush your opponent's Cabeza: roll a block onto it", /2\. Crush opponent's Cabeza\./.test(t) && /Roll one of your blocks onto your opponent's Cabeza and it's crushed: you win\./.test(t) && !/up close/i.test(t) &&/Your opponent wins the same two ways, so keep your own Cabeza out from under their blocks\./.test(t) && !/Walnut/.test(t), t);
   let cut = await page.evaluate(() => window.__EC_TEST_CAM__());
   check("...a cut, not a glide: the view there at once, in close and lower", Math.abs(cut.view.radius - cut.radius) < 0.01 && Math.abs(cut.view.phi - cut.phi) < 0.01 && Math.abs(cut.phi - 0.85) < 0.02 && cut.radius < 0.6 * boardCam.radius, JSON.stringify({ boardCam, goal: { phi: cut.phi, radius: cut.radius }, view: cut.view }));
   tour = await tourOf(page);

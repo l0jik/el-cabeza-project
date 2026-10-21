@@ -110,7 +110,8 @@ function cardText(t) {
       return {
         title: "2. Crush opponent's Cabeza.",
         body: [
-          "Roll one of your blocks onto your opponent's Cabeza and it's crushed: you win. Here it is, up close.",
+          // (No "Here it is, up close.", user: "It's unnecessary".)
+          "Roll one of your blocks onto your opponent's Cabeza and it's crushed: you win.",
           "Your opponent wins the same two ways, so keep your own Cabeza out from under their blocks.",
         ],
       };
