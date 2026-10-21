@@ -69,6 +69,10 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
   // Not yet a little before.
   await page.waitForTimeout(Math.max(0, due - 1500));
   check("...nothing yet a moment before", (await tv()).pull === null && (await tv()).tug === null && (await tv()).phase === "off");
+  // (How far the view is from the glass at rest, just before: the first
+  // frame logged in the tug can already be well into it on a slow
+  // renderer, CI's 19 ms in.)
+  const rest = (await tv()).glassDist;
   // The build-up: the first tug.
   const start = await poll(async () => { const t = await tv(); return t && t.tug ? t : null; }, 6000, 50);
   check("it starts: the build-up, the set still off, nothing taking a tap", !!start && start.phase === "off" && start.lock === true, JSON.stringify(start));
@@ -84,9 +88,11 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
   const samples = await page.evaluate(() => window.__PULL_LOG__);
   const tugs = await page.evaluate(() => window.__TUG_LOG__);
   const near = (a, b) => tugs.filter((x) => x.s >= a && x.s <= b);
-  const d0 = (near(0, 60)[0] || {}).dist;
-  const t1 = near(60, 260), back1 = near(1100, 1500);
-  check(`the first tug: the view lurches at the set (${d0} -> ${t1.length ? Math.min(...t1.map((x) => x.dist)) : "?"})...`, !!d0 && t1.length > 0 && Math.min(...t1.map((x) => x.dist)) < d0 * 0.95, JSON.stringify(tugs.slice(0, 8)));
+  const d0 = rest || (near(0, 60)[0] || {}).dist;
+  // (Its peak, 9% of the way, at 110 ms: anything over 3% between 0 and
+  // 400 ms, so a frame every 200 ms still sees it.)
+  const t1 = near(0, 400), back1 = near(1100, 1500);
+  check(`the first tug: the view lurches at the set (${d0} -> ${t1.length ? Math.min(...t1.map((x) => x.dist)) : "?"})...`, !!d0 && t1.length > 0 && Math.min(...t1.map((x) => x.dist)) < d0 * 0.97, JSON.stringify(tugs.slice(0, 8)));
   check(`...and snaps back (${back1.length ? back1[back1.length - 1].dist : "?"})`, back1.length > 0 && Math.abs(back1[back1.length - 1].dist - d0) < d0 * 0.025, JSON.stringify(back1.slice(-2)));
   check("...the papers shiver toward it", near(0, 900).some((x) => /score-a:rustle/.test(x.debris)));
   const thought = near(1500, 4100);

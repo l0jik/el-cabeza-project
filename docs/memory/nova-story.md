@@ -270,4 +270,9 @@ in; leaving Singularity, back in the den as the set switches off.
   when `lure`), are put back if Nova can't go (held 8 s, then let go and
   the lure resumes), and go with the den. Hooks: __DEN_TV__().tug {s,
   lurch, shake, debris}, glassDist; __DEN_PULL_NOW__ starts the build-up;
-  __DEN_TUG_SKIP__(ms). tests/e2e-tv-pull.mjs checks each beat.
+  __DEN_TUG_SKIP__(ms). tests/e2e-tv-pull.mjs checks each beat. (Its
+  first tug is measured against the view's distance from the glass at
+  rest, read just before the build-up: CI's slow renderer logged its
+  first frame 19 ms in, already lurching, and the 5% and 2.5% checks
+  missed by a hair, run 39552534043; the lurch is looked for over 0-400
+  ms at 3%, so a frame every 200 ms still sees it.)
