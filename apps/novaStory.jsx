@@ -106,7 +106,10 @@ function receiptLines() {
     row("   CASH", "10.00"),
     row("   CHANGE", "1.55"),
     "-".repeat(30),
-    mid("THANK YOU  PLEASE COME AGAIN"),
+    // (The mural's words over the store's way out, user: "change both";
+    // on the tape's 30 columns, two lines.)
+    mid("THANK YOU FOR SHOPPING AT"),
+    mid("BIG GLUTTS!"),
   ];
 }
 

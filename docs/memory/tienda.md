@@ -322,9 +322,15 @@ box art and an ad standee (assets/tienda/*.jpg).
   shadow. Caprasimo is in the store's @import (tienda.js styleSheet) and
   FONT_FACES (tienda-fx.js); since the theme's @import can land after the
   first asking, the faces are asked for again at 2.5, 6 and 12 s and the
-  lettering repainted if more faces have loaded. The receipt's THANK YOU
-  PLEASE COME AGAIN and the store slip's THANK YOU — COME AGAIN are as
-  they were.
+  lettering repainted if more faces have loaded. Then the receipt and
+  the sales slip too (user, after a sheet of each as it was and with the
+  mural's words: "change both"): the register tape's last lines are
+  THANK YOU FOR SHOPPING AT / BIG GLUTTS! (apps/novaStory.jsx
+  receiptLines; two lines on its 30 columns, so the tape is 12 lines, two
+  a burst of the printer), and the store look's sales slip (chassis/
+  corner-menu.js, the "Your order" tab) ends THANK YOU FOR SHOPPING AT /
+  BIG GLUTTS!, where it said THANK YOU — COME AGAIN. Tests: e2e-story
+  (twelve lines, the thanks), e2e-tienda (the slip's thanks).
 - **No price tag at the top left** (2026-10-21; user, a phone screenshot
   of the walkthrough's card with the "● EL CABEZA $7.97" tag circled over
   it: "Maybe this price tag up here can be done away with. That way the

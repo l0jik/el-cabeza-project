@@ -228,7 +228,8 @@ export const LOOKS = {
       laws: () => "LAWS", pieces: () => "PIECES <small>(each side)</small>", board: () => "BOARD",
       noLaws: "Standard rules",
       count: (c) => `${c}`,
-      foot: () => `<div class="ft"><span>* not in the standard set</span><span class="ty">THANK YOU — COME AGAIN</span><div class="last"><span class="stamp">DEMO</span>${rulesLink("Rules ›")}</div></div>`,
+      // (Its thanks the mural's over the store's way out, user: "change both".)
+      foot: () => `<div class="ft"><span>* not in the standard set</span><span class="ty">THANK YOU FOR SHOPPING AT<br>BIG GLUTTS!</span><div class="last"><span class="stamp">DEMO</span>${rulesLink("Rules ›")}</div></div>`,
     },
     css: `
     .cm-store { --ink:#2E2118; --red:#A33F33; --paper:#F6EFDE; color: var(--ink); }

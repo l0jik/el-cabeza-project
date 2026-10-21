@@ -567,6 +567,7 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await page.waitForTimeout(400);
   const slip = await page.locator('[data-testid="corner-menu-card"]').first().textContent().catch(() => "");
   check("...it unfolds to the order: laws, pieces, board", /LAWS/.test(slip) && /PIECES/.test(slip) && /BOARD/.test(slip) && /Shoving/.test(slip) && !/as far as it travels/.test(slip) && /Arco Alto/.test(slip), slip.replace(/\n/g, " | "));
+  check("...its thanks the mural's: THANK YOU FOR SHOPPING AT BIG GLUTTS! (user: \"change both\")", /THANK YOU FOR SHOPPING AT\s*BIG GLUTTS!/.test(slip) && !/COME AGAIN/.test(slip), slip.replace(/\n/g, " | "));
   await press('[data-testid="corner-menu-law-shoving"]');
   await page.waitForTimeout(800);
   check("...and a law on it opens that law's card", (await attr('[data-testid="info-overlay"]', "data-open")) === "true");
