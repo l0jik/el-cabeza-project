@@ -143,7 +143,11 @@ in; leaving Singularity, back in the den as the set switches off.
   the catalog's page (See the pieces) has no Purchase and bring home
   until then (user: "unless they have already gone through the tutorial
   and played the game a little bit first").
-  tests/e2e-first-look.mjs.
+  tests/e2e-first-look.mjs. (It reads how faded each control looks once
+  the panel's own 500 ms fade-in is done, dock-helpers
+  waitForPanelSettled: CI run 39600509821 read See the pieces at 0.92,
+  700 ms after the panel said it was open, the panel itself still
+  fading; reproduced here unthrottled, 0.91.)
 
 - **The title screen** (2026-10-19; apps/title-screen.js, in Nova's page
   ahead of the app): every plain open of Nova's page plays the Horizon ·

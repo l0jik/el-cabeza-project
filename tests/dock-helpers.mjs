@@ -52,6 +52,24 @@ async function waitForPanelOpen(page, timeoutMs) {
   }
 }
 
+// The panel's own fade-in (opacity and scale, 500ms) done: its computed
+// opacity at 1. data-open flips the instant it opens; on a loaded machine
+// the fade can still be under way well after (e2e-first-look read every
+// control in it at 0.92, 700ms on), so anything that reads how faded a
+// control looks waits for this first.
+export async function waitForPanelSettled(page, { timeoutMs = 8000 } = {}) {
+  const end = Date.now() + timeoutMs;
+  for (;;) {
+    const o = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="dock-panel"]');
+      return el ? +getComputedStyle(el).opacity : 0;
+    });
+    if (o >= 0.999) return true;
+    if (Date.now() > end) return false;
+    await page.waitForTimeout(100);
+  }
+}
+
 // After Begin Game, the dock piece remorphs and relocates to the
 // bottom-right corner (900ms delay, then its own 900ms CSS transition).
 // Waits for the React-set style target to actually flip to the corner

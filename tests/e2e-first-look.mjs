@@ -18,7 +18,7 @@
 
    node tests/e2e-first-look.mjs */
 import { chromium } from "playwright";
-import { openDockPanel, waitForDockCorner, reopenDockPanelFromCorner } from "./dock-helpers.mjs";
+import { openDockPanel, waitForPanelSettled, waitForDockCorner, reopenDockPanelFromCorner } from "./dock-helpers.mjs";
 
 const NOVA = "file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html";
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--enable-unsafe-swiftshader", "--use-gl=swiftshader"] });
@@ -92,7 +92,9 @@ const panelOpen = (page) => page.evaluate(() => document.querySelector('[data-te
 
 async function lockedMenu(page, phone, label) {
   check(`${label}: the dock's menu opens`, await openDockPanel(page));
-  await page.waitForTimeout(700);
+  // (How faded each control looks is read once the panel's own fade-in
+  // is done, not at a fixed time after.)
+  await waitForPanelSettled(page);
   check("...a new player's first look", (await page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.firstLook)) === "true");
   for (const [name, id] of [["See the pieces", "tienda-order-form"], ["Try a Game", "tienda-try-game"]]) {
     const l = await look(page, `[data-testid="${id}"]`);
@@ -168,7 +170,7 @@ console.log("\nphone: a new player's first look at the store's menu");
   if (await again.count()) await again.first().evaluate((b) => b.click());
   await poll(() => has(page, "story-purchase"), 10000);
   check("New Game: the menu opens", await openDockPanel(page));
-  await page.waitForTimeout(600);
+  await waitForPanelSettled(page);
   check("...no longer the first look", !(await page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.firstLook)));
   const held = [];
   for (const [name, sel] of LOCKED) {
@@ -220,7 +222,7 @@ console.log("\nafter the first game: the whole menu");
 {
   const { ctx, page, errs } = await open({ phone: true, toured: true });
   check("the dock's menu opens", await openDockPanel(page));
-  await page.waitForTimeout(700);
+  await waitForPanelSettled(page);
   check("...not the first look", !(await page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.firstLook)));
   const cart = await look(page, '[data-testid="story-purchase"]');
   check("...Put one in the cart pressable", !!cart && !cart.disabled && cart.opacity > 0.95 && cart.takesTaps, JSON.stringify(cart));
