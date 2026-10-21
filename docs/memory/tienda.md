@@ -290,3 +290,22 @@ box art and an ad standee (assets/tienda/*.jpg).
   to hit just a minute a second time."): PA.waited, once a visit; when the
   notice comes back ("The store is now closed.") it has no Just a minute
   and Escape doesn't put it away: the register's the only way out.
+- **Recorded PA candidates** (2026-10-21; user: "See if you can find any
+  other audio online for store announcements."): seventeen Freesound
+  recordings (CC0 / CC BY only; three NC ones left out) on a listening
+  page, https://claude.ai/artifact/PSwYauL9AJTy1sKN76WbAy, each heard as
+  recorded or through the store's own PA path (the farBus chain, as
+  tienda-audio.js builds it), chimes optionally leading into the game's
+  mumbled voice. Picks on paper (not heard): YleArkisto's Helsinki Airport
+  ding-dong, taped 4 March 1971 (#347217, CC BY 4.0, needs a credit);
+  nigelcoop's store chimes, one before and one after (#238428, CC0);
+  aprilariesman's "clean up on aisle 13" (#509394, CC0) for far-off
+  announcements. The rule offered: a recorded chime can replace the bells
+  everywhere, but under the cards (playPage: the page to Aisle 9, the
+  countdown) keep the made-up voice, since a real one says other words;
+  real voices only for the cardless far-off ones (paAnnouncement from
+  scheduleEvent, the end-of-game closing). Nothing in the game changed
+  yet. Freesound previews: cdn.freesound.org/previews/<id/1000>/<id>_<user
+  id>-hq.mp3, reachable only through the web-fetch agent (this machine
+  gets 403); Pixabay, Wikimedia Commons and the Internet Archive weren't
+  reachable.
