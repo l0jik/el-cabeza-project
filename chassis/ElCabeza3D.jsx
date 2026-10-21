@@ -256,6 +256,12 @@ const TOUR_CRUSH_PHI = 0.85;
 const TOUR_FOE_PHI = 0.72, TOUR_FOE_GLIDE_MS = 1800, TOUR_FOE_LEAD_MS = 2000, TOUR_FOE_STEP_MS = 900;
 // The close-up's crush, once round: the copies in, the roll, held, out.
 const TOUR_CRUSH_LOOP_MS = 3400, TOUR_CRUSH_ROLL_AT = 650, TOUR_CRUSH_ROLL_MS = 620, TOUR_CRUSH_OUT_AT = 2700;
+// The goal card's Cabeza shown big, then put in its place (tourCabIntro):
+// grown in, held till DOWN_AT, brought down, a hop as it lands; its tilt
+// back (radians) while it's held, and how wide it's shown (of the room
+// the card leaves, at most MAX_PX).
+const TOUR_CAB_IN_MS = 450, TOUR_CAB_DOWN_AT = 2400, TOUR_CAB_DOWN_MS = 1150, TOUR_CAB_SETTLE_MS = 300;
+const TOUR_CAB_TILT = 0.5, TOUR_CAB_MAX_PX = 260;
 // Other realities (theme.cornerAction) waits this long for its second tap.
 const ACTION_ARM_MS = 3000;
 const AI_BEAT_MS = 500; // the AI's first step comes no sooner than this after its turn comes round (see the AI turn effect)
@@ -4642,6 +4648,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      once it's moved and has an action left). The other side's turn: what
      it moved, an arrow from where it stood. */
   const tourShown = !!tourStep && isPlaying && !awaitingBegin && !replaying && dockView !== "panel";
+  // (The goal card's Cabeza, while it's shown big and brought down: the
+  // marks wait on it, below.)
+  const [tourCabIntro, setTourCabIntro] = useState(false);
   // (Said on the page while it's up, html.ec-tour-up: a world's own words
   // wait for it, as the store's PA does, tienda-shopping.js.)
   useEffect(() => {
@@ -4717,8 +4726,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       tag("goal", { row: goalRow }, "Opponent's back row · your goal", "goal");
       if (myCab) {
         ring(myCab, "mine", { pulse: true });
-        t2.arrows.push({ key: "path", from: { piece: myCab.id }, to: { box: { type: "square", row: goalRow, col: myCab.col, w: 1, h: 1, z: 0 } }, tone: "goal", bend: 0.08 });
-        tag("cabeza", { piece: myCab.id }, "Your Cabeza", "mine");
+        // (Shown big first, its label going down with it into the ring;
+        // the arrow once it's in its place.)
+        if (tourCabIntro) tag("cabeza", { intro: true }, "Your Cabeza", "mine", "below");
+        else {
+          t2.arrows.push({ key: "path", from: { piece: myCab.id }, to: { box: { type: "square", row: goalRow, col: myCab.col, w: 1, h: 1, z: 0 } }, tone: "goal", bend: 0.08 });
+          tag("cabeza", { piece: myCab.id }, "Your Cabeza", "mine");
+        }
       }
     } else if (tourStep === "crush") {
       // The close-up: the copies named where they stand (tourCrush below).
@@ -4776,8 +4790,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // asks at each frame; the canvas's own place read once a frame, sync()).
   const tourPiecesRef = useRef(pieces);
   tourPiecesRef.current = pieces;
-  // (The crush card's copies, while they're on the board: their labels follow them.)
+  // (The crush card's copies, while they're on the board, and the goal
+  // card's Cabeza shown big: their labels follow them.)
   const tourCrushObjRef = useRef(null);
+  const tourCabObjRef = useRef(null);
   const tourGeo = React.useMemo(() => {
     const v = new THREE.Vector3();
     let cr = null;
@@ -4810,7 +4826,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           const hw = disc ? (DISC_DIAM * CABEZA_SCALE) / 2 : (p.w * PIECE_SCALE) / 2, hd = disc ? hw : (p.h * PIECE_SCALE) / 2;
           addBox(c.x - hw, c.x + hw, c.z - hd, c.z + hd, tall(p));
         };
-        const obj = at.crush && tourCrushObjRef.current && tourCrushObjRef.current[at.crush];
+        const obj = (at.crush && tourCrushObjRef.current && tourCrushObjRef.current[at.crush]) || (at.intro && tourCabObjRef.current);
         const ids = at.pieces || (at.piece ? [at.piece] : null);
         if (obj) {
           // (Each mesh's own box, as it stands now.)
@@ -5225,6 +5241,152 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourCrushSite, tourShown, tourStep]);
+  /* The goal card's Cabeza, shown big first (user, of "This disc is your
+     Cabeza": "start it with an enlarged image of it and then have it zoom
+     down back into where it belongs on the board to kind of really
+     emphasize to them what it is that they're looking at"). As the card
+     comes up, a copy of your Cabeza's own meshes (as the crush card's
+     copies) grows in big in the middle of the room the card leaves, tipped
+     back to show its rim and rocking a little, its label under it; then
+     down it comes, shrinking and laying flat, into its ring on its square,
+     a little hop as it lands; the real one (hidden till then) takes over,
+     and the arrow to the row you win on is drawn from it. Each time the
+     card comes up; not with reduced motion (the card as it was). */
+  const tourCabRef = useRef(null);
+  useEffect(() => {
+    const t = three.current;
+    const still = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const cab = tourShown && tourStep === "goal" && !still ? pieces.find((p) => p.owner === tourMine && p.type === "cabeza") : null;
+    if (!cab || !t.boardGroup || !t.pieceGroup || !t.frameHooks || !t.camera || !t.getMountSize) return undefined;
+    const real = () => t.pieceGroup.children.filter((o) => o.userData.pieceId === cab.id);
+    const parts = real();
+    if (!parts.length) return undefined;
+    // Its middle (in the pieces' own frame) and its width across (in the world).
+    t.pieceGroup.updateWorldMatrix(true, true);
+    const wb = new THREE.Box3();
+    parts.forEach((o) => wb.expandByObject(o));
+    const across = Math.max(0.05, wb.max.x - wb.min.x, wb.max.z - wb.min.z);
+    const mid = t.pieceGroup.worldToLocal(wb.getCenter(new THREE.Vector3()));
+    const group = new THREE.Group();
+    group.userData = { kind: "tour-cab" };
+    group.position.copy(t.pieceGroup.position);
+    group.quaternion.copy(t.pieceGroup.quaternion);
+    group.scale.copy(t.pieceGroup.scale);
+    // The copy turns and grows about its middle (holder); inside, as it stands.
+    const holder = new THREE.Group(), inner = new THREE.Group();
+    inner.position.copy(mid).multiplyScalar(-1);
+    const casters = [];
+    parts.forEach((o) => {
+      const c = o.clone(true);
+      c.visible = true;
+      c.traverse((x) => {
+        x.userData = { kind: "tour-cab" };
+        x.raycast = () => {};
+        // (No shadow till it's nearly down: one cast from up near the camera only blots the board.)
+        if (x.isMesh && x.castShadow) { casters.push(x); x.castShadow = false; }
+      });
+      inner.add(c);
+    });
+    holder.add(inner);
+    holder.position.copy(mid);
+    group.add(holder);
+    t.boardGroup.add(group);
+    parts.forEach((o) => { o.visible = false; });
+    const state = { phase: "in", px: 0, realPx: 0, x: 0, y: 0, realX: 0, realY: 0 };
+    tourCabRef.current = state;
+    tourCabObjRef.current = holder;
+    setTourCabIntro(true);
+    const UP = new THREE.Vector3(0, 1, 0);
+    const endW = new THREE.Vector3(), startW = new THREE.Vector3(), atW = new THREE.Vector3(), dir = new THREE.Vector3(), axis = new THREE.Vector3(), scr = new THREE.Vector3();
+    const qG = new THREE.Quaternion(), qGi = new THREE.Quaternion(), qR = new THREE.Quaternion();
+    const LAND_AT = TOUR_CAB_DOWN_AT + TOUR_CAB_DOWN_MS, END_AT = LAND_AT + TOUR_CAB_SETTLE_MS;
+    // (Tests may slow it down to look at it: __EC_TEST_TOUR_CAB_SLOW__.)
+    const slow = (typeof window !== "undefined" && window.__EC_TEST_HOOKS__ && window.__EC_TEST_TOUR_CAB_SLOW__) || 1;
+    const t0 = performance.now();
+    let done = false, shadows = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      t.frameHooks.delete(frame);
+      t.boardGroup.remove(group);
+      real().forEach((o) => { o.visible = true; });
+      tourCabRef.current = null;
+      tourCabObjRef.current = null;
+      setTourCabIntro(false);
+    };
+    function frame(now) {
+      if (done) return;
+      const ms = (now - t0) / slow;
+      if (ms >= END_AT) { finish(); return; }
+      const cam = t.camera, size = t.getMountSize();
+      if (!size || !size.w || !size.h) return;
+      // (A piece drawn again meanwhile is hidden too, till this one's down.)
+      real().forEach((o) => { o.visible = false; });
+      group.updateWorldMatrix(true, false);
+      const tanH = Math.tan((cam.fov * Math.PI) / 360);
+      // Where it comes down to: its own middle, in the world.
+      endW.copy(mid);
+      group.localToWorld(endW);
+      const dEnd = cam.position.distanceTo(endW);
+      // Where it's shown: the middle of the room the card leaves, a little
+      // over halfway from the camera to its square, as wide as fits.
+      const reg = tourRegion(size, 24);
+      const cx = (reg.l + reg.r) / 2, cy = (reg.t + reg.b) / 2;
+      dir.set((cx / size.w) * 2 - 1, 1 - (cy / size.h) * 2, 0.5).unproject(cam).sub(cam.position).normalize();
+      const d0 = 0.55 * dEnd;
+      startW.copy(cam.position).addScaledVector(dir, d0);
+      const wantPx = Math.min(TOUR_CAB_MAX_PX, 0.42 * (reg.r - reg.l), 0.36 * (reg.b - reg.t));
+      const s0 = Math.max(1, (wantPx * 2 * d0 * tanH) / (size.h * across));
+      // How far through: grown in (a touch past full, as the crush card's
+      // copies), held, brought down (eased both ways), a hop as it lands.
+      let e = 0, grow = 1, hop = 0;
+      if (ms < TOUR_CAB_IN_MS) {
+        const u = ms / TOUR_CAB_IN_MS;
+        grow = Math.max(0.0001, 1 + 2.2 * Math.pow(u - 1, 3) + 1.2 * Math.pow(u - 1, 2));
+        state.phase = "in";
+      } else if (ms < TOUR_CAB_DOWN_AT) state.phase = "hold";
+      else if (ms < LAND_AT) {
+        const u = (ms - TOUR_CAB_DOWN_AT) / TOUR_CAB_DOWN_MS;
+        e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+        state.phase = "down";
+      } else {
+        e = 1;
+        const u = (ms - LAND_AT) / TOUR_CAB_SETTLE_MS;
+        hop = Math.sin(Math.PI * u) * (1 - u) * across * 0.16;
+        state.phase = "settle";
+      }
+      if (!shadows && e > 0.6) { shadows = true; casters.forEach((x) => { x.castShadow = true; }); }
+      // Placed: from where it's shown to its square, a little up as it lands.
+      atW.copy(startW).lerp(endW, e).addScaledVector(UP, hop);
+      // Tipped back about the screen's level (its near edge up, the rim
+      // showing), the way it leans swinging slowly round, all of it gone
+      // as it lies down.
+      axis.set(1, 0, 0).applyQuaternion(cam.quaternion);
+      axis.y = 0;
+      if (axis.lengthSq() < 1e-6) axis.set(1, 0, 0);
+      axis.normalize().applyAxisAngle(UP, 0.45 * Math.sin((ms / 2600) * Math.PI * 2) * (1 - e));
+      qR.setFromAxisAngle(axis, -TOUR_CAB_TILT * (1 - e));
+      group.getWorldQuaternion(qG);
+      qGi.copy(qG).invert();
+      holder.quaternion.copy(qGi).multiply(qR).multiply(qG);
+      holder.position.copy(atW);
+      group.worldToLocal(holder.position);
+      const s = (s0 + (1 - s0) * e) * grow;
+      holder.scale.setScalar(s);
+      group.updateMatrixWorld(true);
+      // (For the tests: how big it shows, and where, against the real one.)
+      const pxAt = (d) => (size.h / (2 * d * tanH)) * across;
+      scr.copy(atW).project(cam);
+      state.x = (scr.x + 1) * 0.5 * size.w; state.y = (1 - scr.y) * 0.5 * size.h;
+      state.px = s * pxAt(cam.position.distanceTo(atW));
+      scr.copy(endW).project(cam);
+      state.realX = (scr.x + 1) * 0.5 * size.w; state.realY = (1 - scr.y) * 0.5 * size.h;
+      state.realPx = pxAt(dEnd);
+    }
+    t.frameHooks.add(frame);
+    return finish;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourShown, tourStep]);
   /* Its moments: your turn come round, then gone (the other side's turn,
      its pieces as it begins kept, to show what it moved; its card stays
      until it's put away, or a piece is picked on your next turn). A game
@@ -5250,6 +5412,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       marks: tourShown ? { rings: t3.rings.map((r) => ({ id: r.id, tone: r.tone, pulse: !!r.pulse, faint: !!r.faint })), band: t3.band, arrows: t2.arrows.map((a) => ({ key: a.key, tone: a.tone })), tags: t2.tags.map((g) => g.text), boxes: t2.boxes.map((b) => b.key), orbit: t2.orbit } : null,
       // (the crush card's close-up: where, and how far through its play)
       crush: tourCrushRef.current ? { ...tourCrushRef.current, cab: tourCrushSite && { row: tourCrushSite.cab.row, col: tourCrushSite.cab.col }, block: tourCrushSite && tourCrushSite.blockId } : null,
+      // (the goal card's Cabeza shown big, while it is: phase, how wide it shows and where, and the real one's)
+      cabIntro: tourCabRef.current ? { ...tourCabRef.current } : null,
     });
     window.__EC_TEST_TO_MOVE__ = () => currentPlayer; // (whose turn it is: "dark" or "light")
   }

@@ -126,8 +126,30 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   check("...each numbered, on the screen and clear of the card", !!way1 && /1 · Your Cabeza across/i.test(way1.text) && !!way2 && /2 · Crush opponent's Cabeza/i.test(way2.text) && [way1, way2].every((b) => inView(b, W, H) && !overlap(b, cardBox)) && !overlap(way1, way2), JSON.stringify({ way1, way2, cardBox }));
   check("...an arrow from your Cabeza up to the row", ((await arrowD(page, "arrow-path")) || "").length > 10);
 
-  // The first: your Cabeza, the row lit green, an arrow there.
-  await next(page);
+  // The first: your Cabeza, the row lit green, an arrow there. Shown big
+  // first, then brought down into its place (user: "start it with an
+  // enlarged image of it and then have it zoom down back into where it
+  // belongs on the board to kind of really emphasize to them what it is
+  // that they're looking at").
+  await page.locator('[data-testid="tour-next"]').click();
+  const realShown = () => page.evaluate(() => window.__EC_TEST_THREE__().pieceGroup.children.filter((c) => c.userData.pieceId === "light-cabeza").every((c) => c.visible));
+  let held = null;
+  for (let i = 0; i < 40 && !held; i++) { const c = (await tourOf(page)).cabIntro; if (c && c.phase === "hold") held = c; else await page.waitForTimeout(50); }
+  cardBox = await card(page).boundingBox();
+  const bigTag = await tagBox(page, "cabeza");
+  check(`Next: your Cabeza shown big first (${held && Math.round(held.px)} px across, ${held && Math.round(held.realPx)} on the board), under the card, the real one hidden`, !!held && held.px > 3.5 * held.realPx && held.y > cardBox.y + cardBox.height && !(await realShown()), JSON.stringify({ held, cardBox }));
+  check("...labelled YOUR CABEZA under it, and no arrow yet", !!bigTag && /your cabeza/i.test(bigTag.text) && !!held && bigTag.y > held.y && (await arrowD(page, "arrow-path")) === null, JSON.stringify({ bigTag, held }));
+  let last = held, smaller = false;
+  for (let i = 0; i < 120; i++) {
+    const c = (await tourOf(page)).cabIntro;
+    if (!c) break;
+    if (c.phase === "down" && c.px < held.px * 0.8) smaller = true;
+    last = c;
+    await page.waitForTimeout(50);
+  }
+  check(`...then down it comes, shrinking, onto its own square (${last && Math.round(last.x)},${last && Math.round(last.y)} vs ${last && Math.round(last.realX)},${last && Math.round(last.realY)})`, smaller && !!last && Math.hypot(last.x - last.realX, last.y - last.realY) < 3 && Math.abs(last.px - last.realPx) < 2 && !(await tourOf(page)).cabIntro, JSON.stringify(last));
+  check("...the real one back on the board, and only one Cabeza drawn", (await realShown()) && (await page.evaluate(() => window.__EC_TEST_THREE__().boardGroup.children.filter((c) => c.userData.kind === "tour-cab").length)) === 0);
+  await page.waitForTimeout(300);
   t = await cardText(page);
   // (After the welcome names Walnut, it's "your opponent", user: "This
   // should say your opponent ... not walnut".)

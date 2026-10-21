@@ -267,6 +267,26 @@ box art and an ad standee (assets/tienda/*.jpg).
   the standard game (two actions for one piece), the Note on its own
   line with "Note" in italics where there's an Opa. Other setups (more
   actions, shared pieces) keep "Each turn you get N actions...".
+- **Card 3 shows the Cabeza big first** (2026-10-21; user, a phone
+  screenshot of "1. Get your Cabeza across.": "start it with an enlarged
+  image of it and then have it zoom down back into where it belongs on
+  the board to kind of really emphasize to them what it is that they're
+  looking at"): as the card comes up, a copy of your Cabeza's own meshes
+  (the crush card's way: the same materials, nothing compiled) grows in
+  big in the middle of the room the card leaves (0.42 of its width, 0.36
+  of its height, at most 260 px; a little over halfway from the camera to
+  its square), tipped back 0.5 rad to show its rim and rocking slowly,
+  "YOUR CABEZA" under it (the label follows it: tag at { intro }); held
+  till 2.4 s, then down it comes over 1.15 s (eased both ways), shrinking
+  and laying flat into its yellow ring, its shadow from 60% of the way,
+  a little hop as it lands (0.3 s); the real one, hidden till then, takes
+  over and only then is the arrow to the green row drawn. Each time the
+  card comes up (Back too); not with reduced motion; Next mid-way puts it
+  away (the real one shown). chassis tourCabIntro / tourCabRef /
+  tourCabObjRef; hooks: __EC_TEST_TOUR__().cabIntro { phase in|hold|down|
+  settle, px, x, y, realPx, realX, realY }, __EC_TEST_TOUR_CAB_SLOW__ to
+  slow it for a look. Phone 163 px across against 30 on the board;
+  desktop 229 against 56. tests/e2e-first-game-tour.mjs checks it.
 - **Oxford commas** (2026-10-21; user, card 7 with a blue comma after
   "down": "The red circle with the blue comma indicates where an Oxford
   comma should be placed."): "up, down, or sideways", and every list the
