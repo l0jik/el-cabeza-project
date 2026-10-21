@@ -138,8 +138,9 @@ function setDim(on, step = 1) {
    want us out of here.""): their thought, one of the story's cards
    (den-cards.js, as the den's are), a moment after the lights have gone
    down with the closing words, just under those; a few seconds, then
-   gone. Once a player (LIGHTS_SEEN). */
-const LIGHTS_THOUGHT = "Oh… they're turning down the lights. I guess they want us out of here.";
+   gone. Once a player (LIGHTS_SEEN). Its words the user's pick of six
+   ("5."). */
+const LIGHTS_THOUGHT = "Huh, the lights are going down. Guess it's closing time.";
 const LIGHTS_THOUGHT_AT = 1800, LIGHTS_THOUGHT_MS = 5200, LIGHTS_SEEN = "el-cabeza:lights-thought";
 function lightsThought() {
   if (typeof document === "undefined") return null;

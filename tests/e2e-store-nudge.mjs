@@ -128,11 +128,12 @@ console.log("\nshopping: the PA, the cart, closing time (user: nothing about ord
   check("...and the lights down a step", await poll(() => page.evaluate(() => window.__TIENDA_SHOP__().dim), 3000));
   // The first time, the player's thought (user: "maybe a thought bubble
   // should come up saying, "Oh, I get turning down the lights. I guess
-  // they want us out of here.""), under the closing words; once a player.
+  // they want us out of here."" and of the wordings offered, "5."), under
+  // the closing words; once a player.
   const th = await poll(() => has(page, "tienda-lights-thought"), 6000, 100);
   const thText = th ? (await q(page, "tienda-lights-thought").innerText()).replace(/\s+/g, " ") : "";
   const paBox = await q(page, "tienda-pa-closing").boundingBox(), thBox = th ? await q(page, "tienda-lights-thought").boundingBox() : null;
-  check("...the player's thought: they want us out of here", !!th && /turning down the lights/i.test(thText) && /want us out of here/i.test(thText), thText);
+  check("...the player's thought: closing time", !!th && /^Huh, the lights are going down\. Guess it's closing time\.$/.test(thText.trim()), thText);
   check("...just under the closing words, clear of them", !!thBox && !!paBox && thBox.y >= paBox.y + paBox.height - 2 && thBox.y <= paBox.y + paBox.height + 40, JSON.stringify({ paBox, thBox }));
   check("...kept: once a player", await page.evaluate(() => localStorage.getItem("el-cabeza:lights-thought") === "1"));
   check("...then gone, the closing words still up", !!(await poll(async () => !(await has(page, "tienda-lights-thought")), 9000, 150)) && (await has(page, "tienda-pa-closing")));

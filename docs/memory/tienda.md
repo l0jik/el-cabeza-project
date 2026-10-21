@@ -278,9 +278,11 @@ box art and an ad standee (assets/tienda/*.jpg).
   "Oh, I get turning down the lights. I guess they want us out of here.
   Something like that. Give me some possible options."): at the closing
   words (the first dim), 1.8 s on, one of the story's cards (den-cards.js
-  dealCard, as the den's thoughts) just under the PA's caption: "Oh…
-  they're turning down the lights. I guess they want us out of here." (the
-  user's own line; options offered), 5.2 s, then gone; put away with the
+  dealCard, as the den's thoughts) just under the PA's caption: "Huh, the
+  lights are going down. Guess it's closing time." (of six wordings
+  offered, the user: "5."; first built with their own line, "Oh… they're
+  turning down the lights. I guess they want us out of here."), 5.2 s,
+  then gone; put away with the
   store or under Big Glutts' notice. Once a player
   (localStorage el-cabeza:lights-thought). tienda-shopping.js
   LIGHTS_THOUGHT / lightsThought.
