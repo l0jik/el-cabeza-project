@@ -57,14 +57,23 @@ for (const world of ["futuris", "ciudad"]) {
   // One rolls away (whoever's turn it is): both back on their squares.
   const side = await page.evaluate(() => window.__EC_TEST_TO_MOVE__());
   const mover = `${side}-arco`, stay = side === "dark" ? "light" : "dark";
+  const from = position.find((p) => p.id === mover);
   const rolled = await page.evaluate(([id, dir]) => window.__EC_TEST_MOVE__(id, dir), [mover, side === "dark" ? "S" : "N"]);
   check(`${side}'s Arco rolls away`, rolled);
-  await page.waitForTimeout(2200);
+  // (Read once the roll's recorded, not at a fixed time: the City's took
+  // 2.9 s here and 5.2 s at a sixth of the speed, and CI read it at 2.2 s,
+  // before it was done.)
+  let moved = null;
+  for (let i = 0; i < 60; i++) {
+    moved = await page.evaluate((id) => window.__EC_TEST_PIECES__.find((p) => p.id === id), mover);
+    if (moved && (moved.row !== from.row || moved.z !== from.z)) break;
+    await page.waitForTimeout(250);
+  }
+  await page.waitForTimeout(300);
   const b = await drawn(page);
   const back = b[stay].x - a[stay].x, want = stay === "dark" ? -0.093 : 0.093;
   check(`the one left behind lets go, back onto its own squares (${back.toFixed(3)})`, Math.abs(back - want) < 0.004, back);
-  const moved = await page.evaluate((id) => window.__EC_TEST_PIECES__.find((p) => p.id === id), mover);
-  check("the mover stands where the roll put it", !!moved && (moved.row !== (side === "dark" ? 5 : 4) || moved.z !== 1), JSON.stringify(moved));
+  check("the mover stands where the roll put it", !!moved && (moved.row !== from.row || moved.z !== from.z), JSON.stringify(moved));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();
 }

@@ -541,3 +541,7 @@ squares.
 Kept (user, having seen the options sheet again: "Commit: Arcos: keep
 "press them together""): option 1 stays as built; the other four are
 set aside.
+(tests/e2e-press.mjs reads the roll once it's recorded, polling the
+mover's square, not at a fixed 2.2 s: CI run 39616086474 read the City's
+roll before it was done; here it took 2.9 s, and 5.2 s at a sixth of the
+speed.)
