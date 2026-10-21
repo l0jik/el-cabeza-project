@@ -393,6 +393,22 @@ export function createAudio() {
       }
       d.linearRampToValueAtTime(1, at + 0.12);
     }
+    if (kind === "tug" || kind === "drag") {
+      /* A tug (den-tug.js): the music yanked, a lurch of pitch and a gap,
+         snapping back; the drag: pulled down and away for as long as it
+         lasts, the record dragging. */
+      const w = music.warp.delayTime, d = music.drop.gain;
+      w.cancelScheduledValues(t); w.setValueAtTime(w.value, t);
+      d.cancelScheduledValues(t); d.setValueAtTime(d.value, t);
+      if (kind === "tug") {
+        w.linearRampToValueAtTime(0.03 + 0.07 * s, t + 0.12); w.linearRampToValueAtTime(0.03, t + 0.65);
+        d.linearRampToValueAtTime(0.12, t + 0.03); d.setValueAtTime(0.12, t + 0.12 + 0.1 * s); d.linearRampToValueAtTime(1, t + 0.7);
+      } else {
+        w.linearRampToValueAtTime(0.12, t + 2.6);
+        d.linearRampToValueAtTime(0.35, t + 2.6);
+      }
+      return;
+    }
     if (kind === "pull") {
       // Pulled in (den-fx.js): the music dragged down and away, sucked
       // into the set with you (back a while later, should Nova not go).
@@ -683,6 +699,8 @@ export function createAudio() {
     else if (kind === "phantom") glitchSlice(t, 0.85, G * 0.8, { swell: true });
     else if (kind === "surge") { glitchSlice(t + 0.2, 1.35, G, { swell: true, rate: [0.75, 1.25] }); glitchSlice(t + 1.52, 0.18, G * 1.1); }
     else if (kind === "blast") { glitchSlice(t + 0.6, 2.2, G * 1.2, { swell: true, rate: [0.7, 1.3] }); glitchSlice(t + 2.8, 0.35, G * 1.3); }
+    else if (kind === "tug") glitchSlice(t + 0.02, 0.22 + 0.1 * strength, G * 1.1, { rate: [1.2, 0.7] });
+    else if (kind === "drag") { glitchSlice(t + 0.1, 2.4, G, { swell: true, rate: [0.7, 1.4] }); glitchSlice(t + 0.95, 0.16, G * 0.9); glitchSlice(t + 1.8, 0.14, G * 0.9); }
     if (kind === "flicker") burst(t, hauntBus, 0.08 * k, 0.06, [["bandpass", 3600, 1.2]]);
     else if (kind === "pilot") { for (let i = 0; i < 5; i++) burst(t + i * (0.07 + Math.random() * 0.1), hauntBus, 0.06 * k, 0.014, [["bandpass", 4200, 3]]); }
     else if (kind === "thump") {
@@ -775,6 +793,39 @@ export function createAudio() {
       glitchSlice(t + 0.1, 1.2, G * 1.3, { swell: true, rate: [0.6, 1.6] });
       tone(72, 30, 0.7, 0.4, "sine", 0, G2);
       burst(G2, hauntBus, 0.3 * k, 0.5, [["lowpass", 900]], 0.003);
+    } else if (kind === "tug") {
+      /* A tug (den-tug.js): something grabbing from inside the set. A deep
+         thump, the air rushing toward it for an instant (noise swept up,
+         cut off), a low suck under it. Stronger, longer. */
+      const L = 0.3 + 0.25 * strength;
+      tone(58, 30, 0.45, 0.5, "sine");
+      tone(110, 48, 0.3, 0.1, "sawtooth");
+      { const n = noise(t, 0.5); const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 0.7;
+        bp.frequency.setValueAtTime(300, t); bp.frequency.exponentialRampToValueAtTime(1800, t + L);
+        const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.3 * k, t + L * 0.85); g.gain.linearRampToValueAtTime(0.0001, t + L + 0.03);
+        n.connect(bp).connect(g).connect(hauntBus); }
+      tone(30, 70, L, 0.3, "sine");
+      burst(t, hauntBus, 0.14 * k, 0.18, [["lowpass", 700]]);
+    } else if (kind === "drag") {
+      /* The drag (den-tug.js, 2.6 s, then the rush): a rumble rising and
+         brightening as the player's pulled across the room, a low throb
+         under it shaking, things scraping and knocking now and then. */
+      const D = 2.6;
+      { const n = noise(t, D + 0.1, true); const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 0.8;
+        lp.frequency.setValueAtTime(120, t); lp.frequency.exponentialRampToValueAtTime(900, t + D);
+        const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.55 * k, t + D - 0.05); g.gain.linearRampToValueAtTime(0.0001, t + D + 0.08);
+        n.connect(lp).connect(g).connect(hauntBus); }
+      { const o = ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(38, t); o.frequency.linearRampToValueAtTime(52, t + D);
+        const am = ctx.createGain(); am.gain.value = 0.5;
+        const lfo = ctx.createOscillator(); lfo.frequency.setValueAtTime(5, t); lfo.frequency.linearRampToValueAtTime(11, t + D);
+        const lg = ctx.createGain(); lg.gain.value = 0.5; lfo.connect(lg).connect(am.gain);
+        const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4 * k, t + D * 0.8); g.gain.linearRampToValueAtTime(0.0001, t + D + 0.05);
+        o.connect(am).connect(g).connect(hauntBus); o.start(t); lfo.start(t); o.stop(t + D + 0.1); lfo.stop(t + D + 0.1); }
+      for (let i = 0; i < 6; i++) {
+        const at = t + 0.2 + i * 0.38 + Math.random() * 0.2;
+        burst(at, hauntBus, (0.06 + 0.05 * Math.random()) * k, 0.12 + Math.random() * 0.2, [["bandpass", 500 + Math.random() * 1500, 1.4]], 0.02);
+        if (Math.random() < 0.5) tone(90 + Math.random() * 60, 45, 0.18, 0.12, "triangle", 0, at);
+      }
     } else if (kind === "surge") {
       // A surge through the dead set: a whine climbing to the flyback's
       // pitch, static rising under it, and a thump as it lets go.

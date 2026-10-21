@@ -40,6 +40,7 @@ import * as THREE from "three";
 import { SLAB_X, SLAB_Z, SLAB_MAX } from "../engine/constants.js";
 import { buildDen, HALL, FLOOR, RZ } from "./den-room.js";
 import { dealCard } from "./den-cards.js";
+import { TUG, TUG_THINK, TUG_UHOH, tugAt, createTugDebris } from "./den-tug.js";
 import { quality } from "./tienda-quality.js";
 import { createGovernor } from "../chassis/device-fit.js";
 import { setCommercialOn, onJourneyChange } from "../engine/journey.js";
@@ -476,7 +477,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     if (typeof document !== "undefined" && document.fonts && document.fonts.load) {
       Promise.all(LID_FONTS.map((f) => document.fonts.load(f).catch(() => null)))
         .then(() => document.fonts.ready)
-        .then(() => { fontsDone = true; if (den) den.repaint(); })
+        .then(() => { fontsDone = true; if (den) den.repaint(); if (debris) debris.repaint(); })
         .catch(() => { /* keep what's painted */ });
     }
 
@@ -735,13 +736,16 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
 
     /* ---- attach, and rebuild for a new board size ---- */
     function build(t) {
+      if (debris) { debris.dispose(); debris = null; }
       if (den) { t.boardGroup.remove(den.group); den.dispose(); }
       if (brass) { t.boardGroup.remove(brass.group); brass.dispose(); }
       den = buildDen(SLAB_MAX);
+      // (The loose things the set takes first, while it lures: den-tug.js.)
+      if (lure) debris = createTugDebris(den);
       flames = null; tableMats = null; lastE = -1; // focus finds the new room's fire and table
       brass = woodSet.buildBrass();
       t.boardGroup.add(den.group, brass.group);
-      if (fontsDone) den.repaint();
+      if (fontsDone) { den.repaint(); if (debris) debris.repaint(); }
       dims = `${SLAB_X}x${SLAB_Z}`;
     }
     function attach() {
@@ -783,7 +787,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     let lastTvEar = 0;
     function hearTv(camera) {
       const t = three.current, now = performance.now();
-      if (!audio || !audio.setTvListener || !lure || lureDone || !den || !den.tv || !t || !t.boardGroup || now - lastTvEar < 100) return;
+      if (!audio || !audio.setTvListener || !lure || (lureDone && !tug) || !den || !den.tv || !t || !t.boardGroup || now - lastTvEar < 100) return;
       lastTvEar = now;
       camera.updateMatrixWorld();
       tvPos.copy(den.tv.focus.target); t.boardGroup.localToWorld(tvPos);
@@ -1212,12 +1216,14 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     const onLock = (e) => {
       if (e.target instanceof Element && e.target.closest("[data-fullscreen-toggle]")) return;
       swallow(e);
+      // (Being taken, the set's build-up: not even the set.)
+      if (tug) return;
       if (e.type === "pointerdown" && e.isPrimary !== false && overTv(e.clientX, e.clientY)) { swallowRest(e.pointerId); pressTv(); }
     };
     const onLockKey = (e) => {
       if (e.key === "Tab") return;
       swallow(e);
-      if (lureFix && (e.key === "Enter" || e.key === " ") && !e.repeat) pressTv();
+      if (lureFix && !tug && (e.key === "Enter" || e.key === " ") && !e.repeat) pressTv();
     };
     /* The rest of that tap: its lift (the chassis takes a lift on the board
        for a tap even with no press, and on the set that's a second press,
@@ -1276,7 +1282,9 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        to the table. But after the blast, if it's still not been turned on,
        the set takes the player itself: PULL_FIXED after the blast while the
        head's still held on it (never tapped), else PULL_LATE after they
-       last went over to it or came away. The set slams on into its dive,
+       last went over to it or came away; first its build-up (startTugs,
+       below: two tugs, the room going first, the drag), then the rush.
+       The set slams on into its dive,
        everything else is put away and nothing takes a tap; the camera is
        yanked from wherever it is across the room and into the glass
        (PULL_RUSH, slow then all at once), the lens widening as it goes and
@@ -1347,7 +1355,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       pullFx.streaks.remove();
       pullFx = null;
     }
-    function startPull(now) {
+    function startPull(now, { keepHead = false } = {}) {
       const set = den && den.tv;
       if (!set || tvPullIn) return;
       // (Nova can't go just now, or the set's on its way already: later.)
@@ -1361,7 +1369,9 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       huhAt = 0; bangAt = 0;
       if (huhCard) { huhCard.remove(300); huhCard = null; }
       if (bangCard) { bangCard.remove(300); bangCard = null; }
-      lureFix = false; glance = null;
+      // (From the tugs, the head's on the set already: kept, so the rush
+      // starts from where it's looking.)
+      lureFix = false; if (!keepHead) glance = null;
       lureDone = true;
       lureLock(true);
       const t = three.current;
@@ -1388,6 +1398,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         tvGoal = 0; tvLeaveAt = performance.now() + 200;
         lureDone = false; pullBase = performance.now(); pullSoon = performance.now() + PULL_RETRY;
       }
+      endTugs(failed);
     }
     // Each frame, in placeCamera: the rush (tvW), the lens and the stretch.
     function pullFrame(camera) {
@@ -1409,6 +1420,118 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       pullStretch(e, at);
     }
     const pullPt = new THREE.Vector3();
+    /* The build-up (user: "Getting pulled into the TV against your will,
+       it happens way too abruptly ... We need to come up with something
+       else there"; chose "Combine 1 & 2": two warning tugs, then it takes
+       you, and the room goes first). When the pull's due, the set tugs at
+       the player twice, the papers on the coffee table going first, a
+       thought between ("Did the TV just… pull me?"), then "Uh-oh…"; the
+       third tug doesn't let go, the records and the newspaper go as the
+       view's dragged across the room, and then the rush (startPull).
+       den-tug.js has the timeline (TUG) and the camera's part (tugAt).
+       From the first tug nothing takes a tap, the set's included, and the
+       head's turned to the set if it wasn't on it already. */
+    let tug = null, debris = null, thinkCard = null, uhohCard = null;
+    function startTugs(now) {
+      const set = den && den.tv;
+      if (!set || tug || tvPullIn) return;
+      if (!(novaTv && novaTv.portal && novaTv.portal()) || set.isOn()) { pullSoon = now + PULL_RETRY; return; }
+      pullSoon = 0;
+      if (sheets && sheets.close) sheets.close();
+      focusGoal = 0; bookGoal = 0; phoneVisit(false);
+      if (lureLook) { lureLook = false; showTvHint(false); }
+      huhAt = 0; bangAt = 0;
+      if (huhCard) { huhCard.remove(300); huhCard = null; }
+      if (bangCard) { bangCard.remove(300); bangCard = null; }
+      // (The head yanked round to the set, unless it's on it already,
+      // held there since the blast, or the camera's over watching it.)
+      if (!(glance && glance.fix) && tvGoal === 0) glance = { t0: now, keys: [{ at: "tv", turn: 520, hold: Infinity }], back: 0, fix: true, release: 0, seen: [] };
+      lureFix = false;
+      lureDone = true;
+      lureLock(true);
+      tug = { t0: now, e: {}, retryAt: 0, giveUpAt: 0 };
+      if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_TUGGED__ = (window.__DEN_TUGGED__ || 0) + 1;
+    }
+    // Each frame: the tugs and the drag as they come, what's in the room
+    // flying into the set, the two thoughts; then the rush.
+    function tugFrame(now) {
+      if (!tug) return;
+      const s = now - tug.t0, e = tug.e, set = den && den.tv;
+      const doc = typeof document !== "undefined" ? document : null;
+      const hit = (kind, strength) => { lureEvents++; lastHaunt = kind; if (audio && audio.tvHaunt) audio.tvHaunt(kind, strength); };
+      if (!e.tug1 && s >= TUG.tug1) { e.tug1 = true; if (set) set.jolt(now, "thump", 1); hit("tug", 0.7); if (debris) debris.rustle(now); }
+      if (!e.think && s >= TUG.think) { e.think = true; if (doc) thinkCard = dealCard(doc, { testid: "den-tug-think", l1: TUG_THINK }); }
+      if (!e.tug2 && s >= TUG.tug2) { e.tug2 = true; if (set) set.jolt(now, "surge", 1, 900); hit("tug", 1); if (debris) { debris.launch(now, "tug2"); debris.rustle(now); } }
+      // (The second tug cuts the thought short.)
+      if (thinkCard && s >= TUG.tug2 + 350) { thinkCard.remove(500); thinkCard = null; }
+      if (!e.uhoh && s >= TUG.uhoh) { e.uhoh = true; if (doc) uhohCard = dealCard(doc, { testid: "den-uhoh", l1: TUG_UHOH }); }
+      if (!e.drag && s >= TUG.drag) { e.drag = true; if (set) set.jolt(now, "surge", 1.2, TUG.rush - TUG.drag + 200); hit("drag", 1); if (debris) debris.launch(now, "drag"); }
+      // (Each thing in at the glass: a flash on the tube, a crackle.)
+      if (debris) debris.frame(now, () => { if (set) set.kick(now, 1); if (audio && audio.tvHaunt) audio.tvHaunt("flicker", 0.7); });
+      // The rush, once Nova can go; should it not, held there and tried
+      // again, and after a while let go (the room put back, the lure on).
+      if (s >= TUG.rush && !tvPullIn && now >= tug.retryAt) {
+        startPull(now, { keepHead: true });
+        if (!tvPullIn) {
+          tug.retryAt = now + 400;
+          if (!tug.giveUpAt) tug.giveUpAt = now + 8000;
+          else if (now >= tug.giveUpAt) { endTugs(true); return; }
+        }
+      }
+      if (uhohCard && tvPullIn && now - tvPullIn.t0 > 250) { uhohCard.remove(400); uhohCard = null; }
+    }
+    // Over: into the set (the den goes), or Nova couldn't go (`failed`:
+    // the room as it was, the head let go, the lure on again, a while later).
+    function endTugs(failed = false) {
+      if (thinkCard) { thinkCard.remove(300); thinkCard = null; }
+      if (uhohCard) { uhohCard.remove(300); uhohCard = null; }
+      if (!tug) return;
+      tug = null;
+      if (!failed) return;
+      if (debris) debris.putBack();
+      letGoGlance();
+      lureDone = false; pullBase = performance.now(); pullSoon = performance.now() + PULL_RETRY;
+    }
+    /* The camera's part, after everything else has placed it: toward the
+       screen by the tug's lurch (a fraction of the way, never nearer the
+       glass than a few units), still looking where it was, and shaken.
+       Through the rush what's left of it eases off as the rush takes the
+       camera in. */
+    const tugAim = new THREE.Vector3(), tugLook = new THREE.Vector3(), tugDir = new THREE.Vector3(), tugTo = new THREE.Vector3(), tugRight = new THREE.Vector3(), tugUp = new THREE.Vector3();
+    const WORLD_UP = new THREE.Vector3(0, 1, 0);
+    function tugCamera(camera) {
+      const t = three.current;
+      if (!tug || !den || !den.tv || !t || !t.boardGroup || !camera) return;
+      const now = performance.now();
+      let { lurch, shake } = tugAt(now - tug.t0);
+      if (tvPullIn) { const w = Math.min(1, tvW); lurch *= 1 - w; shake *= Math.max(0.2, 1 - 0.8 * w); }
+      if (Math.abs(lurch) < 0.0005 && shake < 0.002) return;
+      t.boardGroup.localToWorld(tugAim.copy(den.tv.dive.target));
+      camera.getWorldDirection(tugDir);
+      const dist = camera.position.distanceTo(tugAim);
+      if (dist < 1e-3) return;
+      tugLook.copy(camera.position).addScaledVector(tugDir, dist);
+      const travel = Math.min(lurch * dist, Math.max(0, dist - 6));
+      tugTo.subVectors(tugAim, camera.position).normalize();
+      camera.position.addScaledVector(tugTo, travel);
+      // The shake: quick, uneven, mostly in the look.
+      tugRight.crossVectors(tugDir, WORLD_UP);
+      if (tugRight.lengthSq() < 1e-6) tugRight.set(1, 0, 0);
+      tugRight.normalize();
+      tugUp.crossVectors(tugRight, tugDir).normalize();
+      const n = now / 1000;
+      const jx = Math.sin(n * 37.1) * 0.6 + Math.sin(n * 61.7 + 1.3) * 0.4, jy = Math.sin(n * 43.3 + 0.7) * 0.6 + Math.sin(n * 71.9 + 2.1) * 0.4;
+      const amp = shake * 0.014 * Math.min(dist, 120);
+      tugLook.addScaledVector(tugRight, jx * amp).addScaledVector(tugUp, jy * amp);
+      camera.position.addScaledVector(tugRight, jy * shake * 0.15).addScaledVector(tugUp, jx * shake * 0.15);
+      camera.lookAt(tugLook);
+    }
+    // (Test-only, in __DEN_TV__: how far the camera is from the glass.)
+    function glassDist() {
+      const t = three.current;
+      if (!den || !den.tv || !t || !t.boardGroup || !t.camera) return null;
+      return +t.boardGroup.localToWorld(tugAim.copy(den.tv.dive.target)).distanceTo(t.camera.position).toFixed(2);
+    }
     let lookListenersOn = null;
     /* While the set has the camera (watching it, the commercial, the way
        in and out), a drag, a pinch, a two-finger swipe or the wheel on the
@@ -1525,8 +1648,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     function pressTv() {
       const set = den && den.tv;
       if (!set) return false;
-      // (Being pulled in: nothing to press.)
-      if (tvPullIn) return true;
+      // (Being pulled in, or tugged at first: nothing to press.)
+      if (tvPullIn || tug) return true;
       // (Waking by itself into the commercial: the tap waits.)
       if (wake) return true;
       const now = performance.now();
@@ -1585,10 +1708,16 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, waking: wake ? (wake.woke ? "woke" : "dark") : null, lureWaited: lureStart ? performance.now() - lureStart - LURE_WAIT : null, glance: glance ? (glance.fix ? "fix" : "round") : null, glanceAt: glance && glance.seen.length ? glance.seen[glance.seen.length - 1] : null, lock: lockOn, fixed: lureFix, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, adShown: den && den.tv && den.tv.commercialShown ? den.tv.commercialShown() : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0,
         // (The pull: how far in (ms), his yell, through the glass; else how long till it's due.)
         pull: tvPullIn ? { s: Math.round(performance.now() - tvPullIn.t0), yell: tvPullIn.yell || null, entered: tvPullIn.entered, fov: three.current && three.current.camera ? +three.current.camera.fov.toFixed(1) : null, fov0: tvPullIn.fov0 ? +tvPullIn.fov0.toFixed(1) : null } : null,
-        pullIn: blastAt && !tvPullIn && !lureDone ? Math.round((pullSoon || pullBase + (lureFix ? PULL_FIXED : PULL_LATE)) - performance.now()) : null });
+        pullIn: blastAt && !tvPullIn && !lureDone ? Math.round((pullSoon || pullBase + (lureFix ? PULL_FIXED : PULL_LATE)) - performance.now()) : null,
+        // (The build-up: how far in (ms), the camera's tug and shake now,
+        // what's still in the room, and how far the camera is from the glass.)
+        tug: tug ? { s: Math.round(performance.now() - tug.t0), ...tugAt(performance.now() - tug.t0), debris: debris ? debris.state() : [] } : null,
+        glassDist: glassDist() });
       // Test-only: hold the pull off (the tests of the set's own way in), or have it now.
       window.__DEN_PULL_HOLD__ = (on) => { pullHeld = on !== false; };
-      window.__DEN_PULL_NOW__ = () => { if (!lureDone) startPull(performance.now()); return !!tvPullIn; };
+      window.__DEN_PULL_NOW__ = () => { if (!lureDone && !tug) startTugs(performance.now()); return !!tug || !!tvPullIn; };
+      // Test-only: on through the build-up (ms).
+      window.__DEN_TUG_SKIP__ = (ms) => { if (tug) tug.t0 -= ms; };
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
       // Test-only: the look round's thought for a pick (true: who's messing
@@ -1699,6 +1828,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         }
         wakeFrame(now);
         lureCards(performance.now());
+        tugFrame(performance.now());
         if (den.tv.phase() === "aired" && !offAt) offAt = now + 650;
         if (offAt && now >= offAt) {
           offAt = 0;
@@ -1730,8 +1860,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
             }
             // (His yell, for the pull, fetched as the set acts up.)
             loadYell();
-            // The pull (above), once it's due.
-            if (blasted && !tvPullIn && !pullHeld && now >= (pullSoon || pullBase + (lureFix ? PULL_FIXED : PULL_LATE))) startPull(now);
+            // The pull (above), once it's due: its build-up first (startTugs).
+            if (blasted && !tvPullIn && !tug && !pullHeld && now >= (pullSoon || pullBase + (lureFix ? PULL_FIXED : PULL_LATE))) startTugs(now);
             // (After the blast, it's never quite settled again.)
             const level = Math.max(Math.min(1, waited / LURE_RAMP), blasted ? 0.85 : 0);
             den.tv.haunt(now, lureLook ? Math.max(level, 0.55) : level, (kind, strength) => { lureEvents++; lastHaunt = kind; if (audio && audio.tvHaunt) audio.tvHaunt(kind, strength); }, lureLook);
@@ -1753,7 +1883,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
             if (waited >= 0) pull = Math.max(0.4, Math.min(1, waited / LURE_RAMP));
             if (lureLook) pull = 1;
           }
-          if (den.tv.isOn()) pull = 1;
+          if (den.tv.isOn() || tug) pull = 1;
           if (audio && audio.setTvPull) audio.setTvPull(pull);
         }
         tvDive = den.tv.animate(now, dt);
@@ -1779,7 +1909,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         lookListeners(t);
         holdListeners();
         showBookHint(bookGoal === 1 && bookW > 0.6);
-        const visiting = tvGoal > 0 || tvW > 0.02 || bookGoal > 0 || bookW > 0.02 || phoneGoal > 0 || phoneW > 0.02 || !!(hall && hall.active());
+        const visiting = tvGoal > 0 || tvW > 0.02 || bookGoal > 0 || bookW > 0.02 || phoneGoal > 0 || phoneW > 0.02 || !!(hall && hall.active()) || !!tug;
         if (visiting !== onStage && typeof document !== "undefined") { onStage = visiting; document.documentElement.classList.toggle("ec-tv-visit", visiting); }
         const ph = den.tv.phase();
         if (ph !== tvPhase) {
@@ -1990,6 +2120,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (okayCard) { okayCard.el.remove(); okayCard = null; }
         wake = null; houseAt = 0; pushAt = 0; adWait = false;
         endPull();
+        endTugs();
+        if (debris) { debris.dispose(); debris = null; }
         glance = null; lureFix = false; lureLock(false); restOff(); offJourney(); huhAt = 0; bangAt = 0;
         if (huhCard) { huhCard.el.remove(); huhCard = null; }
         if (bangCard) { bangCard.el.remove(); bangCard = null; }
@@ -2045,6 +2177,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     api.render = () => !!(ending && ending.covering && ending.covering());
     api.cameraOverride = (camera, dtMs) => {
       const placed = api.placeCamera(camera, dtMs);
+      tugCamera(camera);
       hearTv(camera);
       return placed;
     };

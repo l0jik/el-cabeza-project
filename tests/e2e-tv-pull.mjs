@@ -4,13 +4,19 @@
    sort, where they're being like, they get stretched out, and just shows
    them the camera moving to where toward the television, that they're
    getting sucked into it"): den-fx.js PULL_*. Left alone after the blast
-   (the head held on the set, never tapped), 9 s on it takes them: the set
-   on into its dive, the den's input held, the camera rushing from where
-   it is into the glass (slow, then all at once), the lens widening, the
-   picture drawn out toward the set with streaks of light (den-pull), then
-   Nova's transition into Futuris. Looked at and left (back to the table),
-   it waits longer (20 s from then). From disk there's no recording, so
-   the yell reads "none" here; over http it's the hall's shout.
+   (the head held on the set, never tapped), 9 s on it takes them; looked
+   at and left (back to the table), it waits longer (20 s from then).
+   Then the build-up first (user: "it happens way too abruptly"; chose
+   "Combine 1 & 2", den-tug.js): a tug at the view, snapping back, the
+   papers on the coffee table shivering toward the set; "Did the TV
+   just… pull me?"; a harder tug, the papers flying into the glass;
+   "Uh-oh…"; the third that doesn't let go, the records and the newspaper
+   going, the view dragged across the room; nothing taking a tap, the
+   set's included. Then the rush: the set on into its dive, the camera
+   rushing into the glass (slow, then all at once), the lens widening,
+   the picture drawn out toward the set with streaks of light (den-pull),
+   Nova's transition into Futuris. From disk there's no recording, so the
+   yell reads "none" here; over http it's the hall's shout.
 
    node tests/e2e-tv-pull.mjs */
 import { chromium } from "playwright";
@@ -45,14 +51,15 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
   check(`...the pull due about 9 s after it (${due} ms)`, due > 6000 && due <= 9000, JSON.stringify(await tv()));
   // (Each frame of what's coming, logged in the page: it's quick.)
   await page.evaluate(() => {
-    window.__PULL_LOG__ = [];
+    window.__PULL_LOG__ = []; window.__TUG_LOG__ = [];
     const tick = () => {
       const f = window.__DEN_TV__;
       if (f) {
         const t = f();
+        if (t.tug && !t.pull) window.__TUG_LOG__.push({ s: t.tug.s, lurch: +t.tug.lurch.toFixed(3), shake: +t.tug.shake.toFixed(3), dist: t.glassDist, phase: t.phase, lock: t.lock, debris: t.tug.debris.map((d) => `${d.id}:${d.phase}`).join(" "), think: !!document.querySelector('[data-testid="den-tug-think"]:not(.off)'), uhoh: !!document.querySelector('[data-testid="den-uhoh"]:not(.off)') });
         if (t.pull) {
           const c = document.querySelector("canvas"), el = document.querySelector('[data-testid="den-pull"]');
-          window.__PULL_LOG__.push({ s: t.pull.s, focus: +t.focus.toFixed(3), dive: +t.dive.toFixed(3), fov: t.pull.fov, fov0: t.pull.fov0, transform: c ? c.style.transform : "", streaks: el ? Number(el.style.opacity) : null, phase: t.phase, lock: t.lock, yell: t.pull.yell });
+          window.__PULL_LOG__.push({ s: t.pull.s, focus: +t.focus.toFixed(3), dive: +t.dive.toFixed(3), fov: t.pull.fov, fov0: t.pull.fov0, transform: c ? c.style.transform : "", streaks: el ? Number(el.style.opacity) : null, phase: t.phase, lock: t.lock, yell: t.pull.yell, tugged: t.tug ? t.tug.s : null });
         }
       }
       if (window.__DEN_TV__ || !window.__PULL_LOG__.length) requestAnimationFrame(tick);
@@ -61,11 +68,42 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
   });
   // Not yet a little before.
   await page.waitForTimeout(Math.max(0, due - 1500));
-  check("...nothing yet a moment before", (await tv()).pull === null && (await tv()).phase === "off");
-  check("...into Futuris", !!(await poll(() => futuris(page), 30000)));
+  check("...nothing yet a moment before", (await tv()).pull === null && (await tv()).tug === null && (await tv()).phase === "off");
+  // The build-up: the first tug.
+  const start = await poll(async () => { const t = await tv(); return t && t.tug ? t : null; }, 6000, 50);
+  check("it starts: the build-up, the set still off, nothing taking a tap", !!start && start.phase === "off" && start.lock === true, JSON.stringify(start));
+  check(`...everything still in the room (${start && start.tug.debris.length} things)`, !!start && start.tug.debris.length >= 5 && start.tug.debris.every((d) => d.phase === "rest" || d.phase === "rustle"), JSON.stringify(start && start.tug.debris));
+  // ...and a tap on the set does nothing now.
+  await page.waitForTimeout(1800);
+  const at = await page.evaluate(() => window.__DEN_TV_AT__());
+  if (at) await page.mouse.click(at.x, at.y);
+  await page.waitForTimeout(600);
+  const tapped = await tv();
+  check("...a tap on the set meanwhile: nothing (it stays off, no watching)", tapped.phase === "off" && !tapped.looking && !!tapped.tug, JSON.stringify({ phase: tapped.phase, looking: tapped.looking, at }));
+  check("...into Futuris", !!(await poll(() => futuris(page), 40000)));
   const samples = await page.evaluate(() => window.__PULL_LOG__);
+  const tugs = await page.evaluate(() => window.__TUG_LOG__);
+  const near = (a, b) => tugs.filter((x) => x.s >= a && x.s <= b);
+  const d0 = (near(0, 60)[0] || {}).dist;
+  const t1 = near(60, 260), back1 = near(1100, 1500);
+  check(`the first tug: the view lurches at the set (${d0} -> ${t1.length ? Math.min(...t1.map((x) => x.dist)) : "?"})...`, !!d0 && t1.length > 0 && Math.min(...t1.map((x) => x.dist)) < d0 * 0.95, JSON.stringify(tugs.slice(0, 8)));
+  check(`...and snaps back (${back1.length ? back1[back1.length - 1].dist : "?"})`, back1.length > 0 && Math.abs(back1[back1.length - 1].dist - d0) < d0 * 0.025, JSON.stringify(back1.slice(-2)));
+  check("...the papers shiver toward it", near(0, 900).some((x) => /score-a:rustle/.test(x.debris)));
+  const thought = near(1500, 4100);
+  check(`the thought: "Did the TV just… pull me?" (${thought.filter((x) => x.think).length} frames)`, thought.length > 0 && thought.every((x) => x.think), JSON.stringify(thought.slice(0, 2)));
+  const t2 = near(4260, 4520);
+  check(`the second tug, harder (${t2.length ? Math.min(...t2.map((x) => x.dist)) : "?"} of ${d0})`, t2.length > 0 && Math.min(...t2.map((x) => x.dist)) < d0 * 0.9, JSON.stringify(t2.slice(0, 4)));
+  check("...the thought cut short by it", near(5000, 6300).every((x) => !x.think));
+  const after2 = near(6300, 6800);
+  check("...and the papers gone into the set (both score sheets and the circular)", after2.length > 0 && after2.every((x) => /score-a:in/.test(x.debris) && /score-b:in/.test(x.debris) && /circular:in/.test(x.debris)), JSON.stringify(after2[0]));
+  check("...the records and the paper not yet", after2.length > 0 && after2.every((x) => !/sleeve-console:in|sleeve-floor:in|newspaper:in/.test(x.debris)), JSON.stringify(after2[0]));
+  check(`"Uh-oh…"`, near(6600, 9300).length > 0 && near(6600, 9300).every((x) => x.uhoh));
+  const drag = near(9200, 9600);
+  check(`the third doesn't let go: dragged toward the set (${drag.length ? Math.min(...drag.map((x) => x.dist)) : "?"} of ${d0}), shaking`, drag.length > 0 && Math.min(...drag.map((x) => x.dist)) < d0 * 0.75 && Math.max(...drag.map((x) => x.shake)) > 0.7, JSON.stringify(drag.slice(-3)));
+  check("...the records and the newspaper gone in too, before the rush", drag.length > 0 && /sleeve-console:in/.test(drag[drag.length - 1].debris) && /sleeve-floor:in/.test(drag[drag.length - 1].debris) && /newspaper:in/.test(drag[drag.length - 1].debris), JSON.stringify(drag[drag.length - 1]));
+  check("...the set off and nothing taking a tap all through it", tugs.length > 0 && tugs.every((x) => x.phase === "off" && x.lock === true));
   const first = samples[0];
-  check(`left alone: the set took them, nothing else answering (${JSON.stringify(first)})`, !!first && first.phase === "dive" && first.lock === true);
+  check(`then the rush: the set took them, nothing else answering (${JSON.stringify(first)})`, !!first && first.phase === "dive" && first.lock === true && first.tugged >= 9400);
   // The rush: slow at first, then all at once; the lens widening; the
   // picture drawn out toward the set.
   const early = samples.filter((x) => x.s < 450), late = samples.filter((x) => x.s > 1000);
@@ -96,9 +134,10 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
   check("...a tap off the set: back to the table", !!(await poll(async () => { const t = await tv(); return !t.looking && t.goal === 0; }, 4000, 100)));
   const due = (await tv()).pullIn;
   check(`...the pull due about 20 s from going back (${due} ms)`, due > 17000 && due <= 20000, JSON.stringify(await tv()));
-  // (On to it, then: as it comes, from the table.)
+  // (On to it, then: as it comes, from the table, the build-up first.)
   await page.evaluate(() => window.__DEN_PULL_NOW__());
-  check("...and then from the table, into the set", !!(await poll(async () => { const t = await tv(); return t && t.pull && t.phase === "dive"; }, 3000, 50)));
+  check("...then from the table: the build-up", !!(await poll(async () => { const t = await tv(); return t && t.tug && !t.pull; }, 2000, 50)));
+  check("...and into the set", !!(await poll(async () => { const t = await tv(); return t && t.pull && t.phase === "dive"; }, 14000, 50)));
   check("...into Futuris", !!(await poll(() => futuris(page), 30000)));
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();

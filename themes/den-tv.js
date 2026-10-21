@@ -528,6 +528,8 @@ export function buildTelevision(yF, RZ, X = -40) {
   // den-commercial.js), shown for at least one rendered frame.
   let flashTex = null, flashUntil = 0, flashShown = true;
   let nextHaunt = 0, pilotStutter = 0, knobWiggle = 0, surgeLight = 0;
+  // (A flash as something goes into the dead tube: the pull's build-up.)
+  let kickAt = 0, kickAmt = 0;
   let blastAt = 0, blastPin = null; // (the blast's start, once; a test can hold it at a moment)
   const BLAST_MS = 5600;
   // The blast's shape at time now: the cone (0..1), its reach (0..1), and
@@ -717,6 +719,16 @@ export function buildTelevision(yF, RZ, X = -40) {
     },
     // Something soon (the camera's just come over to look).
     hauntSoon(now, ms = 600) { if (!nextHaunt || nextHaunt > now + ms) nextHaunt = now + ms; },
+    /* The pull's build-up (den-fx.js, den-tug.js): one of the dead tube's
+       own events now, as a tug lands ("thump", or a "surge" held `dur`
+       ms while the player's dragged); and a flash (kick) as each thing
+       the set takes goes in at the glass. */
+    jolt(now, kind, strength = 1, dur = 0) {
+      if (phase !== "off") return false;
+      haunt = { kind, at: now, dur: dur || (kind === "thump" ? 380 : kind === "surge" ? 1650 : 600), strength, tex: ghostTexs[0] };
+      return true;
+    },
+    kick(now, amt = 1) { kickAt = now; kickAmt = amt; },
     // How far into the commercial (ms), or null if it isn't on.
     commercialAt: (now) => (phase === "commercial" ? Math.max(0, since(now)) : null),
     // Each frame: the knob, the pilot light and the picture. Returns the
@@ -811,6 +823,12 @@ export function buildTelevision(yF, RZ, X = -40) {
             surgeLight = 1.8 * up * up * h.strength * (k < 0.9 ? 1 : (1 - k) * 10);
           }
         }
+      }
+      // Something gone in at the glass: a flash of snow and light.
+      if (phase === "off" && kickAt && now - kickAt < 260) {
+        const kk = 1 - (now - kickAt) / 260;
+        raster = 1; snow = Math.max(snow, 0.9); glow = Math.max(glow, 1.15 * kickAmt * kk); tear = Math.max(tear, 0.55 * kk);
+        surgeLight = Math.max(surgeLight, 1.4 * kickAmt * kk);
       }
       // The blast: the tube flaring to a glare, the cone of light pouring
       // out of it, the room flooded; then fading back.

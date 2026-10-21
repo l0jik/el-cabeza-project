@@ -1338,7 +1338,10 @@ function buildConsole(yF, RZ) {
     g.fillStyle = "#FBE7C0"; g.font = `700 ${Math.round(W * 0.1)}px 'Bodoni Moda', Georgia, serif`; g.textAlign = "center"; g.fillText("Sunset Drive", W / 2, W * 0.2);
   }, { scale: false });
   disposables.push(sleeveTex);
-  add(new THREE.BoxGeometry(6.3, 0.1, 6.3).rotateY(0.08).translate(27.6, TOP + 0.05, CZ - 0.2), [black, black, lit({ map: sleeveTex, roughness: 0.6 }), black, black, black]);
+  // (Placed by its own position, not its geometry's: the set can take it,
+  // den-tug.js.)
+  const sleeve = add(new THREE.BoxGeometry(6.3, 0.1, 6.3), [black, black, lit({ map: sleeveTex, roughness: 0.6 }), black, black, black]);
+  sleeve.position.set(27.6, TOP + 0.05, CZ - 0.2); sleeve.rotation.y = 0.08;
 
   // The console's lamp, lighting it from the east end.
   const lamp = new THREE.PointLight(0xffc27a, 1.15, 62, 2);
@@ -1374,6 +1377,8 @@ function buildConsole(yF, RZ) {
   return {
     group,
     pickables,
+    // The sleeve of the record that's on, lying on top (den-tug.js).
+    sleeve,
     // Where the camera goes to look (den-local): in front of the console,
     // up above the pit's south sofa, the speakers either side in view.
     focus: { target: new THREE.Vector3(CX, yF + 11, CZ), eye: new THREE.Vector3(CX, yF + 27, CZ - 58) },

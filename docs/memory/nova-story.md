@@ -240,4 +240,34 @@ in; leaving Singularity, back in the den as the set switches off.
   the second harder, a thought between), then the third drags you across
   the room and in (recommended); 2 the room goes first (loose things
   pulled in, then you); 3 one long slow drag that gathers speed; 4 the
-  same pull slowed to ~4 s. Waiting on the pick.
+  same pull slowed to ~4 s. Picked (user): "Combine 1 & 2 for TV pull."
+  Built (themes/den-tug.js, den-fx.js startTugs / tugFrame / tugCamera):
+  when the pull's due (same PULL_FIXED / PULL_LATE clocks) the build-up
+  runs first, 9.5 s, then the rush as before. TUG (ms): 0 the first tug
+  (the view lurches 9% of the way to the glass and springs back past
+  where it was; a "thump" on the tube; audio tvHaunt "tug"; the papers
+  on the coffee table shiver and slide toward the set); 1400 the card
+  "Did the TV just… pull me?" (den-tug-think); 4200 the second (17%, a
+  900 ms surge), the two score sheets and the Big Glutts circular lift
+  off one after another and fly into the glass (a flash on the tube as
+  each goes in, den-tv.js kick), the thought cut short; 6400 "Uh-oh…"
+  (den-uhoh); 6900 the third, which doesn't let go: the console's sleeve
+  (den-room.js buildConsole now places it by its own position and hands
+  it out as stereo.sleeve), the newspaper on the pit floor and the
+  "Moonlight Lounge" sleeve on the floor by the console go in, the view
+  dragged to 42% of the way, catching twice (u 0.36, 0.7), shaking harder
+  (audio "drag": a rising rumble and throb, scrapes; the music dragged
+  down, den-audio.js musicGlitch); 9500 startPull(now, { keepHead }), the
+  rush taking the camera from there (what's left of the lurch eases off
+  as tvW rises; the head's held look kept so the rush starts from it).
+  The camera's part runs in cameraOverride after placeCamera (tugAt:
+  lurch toward den.tv.dive.target, never nearer than 6 units, the look
+  kept, a 6-11 Hz shake mostly in the look). From the first tug nothing
+  takes a tap, the set's included (onLock, onLockKey, pressTv), the head
+  is yanked to the set if it wasn't on it (a 520 ms glance fix), the
+  music stays pulled, the title and dock step aside (ec-tv-visit). The
+  loose things exist only while the set lures (created with the room
+  when `lure`), are put back if Nova can't go (held 8 s, then let go and
+  the lure resumes), and go with the den. Hooks: __DEN_TV__().tug {s,
+  lurch, shake, debris}, glassDist; __DEN_PULL_NOW__ starts the build-up;
+  __DEN_TUG_SKIP__(ms). tests/e2e-tv-pull.mjs checks each beat.
