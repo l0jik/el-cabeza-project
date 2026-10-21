@@ -180,6 +180,12 @@ console.log("Futuris, desktop: the setup's switch, the warning, its own switch, 
   check("...and no chip while it's up", (await recall().count()) === 0);
   await page.mouse.click(60, 400);
   check("...put away again: the chip again", !!(await poll(async () => (await card(page).count()) === 0 && (await recall().count()) === 1)));
+  // The den's phone ringing (user, of the chip still up through the trip and after: "If this happens during a game,
+  // before the phone rings, it needs to be stopped or turned off"): el-cabeza:check-quiet puts it away for good.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent("el-cabeza:check-quiet")));
+  check("the phone rings: the chip goes", !!(await poll(async () => (await recall().count()) === 0)));
+  await page.waitForTimeout(800);
+  check("...and nothing comes back for that threat (no card, no chip), the alert still on", (await card(page).count()) === 0 && (await recall().count()) === 0 && (await stored(page)) === "1" && !!(await reading(page)));
   // A step north takes it out of reach: the warning goes.
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "N"));
   check("your Cabeza steps out of reach: the warning goes", !!(await poll(async () => (await card(page).count()) === 0 && !(await reading(page)))));
@@ -212,6 +218,12 @@ console.log("Futuris, desktop: the setup's switch, the warning, its own switch, 
   // the card back though it was swiped away before.)
   await setPieces(page, VIDEO(false));
   check("the same threat back after it had gone: the card again", !!(await poll(async () => (await card(page).count()) === 1)));
+  // The phone ringing with the card up: the card goes, and no chip.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent("el-cabeza:check-quiet")));
+  check("the phone rings with the card up: the card goes, no chip", !!(await poll(async () => (await card(page).count()) === 0)) && (await recall().count()) === 0 && (await marks(page)) === 0);
+  await setPieces(page, VIDEO(true));
+  await setPieces(page, VIDEO(false));
+  check("...that threat gone and back: news again, the card", !!(await poll(async () => (await card(page).count()) === 1)));
   await page.locator('[data-testid="check-alert-off"]').click();
   check("the card's own switch turns it off", !!(await poll(async () => (await card(page).count()) === 0)) && (await stored(page)) === "0" && !(await reading(page)));
   check("...saying where to turn it back on", /Turn it back on in the menu/.test((await page.locator('[data-testid="check-alert-note"]').textContent().catch(() => "")) || ""));

@@ -280,3 +280,21 @@ in; leaving Singularity, back in the den as the set switches off.
   first frame 19 ms in, already lurching, and the 5% and 2.5% checks
   missed by a hair, run 39552534043; the lurch is looked for over 0-400
   ms at 3%, so a frame every 200 ms still sees it.)
+
+- **The check alert stops for the phone** (2026-10-21; user, a phone
+  screenshot of the den after the trip, the CHECK / SHOW AGAIN chip
+  circled: "showed up both, like right before I left to go get the pieces
+  from the abandoned Big Gluts store, and then also when it came back, it
+  was still there. If this happens during a game, before the phone
+  rings, it needs to be stopped or turned off"). den-call.js sends
+  `el-cabeza:check-quiet` as the phone starts ringing and again as it's
+  answered; the chassis (checkQuiet) puts the alert standing then away
+  for good, card and marks and chip (it's dismissed, and the chip isn't
+  offered for that threat); another threat, or the next turn's, is news
+  again; not while the turn's held (its card is the way on). Through the
+  call and its "Free pieces?!" card the page is flagged html.ec-den-call,
+  which hides any check card or chip (one could come up if the computer
+  moved meanwhile); the trip hides its own as before. Tests:
+  e2e-check-alert (the chip goes and nothing comes back for that threat;
+  with the card up, the card goes and no chip; the threat gone and back,
+  the card again).

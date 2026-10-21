@@ -98,6 +98,16 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
   const hold = (on) => { if (held === on) return; held = on; if (audio && audio.holdForPhone) audio.holdForPhone(on); };
   const later = (ms, fn) => { timers.push(setTimeout(fn, ms)); };
   const doc = typeof document !== "undefined" ? document : null;
+  /* The game's check alert put away for the phone (user, of its "Show
+     again" chip still up through the trip and after: "If this happens
+     during a game, before the phone rings, it needs to be stopped or
+     turned off"): as it rings, and again as it's answered, the alert
+     standing then goes for good (the chassis hears el-cabeza:check-
+     quiet); through the call and its card the page is flagged
+     (html.ec-den-call), so none comes up over them; the trip hides its
+     own. */
+  const quietCheck = () => { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("el-cabeza:check-quiet")); };
+  const onCall = (on) => { if (doc) doc.documentElement.classList.toggle("ec-den-call", on); };
 
   function style() {
     if (styleEl || !doc) return;
@@ -434,6 +444,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
   }
   function startRinging(now) {
     stage = "ringing"; ringStart = now; ringsDone = 0;
+    quietCheck();
     showBox("ringing");
   }
   // "Free pieces?! Nice!... Thank you, Big Glutts!" (user).
@@ -445,15 +456,16 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     if (!doc || yayCard) return;
     const c = dealCard(doc, { testid: "den-yay", l1: "Free pieces?! Nice!\u2026", l2: "Thank you, Big Glutts!", loud: true });
     yayCard = c;
-    later(YAY_MS, () => { c.remove(700); if (onTrip) onTrip(); later(800, () => { if (yayCard === c) yayCard = null; }); });
+    later(YAY_MS, () => { c.remove(700); onCall(false); if (onTrip) onTrip(); later(800, () => { if (yayCard === c) yayCard = null; }); });
   }
   function answer() {
     if (stage !== "ringing") return false;
     stopRinging();
     stage = "call";
+    quietCheck(); onCall(true);
     hs = { mode: "lift", t0: performance.now() };
     const o = output();
-    if (!o) { stage = "done"; hideBox(); if (onPhoneDone) onPhoneDone(); return true; }
+    if (!o) { stage = "done"; onCall(false); hideBox(); if (onPhoneDone) onPhoneDone(); return true; }
     hold(true);
     const { ctx } = o;
     let t = ctx.currentTime + 0.05;
@@ -634,6 +646,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     answer,
     dispose() {
       timers.forEach(clearTimeout); timers = [];
+      onCall(false);
       if (yayCard) { yayCard.el.remove(); yayCard = null; }
       clearTimeout(ringElStop);
       if (ringEl) { try { ringEl.pause(); ringEl.removeAttribute("src"); } catch (e) { /* fine */ } }

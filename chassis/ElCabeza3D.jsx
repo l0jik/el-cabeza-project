@@ -3160,6 +3160,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const checkCardRef = useRef(null);
   const checkKeyRef = useRef("");
   checkKeyRef.current = checkKey;
+  /* Quieted (user, of the "Show again" chip still up after the trip back
+     to Big Glutts: "If this happens during a game, before the phone
+     rings, it needs to be stopped or turned off"): a story's interruption
+     (el-cabeza:check-quiet, the den's phone ringing and answered) puts the
+     alert standing then away for good, card and chip; another threat, or
+     the next turn's, is news again. Not while the turn's held (its card is
+     the way on). */
+  const [checkQuiet, setCheckQuiet] = useState("");
+  useEffect(() => {
+    const onQuiet = () => { const key = checkKeyRef.current; if (!key || checkHoldRef.current) return; setCheckDismissed(key); setCheckQuiet(key); };
+    window.addEventListener("el-cabeza:check-quiet", onQuiet);
+    return () => window.removeEventListener("el-cabeza:check-quiet", onQuiet);
+  }, []);
+  useEffect(() => { if (!checkThreats && checkQuiet) setCheckQuiet(""); }, [checkThreats, checkQuiet]);
   // The card goes the way it's sent (a swipe), or up and out (a tap elsewhere), then it's dismissed.
   const dismissCheck = (dx = 0, dy = -40) => {
     const el = checkCardRef.current, key = checkKeyRef.current;
@@ -11385,7 +11399,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
 html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
 html.ec-hall-scene :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
-body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]) {
+body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
+html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-recall"]) {
   opacity: 0 !important; pointer-events: none !important; transition: opacity 0.4s ease !important;
 }`}</style>
       {!shell && showPoints && !awaitingBegin && (isPlaying || pointsFinal) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle") && (() => {
@@ -12132,7 +12147,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           there needs to be a way to call it back"): a chip where the card
           was, while the same threat stands this turn; a tap brings the card
           back, marks and all. It goes with the danger, or the turn. */}
-      {checkThreats && checkHidden && (
+      {checkThreats && checkHidden && checkKey !== checkQuiet && (
         <button
           type="button"
           data-testid="check-alert-recall"
