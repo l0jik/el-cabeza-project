@@ -301,7 +301,7 @@ export const dockWords = {
 };
 
 export const styleSheet = `
-  @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700;6..96,800&family=Libre+Franklin:wght@400;500;600;700;800;900&family=Courier+Prime:wght@400;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700;6..96,800&family=Libre+Franklin:wght@400;500;600;700;800;900&family=Courier+Prime:wght@400;700&family=Caprasimo&display=swap');
   html, body { overscroll-behavior: none; background: #1a140f; }
   [style*="IBM Plex Mono"] { font-family: 'Courier Prime', 'Courier New', Courier, monospace !important; }
   [style*="IBM Plex Sans"] { font-family: 'Libre Franklin', 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif !important; }

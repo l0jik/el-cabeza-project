@@ -29,7 +29,8 @@ import { quality } from "./tienda-quality.js";
 import { createGovernor } from "../chassis/device-fit.js";
 import { ensurePaper, ensureNewsprint } from "./tienda-textures.js";
 
-const FONT_FACES = ["800 40px 'Libre Franklin'", "900 40px 'Libre Franklin'", "700 40px 'Libre Franklin'", "600 40px 'Libre Franklin'", "700 40px 'Courier Prime'", "400 40px 'Courier Prime'", "700 40px 'Bodoni Moda'", "italic 700 40px 'Libre Franklin'"];
+// (Caprasimo: the logo's face, on the mural over the way out.)
+const FONT_FACES = ["800 40px 'Libre Franklin'", "900 40px 'Libre Franklin'", "700 40px 'Libre Franklin'", "600 40px 'Libre Franklin'", "700 40px 'Courier Prime'", "400 40px 'Courier Prime'", "700 40px 'Bodoni Moda'", "italic 700 40px 'Libre Franklin'", "400 40px 'Caprasimo'"];
 
 export const TRY_IT_EVENT = "el-cabeza:tienda-try-it";
 
@@ -216,6 +217,18 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, awaiting
       .catch(() => { /* fall back to what's painted */ });
     // In case a font never answers, repaint once anyway after a while.
     setTimeout(() => { if (!fontsDone && store) { store.repaintSigns(); if (table) table.repaint(); } }, Math.max(0, 4000 - (performance.now() - t0)));
+    // A face whose stylesheet came in after the first asking (the theme's
+    // own @import, the logo's face on the mural over the way out): asked
+    // for again a little later, and the lettering painted again if more
+    // faces have come since.
+    const loaded = () => { let n = 0; document.fonts.forEach((f) => { if (f.status === "loaded") n++; }); return n; };
+    let had = loaded();
+    [2500, 6000, 12000].forEach((ms) => setTimeout(() => {
+      Promise.all(FONT_FACES.map((f) => document.fonts.load(f).catch(() => null))).then(() => {
+        const n = loaded();
+        if (n > had && store) { had = n; store.repaintSigns(); if (table) table.repaint(); }
+      });
+    }, ms));
   }
 
   /* ---- device fit: pixel ratio, shadows, the frame-rate governor ---- */

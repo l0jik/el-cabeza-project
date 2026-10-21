@@ -413,6 +413,43 @@ export function saleCard(top, price, note, color = "#A33F33") {
   };
 }
 
+/* Big Glutts' mural over the way out (user: "a Big Glutts themed in-store
+   exit mural on the wall 'Thank you for shopping at Big Glutts!'", in
+   place of a THANK YOU — PLEASE COME AGAIN sign): the store's four stripes
+   coming up from each EXIT sign and over the top, as the decade painted
+   them round a doorway, brown outside and mustard in, on a cream field;
+   "Thank you for shopping at" in the circular's italic, and the name in
+   the logo's face with its gold shadow (the flyer's, the notice's).
+   Painted on the front wall (tienda-store.js): X(x) and H(h) are wall
+   units to pixels, h the height above the floor; u pixels per unit. */
+export const LOGO_FONT = "'Caprasimo', 'Cooper Black', Georgia, serif";
+export function exitMural(g, X, H, u) {
+  const STRIPES = ["#6B3A1E", "#B4451F", "#E07B22", "#E9B23A"];
+  const t = 1.6, gap = 0.45, B = 4 * t + 3 * gap; // a stripe, the space between, the band
+  // The band's outer edges: over the middle of each EXIT (x ±70), just
+  // under the ceiling; down to the windows' head; the outer corner's radius.
+  const half = 70 + B / 2, top = 81.3, low = 50, R = 10;
+  const fx = half - B, ft = top - B, fr = (R - B) * u;
+  g.fillStyle = "#EFE4CB";
+  g.beginPath();
+  g.moveTo(X(-fx), H(low)); g.arcTo(X(-fx), H(ft), X(fx), H(ft), fr); g.arcTo(X(fx), H(ft), X(fx), H(low), fr); g.lineTo(X(fx), H(low));
+  g.closePath(); g.fill();
+  const r = rng(75);
+  for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(${r() < 0.5 ? "255,250,235" : "90,75,55"},0.03)`; g.fillRect(X(-fx + r() * fx * 2), H(low + r() * (ft - low)), (4 + r() * 24) * u, (1 + r() * 6) * u); }
+  g.lineWidth = t * u; g.lineCap = "butt"; g.lineJoin = "round";
+  STRIPES.forEach((c, i) => {
+    const d = i * (t + gap) + t / 2, x = half - d, y = top - d, rr = (R - d) * u;
+    g.strokeStyle = c;
+    g.beginPath();
+    g.moveTo(X(-x), H(low)); g.arcTo(X(-x), H(y), X(x), H(y), rr); g.arcTo(X(x), H(y), X(x), H(low), rr); g.lineTo(X(x), H(low));
+    g.stroke();
+  });
+  text(g, "Thank you for shopping at", X(0), H(70.6), { font: SIGN_FONT, size: 4.8 * u, weight: 800, italic: true, color: "#B4451F", spacing: 0.02, maxWidth: (fx * 2 - 16) * u });
+  const logo = { font: LOGO_FONT, size: 15 * u, weight: 400, baseline: "alphabetic", maxWidth: (fx * 2 - 12) * u };
+  text(g, "Big Glutts!", X(0) + 0.5 * u, H(56.2) + 0.5 * u, { ...logo, color: "#E9B23A" });
+  text(g, "Big Glutts!", X(0), H(56.2), { ...logo, color: "#6B3A1E" });
+}
+
 /* ------------------------------------------------------------ walls */
 
 /* A wall, painted once as a long strip: drywall paint above a wainscot

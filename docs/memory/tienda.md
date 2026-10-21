@@ -309,3 +309,19 @@ box art and an ad standee (assets/tienda/*.jpg).
   id>-hq.mp3, reachable only through the web-fetch agent (this machine
   gets 403); Pixabay, Wikimedia Commons and the Internet Archive weren't
   reachable.
+- **The mural over the way out** (2026-10-21; user: "Instead of 'Thank
+  you - Please Come Again' There should be a Big Glutts themed in-store
+  exit mural on the wall 'Thank you for shopping at Big Glutts!'"): the
+  front wall's THANK YOU — PLEASE COME AGAIN sign (an atlas sign) is gone;
+  painted on the front wall's own texture instead (tienda-textures.js
+  exitMural, called from tienda-store.js frontWall extras): the four
+  stripes (brown outside, mustard in) coming up from each EXIT sign (x ±70)
+  and over the top just under the ceiling, rounded corners, on a cream
+  field; "Thank you for shopping at" in Libre Franklin 800 italic, rust;
+  "Big Glutts!" in Caprasimo (the logo's face), brown with the gold
+  shadow. Caprasimo is in the store's @import (tienda.js styleSheet) and
+  FONT_FACES (tienda-fx.js); since the theme's @import can land after the
+  first asking, the faces are asked for again at 2.5, 6 and 12 s and the
+  lettering repainted if more faces have loaded. The receipt's THANK YOU
+  PLEASE COME AGAIN and the store slip's THANK YOU — COME AGAIN are as
+  they were.

@@ -29,7 +29,7 @@ import { quality } from "./tienda-quality.js";
 import {
   rng, canvasTexture, repaint, floorTile, ceilingTile, troffer, glowSpot, shadowBlob, shadowStrip,
   boxAtlas, GAME_TILES, HOUSEWARE_TILES, shelfFace, shelfTop, signAtlas, deptSign, aisleSign, saleCard,
-  wallTexture, lidPainter, tentCard, formicaWalnut, paintClock, paintTv, paintNight, text, SIGN_FONT, TYPE_FONT, SERIF,
+  wallTexture, lidPainter, tentCard, formicaWalnut, paintClock, paintTv, paintNight, text, SIGN_FONT, TYPE_FONT, SERIF, exitMural,
 } from "./tienda-textures.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
 import adUrl from "../assets/tienda/ad-couple.jpg";
@@ -391,7 +391,6 @@ export function buildStore() {
   }));
   const exitIdx = S(128, 48, (g, w, h) => { g.fillStyle = "#2A2420"; g.fillRect(0, 0, w, h); text(g, "EXIT", w / 2, h * 0.55, { font: SIGN_FONT, size: h * 0.7, weight: 800, color: "#E0483A", spacing: 0.12 }); });
   const svcIdx = S(512, 96, deptSign("CUSTOMER SERVICE", "LAYAWAY · CREDIT · RETURNS", "#5A3E2B", "#E9C46A"));
-  const thanksIdx = S(512, 64, (g, w, h) => { g.fillStyle = "#EFE8D6"; g.fillRect(0, 0, w, h); text(g, "THANK YOU — PLEASE COME AGAIN", w / 2, h * 0.55, { font: SIGN_FONT, size: h * 0.5, weight: 800, color: "#3B2618", spacing: 0.08, maxWidth: w * 0.94 }); });
   const hoursIdx = S(192, 160, (g, w, h) => {
     g.fillStyle = "#F4EEDC"; g.fillRect(0, 0, w, h);
     text(g, "STORE HOURS", w / 2, h * 0.14, { font: SIGN_FONT, size: h * 0.12, weight: 800, color: "#3B2618", spacing: 0.1 });
@@ -496,6 +495,8 @@ export function buildStore() {
         g.fillStyle = "rgba(40,45,55,0.9)"; g.fillRect(X(x - 18), Y(FLOOR + 44), 36 * u, 44 * u);
         g.fillStyle = "#B8B2A4"; g.fillRect(X(x - 18), Y(FLOOR + 24), 36 * u, 1.5 * u); g.fillRect(X(x) - 0.8 * u, Y(FLOOR + 44), 1.6 * u, 44 * u);
       });
+      // Over the way out, Big Glutts' mural (tienda-textures.js exitMural).
+      exitMural(g, X, (h) => Y(FLOOR + h), u);
     },
   });
   const sideWall = (letters, seed) => wallTexture(ZB + ZF, H, {
@@ -523,7 +524,6 @@ export function buildStore() {
   wall(westWall, ZB + ZF, -XW, (ZF - ZB) / 2, Math.PI / 2);
   disposables.push(backWall, frontWall, eastWall, westWall);
   signPlane(svcIdx, 120, 22, 0, FLOOR + 68, -ZB + 0.6, 0);
-  signPlane(thanksIdx, 120, 15, 0, FLOOR + 62, ZF - 0.6, Math.PI);
   signPlane(exitIdx, 12, 4.5, -70, FLOOR + 50, ZF - 0.8, Math.PI);
   signPlane(exitIdx, 12, 4.5, 70, FLOOR + 50, ZF - 0.8, Math.PI);
   signPlane(hoursIdx, 12, 10, -96, FLOOR + 30, ZF - 0.8, Math.PI);
