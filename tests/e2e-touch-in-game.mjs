@@ -12,6 +12,11 @@
    way wherever it begins; up and down the other way) are a mouse's
    (e2e-drag-latch).
 
+   In the store, the Room view keeps its own tilt (finger up, overhead)
+   only while it's up there: a pinch back in to the board ends it, and
+   finger up goes toward the horizon again (user's video of the store's
+   first game: "the up-down tilt seems reversed").
+
    And a drag carries on when the handlers are bound again mid-drag, as
    each step the computer takes binds them (the first drag in Parrish,
    the computer moving, stopped dead).
@@ -152,6 +157,44 @@ for (const [name, url, seed, opts = {}] of WORLDS) {
   check("begun below the middle, right: theta down all the way", steady(d.low, 0, -1), fmt(d.low, 0));
   check("finger up: toward the horizon (phi up)", steady(d.up, 1, 1), fmt(d.up, 1));
   check("finger down: toward overhead (phi down)", steady(d.down, 1, -1), fmt(d.down, 1));
+
+  if (opts.storeWays) {
+    /* The store's Room view, then back to the board with a pinch (user's
+       video of the store's first game: "the up-down tilt seems
+       reversed"): the store has no room to come back down into, and its
+       Room view stayed on, the Room view's tilt with it, at the board. */
+    const glass = page.locator('[data-testid="room-view-corner"]');
+    if (await glass.count() && await glass.isVisible()) await glass.click();
+    else {
+      await page.evaluate(() => { const b = document.querySelector('[data-testid="shell-menu"]') || document.querySelector('[data-testid="shell-menu-button"]'); if (b) b.click(); });
+      await page.waitForTimeout(500);
+      await page.locator('[data-testid="shell-menu-room"]').click();
+    }
+    await page.waitForTimeout(2500);
+    const rv = await cam();
+    check("the Room view", rv.dollhouse && rv.radius > 70, JSON.stringify({ dollhouse: rv.dollhouse, radius: rv.radius }));
+    const inRoom = await touchDrag(X, Math.round(H * 0.72), 0, -130);
+    check("...finger up there: toward overhead (the Room view's own way)", steady(inRoom, 1, -1), fmt(inRoom, 1));
+    // Two fingers spread apart, as a player comes back down.
+    const at = Date.now() / 1000, cx = W / 2, cy = Math.round(H * 0.55);
+    await client.send("Input.dispatchTouchEvent", { type: "touchStart", timestamp: at, touchPoints: [{ x: cx - 40, y: cy, id: 1 }, { x: cx + 40, y: cy, id: 2 }] });
+    for (let i = 1; i <= 10; i++) {
+      const h = 40 + 10 * i;
+      await client.send("Input.dispatchTouchEvent", { type: "touchMove", timestamp: at + i * 0.03, touchPoints: [{ x: cx - h, y: cy, id: 1 }, { x: cx + h, y: cy, id: 2 }] });
+      await page.waitForTimeout(25);
+    }
+    await client.send("Input.dispatchTouchEvent", { type: "touchEnd", timestamp: at + 0.4, touchPoints: [] });
+    await page.waitForTimeout(1200);
+    const back = await cam();
+    check("a pinch back in: the Room view over", !back.dollhouse && back.radius < 50, JSON.stringify({ dollhouse: back.dollhouse, radius: back.radius }));
+    const upAfter = await touchDrag(X, Math.round(H * 0.72), 0, -130);
+    check("...finger up: toward the horizon again (phi up)", steady(upAfter, 1, 1), fmt(upAfter, 1));
+    // A view put back with the Room view's mark on it, at the board (the
+    // walkthrough's end, Show me's way back): over at once too.
+    await cam({ dollhouse: true });
+    await page.waitForTimeout(300);
+    check("the Room view's mark put back at the board: gone by itself", !(await cam()).dollhouse);
+  }
 
   if (name === "Futuris") {
     // The handlers bound again halfway through a drag (the pieces set

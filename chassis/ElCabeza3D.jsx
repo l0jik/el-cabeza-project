@@ -6171,7 +6171,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           roomLimitRef.current = exit;
           r = cameraDistance(theta, phi, radius, target, false);
         }
-      } else roomLimitRef.current = Infinity;
+      } else {
+        roomLimitRef.current = Infinity;
+        /* A Room view with no room to come back down into (the store's):
+           over once the camera, where it's going and where it is, has
+           been brought in from it, a quarter of the way (the store's
+           opening view put it away too, tienda-fx). It stayed on in the
+           store, so back at the board every drag tilted the Room view's
+           way, and a view put back after the walkthrough or Show me
+           brought it back (user's video of the store's first game: "the
+           up-down tilt seems reversed"). */
+        const dh = theme.freeCamera && theme.freeCamera.dollhouse;
+        const near = dh ? 0.75 * dh.radius : Infinity;
+        if (cam.current.dollhouse && cam.current.radius < near && radius < near) cam.current.dollhouse = false;
+      }
       camera.position.set(target.x, target.y + r * Math.cos(phi), target.z + r * Math.sin(phi));
       camera.lookAt(target);
       boardGroup.rotation.y = -theta;

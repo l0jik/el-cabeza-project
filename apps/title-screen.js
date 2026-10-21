@@ -131,9 +131,9 @@ html.ec-splash-on { background: #120C08; }
    stage settling back as it came). */
 .ec-splash-rewind { opacity: 0; transition: opacity 0.3s ease; }
 .ec-splash-rewind.on { opacity: 1; }
-.ec-splash.menu-on.settle .ec-splash-stage { transform: none; }
-.ec-splash.leaving .ec-splash-menu > .picked { animation: ecPicked 0.55s cubic-bezier(.55, 0, .75, .2) forwards; }
-.ec-splash.leaving .ec-splash-menu > .picked .w::before, .ec-splash.leaving .ec-splash-menu > .picked .w::after { width: 96px; transition: width 0.45s ease; }
+.ec-splash.menu-on.settle .ec-splash-stage { transform: none; transition-duration: 1.6s; }
+.ec-splash.leaving .ec-splash-menu > .picked { animation: ecPicked 0.8s cubic-bezier(.55, 0, .75, .2) forwards; }
+.ec-splash.leaving .ec-splash-menu > .picked .w::before, .ec-splash.leaving .ec-splash-menu > .picked .w::after { width: 96px; transition: width 0.65s ease; }
 @keyframes ecPicked { 0% { opacity: 1; transform: none; } 55% { opacity: 1; transform: scale(1.04, 0.16); } 100% { opacity: 0; transform: scale(1.18, 0.02); } }
 @media (prefers-reduced-motion: reduce) { .ec-splash-stage, .ec-splash-menu > *, .ec-splash-video { transition: none; } .ec-splash.leaving .ec-splash-menu > .picked { animation: none; } }
 `;
@@ -168,7 +168,10 @@ html.ec-splash-on { background: #120C08; }
      maybe begin like zooms out like vertically, and then as it's doing
      that, then everything goes in reverse"): rendered from the held logo
      back to the board (tools/splash render.mjs rewind), over the picture,
-     unseen until it plays; fetched once the menu's up. */
+     unseen until it plays; fetched once the menu's up. 4.8 s, the emblem
+     coming apart at about its own speed (user, of the first, 2.75 s: "It
+     happens so fast you don't really get to see anything"); the button's
+     squeeze and the stage's settling back a little slower with it. */
   const rew = el("video", "ec-splash-video ec-splash-rewind", { muted: "", playsinline: "", "webkit-playsinline": "", preload: "none", "aria-hidden": "true", "data-testid": "title-rewind" });
   rew.muted = true;
   rew.playsInline = true;
@@ -382,7 +385,7 @@ html.ec-splash-on { background: #120C08; }
       W.setTimeout(() => { try { video.pause(); } catch (e) { /* as it is */ } }, 350);
       const tick = () => { if (!rewinding || gone) return; paint(); W.requestAnimationFrame(tick); };
       W.requestAnimationFrame(tick);
-      W.setTimeout(rewoundNow, 6000); // (a stalled playback still ends)
+      W.setTimeout(rewoundNow, 8000); // (a stalled playback still ends; it's 4.8 s)
     };
     rew.addEventListener("ended", rewoundNow, { once: true });
     try { if (rew.currentTime > 0) rew.currentTime = 0; } catch (e) { /* from where it is */ }

@@ -146,3 +146,28 @@ immediately.
   the window, then one finger turns, no pan; the den's own way: the card,
   a tap on the board, the bulb, then one finger turns). Without both
   fixes the den's way reproduced it (turned 0, slid 2.97).
+
+- **The store's Room view stuck on, its tilt with it** (2026-10-21;
+  user's phone video of the store's first game: "Am I wrong here, but in
+  the tutorial, playing the game in the tutorial, the up-down tilt seems
+  reversed"). The video: finger up rose to overhead, down sank to the
+  horizon, at the board; a finger's rule (grabLatch) is the other way,
+  except in the Room view (`cam.current.dollhouse`: "the tilt goes the
+  other way"). The flag is set by roomView() and cleared in applyCamera
+  once the camera is back inside the theme's `freeCamera.room` box; the
+  den has one, the store has none (its freeCamera is zoom limits and the
+  dollhouse preset only), so in the store a pinch back in from the Room
+  view left the flag on, and every drag at the board tilted the Room
+  view's way; a view put back with the flag on it (the walkthrough's end,
+  restoreTourCam; Show me's way back, checkCamRef) brought it back too.
+  Reproduced on a phone (412x915, CDP touches): Room view, radius in to
+  30, flag still on, finger up phi 0.85 -> 0.42. Now applyCamera, for a
+  theme with no room box: the flag clears once the camera's goal and view
+  radius are both under 0.75 x the dollhouse radius (the store's: 61.5 of
+  82); tilting alone keeps it, as in the den. The Room view itself keeps
+  its own tilt. tests/e2e-touch-in-game.mjs (Nova's store, Big Glutts'
+  page): the Room view, finger up there toward overhead; a real
+  two-finger pinch back in ends it, finger up toward the horizon again;
+  the flag put back at the board's distance goes by itself. Note: the
+  touch test's own pose() sets dollhouse false, which is why it never saw
+  this.

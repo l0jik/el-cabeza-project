@@ -101,8 +101,14 @@ async function video(version, poster) {
    ghost's rise, NOVA closing back into its line, the emblem coming apart
    into the board, EL CABEZA's letters drawn off it. REWIND maps the
    rewind's seconds to the video's (a monotone cubic through them), eased
-   in from the loop's own speed and set down gently on the board. */
-const REWIND = [[0, 8.5], [0.45, 6.8], [0.95, 5.2], [2.25, 0.6], [2.75, 0]];
+   in from the loop's own speed and set down gently on the board. 4.8 s
+   (user, of the first, 2.75 s at four times the video's speed: "the
+   reverse sequence needs to go a little bit more slowly. It happens so
+   fast you don't really get to see anything"): NOVA closes at twice the
+   speed, the emblem held whole (3.5 to 5 s, nothing moving) goes by
+   quickly, and the emblem comes apart into the board (3.25 to 1.25 s,
+   where the change is) at about its own speed, 1.7 s of it. */
+const REWIND = [[0, 8.5], [0.6, 6.8], [1.35, 5.2], [1.9, 3.3], [3.6, 1.25], [4.8, 0]];
 const REWIND_IN = 1.4, REWIND_OUT = 0.6; // the video's seconds a second, at its start and its end
 function rewindAt(u) {
   const P = REWIND, n = P.length - 1;

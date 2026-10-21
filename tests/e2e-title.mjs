@@ -144,7 +144,9 @@ console.log("\na new player: the splash, the logo held, Begin");
   // (The app's mounting can hold the page's script up for a while here, the
   // playback going on regardless: by the time the page answers it may be over.)
   const R = await poll(() => page.evaluate(() => { const v = document.querySelector('[data-testid="title-rewind"]'); return !!v && v.classList.contains("on") && (v.ended || (!v.paused && v.currentTime > 0.2)) && { t: v.currentTime, d: v.duration, ended: v.ended }; }), 8000, 50);
-  check("...the splash played back to the board (2.8 s)", !!R && R.d > 2.5 && R.d < 3.1, JSON.stringify(R));
+  // (4.8 s: user, of the first, 2.75 s: "the reverse sequence needs to go
+  // a little bit more slowly".)
+  check("...the splash played back to the board (4.8 s)", !!R && R.d > 4.6 && R.d < 5.0, JSON.stringify(R));
   check("...the logo's loop stopped under it", !!(await poll(() => page.evaluate(() => document.querySelector('[data-testid="title-video"]').paused), 10000, 50)));
   check("...the app coming up under it meanwhile", !!(await poll(() => page.evaluate(() => !!document.querySelector("#root canvas") && !!document.querySelector('[data-testid="title-screen"]')), 10000, 50)));
   await page.screenshot({ path: "/tmp/title-new-rewind.png" });

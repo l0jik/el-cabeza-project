@@ -180,6 +180,20 @@ in; leaving Singularity, back in the den as the set switches off.
   the app comes up under it and the title fades once both are done.
   Escape cuts it short; with reduced motion, or the clip not there in
   time, the title fades as it did.
+  Slower since (2026-10-21; user: "When begin is pressed at the splash
+  screen, the reverse sequence needs to go a little bit more slowly. It
+  happens so fast you don't really get to see anything"): the 2.75 s
+  clip ran the emblem coming apart (the video's 3.25 to 1.25 s, where
+  nearly all the change is) in half a second, four times its speed. Now
+  4.8 s, REWIND 0->8.5, 0.6->6.8, 1.35->5.2, 1.9->3.3, 3.6->1.25, 4.8->0:
+  NOVA closes at twice the speed, the still emblem (3.5 to 5 s, nothing
+  moving) goes by fast, the emblem comes apart at about its own speed
+  (1.7 s of it), the board set down at 0.6x. Measured from the video
+  (frame-to-frame change every 0.25 s) before choosing. rewind.mp4 2.7 MB,
+  rewind-720.mp4 503 KB, rewind-720.webm 457 KB; first frame = title@8.5,
+  last = title@0. The button's squeeze 0.8 s (was 0.55), its rules 0.65 s,
+  the stage settling back 1.6 s (was 0.9); the stall guard 8 s (was 6).
+  e2e-title checks the clip at 4.8 s.
 
 - **Restart the story leaves nothing of the switcher behind**
   (2026-10-21; user, with a phone screenshot of the store's Standard
