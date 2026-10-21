@@ -537,3 +537,7 @@ from the squares as before. Every world (the theme visuals are the
 entry's mesh and shell). tests/e2e-press.mjs (Futuris, the City):
 middles 0.870 apart, not 1.056; one rolls away, the other back on its
 squares.
+
+Kept (user, having seen the options sheet again: "Commit: Arcos: keep
+"press them together""): option 1 stays as built; the other four are
+set aside.
