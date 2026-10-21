@@ -310,6 +310,15 @@ box art and an ad standee (assets/tienda/*.jpg).
   to hit just a minute a second time."): PA.waited, once a visit; when the
   notice comes back ("The store is now closed.") it has no Just a minute
   and Escape doesn't put it away: the register's the only way out.
+- **The notice half a minute sooner** (2026-10-21; user: "Have the last
+  we are closing pop-up, the big one, show up about 30 seconds
+  sooner."): by the clock, Big Glutts' notice comes 8.5 minutes after the
+  ten-minute words (30 s after "two minutes until closing"), not 9
+  (NOTICE_EARLY = 0.5 of a minute, so a test's shortened minute scales
+  it). Its heading still says "The store closes in one minute." The
+  moves' way (the third move after the walkthrough) is as it was.
+  e2e-store-nudge times it against the minute between three and two
+  (0.25 to 0.8 of one; it was a whole one).
 - **Recorded PA candidates** (2026-10-21; user: "See if you can find any
   other audio online for store announcements."): seventeen Freesound
   recordings (CC0 / CC BY only; three NC ones left out) on a listening

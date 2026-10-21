@@ -32,7 +32,9 @@
      the big Glutz logo ... it's going to say, we're going to have to ask
      you to leave. Please take all purchases to the front"): five minutes
      after it, the PA again, five minutes to closing, and again at four,
-     three and two (each a tap from the register, as before); at one, the
+     three and two (each a tap from the register, as before); half a
+     minute after the two (user: "Have the last we are closing pop-up,
+     the big one, show up about 30 seconds sooner"; it was at one), the
      lights down another step and Big Glutts' notice over the store, its
      logo and stripes: we're going to have to ask you to leave, take all
      purchases to the front registers; its button checks out, "Just a
@@ -119,7 +121,7 @@ const DIM_CSS = `
   .td-closing-dim[data-on="2"] { background: rgba(14, 9, 4, 0.5); }
   .td-closing-dim[data-flick="true"] { transition: none; background: rgba(14, 9, 4, 0.62); }
 `;
-// The lights down a step (step 2: another row off, a minute from closing).
+// The lights down a step (step 2: another row off, with Big Glutts' notice).
 function setDim(on, step = 1) {
   if (typeof document === "undefined") return;
   let el = document.querySelector(".td-closing-dim");
@@ -199,10 +201,14 @@ export function ShopCorner({ audio, onPurchase }) {
 
 /* The PA, on the first visit: in stock (a while after arriving), then,
    later, closing time; then the last minutes, and Big Glutts' notice a
-   minute from closing (NOTICE_CSS). In a game, sooner: each at the
-   player's move after the walkthrough given here (MOVES); the notice put
-   off, back this many moves on (again). */
+   minute and a half from closing (NOTICE_CSS). In a game, sooner: each
+   at the player's move after the walkthrough given here (MOVES); the
+   notice put off, back this many moves on (again). */
 const IN_STOCK_MS = 75000, CLOSING_MS = 120000, CLOSING_MIN_MS = 35000, MINUTE_MS = 60000;
+// (Big Glutts' notice this much of a minute ahead of the last minute's
+// turn, half a minute after the two-minute words: user, "Have the last we
+// are closing pop-up, the big one, show up about 30 seconds sooner".)
+const NOTICE_EARLY = 0.5;
 const MOVES = { instock: 1, closing: 2, notice: 3, again: 3 };
 // (The notice's stripes, the store's four earth tones, as on the flyer.)
 const STRIPES = ["#6B3A1E", "#B4451F", "#E07B22", "#E9B23A"];
@@ -340,7 +346,7 @@ function useSwipeAway(shownKey, onAway) {
 export function StorePA({ active, game, audio, onPurchase }) {
   const [say, setSay] = React.useState(null);   // "instock" | "closing" | "5min" ... "2min" | null
   const [going, setGoing] = React.useState(false);
-  const [notice, setNotice] = React.useState(false); // Big Glutts' notice, a minute from closing
+  const [notice, setNotice] = React.useState(false); // Big Glutts' notice, near closing
   const [spoken, setSpoken] = React.useState(0); // (counts what's been said, for the minutes' timer)
   const [held, setHeld] = React.useState(0); // (ticks while the first game's walkthrough holds it back)
   const arrivedAt = React.useRef(performance.now());
@@ -427,24 +433,27 @@ export function StorePA({ active, game, audio, onPurchase }) {
   }, [active, backDue, say, notice, ask]);
   /* The last minutes: ten from the closing words, said at five, four,
      three and two to go (the one it is, if one was missed while the PA
-     was quiet: a sheet or the clerk up), and at one the notice, the
-     lights down another step. */
+     was quiet: a sheet or the clerk up), and half a minute after the two
+     the notice (NOTICE_EARLY), the lights down another step. */
   React.useEffect(() => {
     if (!active || !PA.said.closing || PA.left === 1) return undefined;
     const minute = t("__EC_TEST_CLOSING_MINUTE_MS__", MINUTE_MS);
+    const noticeAt = 9 - NOTICE_EARLY; // (minutes into the ten)
     const tick = () => {
-      const left = Math.max(1, 10 - Math.floor((performance.now() - PA.closingAt) / minute));
+      const into = (performance.now() - PA.closingAt) / minute;
+      if (into >= noticeAt) { ask("minute"); return; }
+      const left = 10 - Math.floor(into);
       if (left > 5 || (PA.left && left >= PA.left)) return;
-      if (left > 1) { PA.left = left; speak(`${left}min`); return; }
-      ask("minute");
+      PA.left = left; speak(`${left}min`);
     };
     tick();
     if (PA.left === 1) return undefined;
     // (A little after the minute turns, so the clock's past it when the
     // timer comes; and again if it wasn't, though it always is.)
     const nextLeft = PA.left ? PA.left - 1 : 5;
+    const due = nextLeft > 1 ? 10 - nextLeft : noticeAt;
     let id = 0;
-    const wait = () => { id = setTimeout(() => { const was = PA.left; tick(); if (PA.left === was) wait(); }, Math.max(0, PA.closingAt + (10 - nextLeft) * minute - performance.now()) + 50); };
+    const wait = () => { id = setTimeout(() => { const was = PA.left; tick(); if (PA.left === was) wait(); }, Math.max(0, PA.closingAt + due * minute - performance.now()) + 50); };
     wait();
     return () => clearTimeout(id);
   }, [active, spoken, speak, ask]);

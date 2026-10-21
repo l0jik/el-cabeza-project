@@ -227,11 +227,12 @@ async function lastMinutes() {
     window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NUDGE_MS__ = 600000;
     window.__EC_TEST_PA_MS__ = 3000; window.__EC_TEST_CLOSING_MS__ = 4000; window.__EC_TEST_CLOSING_MIN_MS__ = 2000; window.__EC_TEST_CLOSING_MINUTE_MS__ = 1200;
     try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("el-cabeza:first-game-tour", "done"); } } catch (e) { /* none */ }
-    // What the PA says, in order.
+    // What the PA says, in order, and when each first came.
     window.__PA_SAID__ = [];
+    window.__PA_AT__ = {};
     new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => {
       const id = n.nodeType === 1 && n.getAttribute("data-testid");
-      if (id && /^tienda-(pa-|closing-notice)/.test(id)) window.__PA_SAID__.push(id);
+      if (id && /^tienda-(pa-|closing-notice)/.test(id)) { window.__PA_SAID__.push(id); if (window.__PA_AT__[id] == null) window.__PA_AT__[id] = performance.now(); }
     }))).observe(document, { childList: true, subtree: true });
   });
   const page = await ctx.newPage();
@@ -250,6 +251,12 @@ async function lastMinutes() {
   const said = (await page.evaluate(() => window.__PA_SAID__)).filter((id, i, a) => a.indexOf(id) === i);
   check("then five, four, three and two minutes, a minute apart, in that order", JSON.stringify(said) === JSON.stringify(["tienda-pa-instock", "tienda-pa-closing", "tienda-pa-5min", "tienda-pa-4min", "tienda-pa-3min", "tienda-pa-2min", "tienda-closing-notice"]), JSON.stringify(said));
   check("one minute to closing: Big Glutts' notice", !!notice);
+  // Half a minute after the two-minute words, not a whole one (user: "Have
+  // the last we are closing pop-up, the big one, show up about 30 seconds
+  // sooner"), against the minute between three and two as it went here.
+  const at = await page.evaluate(() => window.__PA_AT__);
+  const early = (at["tienda-closing-notice"] - at["tienda-pa-2min"]) / (at["tienda-pa-2min"] - at["tienda-pa-3min"]);
+  check("...half a minute after the two-minute words (it was a whole one)", early > 0.25 && early < 0.8, `${early.toFixed(2)} of a minute: ${JSON.stringify(at)}`);
   const text = notice ? (await q(page, "tienda-closing-notice").innerText()).replace(/\s+/g, " ") : "";
   check("...its logo, and we're going to have to ask you to leave; take all purchases to the front", /Big Glutts/i.test(text) && /closes in one minute/i.test(text) && /We’re going to have to ask you to leave\. Please take all purchases to the front registers\./.test(text), text);
   check("...over the store (its veil), the lights down another step", (await has(page, "tienda-closing-veil")) && (await poll(() => page.evaluate(() => window.__TIENDA_SHOP__().dim2), 3000)));
