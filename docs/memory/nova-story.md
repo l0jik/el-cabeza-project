@@ -166,6 +166,16 @@ in; leaving Singularity, back in the den as the set switches off.
   Never on the game's own ways into the page (?world=, ?scene=, ?switcher,
   ?restart=, ?jump=, Back) nor under automation; ?title forces it for a
   test, ?title=auto applies the player's rules. tests/e2e-title.mjs.
+- **The way out** (2026-10-21; user: "When clicking begin on the splash
+  screen, it should play the animation in reverse. Like maybe begin like
+  zooms out like vertically, and then as it's doing that, then everything
+  goes in reverse"): the chosen button squeezes to a line and is gone as
+  the splash plays backwards from the held logo to the board (2.8 s, a
+  clip rendered from the video's own frames: tools/splash render.mjs
+  rewind; assets/title/rewind*), the logo settling back down as it goes;
+  the app comes up under it and the title fades once both are done.
+  Escape cuts it short; with reduced motion, or the clip not there in
+  time, the title fades as it did.
 
 - **Between scenes** (2026-10-20): the receipt prints to its end, taps
   or not (user: "so it can complete the animation"). The scene changes'

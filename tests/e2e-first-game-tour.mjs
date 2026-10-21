@@ -178,7 +178,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
 
   // Your blocks, each named on the board.
   t = await cardText(page);
-  check("Next: your four blocks, named on the board; they roll, never corner to corner", /Your four blocks\./.test(t) && /The Turrito, the Flaco, the Chato and the Opa, named on the board\./.test(t) && /never corner to corner/.test(t), t);
+  check("Next: your four blocks, named on the board; they roll, never corner to corner", /Your four blocks\./.test(t) && /The Turrito, the Flaco, the Chato, and the Opa, named on the board\./.test(t) && /never corner to corner/.test(t), t);
   r = await rings(page);
   cardBox = await card(page).boundingBox();
   const names = await Promise.all(["light-turrito", "light-flaco", "light-chato", "light-opa"].map((id) => tagBox(page, id)));
@@ -188,7 +188,8 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   // Your turn: two actions, the lights that count them ringed.
   await next(page);
   t = await cardText(page);
-  check("Next: you move first, two actions a turn for one piece, the Opa's roll two", /You move first\./.test(t) && /two actions, all for one piece/.test(t) && /the Opa's roll costs two/.test(t) && /The lights at the foot of the screen count how many are left\./.test(t), t);
+  check("Next: you move first, a piece rolled once or twice a turn, the Opa once (the user's words)", /You move first\./.test(t) && /Each turn, select a piece to roll on its edge either once or twice\./.test(t) && /Note: the Opa \(large cube\) only rolls on its edge once due to its large size\./.test(t) && /The lights at the foot of the screen count how many are left\./.test(t) && !/actions, all for one piece/.test(t), t);
+  check("...the Note in italics", await page.evaluate(() => { const i = document.querySelector('[data-testid="tour-note-line"] i'); return !!i && i.textContent === "Note" && getComputedStyle(i).fontStyle === "italic"; }));
   const counter = await boxOf(page, '[data-testid="points-counter"]');
   const ring = await ringRect(page, "actions");
   const actionsTag = await tagBox(page, "actions");
@@ -198,7 +199,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await next(page);
   t = await cardText(page);
   check("Next: the board turns any way (a finger's words: drag, pinch)", /Turn the board any way you like\./.test(t) && /Pinch to zoom/.test(t), t);
-  check("...and two fingers move it (user: \"mention the two-finger panning, up, down, left, right\")", /Drag one finger to turn it all the way around, two to move it up, down or sideways\./.test(t), t);
+  check("...and two fingers move it (user: \"mention the two-finger panning, up, down, left, right\")", /Drag one finger to turn it all the way around, two to move it up, down, or sideways\./.test(t), t);
   tour = await tourOf(page);
   const near = await page.evaluate(() => { const e = document.querySelector('[data-orbit="near"] path.ec-tour-march'); return e ? e.getAttribute("d") || "" : ""; });
   const f0 = await page.evaluate(() => +document.querySelector('[data-orbit="finger"]').getAttribute("cx"));
@@ -339,7 +340,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await page.waitForTimeout(600);
   const t = await cardText(page);
   const tour = await tourOf(page);
-  check("a mouse's words for the board: drag, right-drag, scroll", /Scroll to zoom/.test(t) && /right-drag to move it up, down or sideways/.test(t) && !/pinch|finger/i.test(t), t);
+  check("a mouse's words for the board: drag, right-drag, scroll", /Scroll to zoom/.test(t) && /right-drag to move it up, down, or sideways/.test(t) && !/pinch|finger/i.test(t), t);
   check("...and the arrows round it a mouse's way", !!tour.marks.orbit && tour.marks.orbit.mouse === true, JSON.stringify(tour.marks.orbit));
   await page.locator('[data-testid="tour-skip"]').click();
   await page.waitForTimeout(800);

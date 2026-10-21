@@ -13,10 +13,13 @@
      into the video (user: "BEGIN should be the last thing to show up on
      the screen"), the video playing on into its last two breaths, then
      looping them, never past them; Begin alone. A tap off the button does
-     nothing; Begin begins: the title goes and the story's at Big Glutts,
-     the lid on the box. On a phone, Begin tapped the moment it's in, the
-     page's first tap: full screen and begun, both ("as soon as BEGIN is
-     on screen ... you should immediately be able to click on it").
+     nothing; Begin begins: squeezed to a line, the splash played back to
+     the board as the app comes up under it ("it should play the animation
+     in reverse"), then the title goes and the story's at Big Glutts, the
+     lid on the box. Escape as it plays back: gone once the app's up. On
+     a phone, Begin tapped the moment it's in, the page's first tap: full
+     screen and begun, both ("as soon as BEGIN is on screen ... you should
+     immediately be able to click on it").
    - The first tap, wherever it lands, puts the page full screen and does
      nothing else: it plays on. Then, the logo held, Enter does nothing
      until a button has the keyboard; then it's that button. Escape skips
@@ -65,7 +68,8 @@ async function open({ story = null, last = null, phone = false, path = "?title" 
   await ctx.addInitScript(({ story, last }) => {
     window.__EC_TEST_HOOKS__ = true;
     window.__TIENDA_MUSIC_ONLY__ = "none";
-    // When the title came up, and when it first went to each state.
+    // When the title came up, and when it first went to each state; and
+    // when it began to fade, where its playback back to the board was.
     const T = (window.__TITLE_T__ = {});
     new MutationObserver(() => {
       const r = document.querySelector('[data-testid="title-screen"]');
@@ -73,7 +77,12 @@ async function open({ story = null, last = null, phone = false, path = "?title" 
       if (T.open == null) T.open = performance.now();
       const s = r.getAttribute("data-state");
       if (s && T[s] == null) T[s] = performance.now();
-    }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-state"] });
+      if (T.gone == null && r.classList.contains("gone")) {
+        const v = document.querySelector('[data-testid="title-rewind"]');
+        T.gone = performance.now();
+        T.rew = v ? { on: v.classList.contains("on"), ended: v.ended, t: v.currentTime, d: v.duration } : null;
+      }
+    }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-state", "class"] });
     try {
       if (sessionStorage.getItem("seeded")) return;
       sessionStorage.setItem("seeded", "1");
@@ -125,7 +134,23 @@ console.log("\na new player: the splash, the logo held, Begin");
   await page.waitForTimeout(1500);
   check("taps off the button: full screen, nothing else, the logo still held", (await fullScreen(page)) && (await state(page)) === "held" && !(await mounted(page)));
   await q(page, "title-primary").click();
+  // The way out (user: "When clicking begin on the splash screen, it
+  // should play the animation in reverse. Like maybe begin like zooms out
+  // like vertically, and then as it's doing that, then everything goes in
+  // reverse"): Begin squeezed to a line, the splash played back from the
+  // held logo to the board as the app comes up under it, the title off it
+  // once that's over.
+  check("Begin: squeezed to a line as it goes", await page.evaluate(() => document.querySelector('[data-testid="title-primary"]').classList.contains("picked") && getComputedStyle(document.querySelector('[data-testid="title-primary"]')).animationName === "ecPicked"));
+  // (The app's mounting can hold the page's script up for a while here, the
+  // playback going on regardless: by the time the page answers it may be over.)
+  const R = await poll(() => page.evaluate(() => { const v = document.querySelector('[data-testid="title-rewind"]'); return !!v && v.classList.contains("on") && (v.ended || (!v.paused && v.currentTime > 0.2)) && { t: v.currentTime, d: v.duration, ended: v.ended }; }), 8000, 50);
+  check("...the splash played back to the board (2.8 s)", !!R && R.d > 2.5 && R.d < 3.1, JSON.stringify(R));
+  check("...the logo's loop stopped under it", !!(await poll(() => page.evaluate(() => document.querySelector('[data-testid="title-video"]').paused), 10000, 50)));
+  check("...the app coming up under it meanwhile", !!(await poll(() => page.evaluate(() => !!document.querySelector("#root canvas") && !!document.querySelector('[data-testid="title-screen"]')), 10000, 50)));
+  await page.screenshot({ path: "/tmp/title-new-rewind.png" });
   check("Begin: the title goes", !!(await gone(page)));
+  const G = await page.evaluate(() => window.__TITLE_T__);
+  check("...once the playback's over, on the board", !!G.rew && G.rew.on && (G.rew.ended || G.rew.t >= G.rew.d - 0.1), JSON.stringify(G.rew));
   check("...the story, at Big Glutts", (await poll(() => place(page), 20000)) === "store");
   check("...the lid on the box", await poll(() => has(page, "tienda-lid"), 10000));
   check("no errors", errs.length === 0, errs.join(" | "));
@@ -167,8 +192,15 @@ console.log("\npartway through the story: Continue, Restart the story");
   const t = (await q(page, "title-primary").innerText()).toUpperCase();
   check("Continue, where you left off", /CONTINUE/.test(t) && /WHERE YOU LEFT OFF/.test(t), t);
   check("...Restart the story, no Other realities yet", (await has(page, "title-restart")) && !(await has(page, "title-realities")));
+  // (When the app says it's up.)
+  await page.evaluate(() => { const t = window.ecTitle, done = t.done; t.done = () => { window.__TITLE_T__.up = performance.now(); done(); }; });
   await q(page, "title-primary").click();
+  await poll(() => page.evaluate(() => document.querySelector('[data-testid="title-rewind"]').classList.contains("on")), 5000, 50);
+  const E = await page.evaluate(() => performance.now());
+  await page.keyboard.press("Escape");
   check("Continue: the den", !!(await gone(page)) && (await poll(() => place(page), 20000)) === "home");
+  const G = await page.evaluate(() => window.__TITLE_T__);
+  check("...Escape as it plays back: gone as soon as the den's up", G.up != null && G.gone - Math.max(E, G.up) < 500, JSON.stringify({ E, up: G.up, gone: G.gone, rew: G.rew }));
   check("no errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

@@ -126,7 +126,16 @@ html.ec-splash-on { background: #120C08; }
   text-decoration: underline; text-decoration-color: rgba(235, 203, 147, 0.25); text-underline-offset: 4px; transition: color 0.3s ease; }
 .ec-splash-restart:hover { color: rgba(235, 203, 147, 0.8); }
 .ec-splash-restart.sure { color: #F4C9B0; text-decoration-color: rgba(244, 201, 176, 0.6); }
-@media (prefers-reduced-motion: reduce) { .ec-splash-stage, .ec-splash-menu > *, .ec-splash-video { transition: none; } }
+/* The way out: the choice squeezed to a line and gone, its rules drawn out
+   along it, as the splash plays back to the board over the held logo (the
+   stage settling back as it came). */
+.ec-splash-rewind { opacity: 0; transition: opacity 0.3s ease; }
+.ec-splash-rewind.on { opacity: 1; }
+.ec-splash.menu-on.settle .ec-splash-stage { transform: none; }
+.ec-splash.leaving .ec-splash-menu > .picked { animation: ecPicked 0.55s cubic-bezier(.55, 0, .75, .2) forwards; }
+.ec-splash.leaving .ec-splash-menu > .picked .w::before, .ec-splash.leaving .ec-splash-menu > .picked .w::after { width: 96px; transition: width 0.45s ease; }
+@keyframes ecPicked { 0% { opacity: 1; transform: none; } 55% { opacity: 1; transform: scale(1.04, 0.16); } 100% { opacity: 0; transform: scale(1.18, 0.02); } }
+@media (prefers-reduced-motion: reduce) { .ec-splash-stage, .ec-splash-menu > *, .ec-splash-video { transition: none; } .ec-splash.leaving .ec-splash-menu > .picked { animation: none; } }
 `;
 
   const el = (tag, cls, attrs = {}) => {
@@ -154,6 +163,17 @@ html.ec-splash-on { background: #120C08; }
   const h264 = video.canPlayType('video/mp4; codecs="avc1.640028"') !== "";
   video.src = !h264 ? "el-cabeza-title-720.webm" : light ? "el-cabeza-title-720.mp4" : "el-cabeza-title.mp4";
   stage.appendChild(video);
+  /* The splash played back, for the way out (user: "When clicking begin
+     on the splash screen, it should play the animation in reverse. Like
+     maybe begin like zooms out like vertically, and then as it's doing
+     that, then everything goes in reverse"): rendered from the held logo
+     back to the board (tools/splash render.mjs rewind), over the picture,
+     unseen until it plays; fetched once the menu's up. */
+  const rew = el("video", "ec-splash-video ec-splash-rewind", { muted: "", playsinline: "", "webkit-playsinline": "", preload: "none", "aria-hidden": "true", "data-testid": "title-rewind" });
+  rew.muted = true;
+  rew.playsInline = true;
+  const REWIND_SRC = !h264 ? "el-cabeza-title-rewind-720.webm" : light ? "el-cabeza-title-rewind-720.mp4" : "el-cabeza-title-rewind.mp4";
+  stage.appendChild(rew);
   const menu = el("div", "ec-splash-menu");
   const primary = el("button", "ec-splash-primary", { type: "button", "data-testid": "title-primary", "data-action": first.action });
   const word = el("span", "w");
@@ -188,10 +208,12 @@ html.ec-splash-on { background: #120C08; }
      screen is the frame's own edge colours (the table's, then the
      ground's), lined up with it. 16 x 28 in the middle of 64 x 52. */
   const bctx = back.getContext("2d");
+  let rewinding = false; // (the way out's playback: the picture's from it)
   const paint = () => {
     try {
-      if (video.readyState < 2) return;
-      bctx.drawImage(video, 24, 12, 16, 28);
+      const v = rewinding ? rew : video;
+      if (v.readyState < 2) return;
+      bctx.drawImage(v, 24, 12, 16, 28);
       bctx.drawImage(back, 24, 12, 1, 28, 0, 12, 24, 28);
       bctx.drawImage(back, 39, 12, 1, 28, 40, 12, 24, 28);
       bctx.drawImage(back, 0, 12, 64, 1, 0, 0, 64, 12);
@@ -259,6 +281,8 @@ html.ec-splash-on { background: #120C08; }
     setState("held");
     fit();
     root.classList.add("menu-on");
+    // (The way out's playback, fetched now, behind the splash.)
+    if (!reduce) { rew.preload = "auto"; rew.src = REWIND_SRC; try { rew.load(); } catch (e) { /* as it comes */ } }
     if (still) { try { video.pause(); video.currentTime = HOLD_FROM; } catch (e) { /* as it is */ } }
     else holdLoop();
   }
@@ -321,26 +345,74 @@ html.ec-splash-on { background: #120C08; }
     }
     setState("leaving");
     root.classList.add("leaving");
+    const picked = action === "realities" ? second : action === "restart" ? restart : primary;
+    if (picked) picked.classList.add("picked");
     fullScreen();
     title.choice = action === "continue" && first.world ? { action, world: first.world } : { action };
-    resolveChoice(title.choice);
+    rewindOut();
+    /* The app's let in a couple of frames on, the way out already under
+       way on the screen: mounting it can hold the page up a moment (a
+       phone, a slow machine), and what's on the screen by then plays on
+       through it (the squeeze, the playback, the stage settling). */
+    let letIn = false;
+    const go = () => { if (letIn) return; letIn = true; resolveChoice(title.choice); };
+    W.requestAnimationFrame(() => W.requestAnimationFrame(go));
+    W.setTimeout(go, 150);
     // (If the app never says it's up, the title goes anyway.)
-    W.setTimeout(() => title.done(), 15000);
+    W.setTimeout(leave, 15000);
+  }
+
+  /* The way out: the splash played back to the board (rew) while the app
+     comes up under the title, then the title fades off it, once both are
+     done: the playback over (rewound), the app up (appUp). Not under way
+     in a moment (a slow line), or reduced motion: as before, the title
+     fades as soon as the app's up. (Escape cuts it short.) */
+  let rewound = false, appUp = false;
+  const goIfDone = () => { if (rewound && appUp) leave(); };
+  const rewoundNow = () => { if (rewound) return; rewound = true; goIfDone(); };
+  function rewindOut() {
+    if (reduce || !rew.src) { rewoundNow(); return; }
+    const giveUp = () => { if (!rewinding) { try { rew.pause(); } catch (e) { /* as it is */ } } rewoundNow(); };
+    // Over the logo, crossfaded: its first frame is the held logo's.
+    const show = () => {
+      if (rewinding || rewound) return;
+      rewinding = true;
+      rew.classList.add("on");
+      root.classList.add("settle");
+      W.setTimeout(() => { try { video.pause(); } catch (e) { /* as it is */ } }, 350);
+      const tick = () => { if (!rewinding || gone) return; paint(); W.requestAnimationFrame(tick); };
+      W.requestAnimationFrame(tick);
+      W.setTimeout(rewoundNow, 6000); // (a stalled playback still ends)
+    };
+    rew.addEventListener("ended", rewoundNow, { once: true });
+    try { if (rew.currentTime > 0) rew.currentTime = 0; } catch (e) { /* from where it is */ }
+    // Played in the tap itself (a phone saving power lets it then), and
+    // shown at once if its first frame's in, else as soon as it is.
+    const p = rew.play();
+    if (p && p.catch) p.catch(giveUp);
+    if (rew.readyState >= 2) show();
+    else {
+      rew.addEventListener("loadeddata", show, { once: true });
+      W.setTimeout(() => { if (!rewinding) giveUp(); }, 900);
+    }
   }
   let gone = false;
-  title.done = () => {
+  // The app's up (apps/unified.jsx): the title goes once the playback's over.
+  title.done = () => { appUp = true; goIfDone(); };
+  function leave() {
     if (gone) return;
     gone = true;
     root.classList.add("gone");
     W.setTimeout(() => {
       W.removeEventListener("resize", fit);
-      try { video.pause(); video.removeAttribute("src"); video.load(); } catch (e) { /* gone anyway */ }
+      rewinding = false;
+      for (const v of [video, rew]) { try { v.pause(); v.removeAttribute("src"); v.load(); } catch (e) { /* gone anyway */ } }
       root.remove();
       style.remove();
       D.documentElement.classList.remove("ec-splash-on");
       title.active = false;
     }, 760);
-  };
+  }
 
   /* The buttons alone (a tap anywhere else is nothing). A finger's tap on
      one counts as it lifts (user: "as soon as BEGIN is on screen ... you
@@ -374,5 +446,6 @@ html.ec-splash-on { background: #120C08; }
     if (!root.isConnected || gone) return;
     if (e.key !== "Escape") { if (e.isTrusted) fullScreen(); return; }
     if (state === "playing") { e.preventDefault(); skip(); }
+    else if (state === "leaving" && rewinding) { e.preventDefault(); rewoundNow(); }
   });
 })();

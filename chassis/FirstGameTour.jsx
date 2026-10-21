@@ -63,8 +63,9 @@ const WORDS = ["no", "one", "two", "three", "four", "five"];
 const word = (n) => WORDS[n] || String(n);
 const mono = "'IBM Plex Mono', monospace";
 const sans = "'IBM Plex Sans', sans-serif";
-// "the Turrito, the Flaco and the Opa"
-const list = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+// "the Flaco and the Opa"; "the Turrito, the Flaco, and the Opa" (the
+// serial comma from three on, user: "where an Oxford comma should be placed").
+const list = (xs) => (xs.length < 2 ? xs.join("") : xs.length === 2 ? `${xs[0]} and ${xs[1]}` : `${xs.slice(0, -1).join(", ")}, and ${xs[xs.length - 1]}`);
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
 // What a card says: { title, sub, body: [...], rows: [[label, text]], note }.
@@ -128,7 +129,14 @@ function cardText(t) {
       return {
         title: t.youFirst ? "You move first." : "Your opponent moves first.",
         body: [
-          `Each turn you get ${word(t.budget)} actions${t.split ? `, shared by up to ${word(t.split)} pieces` : ", all for one piece"}. A roll or a step costs one${t.hasOpa ? "; the Opa's roll costs two" : ""}.`,
+          // (The standard game's two actions for one piece in the user's
+          // words: "Each turn, select a piece to roll on its edge either
+          // once or twice. Note: the Opa (large cube) only rolls on its
+          // edge once due to its large size.")
+          t.budget === 2 && !t.split
+            ? "Each turn, select a piece to roll on its edge either once or twice."
+            : `Each turn you get ${word(t.budget)} actions${t.split ? `, shared by up to ${word(t.split)} pieces` : ", all for one piece"}. A roll or a step costs one${t.hasOpa ? "; the Opa's roll costs two" : ""}.`,
+          t.budget === 2 && !t.split && t.hasOpa ? { note: "the Opa (large cube) only rolls on its edge once due to its large size." } : null,
           // (The Punto law cuts the opening turn by one: said where it's on.)
           t.punto ? `${t.youFirst ? "Your" : "Your opponent's"} very first turn has one action fewer: this game plays the Punto law.` : null,
           t.dots || null,
@@ -142,7 +150,7 @@ function cardText(t) {
           // (Moving it too, as briefly, user: "a good place to also mention
           // the two-finger panning, up, down, left, right ... I want to be
           // super concise". A mouse moves it with a right-drag, or Alt.)
-          t.touch ? "Drag one finger to turn it all the way around, two to move it up, down or sideways. Pinch to zoom in or out." : "Drag across it to turn it all the way around, right-drag to move it up, down or sideways. Scroll to zoom in or out.",
+          t.touch ? "Drag one finger to turn it all the way around, two to move it up, down, or sideways. Pinch to zoom in or out." : "Drag across it to turn it all the way around, right-drag to move it up, down, or sideways. Scroll to zoom in or out.",
           "It doesn't change the game: look from wherever helps.",
         ],
       };
@@ -271,7 +279,9 @@ export default function FirstGameTour({ tour, cardRef }) {
         )}
         {text.body && (
           <div data-testid="tour-body" style={{ marginTop: narrow ? 6 : 8, display: "flex", flexDirection: "column", gap: narrow ? 5 : 7 }}>
-            {text.body.filter(Boolean).map((p) => <p key={p} style={{ margin: 0 }}>{p}</p>)}
+            {text.body.filter(Boolean).map((p) => (typeof p === "string"
+              ? <p key={p} style={{ margin: 0 }}>{p}</p>
+              : <p key={p.note} data-testid="tour-note-line" style={{ margin: 0 }}><i>Note</i>: {p.note}</p>))}
           </div>
         )}
         {text.rows && (

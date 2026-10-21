@@ -15,6 +15,7 @@
      node tools/splash/render.mjs still <version> <poster> <t> [<t> ...]
      node tools/splash/render.mjs video <version> <poster>
      node tools/splash/render.mjs all                      every version x poster
+     node tools/splash/render.mjs rewind <version> <poster>  played back from 8.5 s to the start (REWIND)
    Options: --out DIR (default /tmp/splash-out), --fps N (default 60),
    --from S --to S (a part of a video, for checking), --keyframes S,S,...
    (key frames at these times as well, so a player can jump there at
@@ -93,8 +94,56 @@ async function video(version, poster) {
   return file;
 }
 
+/* The title screen's way out (user: "When clicking begin on the splash
+   screen, it should play the animation in reverse"): a video's own frames
+   from the held logo (8.5 s, where the title screen's loop begins) back to
+   its first, the board, quicker than it came: through the breath and the
+   ghost's rise, NOVA closing back into its line, the emblem coming apart
+   into the board, EL CABEZA's letters drawn off it. REWIND maps the
+   rewind's seconds to the video's (a monotone cubic through them), eased
+   in from the loop's own speed and set down gently on the board. */
+const REWIND = [[0, 8.5], [0.45, 6.8], [0.95, 5.2], [2.25, 0.6], [2.75, 0]];
+const REWIND_IN = 1.4, REWIND_OUT = 0.6; // the video's seconds a second, at its start and its end
+function rewindAt(u) {
+  const P = REWIND, n = P.length - 1;
+  if (u <= P[0][0]) return P[0][1];
+  if (u >= P[n][0]) return P[n][1];
+  const h = [], d = [];
+  for (let i = 0; i < n; i++) { h.push(P[i + 1][0] - P[i][0]); d.push((P[i + 1][1] - P[i][1]) / h[i]); }
+  const m = [Math.max(d[0] * 3, -REWIND_IN)];
+  for (let i = 1; i < n; i++) {
+    const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1];
+    m.push(d[i - 1] * d[i] <= 0 ? 0 : (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]));
+  }
+  m.push(Math.max(d[n - 1] * 3, -REWIND_OUT));
+  let i = 0;
+  while (u > P[i + 1][0]) i++;
+  const s = (u - P[i][0]) / h[i], s2 = s * s, s3 = s2 * s;
+  return (2 * s3 - 3 * s2 + 1) * P[i][1] + (s3 - 2 * s2 + s) * h[i] * m[i] + (-2 * s3 + 3 * s2) * P[i + 1][1] + (s3 - s2) * h[i] * m[i + 1];
+}
+async function rewind(version, poster) {
+  const last = REWIND[REWIND.length - 1][0], n1 = Math.round(last * FPS) + 1;
+  const file = path.join(OUT, `${version}-${poster}-rewind.mp4`);
+  const ff = spawn(FF, ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "png", "-i", "-",
+    "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-maxrate", "8M", "-bufsize", "16M", "-pix_fmt", "yuv420p", "-profile:v", "high",
+    "-movflags", "+faststart", "-an", file], { stdio: ["pipe", "inherit", "inherit"] });
+  const done = new Promise((res, rej) => ff.on("close", (c) => (c ? rej(new Error(`ffmpeg ${c}`)) : res())));
+  for (let f = 0; f < n1; f++) {
+    await page.evaluate(([v, p, tt]) => window.SPLASH.frame(v, p, tt), [version, poster, Math.max(0, rewindAt(f / FPS))]);
+    check();
+    const buf = await shot();
+    if (!ff.stdin.write(buf)) await new Promise((r) => ff.stdin.once("drain", r));
+  }
+  ff.stdin.end();
+  await done;
+  console.log(`  ${version} ${poster} rewind: ${n1} frames -> ${file}`);
+  return file;
+}
+
 const [cmd, ...rest] = args;
-if (cmd === "posters") {
+if (cmd === "rewind") {
+  await rewind(rest[0], rest[1]);
+} else if (cmd === "posters") {
   for (const p of rest.length ? rest : POSTERS) {
     await page.evaluate((id) => window.SPLASH.poster(id), p);
     check();

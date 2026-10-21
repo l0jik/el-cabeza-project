@@ -260,3 +260,15 @@ box art and an ad standee (assets/tienda/*.jpg).
   magnifier with a minus, not the house ("It kind of makes people think,
   go home"); title "Zoom out: up over the whole room". And card 4 (the
   crush) lost "Here it is, up close." (user: "It's unnecessary").
+- **Card 6 in the user's words** (2026-10-21; user, with the turn
+  card's first two sentences circled: "Each turn, select a piece to roll
+  on its edge either once or twice. <i>Note</i>: the Opa (large cube)
+  only rolls on its edge once due to its large size."): so it reads in
+  the standard game (two actions for one piece), the Note on its own
+  line with "Note" in italics where there's an Opa. Other setups (more
+  actions, shared pieces) keep "Each turn you get N actions...".
+- **Oxford commas** (2026-10-21; user, card 7 with a blue comma after
+  "down": "The red circle with the blue comma indicates where an Oxford
+  comma should be placed."): "up, down, or sideways", and every list the
+  walkthrough makes of three or more ("The Turrito, the Flaco, the
+  Chato, and the Opa"); two stay "X and Y".
