@@ -478,6 +478,20 @@ export function TourMarks({ marks, geo, subscribe, cardRef }) {
         if (Math.abs(sx) < Math.abs(sy)) it.x += sx; else it.y += sy;
         return true;
       };
+      /* Never over what it names. A long label set beside a piece near the
+         screen's edge is pushed back over the piece by the edge (a phone:
+         OPPONENT'S CABEZA on the crush card, user: "obscuring the actual
+         piece a little bit too much. Perhaps it needs to be moved down off
+         it to the right a little bit"): then it goes just below it, where
+         the edge let it be, or above when there's no room below (and where
+         it is when there's room for neither). */
+      const offOwn = (it, o) => {
+        const l = it.x, t = it.y, r = it.x + it.w, b = it.y + it.h;
+        if (r <= o.l || l >= o.r || b <= o.t || t >= o.b) return false;
+        const down = o.b + 4, up = o.t - it.h - 4;
+        if (down + it.h <= vh - 6) it.y = down; else if (up >= 6) it.y = up; else return false;
+        return true;
+      };
       for (let k = 0; k < 24; k++) {
         let moved = false;
         for (let i = 0; i < items.length; i++) {
@@ -495,12 +509,15 @@ export function TourMarks({ marks, geo, subscribe, cardRef }) {
           others.forEach((o, j) => { if (j !== i && push(it, o)) moved = true; });
           it.x = Math.max(6, Math.min(vw - 6 - it.w, it.x));
           it.y = Math.max(6, Math.min(vh - 6 - it.h, it.y));
+          if (offOwn(it, others[i])) moved = true;
         });
         if (!moved) break;
       }
       items.forEach((it) => {
         const e = tagEls.current[it.g.key];
         if (e) e.style.transform = `translate(${Math.round(it.x)}px, ${Math.round(it.y)}px)`;
+        // (Tests: what it names, where it is on the screen.)
+        if (e && typeof window !== "undefined" && window.__EC_TEST_HOOKS__) e.dataset.anchor = [it.a.l, it.a.t, it.a.r, it.a.b].map(Math.round).join(",");
         const l = lineEls.current[it.g.key];
         if (!l) return;
         if (it.g.at.orbit) { noLine(l); return; }

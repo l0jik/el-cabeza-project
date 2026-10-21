@@ -287,6 +287,20 @@ box art and an ad standee (assets/tienda/*.jpg).
   settle, px, x, y, realPx, realX, realY }, __EC_TEST_TOUR_CAB_SLOW__ to
   slow it for a look. Phone 163 px across against 30 on the board;
   desktop 229 against 56. tests/e2e-first-game-tour.mjs checks it.
+- **No label over what it names** (2026-10-21; user, a phone screenshot
+  of card 4 with OPPONENT'S CABEZA over the copied Cabeza: "Opponent's
+  cabeza flag is obscuring the actual piece a little bit too much.
+  Perhaps it needs to be moved down off it to the right a little bit"):
+  the label is set to the piece's right, but on a phone it's too long
+  for the room there, and the screen's edge pushed it back over the
+  piece. TourMarks (chassis/FirstGameTour.jsx offOwn) now ends each
+  round of its layout by moving a label that covers its own anchor to
+  just below it (or above, with no room below; where it is with room for
+  neither), where the edge let it be: so OPPONENT'S CABEZA sits under
+  the piece and to its right, its arrow up to it. Every card's labels
+  get the rule. A test build marks each label with data-anchor (what it
+  names, on the screen); tests/e2e-first-game-tour.mjs checks no label
+  covers its own on any card, and that this one's to the right.
 - **Oxford commas** (2026-10-21; user, card 7 with a blue comma after
   "down": "The red circle with the blue comma indicates where an Oxford
   comma should be placed."): "up, down, or sideways", and every list the

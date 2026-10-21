@@ -67,6 +67,15 @@ const band = (page) => page.evaluate(() => { const b = window.__EC_TEST_THREE__(
 const tagBox = (page, key) => page.evaluate((k) => { const e = document.querySelector(`[data-testid="tour-marks"] [data-tag="${k}"]`); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height, text: e.textContent }; }, key);
 const arrowD = (page, key) => page.evaluate((k) => { const e = document.querySelector(`[data-testid="tour-marks"] [data-arrow="${k}"]`); return e ? e.getAttribute("d") || "" : null; }, key);
 const ringRect = (page, key) => page.evaluate((k) => { const e = document.querySelector(`[data-testid="tour-marks"] [data-ring="${k}"] rect.ec-tour-pulse`); return e ? { x: +e.getAttribute("x"), y: +e.getAttribute("y"), w: +e.getAttribute("width"), h: +e.getAttribute("height") } : null; }, key);
+/* Labels over what they name (user, the crush card on a phone: "Opponent's
+   cabeza flag is obscuring the actual piece a little bit too much. Perhaps
+   it needs to be moved down off it to the right a little bit"): each
+   label's data-anchor is that thing's box on the screen. */
+const overOwn = (page) => page.evaluate(() => [...document.querySelectorAll('[data-testid="tour-marks"] [data-tag]')].filter((e) => {
+  const a = (e.dataset.anchor || "").split(",").map(Number), r = e.getBoundingClientRect();
+  return a.length === 4 && r.right > 0 && !(r.right <= a[0] || r.left >= a[2] || r.bottom <= a[1] || r.top >= a[3]);
+}).map((e) => e.dataset.tag));
+const anchorOf = (page, key) => page.evaluate((k) => { const e = document.querySelector(`[data-testid="tour-marks"] [data-tag="${k}"]`); const a = e && (e.dataset.anchor || "").split(",").map(Number); return a && a.length === 4 ? { x: a[0], y: a[1], w: a[2] - a[0], h: a[3] - a[1] } : null; }, key);
 const boxOf = (page, sel) => page.evaluate((s) => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; }, sel);
 const overlap = (a, b) => !!a && !!b && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 const inView = (b, W, H) => !!b && b.x >= 0 && b.y >= 0 && b.x + b.w <= W && b.y + b.h <= H;
@@ -109,6 +118,9 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   let r = await rings(page);
   check("...every piece ringed on the board: yours yellow and pulsing, Walnut's red", r.length === 10 && r.filter((x) => x.id.startsWith("light-") && x.tone === "mine" && x.pulse).length === 5 && r.filter((x) => x.id.startsWith("dark-") && x.tone === "foe").length === 5, JSON.stringify(r));
   const mineTag = await tagBox(page, "mine"), foeTag = await tagBox(page, "foe");
+  const covered = [];
+  const cover = async (card) => (await overOwn(page)).forEach((k) => covered.push(`${card}: ${k}`));
+  await cover("welcome");
   check("...labelled ASH · YOU and WALNUT · THE COMPUTER, on the screen, clear of the card", !!mineTag && /Ash · you/i.test(mineTag.text) && !!foeTag && /Walnut · the computer/i.test(foeTag.text) && inView(mineTag, W, H) && inView(foeTag, W, H) && !overlap(mineTag, cardBox) && !overlap(foeTag, cardBox), JSON.stringify({ mineTag, foeTag, cardBox }));
   let cam = await camOf(page);
   check("...the board turned to show it, from your side and a little lower than straight down", tour.framed && Math.abs(cam.phi - 0.45) < 0.02 && Math.abs(Math.atan2(Math.sin(cam.theta), Math.cos(cam.theta))) < 0.02, JSON.stringify(cam));
@@ -122,6 +134,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   r = await rings(page);
   cardBox = await card(page).boundingBox();
   const way1 = await tagBox(page, "way-1"), way2 = await tagBox(page, "way-2");
+  await cover("ways");
   check("...both Cabezas ringed and pulsing, the row you'd win on lit", r.length === 2 && r.some((x) => x.id === "light-cabeza" && x.tone === "mine" && x.pulse) && r.some((x) => x.id === "dark-cabeza" && x.tone === "foe" && x.pulse) && (await band(page)) === 0, JSON.stringify({ r, band: await band(page) }));
   check("...each numbered, on the screen and clear of the card", !!way1 && /1 · Your Cabeza across/i.test(way1.text) && !!way2 && /2 · Crush opponent's Cabeza/i.test(way2.text) && [way1, way2].every((b) => inView(b, W, H) && !overlap(b, cardBox)) && !overlap(way1, way2), JSON.stringify({ way1, way2, cardBox }));
   check("...an arrow from your Cabeza up to the row", ((await arrowD(page, "arrow-path")) || "").length > 10);
@@ -161,6 +174,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   check("...your Cabeza ringed, Walnut's back row lit on the board", r.length === 1 && r[0].id === "light-cabeza" && r[0].pulse && (await band(page)) === 0, JSON.stringify({ r, band: await band(page) }));
   const path = await arrowD(page, "arrow-path");
   const goalTag = await tagBox(page, "goal");
+  await cover("goal");
   check("...an arrow from it to the row, and the row labelled your goal", !!path && path.length > 10 && !!goalTag && /back row · your goal/i.test(goalTag.text) && inView(goalTag, W, H), JSON.stringify({ path, goalTag }));
 
   // The second: a cut to a close-up of a crush, played over and over.
@@ -179,6 +193,9 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   cardBox = await card(page).boundingBox();
   const crushCab = await tagBox(page, "crush-cabeza"), crushBlock = await tagBox(page, "crush-block");
   check("...the copied Cabeza ringed red, both named on the screen below the card", r.some((x) => x.id === "tour-crush-cabeza" && x.tone === "foe" && x.pulse) && !!crushCab && /Opponent's Cabeza/i.test(crushCab.text) && !!crushBlock && /Your Turrito/i.test(crushBlock.text) && [crushCab, crushBlock].every((b) => inView(b, W, H) && !overlap(b, cardBox)), JSON.stringify({ r, crushCab, crushBlock, cardBox }));
+  const cabAt = await anchorOf(page, "crush-cabeza"), over = await overOwn(page);
+  await cover("crush");
+  check("...neither label over what it names: OPPONENT'S CABEZA off the piece, to its right (user: \"moved down off it to the right a little bit\")", over.length === 0 && !!cabAt && !overlap(crushCab, cabAt) && crushCab.x + crushCab.w / 2 > cabAt.x + cabAt.w / 2, JSON.stringify({ over, crushCab, cabAt }));
   const seen = new Set();
   let pressed = 0, loops = 0, blockAt0 = null, blockAt1 = null;
   for (let i = 0; i < 90 && !(seen.has("crushed") && loops >= 1 && seen.has("in")); i++) {
@@ -204,6 +221,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   r = await rings(page);
   cardBox = await card(page).boundingBox();
   const names = await Promise.all(["light-turrito", "light-flaco", "light-chato", "light-opa"].map((id) => tagBox(page, id)));
+  await cover("blocks");
   check("...each ringed and its name beside it", r.length === 4 && !r.some((x) => x.id === "light-cabeza") && names.every((b, i) => b && b.text.toLowerCase() === ["turrito", "flaco", "chato", "opa"][i]), JSON.stringify(names));
   check("...the names on the screen, none over another or the card", names.every((b) => inView(b, W, H) && !overlap(b, cardBox)) && names.every((a, i) => names.every((b, j) => i === j || !overlap(a, b))), JSON.stringify(names));
 
@@ -215,6 +233,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const counter = await boxOf(page, '[data-testid="points-counter"]');
   const ring = await ringRect(page, "actions");
   const actionsTag = await tagBox(page, "actions");
+  await cover("actions");
   check("...the lights ringed, and labelled 2 actions a turn above them", !!counter && !!ring && ring.w > counter.w && ring.x < counter.x && !!actionsTag && /2 actions a turn/i.test(actionsTag.text) && actionsTag.y + actionsTag.h <= counter.y, JSON.stringify({ counter, ring, actionsTag }));
 
   // The board turns: arrows round it, a fingertip along them.
@@ -242,6 +261,8 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   r = await rings(page);
   check("...the Chato, the Opa and the Flaco glow; the Cabeza and the Turrito dim", ["light-chato", "light-opa", "light-flaco"].every((id) => r.some((x) => x.id === id && x.tone === "mine" && x.pulse)) && ["light-cabeza", "light-turrito"].every((id) => r.some((x) => x.id === id && x.tone === "dim" && !x.pulse)), JSON.stringify(r));
   check("...and labelled, the dim ones boxed in", /turrito · boxed in/i.test(((await tagBox(page, "light-turrito")) || {}).text || "") && /^opa$/i.test(((await tagBox(page, "light-opa")) || {}).text || ""));
+  await cover("pieces");
+  check("...and on no card so far is a label over what it names", covered.length === 0, covered.join(" | "));
   const before = await camOf(page);
 
   // The Opa: its lesson, the camera in on it, an arrow to its square.
