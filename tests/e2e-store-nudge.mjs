@@ -6,9 +6,11 @@
    the dock (opened and shut, it still lights); only a game begun does.
    Once lit, the blue grows the longer it's left
    (window.__EC_TEST_NUDGE_GROW_MS__ shortens that too). And the store's
-   PA through a visit: in stock, closing in ten minutes, then the last
-   minutes and Big Glutts' notice a minute from closing; its cards swiped
-   away once they've been up 3 s. */
+   PA through a visit: in stock, closing in ten minutes (the lights down,
+   and the first time a player sees that, their thought under the words),
+   then the last minutes and Big Glutts' notice a minute from closing,
+   Just a minute once only; its cards swiped away once they've been up
+   3 s. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
@@ -124,6 +126,16 @@ console.log("\nshopping: the PA, the cart, closing time (user: nothing about ord
   check("...a tap on it: one in the cart", await poll(async () => (await has(page, "tienda-cart")) && (await page.evaluate(() => window.__TIENDA_SHOP__().cart)) === 1, 4000));
   check("closing time: the PA", await poll(() => has(page, "tienda-pa-closing"), 15000));
   check("...and the lights down a step", await poll(() => page.evaluate(() => window.__TIENDA_SHOP__().dim), 3000));
+  // The first time, the player's thought (user: "maybe a thought bubble
+  // should come up saying, "Oh, I get turning down the lights. I guess
+  // they want us out of here.""), under the closing words; once a player.
+  const th = await poll(() => has(page, "tienda-lights-thought"), 6000, 100);
+  const thText = th ? (await q(page, "tienda-lights-thought").innerText()).replace(/\s+/g, " ") : "";
+  const paBox = await q(page, "tienda-pa-closing").boundingBox(), thBox = th ? await q(page, "tienda-lights-thought").boundingBox() : null;
+  check("...the player's thought: they want us out of here", !!th && /turning down the lights/i.test(thText) && /want us out of here/i.test(thText), thText);
+  check("...just under the closing words, clear of them", !!thBox && !!paBox && thBox.y >= paBox.y + paBox.height - 2 && thBox.y <= paBox.y + paBox.height + 40, JSON.stringify({ paBox, thBox }));
+  check("...kept: once a player", await page.evaluate(() => localStorage.getItem("el-cabeza:lights-thought") === "1"));
+  check("...then gone, the closing words still up", !!(await poll(async () => !(await has(page, "tienda-lights-thought")), 9000, 150)) && (await has(page, "tienda-pa-closing")));
   await q(page, "tienda-pa-closing").click();
   check("...a tap on it: to the register (the purchase)", await poll(() => has(page, "story-cut"), 6000, 100));
   check("no page errors", errs.length === 0, errs.join(" | "));
@@ -374,6 +386,12 @@ console.log("\nthree moves after the walkthrough: asked to take it to the regist
   check("...the third: back", (await playTurn(page)) && !!(await poll(() => has(page, "tienda-closing-notice"), 10000)));
   const again = (await has(page, "tienda-closing-notice")) ? (await q(page, "tienda-closing-notice").innerText()).replace(/\s+/g, " ") : "";
   check("...the store closed now, asked again to leave", /The store is now closed\./.test(again) && /We’re going to have to ask you to leave\./.test(again) && (await shop()).asked === "closed", again);
+  // Once (user: "You should not be allowed to hit just a minute a second
+  // time"): no Just a minute now, and Escape doesn't put it away.
+  check("...no Just a minute this time", !(await has(page, "tienda-closing-later")) && (await shop()).waited === true, JSON.stringify(await shop()));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(700);
+  check("...nor Escape: it stays, the register the only way out", await has(page, "tienda-closing-notice"));
   await q(page, "tienda-closing-checkout").click();
   check("...its button: the purchase", await poll(() => has(page, "story-cut"), 6000, 100));
   check("no page errors", errs.length === 0, errs.join(" | "));

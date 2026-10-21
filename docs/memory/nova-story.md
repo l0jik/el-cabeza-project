@@ -212,3 +212,15 @@ in; leaving Singularity, back in the den as the set switches off.
   room kept above it for that caption (on a 768px-tall laptop it ran off
   the top); a phone's unchanged.
 
+- **The pull into the TV is too abrupt** (2026-10-21; user: "Getting
+  pulled into the TV against your will, it happens way too abruptly. Way
+  too abruptly. We need to come up with something else there. I mean,
+  it's fine, but it just happens way too abruptly."). As built: 9 s after
+  the blast with the head held on the set (20 s after the last look
+  otherwise), den-fx.js startPull yanks the camera into the glass in 1.35
+  s (PULL_RUSH 1.15, PULL_ENTER 1.35), no warning. Offered: 1 two warning
+  tugs (the view lurches at the set and snaps back, a thump and static,
+  the second harder, a thought between), then the third drags you across
+  the room and in (recommended); 2 the room goes first (loose things
+  pulled in, then you); 3 one long slow drag that gathers speed; 4 the
+  same pull slowed to ~4 s. Waiting on the pick.

@@ -18,7 +18,8 @@
    - closing time: the second move, or later by the clock, the lights go
      down a step (a flicker, then dimmer, and they stay so), and the PA:
      the store closing in ten minutes, final purchases to the front; a
-     tap on it checks out;
+     tap on it checks out; and the first time a player sees the lights go
+     down, their thought (LIGHTS_THOUGHT);
    - each announcement can be swiped away once it's been up 3 s (user:
      "You should be able to swipe dismiss these after about 3 seconds"):
      left, right or up, it goes with the finger and off; sooner, it only
@@ -35,7 +36,9 @@
      logo and stripes: we're going to have to ask you to leave, take all
      purchases to the front registers; its button checks out, "Just a
      minute" puts it away, and three moves on it's back, the store closed
-     now (user: "have Just a minute bring it back after a few moves").
+     now (user: "have Just a minute bring it back after a few moves"),
+     with no Just a minute this time: once a visit (user: "You should not
+     be allowed to hit just a minute a second time").
      Real minutes, from the ten-minute words (a minute missed while
      something else was up is skipped: the PA says the time it is);
    - in a game it's all sooner, by the player's moves (user: "The user
@@ -54,6 +57,7 @@
 import React from "react";
 import { loadFaces } from "./faces.js";
 import { tourDone } from "../chassis/FirstGameTour.jsx";
+import { dealCard } from "./den-cards.js";
 
 const h = React.createElement;
 const INK = "#2E2118", RED = "#A33F33", PAPER = "#EFE6CD";
@@ -77,10 +81,11 @@ export function useCart() {
 // (closingAt: when the ten minutes began; left: the last minute said, 5
 // down to 1, the notice; 0 none yet; asked: how the notice last came,
 // "minute" by the clock, "now" by the moves, "closed" back again; back:
-// the moves at which it's back, put off, 0 not; moves: the player's since
-// the walkthrough, the log read up to seen, -1 not yet.)
-const PA = { said: { instock: false, closing: false }, at: 0, closingAt: 0, left: 0, asked: "", back: 0, moves: 0, seen: -1 };
-export function resetShopping() { PA.said = { instock: false, closing: false }; PA.at = 0; PA.closingAt = 0; PA.left = 0; PA.asked = ""; PA.back = 0; PA.moves = 0; PA.seen = -1; emptyCart(); setDim(false); }
+// the moves at which it's back, put off, 0 not; waited: Just a minute
+// used, once a visit; moves: the player's since the walkthrough, the log
+// read up to seen, -1 not yet.)
+const PA = { said: { instock: false, closing: false }, at: 0, closingAt: 0, left: 0, asked: "", back: 0, waited: false, moves: 0, seen: -1 };
+export function resetShopping() { PA.said = { instock: false, closing: false }; PA.at = 0; PA.closingAt = 0; PA.left = 0; PA.asked = ""; PA.back = 0; PA.waited = false; PA.moves = 0; PA.seen = -1; emptyCart(); setDim(false); }
 /* The player's own moves since the first game's walkthrough was over (or
    from the first game, where it was walked through before): each turn
    the log gains that isn't the computer's, once, across the visit's games
@@ -124,6 +129,28 @@ function setDim(on, step = 1) {
   const steps = [[0, true], [90, false], [260, true], [330, false], [520, true]];
   steps.forEach(([ms, flick]) => setTimeout(() => { if (el.isConnected) el.setAttribute("data-flick", flick ? "true" : "false"); }, ms));
   setTimeout(() => { if (el.isConnected) { el.setAttribute("data-flick", "false"); el.setAttribute("data-on", step === 2 ? "2" : "true"); } }, 620);
+}
+
+/* The lights going down, the first time a player sees it (user: "When
+   the lights get turned down while you're at the store, when you're first
+   playing the game for a new user or new player, maybe a thought bubble
+   should come up saying, "Oh, I get turning down the lights. I guess they
+   want us out of here.""): their thought, one of the story's cards
+   (den-cards.js, as the den's are), a moment after the lights have gone
+   down with the closing words, just under those; a few seconds, then
+   gone. Once a player (LIGHTS_SEEN). */
+const LIGHTS_THOUGHT = "Oh… they're turning down the lights. I guess they want us out of here.";
+const LIGHTS_THOUGHT_AT = 1800, LIGHTS_THOUGHT_MS = 5200, LIGHTS_SEEN = "el-cabeza:lights-thought";
+function lightsThought() {
+  if (typeof document === "undefined") return null;
+  try { if (localStorage.getItem(LIGHTS_SEEN)) return null; localStorage.setItem(LIGHTS_SEEN, "1"); } catch (e) { /* as it can */ }
+  const card = dealCard(document, { testid: "tienda-lights-thought", l1: LIGHTS_THOUGHT });
+  // (Under the closing words where they're up: on a phone they're the
+  // width of the screen, and the card's place is where they end.)
+  const pa = document.querySelector(".td-pa");
+  const r = pa ? pa.getBoundingClientRect() : null;
+  if (r && r.height) card.el.style.top = `${Math.round(r.bottom + 14)}px`;
+  return card;
 }
 
 /* ---- the look ---- */
@@ -252,15 +279,18 @@ function logoFont() {
 // Its head: by the clock's last minute, by the moves, and back again after
 // Just a minute.
 const NOTICE_TITLES = { minute: "The store closes in one minute.", now: "The store is now closing.", closed: "The store is now closed." };
-function ClosingNotice({ onCheckout, onLater, asked }) {
+// (canWait: Just a minute's still to be had; once it's been used, the
+// register's the only way.)
+function ClosingNotice({ onCheckout, onLater, asked, canWait }) {
   const ref = React.useRef(null);
   React.useEffect(() => {
     logoFont();
     try { ref.current && ref.current.focus({ preventScroll: true }); } catch (e) { /* no focus */ }
+    if (!canWait) return undefined;
     const onKey = (e) => { if (e.key === "Escape") onLater(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onLater]);
+  }, [onLater, canWait]);
   // (A tap beside it doesn't reach the store behind.)
   const hold = (e) => { e.preventDefault(); e.stopPropagation(); };
   return [
@@ -275,7 +305,7 @@ function ClosingNotice({ onCheckout, onLater, asked }) {
       h("p", { id: "td-closing-words" }, "We’re going to have to ask you to leave. Please take all purchases to the front registers."),
       h("p", { className: "thanks" }, "Thank you for shopping at Big Glutts."),
       h("button", { type: "button", className: "go", "data-testid": "tienda-closing-checkout", onClick: onCheckout }, "Take El Cabeza to the register ›"),
-      h("button", { type: "button", className: "later", "data-testid": "tienda-closing-later", onClick: onLater }, "Just a minute"),
+      canWait && h("button", { type: "button", className: "later", "data-testid": "tienda-closing-later", onClick: onLater }, "Just a minute"),
       h("div", { className: "hours" }, "Store hours: Mon.–Sat. 9 a.m. to 9 p.m. · Sun. noon to 6 p.m.")),
   ];
 }
@@ -348,6 +378,15 @@ export function StorePA({ active, game, audio, onPurchase }) {
   const [spoken, setSpoken] = React.useState(0); // (counts what's been said, for the minutes' timer)
   const [held, setHeld] = React.useState(0); // (ticks while the first game's walkthrough holds it back)
   const arrivedAt = React.useRef(performance.now());
+  // The lights' thought (lightsThought): its timers and card, put away
+  // when the store is, or the notice comes up over it.
+  const thought = React.useRef({ timers: [], card: null });
+  const thoughtOff = React.useCallback((fade = 300) => {
+    const T = thought.current;
+    T.timers.forEach(clearTimeout); T.timers = [];
+    if (T.card) { T.card.remove(fade); T.card = null; }
+  }, []);
+  React.useEffect(() => () => thoughtOff(200), [thoughtOff]);
   // (Its lettering, the clipping's, fetched as the store opens: in long
   // before it speaks.)
   React.useEffect(() => { loadFaces("comic"); }, []);
@@ -370,9 +409,16 @@ export function StorePA({ active, game, audio, onPurchase }) {
     // (The price tag folds itself away, so the words don't cover it.)
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("td-pa-speak"));
     if (audio && audio.playPage) audio.playPage();
-    if (which === "closing") setDim(true);
+    if (which === "closing") {
+      setDim(true);
+      const T = thought.current;
+      T.timers.push(setTimeout(() => {
+        T.card = lightsThought();
+        if (T.card) T.timers.push(setTimeout(() => thoughtOff(700), LIGHTS_THOUGHT_MS));
+      }, LIGHTS_THOUGHT_AT));
+    }
     setGoing(false); setSay(which); setSpoken((n) => n + 1);
-  }, [audio]);
+  }, [audio, thoughtOff]);
   // Big Glutts' notice, the lights down another step: by the clock's last
   // minute, early by the moves, or back again (NOTICE_TITLES).
   const ask = React.useCallback((asked) => {
@@ -380,8 +426,9 @@ export function StorePA({ active, game, audio, onPurchase }) {
     if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("td-pa-speak"));
     if (audio && audio.playPage) audio.playPage();
     setDim(true, 2);
+    thoughtOff();
     setSay(null); setNotice(true); setSpoken((n) => n + 1);
-  }, [audio]);
+  }, [audio, thoughtOff]);
   // In stock: the first move after the walkthrough, or a while after
   // arriving.
   const stockDue = byMoves("instock");
@@ -446,16 +493,22 @@ export function StorePA({ active, game, audio, onPurchase }) {
     const b = setTimeout(() => { setSay(null); setGoing(false); }, long ? 12700 : 10700);
     return () => { clearTimeout(a); clearTimeout(b); };
   }, [say]);
-  React.useEffect(() => { if (!active) setSay(null); }, [active]);
+  React.useEffect(() => { if (!active) { setSay(null); thoughtOff(); } }, [active, thoughtOff]);
   const checkout = React.useCallback(() => {
     audio && audio.playSelect && audio.playSelect();
     setNotice(false); setSay(null);
     addToCart(); onPurchase && onPurchase();
   }, [audio, onPurchase]);
-  const later = React.useCallback(() => { audio && audio.playMenu && audio.playMenu(); PA.back = PA.moves + MOVES.again; setNotice(false); }, [audio]);
+  // (Once a visit: PA.waited.)
+  const later = React.useCallback(() => {
+    if (PA.waited) return;
+    PA.waited = true;
+    audio && audio.playMenu && audio.playMenu();
+    PA.back = PA.moves + MOVES.again; setNotice(false);
+  }, [audio]);
   const swipe = useSwipeAway(say, React.useCallback(() => { setSay(null); setGoing(false); }, []));
   if (!active) return null;
-  if (notice) return h(ClosingNotice, { onCheckout: checkout, onLater: later, asked: PA.asked });
+  if (notice) return h(ClosingNotice, { onCheckout: checkout, onLater: later, asked: PA.asked, canWait: !PA.waited });
   if (!say) return null;
   const toRegister = say !== "instock";
   // (Each announcement its own caption, come in afresh.)
@@ -482,4 +535,4 @@ export function useShoppingVisit(active) {
   }, [active]);
 }
 
-if (typeof window !== "undefined") window.__TIENDA_SHOP__ = () => ({ cart: CART.n, said: { ...PA.said }, left: PA.left, asked: PA.asked, back: PA.back, moves: PA.moves, dim: !!document.querySelector('.td-closing-dim[data-on="true"], .td-closing-dim[data-on="2"]'), dim2: !!document.querySelector('.td-closing-dim[data-on="2"]') });
+if (typeof window !== "undefined") window.__TIENDA_SHOP__ = () => ({ cart: CART.n, said: { ...PA.said }, left: PA.left, asked: PA.asked, back: PA.back, waited: PA.waited, moves: PA.moves, dim: !!document.querySelector('.td-closing-dim[data-on="true"], .td-closing-dim[data-on="2"]'), dim2: !!document.querySelector('.td-closing-dim[data-on="2"]') });

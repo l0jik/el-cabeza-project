@@ -272,3 +272,19 @@ box art and an ad standee (assets/tienda/*.jpg).
   comma should be placed."): "up, down, or sideways", and every list the
   walkthrough makes of three or more ("The Turrito, the Flaco, the
   Chato, and the Opa"); two stay "X and Y".
+- **The lights' thought** (2026-10-21; user: "When the lights get turned
+  down while you're at the store, when you're first playing the game for
+  a new user or new player, maybe a thought bubble should come up saying,
+  "Oh, I get turning down the lights. I guess they want us out of here.
+  Something like that. Give me some possible options."): at the closing
+  words (the first dim), 1.8 s on, one of the story's cards (den-cards.js
+  dealCard, as the den's thoughts) just under the PA's caption: "Oh…
+  they're turning down the lights. I guess they want us out of here." (the
+  user's own line; options offered), 5.2 s, then gone; put away with the
+  store or under Big Glutts' notice. Once a player
+  (localStorage el-cabeza:lights-thought). tienda-shopping.js
+  LIGHTS_THOUGHT / lightsThought.
+- **Just a minute, once** (2026-10-21; user: "You should not be allowed
+  to hit just a minute a second time."): PA.waited, once a visit; when the
+  notice comes back ("The store is now closed.") it has no Just a minute
+  and Escape doesn't put it away: the register's the only way out.
