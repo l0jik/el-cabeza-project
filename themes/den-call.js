@@ -51,7 +51,8 @@ const RING_ON = 2.0, RING_CYCLE = 6.0, RINGS = 8, CALL_BACK = 45000;
 const SCRIPT = [
   { who: "you", text: "Hello?" },
   { who: "them", text: "Oh, good news! This is Big Glutts. We actually found the pieces you were looking for." },
-  { who: "you", text: "Oh… I already have them." },
+  // (User: "Change this to: You: \"Oh?...…but, I already have them...\"")
+  { who: "you", text: "Oh?...…but, I already have them..." },
   { who: "them", text: "Oh. You do?" },
   { who: "them", text: "…", pause: 2.0 },
   { who: "them", text: "Well… you can come get these for free, if you like. We're sorry for any inconvenience." },
@@ -499,7 +500,9 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
       let dur;
       if (s.who === "them" && s.pause) dur = s.pause;
       else if (s.who === "them") { const v = voice(said++, start); dur = (v != null ? v : babble(s.text, start)) + 0.35; }
-      else if (s.who === "you") dur = 0.55 + s.text.split(/\s+/).length * 0.32;
+      // (Yours: long enough to read, and a beat more for each trailing
+      // off, "..." or "…", so the hesitation reads.)
+      else if (s.who === "you") dur = 0.55 + s.text.split(/\s+/).length * 0.32 + 0.35 * (s.text.match(/(?:\.\.\.|…)+/g) || []).length;
       else { lineClick(start, 0.8); if (L) L.hiss.gain.setTargetAtTime(0, start + 0.02, 0.02); dur = 1.6; }
       at(start, () => say(i));
       t = start + dur + 0.3;

@@ -170,20 +170,14 @@ Cabeza will always be with you..."** / **"It always has been."**
 
 At home (made unless marked):
 - "Finally… now I can play a game in peace."
-- Home from the closed store, one at random: "No more stores. No more phone
-  calls. Just me, the fire, and El Cabeza." / "Peace and quiet, a warm
-  fire, and a game nobody else has ever heard of. Perfect." / "Some days you
-  go looking for answers. Today I'm going looking for a win." / "Big Glutts
-  can stay closed. I've got everything I need right here." / "Enough
-  adventure for one day. Feet up, game on." / "Note to self: never answer
-  the phone again. Now, where was I?" / "Deep breath. Nothing strange is
-  going to happen in my own den. Let's just play." / "That was… weird.
-  Whatever. I'm not leaving this room again tonight. Let's play." / "I
-  don't know what happened over there, and I don't want to know. Game
-  time." / "Okay. I think I've had enough for one day. I'm just going to
-  sit here and play my game."
+- Home from the closed store (the user's own words, 2026-10-22, in place of
+  ten made ones at random): "That was…...whatever... / I'm not leaving this
+  room again tonight, I know that!... / Peace & quiet, delicious beverage,
+  warm fire, and a game nobody else has ever heard of." then, on its own
+  line, "Perfect!"
 - The call: "Oh, good news! This is Big Glutts. We actually found the pieces
-  you were looking for." / "Free pieces?! Nice!…" / "Thank you, Big Glutts!"
+  you were looking for." / yours, "Oh?...…but, I already have them..." (the
+  user's, 2026-10-22) / "Free pieces?! Nice!…" / "Thank you, Big Glutts!"
 - The trip: "Time to get the heck out of here!" / "…but I was just here!"
 - The TV: "Wait… is that my house?" (user) / "Phew… I'm home. What just
   happened?!" / "Uhh, Okaaaay....." (user) / "Who's messing with my

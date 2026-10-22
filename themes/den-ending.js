@@ -764,7 +764,7 @@ function mistNoise(doc) {
 
 export function createEnding({ audio, onFinish, onPick, onStay }) {
   const doc = typeof document !== "undefined" ? document : null;
-  let root = null, canvas = null, veil = null, dark = null, words = [], styleEl = null, crawl = null, crawlText = null, crawlLast = null, crawlAnim = null, crawlD = 0, crawlCheckAt = 0, crawlP = 0, crawlTap = false, crawlFade = null, lastS = 0;
+  let root = null, canvas = null, veil = null, dark = null, words = [], styleEl = null, crawl = null, crawlText = null, crawlLast = null, crawlAnim = null, crawlD = 0, crawlSkip = 0, crawlCheckAt = 0, crawlP = 0, crawlTap = false, crawlFade = null, lastS = 0;
   let renderer = null, scene = null, camera = null, raf = 0, t0 = 0, stage = "idle", menu = null, finished = false;
   let fig = null, figMat = null, disposables = [], snd = null, skipMs = 0, wisps = null;
   let look = { yaw: 0, pitch: 0, goalYaw: 0, goalPitch: 0 }, dragAt = null;
@@ -887,6 +887,9 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     const mist = doc.createElement("div"); mist.className = "mist"; mist.innerHTML = crawlText.innerHTML; mistWrap.appendChild(mist);
     const mn = mistNoise(doc); if (mn) mistWrap.style.setProperty("--mist", `url(${mn})`);
     crawlText.appendChild(mistWrap);
+    // (Its faces fetched now, a minute ahead, so its words never change
+    // size under it as a font arrives.)
+    try { if (doc.fonts && doc.fonts.load) ["500", "600"].forEach((w) => doc.fonts.load(`${w} 24px 'IBM Plex Sans'`).catch(() => {})); } catch (e) { /* as they come */ }
     veil = doc.createElement("div"); veil.className = "veil"; root.appendChild(veil);
     doc.body.appendChild(root);
     // The camera can't be moved (user); touches here go nowhere (the
@@ -1086,6 +1089,10 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     raf = requestAnimationFrame(frame);
     const now = performance.now(), s = (lastS = now - t0 + skipMs), rawMs = lastNow ? now - lastNow : 16.7, dt = Math.min(0.05, rawMs / 1000);
     lastNow = now;
+    // (Past the black there's nothing of the void left to move or draw,
+    // only the crawl: its frames kept light, so nothing holds the page up
+    // while it goes.)
+    if (stage !== "void" && s >= BLACK[1] + 300) { crawlFrame(s); return; }
     if (rawMs < 250) {
       frameAvg += (rawMs - frameAvg) * 0.1;
       slowFor = frameAvg > 24 ? slowFor + rawMs : 0;
@@ -1247,38 +1254,49 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // (At the black the music eases out by itself, its room ringing on;
     // the crawl's drone comes up under it.)
     if (s >= BLACK[1] && stage === "void") { stage = "black"; drone(true, 6); }
-    // The crawl, at an even pace from below the screen to far off in the
-    // dark (its last line just gone into the distance as it ends).
+    crawlFrame(s);
+    // (Under the black, nothing to draw.)
+    if (renderer && s < BLACK[1] + 300) renderer.render(scene, camera);
+  }
+  /* The crawl, at an even pace from below the screen to far off in the
+     dark (its last line just gone into the distance as it ends); then the
+     other realities. */
+  function crawlFrame(s) {
     if (crawl && stage === "black" && s >= CRAWL[0]) {
       crawlP = clamp01((s - CRAWL[0]) / (CRAWL[1] - CRAWL[0]));
-      // (User: it was jittery. Its motion is one animation the compositor
-      // runs at an even pace, and its fading in and out too; here only
-      // kept in step with the scene's clock if that's been moved on.)
-      const vh = crawl.clientHeight || 600;
+      const at = s - CRAWL[0];
       if (!crawl.classList.contains("on")) {
         crawl.classList.add("on");
         if (crawl.animate) crawl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 900, easing: "ease", fill: "forwards" }); else crawl.style.opacity = "1";
       }
-      const D = (crawlText.offsetHeight || 400) + vh * 0.8, at = s - CRAWL[0];
-      if (crawlText.animate && (!crawlAnim || Math.abs(D - crawlD) > 2)) {
-        if (crawlAnim) crawlAnim.cancel();
-        crawlD = D;
-        crawlAnim = crawlText.animate([{ transform: "translateY(0px)" }, { transform: `translateY(${-D}px)` }], { duration: CRAWL[1] - CRAWL[0], easing: "linear", fill: "forwards" });
-        crawlAnim.currentTime = at;
-      } else if (crawlAnim && Math.abs((crawlAnim.currentTime || 0) - at) > 150) crawlAnim.currentTime = at;
-      else if (!crawlText.animate) crawlText.style.transform = `translateY(${-crawlP * D}px)`;
+      /* (User: it was jittery; then "The Star Wars scroll after the
+         revelation sometimes vertically jitters". One animation the
+         compositor runs at an even pace from start to end: its distance
+         measured once, as it comes on (shown, so measured as it is), and
+         never made again. It had been made anew whenever the words' height
+         or the screen's changed by two pixels (a font arriving, a phone's
+         bar), and pulled back into step with the scene's clock whenever
+         the two were 150 ms apart, which one slow frame did and the next
+         undid: each a jump. Now only a deliberate move of the scene's
+         clock, skip(), moves it.) */
+      if (!crawlD) crawlD = (crawlText.offsetHeight || 400) + (crawl.clientHeight || 600) * 0.8;
+      if (crawlText.animate) {
+        if (!crawlAnim) {
+          crawlAnim = crawlText.animate([{ transform: "translateY(0px)" }, { transform: `translateY(${-crawlD}px)` }], { duration: CRAWL[1] - CRAWL[0], easing: "linear", fill: "forwards" });
+          crawlAnim.currentTime = at;
+          crawlSkip = skipMs;
+        } else if (skipMs !== crawlSkip) { crawlAnim.currentTime = at; crawlSkip = skipMs; }
+      } else crawlText.style.transform = `translateY(${-crawlP * crawlD}px)`;
       // (User: once its last line is up in the top half of the screen, a
       // touch lets it go: a 2.75 s fade, then the switcher. Until then,
       // touches do nothing. Looked at four times a second.)
       if (!crawlTap && s >= crawlCheckAt) {
         crawlCheckAt = s + 250;
         const r = crawlLast && crawlLast.getBoundingClientRect();
-        if (r && r.height > 0 && r.top + r.height / 2 < vh / 2) { crawlTap = true; crawl.setAttribute("data-dismissable", "true"); }
+        if (r && r.height > 0 && r.top + r.height / 2 < (crawl.clientHeight || 600) / 2) { crawlTap = true; crawl.setAttribute("data-dismissable", "true"); }
       }
     }
     if (stage === "black" && (s >= MENU_AT || (crawlFade != null && s >= crawlFade + CRAWL_FADE))) { droneGone(4); if (crawl) crawl.classList.remove("on"); openMenu(); }
-    // (Under the black, nothing to draw.)
-    if (renderer && s < BLACK[1] + 300) renderer.render(scene, camera);
   }
   function openMenu() {
     stage = "menu";

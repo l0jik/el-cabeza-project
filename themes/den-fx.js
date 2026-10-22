@@ -111,31 +111,16 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       }
     }
     // (Home from the trip, the hall's due: den-hall.js, below.)
-    /* Home from the trip (user): a card, one of the user's ten lines at
-       random (not the one shown last time), and a tap puts it away; the
-       game's then yours, and the hall (den-hall.js) counts its moves only
-       from there. */
-    const HOME_LINES = [
-      "Okay. I think I've had enough for one day. I'm just going to sit here and play my game.",
-      "No more stores. No more phone calls. Just me, the fire, and El Cabeza.",
-      "That was… weird. Whatever. I'm not leaving this room again tonight. Let's play.",
-      "I don't know what happened over there, and I don't want to know. Game time.",
-      "Enough adventure for one day. Feet up, game on.",
-      "Big Glutts can stay closed. I've got everything I need right here.",
-      "Deep breath. Nothing strange is going to happen in my own den. Let's just play.",
-      "Some days you go looking for answers. Today I'm going looking for a win.",
-      "Note to self: never answer the phone again. Now, where was I?",
-      "Peace and quiet, a warm fire, and a game nobody else has ever heard of. Perfect.",
-    ];
-    const HOME_LINE_KEY = "el-cabeza:home-line";
+    /* Home from the trip (user): a card with the user's own words (in
+       place of ten lines at random, user: "Change 'Home from the closed
+       store:' to: ..."), "Perfect!" coming in on its own line a beat
+       later; a tap puts it away; the game's then yours, and the hall
+       (den-hall.js) counts its moves only from there. */
+    const HOME_WORDS = "That was…...whatever...\nI'm not leaving this room again tonight, I know that!...\nPeace & quiet, delicious beverage, warm fire, and a game nobody else has ever heard of.";
+    const HOME_LAST = "Perfect!";
     function homeCard(onDone) {
       const doc = typeof document !== "undefined" ? document : null;
       if (!doc) { onDone(); return; }
-      let last = -1;
-      try { last = Number(localStorage.getItem(HOME_LINE_KEY)); } catch (e) { /* none */ }
-      let i = Math.floor(Math.random() * HOME_LINES.length);
-      if (i === last) i = (i + 1 + Math.floor(Math.random() * (HOME_LINES.length - 1))) % HOME_LINES.length;
-      try { localStorage.setItem(HOME_LINE_KEY, String(i)); } catch (e) { /* this time only */ }
       /* One of the den's cards (den-cards.js), askance in the upper right
          and movable; a tap on it, or the first tap anywhere else (which
          goes on to do what it was for), puts it away. */
@@ -162,8 +147,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (e.target instanceof Element && c.el.contains(e.target)) return;
         if (held) swallow(e); else close();
       };
-      c = dealCard(doc, { testid: "den-home-card", l1: HOME_LINES[i], hint: "Tap to play", role: "dialog", label: "Home again", onTap: close });
-      c.el.setAttribute("data-line", String(i));
+      c = dealCard(doc, { testid: "den-home-card", l1: HOME_WORDS, l2: HOME_LAST, l2Delay: 2600, long: true, hint: "Tap to play", role: "dialog", label: "Home again", onTap: close });
       c.el.classList.add("held");
       holdTimer = setTimeout(() => { held = false; c.el.classList.remove("held"); }, HOLD_MS);
       homeCardDrop = () => { done = true; unhook(); c.el.remove(); };

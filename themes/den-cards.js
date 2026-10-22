@@ -14,6 +14,11 @@ const CSS = `
   touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
   --tilt: 3deg; transform: rotate(var(--tilt)); }
 .den-card.left { right: auto; left: max(14px, 3vw); --tilt: -3.5deg; }
+/* (A card with more to say: wider, its words a size down, each line on
+   its own as written.) */
+.den-card.long { width: min(84vw, 420px); }
+.den-card.long .l1 { font-size: clamp(17px, 4.5vw, 22px); line-height: 1.22; }
+.den-card.long .l1 + .l2 { margin-top: 10px; }
 .den-card.dragging { cursor: grabbing; }
 .den-card .card { position: relative; padding: 16px 20px 15px; background: #F3E6C4; border: 3px solid #4A2A14; border-radius: 16px;
   box-shadow: 6px 7px 0 #4A2A14, 0 14px 30px rgba(20,10,4,0.45); color: #4A2A14;
@@ -22,7 +27,7 @@ const CSS = `
 .den-card .stripes { display: flex; height: 13px; margin: -16px -20px 12px; border-radius: 13px 13px 0 0; overflow: hidden; }
 .den-card .stripes i { flex: 1; } .den-card .stripes i:nth-child(1) { background: #6B3A1E; } .den-card .stripes i:nth-child(2) { background: #B4451F; }
 .den-card .stripes i:nth-child(3) { background: #E07B22; } .den-card .stripes i:nth-child(4) { background: #E9B23A; }
-.den-card .l1 { display: block; font: 400 clamp(19px, 5.2vw, 24px)/1.18 'Caprasimo', 'Cooper Black', Georgia, serif; text-wrap: balance; }
+.den-card .l1 { display: block; font: 400 clamp(19px, 5.2vw, 24px)/1.18 'Caprasimo', 'Cooper Black', Georgia, serif; text-wrap: balance; white-space: pre-line; }
 .den-card.loud .l1 { font-size: clamp(24px, 7vw, 34px); line-height: 1.05; color: #B4451F; text-shadow: 2px 2px 0 #E9B23A; }
 .den-card .l2 { display: block; margin-top: 8px; font: 400 clamp(17px, 4.8vw, 22px)/1.15 'Caprasimo', 'Cooper Black', Georgia, serif;
   animation: denCardLine 0.6s cubic-bezier(0.2, 1.5, 0.4, 1) 1.1s both; }
@@ -45,13 +50,14 @@ function ensure(doc) {
   }
 }
 
-/* A card: { testid, l1, l2?, hint?, side: "right" | "left", loud?,
-   onTap? }. Returns { el, remove(fadeMs) }. Pointer events on it never
-   reach the board or the room behind. */
-export function dealCard(doc, { testid, l1, l2 = null, hint = null, side = "right", loud = false, onTap = null, role = "status", label = null }) {
+/* A card: { testid, l1, l2?, l2Delay? (ms, when l2 comes in; 1100), hint?,
+   side: "right" | "left", loud?, long? (more words: wider, a size down;
+   a line break in l1 kept), onTap? }. Returns { el, remove(fadeMs) }.
+   Pointer events on it never reach the board or the room behind. */
+export function dealCard(doc, { testid, l1, l2 = null, l2Delay = null, hint = null, side = "right", loud = false, long = false, onTap = null, role = "status", label = null }) {
   ensure(doc);
   const el = doc.createElement("div");
-  el.className = `den-card${side === "left" ? " left" : ""}${loud ? " loud" : ""}`;
+  el.className = `den-card${side === "left" ? " left" : ""}${loud ? " loud" : ""}${long ? " long" : ""}`;
   el.setAttribute("data-testid", testid);
   el.setAttribute("role", role);
   if (label) el.setAttribute("aria-label", label);
@@ -59,7 +65,7 @@ export function dealCard(doc, { testid, l1, l2 = null, hint = null, side = "righ
   const stripes = doc.createElement("div"); stripes.className = "stripes"; stripes.setAttribute("aria-hidden", "true"); stripes.innerHTML = "<i></i><i></i><i></i><i></i>";
   const a = doc.createElement("span"); a.className = "l1"; a.textContent = l1;
   card.append(stripes, a);
-  if (l2) { const b = doc.createElement("span"); b.className = "l2"; b.textContent = l2; card.append(b); }
+  if (l2) { const b = doc.createElement("span"); b.className = "l2"; b.textContent = l2; if (l2Delay != null) b.style.animationDelay = `${l2Delay}ms`; card.append(b); }
   if (hint) { const s = doc.createElement("small"); s.textContent = hint; card.append(s); }
   el.append(card);
   doc.body.appendChild(el);

@@ -368,9 +368,9 @@ console.log("\ndesktop: the store, the purchase, home");
   check("...\"Time to get the heck out of here!\"", !!(await poll(async () => (await page.locator('[data-testid="den-trip-say-2"].on').count()) === 1, 25000, 100)));
   check("...home, in the Room view", !!(await poll(async () => { const s = await page.evaluate(() => window.__DEN_TRIP__().stage); const c = await page.evaluate(() => window.__EC_TEST_CAM__()); return (s === "home" || s === "done") && c.dollhouse; }, 25000, 100)));
   check("...and the trip's gone", !!(await poll(async () => !(await has(page, "den-trip")), 6000, 100)));
-  // Home: a card, one of the user's ten lines, a tap and it's gone (and
-  // the hall counts its moves from then).
-  check("home: the card (one of the ten lines)", !!(await poll(async () => (await has(page, "den-home-card")) && (await q(page, "den-home-card").innerText()).length > 20, 8000)));
+  // Home: a card in the user's words, a tap and it's gone (and the hall
+  // counts its moves from then).
+  check("home: the card, in the user's words, \"Perfect!\" on its own line", !!(await poll(async () => { if (!(await has(page, "den-home-card"))) return false; const t = await q(page, "den-home-card").innerText(); return /^That was…\.\.\.whatever\.\.\.\nI'm not leaving this room again tonight, I know that!\.\.\.\nPeace & quiet, delicious beverage, warm fire, and a game nobody else has ever heard of\.\s*\n\s*Perfect!/.test(t.trim()); }, 8000)));
   await page.screenshot({ path: process.env.EC_SHOTS ? `${process.env.EC_SHOTS}/home-card.png` : "/dev/null" }).catch(() => {});
   {
     // (Held 3.8 s, user: early taps, on it or anywhere, don't put it away.)
