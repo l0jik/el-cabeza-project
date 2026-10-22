@@ -96,3 +96,27 @@ to-black → draggable Fresnel-glow sphere sequence, in a new module,
   way round, over the page (phone 687 x 687, desktop the same shape).
   Before and after screenshots at the halo's brightest moment
   (scratchpad halo/shot.mjs, the 38% frame held).
+- **The first visit's drone comes in with the scramble** (2026-10-22;
+  user, with a screenshot of the sphere's first visit, the hand's card
+  up: "For some reason, the audio on this site is coming in a lot later
+  than it used to. It should start as soon as the page scrambling
+  starts, and the volume needs to be turned down about maybe 15% on
+  it."). The user's industrial drone (futuris-unease.js createDrone)
+  had been scheduled 9.6 s after the sphere came up, whatever happened,
+  fading up exponentially from -80 dB over 2.5 s, so silent for its
+  first 1.5 s (heard from about 11 s). The menu comes apart (LostNudge
+  unravel) at the first of: a menu open 6 s, three taps in menus, eight
+  touches, or 25 s untouched (then a menu opens by itself and comes
+  apart 1.8 s later): with a menu opened in the first few seconds the
+  scramble began before the drone was heard, by the card at the latest.
+  Now the drone is fetched as the sphere comes up and started by
+  unravel itself, the moment the menu starts coming apart (G.drone.start
+  (0, 0.35)): a straight 0.35 s ramp, heard at once, to DRONE_LEVEL
+  0.425 (was 0.5; 15% down, the way "N% quieter" has always been taken
+  here: the level times 1 - N). Untouched, the sphere is quiet after the
+  ring until the scramble at about 27 s. Measured over HTTP (from disk
+  there's no drone; scratchpad drone/measure.mjs, run.sh: the source's
+  start logged against the page's data-unravel): before, scheduled at
+  9.59 s with the scramble at 14.08 s; after, a menu opened: scramble
+  14.25 s, drone 14.30 s; nothing touched: scramble 26.83 s, drone
+  26.87 s.

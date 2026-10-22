@@ -3740,12 +3740,14 @@ function BackButton({ onExit }) {
    Before it, something going wrong (user picked three of the ideas): the
    menus open and work, so they're known for menus; a heartbeat and a
    ringing as the sphere comes up, the heartbeat gone in about three seconds, the ring sliding away in the room until about five and a half
-   (futuris-unease.js; then, after about four seconds of silence, the user's
-   industrial drone, looped, until the visit's over; user, who also had
-   the wireframe fingertip each touch
-   used to leave taken out); and then the menu won't
+   (futuris-unease.js; user, who also had the wireframe fingertip each
+   touch used to leave taken out); and then the menu won't
    hold: its words scramble, its rows drift and tear, it flickers and folds
-   shut by itself, and the card comes up. The unravelling comes at the
+   shut by itself, and the card comes up. The user's industrial drone
+   comes in the moment it starts to scramble, looped until the visit's
+   over (it was 9.6 s after the sphere came up, a slow swell, whenever the
+   menu came apart; user: "It should start as soon as the page scrambling
+   starts"). The unravelling comes at the
    first of: a menu open a few seconds (6 s), three taps inside menus,
    eight touches in all, or the old 25 s with nothing touched. */
 const LOST_MS = 25000;
@@ -3881,6 +3883,9 @@ function LostNudge({ stage, onExit, sing }) {
     G.gone = true;
     G.holding = true;
     setLost(true);
+    // The drone with it, at once (user: "It should start as soon as the
+    // page scrambling starts").
+    if (G.drone) G.drone.start(0, 0.35);
     if (G.unease) G.unease.set(0.85);
     if (!panel) { showCard(); return; }
     panel.classList.add("ec-unravel");
@@ -3940,10 +3945,9 @@ function LostNudge({ stage, onExit, sing }) {
     G.unease = createUnease(sing && sing.audio);
     G.unease.set(0.08);
     const fade = setTimeout(() => { if (G.unease) G.unease.stop(1.4, 3.4); }, 1600); // (the heartbeat gone at 3.0 s; the ring sliding away, its room with it, until about 5.6 s)
-    // Then about four seconds of silence, and the drone comes up, there
-    // for as long as this first visit lasts (user).
+    // The drone, fetched now, comes in when the menu starts coming apart
+    // (unravel), there for as long as this first visit lasts (user).
     G.drone = createDrone(sing && sing.audio);
-    G.drone.start(9.6, 2.5);
     return () => {
       clearTimeout(fade);
       if (G.drone) G.drone.stop(1.2);

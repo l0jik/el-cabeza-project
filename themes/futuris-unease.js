@@ -124,16 +124,18 @@ export function createUnease(audio) {
   };
 }
 
-/* ...and after the ring, the drone (user: the ring, then silence for
-   about four seconds, then this): the user's recording of an industrial
-   pulse drone, looped (tools/futuris_sphere_drone.py: its steady part, the
+/* ...and as the menu comes apart, the drone (user: first the ring, then
+   silence for about four seconds, then this; now "It should start as soon
+   as the page scrambling starts, and the volume needs to be turned down
+   about maybe 15% on it"): the user's recording of an industrial pulse
+   drone, looped (tools/futuris_sphere_drone.py: its steady part, the
    join crossfaded; DRONE_LOOP from there), out the same way as the ring.
    A file beside the page, fetched when the sphere comes up; from disk
    (file:) there's no fetching, so no drone there.
 
    createDrone(audio) -> { start(delayS, fadeS), stop(fadeS) } */
 const DRONE_URL = "el-cabeza-futuris-sphere-drone.mp3";
-const DRONE_FROM = 1.0, DRONE_LOOP = 21.5, DRONE_LEVEL = 0.5;
+const DRONE_FROM = 1.0, DRONE_LOOP = 21.5, DRONE_LEVEL = 0.425; // (0.5, 15% down)
 export function createDrone(audio) {
   const out = audio && audio.summonOutput ? audio.summonOutput() : null;
   let buf = null, src = null, bus = null, startAt = 0, fadeIn = 2.5, wanted = false, stopped = false;
@@ -145,8 +147,11 @@ export function createDrone(audio) {
     if (!buf || src || stopped || !wanted) return;
     bus = ctx.createGain(); bus.gain.value = 0; bus.connect(dest);
     const at = Math.max(ctx.currentTime + 0.05, startAt);
-    bus.gain.setValueAtTime(0.0001, at);
-    bus.gain.exponentialRampToValueAtTime(DRONE_LEVEL, at + fadeIn);
+    // (A straight ramp: heard from its first moments. The old slow swell,
+    // exponential from -80 dB over 2.5 s, was silent for its first second
+    // and a half.)
+    bus.gain.setValueAtTime(0, at);
+    bus.gain.linearRampToValueAtTime(DRONE_LEVEL, at + fadeIn);
     src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
     src.loopStart = DRONE_FROM; src.loopEnd = DRONE_FROM + DRONE_LOOP;
     src.connect(bus);
