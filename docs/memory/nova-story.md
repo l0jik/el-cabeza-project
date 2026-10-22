@@ -244,7 +244,11 @@ in; leaving Singularity, back in the den as the set switches off.
   played, or a phone's preload cut to metadata); the stall guard counts
   from its start (MENU_AT + 6 s), and one that can't start by
   MENU_AT + 6 s from the page's start gets the still logo and the menu,
-  as before. And a line under 5 Mbit/s
+  as before. Measured after (local WebM, Begin the moment the menu's up):
+  3 Mbit/s, the poster 8.7 s then the splash without a stop, the
+  playback 144 frames without a skip; 1.5 Mbit/s, the still logo and
+  menu at the guard, no stop and go, the playback the same; from files,
+  as fast as before. e2e-title passes. And a line under 5 Mbit/s
   (navigator.connection.downlink) takes the 720p files, as Save Data does.
 
 - **Restart the story leaves nothing of the switcher behind**
