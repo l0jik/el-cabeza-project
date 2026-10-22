@@ -229,6 +229,17 @@ in; leaving Singularity, back in the den as the set switches off.
   like GitHub Pages; measure.mjs MEASURE_BASE, MEASURE_KBPS,
   MEASURE_TAP_AFTER); the local browser has no H.264, so it plays the
   720p WebM files, a sixth to an eighth of a phone's.
+  The splash itself, over such lines, started with a little in and ran
+  stop and go through the board's change (3 Mbit/s: 5.5 s on the poster,
+  then four stops in its first 2 s, up to 0.3 s each; 1.5 Mbit/s: 11 s,
+  then stops, then the stall guard's still logo). Now it starts once it
+  can play through (canplaythrough or playsThrough on progress), the
+  poster (its first frame) up meanwhile; 3 s after it could start at
+  most, 2.5 s on if nothing's coming in at all (a browser that fetches
+  only once played), 9 s at the latest; the stall guard counts from its
+  start (MENU_AT + 6 s), 20 s if it never starts. And a line under
+  5 Mbit/s (navigator.connection.downlink) takes the 720p files, as Save
+  Data does.
 
 - **Restart the story leaves nothing of the switcher behind**
   (2026-10-21; user, with a phone screenshot of the store's Standard

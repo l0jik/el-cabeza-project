@@ -153,10 +153,11 @@ html.ec-splash-on { background: #120C08; }
   const back = el("canvas", "ec-splash-back", { width: "64", height: "52", "aria-hidden": "true" });
   const stage = el("div", "ec-splash-stage");
   // The sharp file where the screen has the pixels for it and the line's not
-  // saving data; the lighter one otherwise (both beside the page).
+  // saving data or slow (under 5 Mbit/s, where the sharp one, 4.4 MB, came
+  // in stop and go); the lighter one otherwise (both beside the page).
   const conn = navigator.connection || {};
   const px = Math.min(W.screen.width, W.screen.height) * (W.devicePixelRatio || 1);
-  const light = conn.saveData || /(^|-)2g$/.test(conn.effectiveType || "") || px < 900 || (navigator.deviceMemory && navigator.deviceMemory <= 2);
+  const light = conn.saveData || /(^|-)2g$/.test(conn.effectiveType || "") || (conn.downlink > 0 && conn.downlink < 5) || px < 900 || (navigator.deviceMemory && navigator.deviceMemory <= 2);
   const video = el("video", "ec-splash-video", { muted: "", playsinline: "", "webkit-playsinline": "", preload: "auto", poster: "el-cabeza-title-poster.jpg", "aria-hidden": "true", "data-testid": "title-video" });
   video.muted = true;
   video.playsInline = true;
@@ -246,6 +247,9 @@ html.ec-splash-on { background: #120C08; }
       paintedAt = t;
     } catch (err) { /* not yet */ }
   };
+  // (All of it in; or, enough to play to its end at the rate it's coming.)
+  const allIn = (v) => { try { const b = v.buffered; return b.length > 0 && v.duration > 0 && b.end(b.length - 1) >= v.duration - 0.05; } catch (e) { return false; } };
+  const playsThrough = (v) => v.readyState >= 4 || allIn(v);
   let state = "playing";
   const setState = (s) => { state = s; root.setAttribute("data-state", s); };
   const holdLoop = () => {
@@ -267,8 +271,10 @@ html.ec-splash-on { background: #120C08; }
   }
   video.addEventListener("timeupdate", menuDue);
   // (A video that stalls on a slow line never gets there: the logo, still,
-  // and the choices under it, a few seconds on.)
-  W.setTimeout(() => { if (state === "playing") hold(true); }, (MENU_AT + 6) * 1000);
+  // and the choices under it, a few seconds on, counted from its start;
+  // one that never starts, 20 s on.)
+  const stalled = () => { if (state === "playing") hold(true); };
+  W.setTimeout(stalled, 20000);
   video.addEventListener("ended", () => { if (state === "playing") hold(); else holdLoop(); });
   video.addEventListener("seeked", () => paint(true));
   video.addEventListener("error", () => { if (state === "playing") hold(); });
@@ -279,9 +285,29 @@ html.ec-splash-on { background: #120C08; }
     video.addEventListener("loadedmetadata", () => { video.currentTime = HOLD_FROM; }, { once: true });
     W.setTimeout(() => hold(true), 50);
   } else {
-    const p = video.play();
-    // (No autoplay, e.g. a phone saving power: the logo, held.)
-    if (p && p.catch) p.catch(() => { if (state === "playing") hold(true); });
+    /* Started once it can play to its end without running dry: on a slow
+       line it started with a little in and ran stop and go through the
+       board's change ("it kind of gets hung up"). Its first frame, the
+       board, is up until then (the poster). Once it could start, 3 s more
+       at most; and if nothing's coming in at all (a browser that fetches
+       only once it's played), started 2.5 s on, as before. */
+    let started = false, coming = false;
+    const start = () => {
+      if (started || state !== "playing") return;
+      started = true;
+      W.setTimeout(stalled, (MENU_AT + 6) * 1000);
+      const p = video.play();
+      // (No autoplay, e.g. a phone saving power: the logo, held.)
+      if (p && p.catch) p.catch(() => { if (state === "playing") hold(true); });
+    };
+    if (playsThrough(video)) start();
+    else {
+      video.addEventListener("canplaythrough", start, { once: true });
+      video.addEventListener("canplay", () => W.setTimeout(start, 3000), { once: true });
+      video.addEventListener("progress", () => { coming = true; if (playsThrough(video)) start(); });
+      W.setTimeout(() => { if (!coming) start(); }, 2500);
+      W.setTimeout(start, 9000);
+    }
   }
 
   /* The room for the menu: the logo (its emblem to NOVA, 22% to 88.5% of
@@ -310,10 +336,6 @@ html.ec-splash-on { background: #120C08; }
     rew.src = REWIND_SRC;
     try { rew.load(); } catch (e) { /* as it comes */ }
   };
-  // (All of it in; or, for the playback, enough to play to its end at the
-  // rate it's coming.)
-  const allIn = (v) => { try { const b = v.buffered; return b.length > 0 && v.duration > 0 && b.end(b.length - 1) >= v.duration - 0.05; } catch (e) { return false; } };
-  const playsThrough = (v) => v.readyState >= 4 || allIn(v);
   video.addEventListener("progress", () => { if (allIn(video)) fetchRewind(); });
 
   // 6.9 s in (or the video over, or skipped): the menu, the logo held
@@ -325,7 +347,11 @@ html.ec-splash-on { background: #120C08; }
     root.classList.add("menu-on");
     fetchRewind();
     if (still) { try { video.pause(); video.currentTime = HOLD_FROM; } catch (e) { /* as it is */ } }
-    else holdLoop();
+    else {
+      holdLoop();
+      // (Skipped to before it had started: breathing from here.)
+      if (video.paused && !video.ended) { const p = video.play(); if (p && p.catch) p.catch(() => {}); }
+    }
   }
   // Escape while it plays: a dip to the logo, held.
   function skip() {
