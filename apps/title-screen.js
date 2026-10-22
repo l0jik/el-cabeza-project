@@ -92,7 +92,8 @@ html.ec-splash-on { background: #120C08; }
 /* (Inside the stage, so it moves with the picture; its middle exactly
    behind the picture, its drawn-out edges past the screen's.) */
 .ec-splash-back { position: absolute; left: 50%; top: 50%; width: calc(min(100vw, 56.25vh) * 4); height: calc(min(100vh, 177.7778vw) * 1.8571);
-  transform: translate(-50%, -50%); filter: blur(16px); }
+  transform: translate(-50%, -50%); }
+.ec-splash-back.css-blur { filter: blur(16px); }
 .ec-splash-stage { position: absolute; inset: 0; transform-origin: 50% var(--o, 0px); transition: transform 0.9s cubic-bezier(.22,.7,.2,1); }
 .ec-splash.menu-on .ec-splash-stage { transform: translateY(var(--dy, 0px)) scale(var(--s, 1)); }
 /* The picture itself, as large as fits, its edges fading into the blur. */
@@ -209,18 +210,40 @@ html.ec-splash-on { background: #120C08; }
   /* Behind the picture, the picture again, tiny, its edges drawn out to the
      sides and above and below it, and blurred: so the room round it on any
      screen is the frame's own edge colours (the table's, then the
-     ground's), lined up with it. 16 x 28 in the middle of 64 x 52. */
+     ground's), lined up with it. 16 x 28 in the middle of 64 x 52.
+     The blur's drawn in the canvas itself (at four times that, 256 x 208,
+     so it's smooth spread over the screen), not a CSS blur on the canvas:
+     an element several screens in size blurred again each time it
+     changed, every frame, held up a phone's every frame (user: "it kind
+     of gets hung up"). And it's drawn 18 times a second at most, the
+     room's colours changing slowly. (A browser that can't blur in a
+     canvas, an older iPhone's, keeps the CSS blur.) */
   const bctx = back.getContext("2d");
+  const inCanvas = typeof CanvasRenderingContext2D !== "undefined" && "filter" in CanvasRenderingContext2D.prototype;
+  const small = inCanvas ? D.createElement("canvas") : back;
+  if (inCanvas) { small.width = 64; small.height = 52; back.width = 256; back.height = 208; } else back.classList.add("css-blur");
+  const sctx = inCanvas ? small.getContext("2d") : bctx;
   let rewinding = false; // (the way out's playback: the picture's from it)
-  const paint = () => {
+  let paintedAt = -1e4;
+  const paint = (now) => {
+    const t = W.performance.now();
+    if (now !== true && t - paintedAt < 55) return;
     try {
       const v = rewinding ? rew : video;
       if (v.readyState < 2) return;
-      bctx.drawImage(v, 24, 12, 16, 28);
-      bctx.drawImage(back, 24, 12, 1, 28, 0, 12, 24, 28);
-      bctx.drawImage(back, 39, 12, 1, 28, 40, 12, 24, 28);
-      bctx.drawImage(back, 0, 12, 64, 1, 0, 0, 64, 12);
-      bctx.drawImage(back, 0, 39, 64, 1, 0, 40, 64, 12);
+      sctx.drawImage(v, 24, 12, 16, 28);
+      sctx.drawImage(small, 24, 12, 1, 28, 0, 12, 24, 28);
+      sctx.drawImage(small, 39, 12, 1, 28, 40, 12, 24, 28);
+      sctx.drawImage(small, 0, 12, 64, 1, 0, 0, 64, 12);
+      sctx.drawImage(small, 0, 39, 64, 1, 0, 40, 64, 12);
+      if (inCanvas) {
+        // (The CSS blur's 16 px, about 2.4 of these where it's seen.)
+        bctx.clearRect(0, 0, 256, 208);
+        bctx.filter = "blur(2.4px)";
+        bctx.drawImage(small, 0, 0, 256, 208);
+        bctx.filter = "none";
+      }
+      paintedAt = t;
     } catch (err) { /* not yet */ }
   };
   let state = "playing";
@@ -247,7 +270,7 @@ html.ec-splash-on { background: #120C08; }
   // and the choices under it, a few seconds on.)
   W.setTimeout(() => { if (state === "playing") hold(true); }, (MENU_AT + 6) * 1000);
   video.addEventListener("ended", () => { if (state === "playing") hold(); else holdLoop(); });
-  video.addEventListener("seeked", paint);
+  video.addEventListener("seeked", () => paint(true));
   video.addEventListener("error", () => { if (state === "playing") hold(); });
 
   const reduce = W.matchMedia && W.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -353,26 +376,39 @@ html.ec-splash-on { background: #120C08; }
     fullScreen();
     title.choice = action === "continue" && first.world ? { action, world: first.world } : { action };
     rewindOut();
-    /* The app's let in a couple of frames on, the way out already under
-       way on the screen: mounting it can hold the page up a moment (a
-       phone, a slow machine), and what's on the screen by then plays on
-       through it (the squeeze, the playback, the stage settling). */
-    let letIn = false;
-    const go = () => { if (letIn) return; letIn = true; resolveChoice(title.choice); };
+  }
+
+  /* The way out: the splash played back to the board (rew), then the app
+     let in under the title, and the title faded off it once it's up (the
+     playback over, rewound; the app up, appUp). Not under way in a moment
+     (a slow line), or reduced motion: the app's let in at once, and the
+     title fades as soon as it's up. (Escape cuts it short.)
+     The app's let in only once the playback's over, not as it starts:
+     mounting it (its scene built, its first pictures drawn, a phone's
+     graphics busy with them) held the playback up, frames late and then
+     jumping (user: "it kind of gets hung up ... especially ... after
+     begin is pressed and it goes back"). Over the board, the playback's
+     last frame held still, the wait shows nothing moving to stop. */
+  let rewound = false, appUp = false, letIn = false;
+  const goIfDone = () => { if (rewound && appUp) leave(); };
+  const letAppIn = () => {
+    if (letIn) return;
+    letIn = true;
+    // (A couple of frames on: what's on the screen drawn first.)
+    let sent = false;
+    const go = () => { if (sent) return; sent = true; resolveChoice(title.choice); };
     W.requestAnimationFrame(() => W.requestAnimationFrame(go));
     W.setTimeout(go, 150);
     // (If the app never says it's up, the title goes anyway.)
     W.setTimeout(leave, 15000);
-  }
-
-  /* The way out: the splash played back to the board (rew) while the app
-     comes up under the title, then the title fades off it, once both are
-     done: the playback over (rewound), the app up (appUp). Not under way
-     in a moment (a slow line), or reduced motion: as before, the title
-     fades as soon as the app's up. (Escape cuts it short.) */
-  let rewound = false, appUp = false;
-  const goIfDone = () => { if (rewound && appUp) leave(); };
-  const rewoundNow = () => { if (rewound) return; rewound = true; goIfDone(); };
+  };
+  const rewoundNow = () => {
+    if (rewound) return;
+    rewound = true;
+    if (rewinding) paint(true);
+    letAppIn();
+    goIfDone();
+  };
   function rewindOut() {
     if (reduce || !rew.src) { rewoundNow(); return; }
     const giveUp = () => { if (!rewinding) { try { rew.pause(); } catch (e) { /* as it is */ } } rewoundNow(); };
@@ -383,7 +419,7 @@ html.ec-splash-on { background: #120C08; }
       rew.classList.add("on");
       root.classList.add("settle");
       W.setTimeout(() => { try { video.pause(); } catch (e) { /* as it is */ } }, 350);
-      const tick = () => { if (!rewinding || gone) return; paint(); W.requestAnimationFrame(tick); };
+      const tick = () => { if (!rewinding || gone || rew.ended) return; paint(); W.requestAnimationFrame(tick); };
       W.requestAnimationFrame(tick);
       W.setTimeout(rewoundNow, 8000); // (a stalled playback still ends; it's 4.8 s)
     };

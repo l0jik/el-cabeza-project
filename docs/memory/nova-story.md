@@ -194,6 +194,29 @@ in; leaving Singularity, back in the den as the set switches off.
   last = title@0. The button's squeeze 0.8 s (was 0.55), its rules 0.65 s,
   the stage settling back 1.6 s (was 0.9); the stall guard 8 s (was 6).
   e2e-title checks the clip at 4.8 s.
+  Smoother since (2026-10-22; user: "The splash screen animation is, it
+  kind of gets hung up. I think I especially notice it when it's after
+  begin is pressed and it goes back. It's not as smooth as it should
+  be."). Measured frame by frame (scratchpad splash/measure.mjs: each
+  video's requestVideoFrameCallback, the page's long tasks; a 412x915
+  phone page at 2.625x), then with each suspect taken away: (1) the
+  blurred room round the picture, a CSS blur(16px) on a canvas several
+  screens in size, blurred again each time it was painted (every video
+  frame): without it the video held 30 fps where it had dropped every
+  other frame; (2) the app mounted 150 ms after Begin, under the
+  playback: 7.5 s of long tasks (the longest 2.5 s) in its 4.8 s, a
+  phone's graphics busy with the scene's first pictures; mounted after
+  it instead, the playback ran 142 frames with one skip. Now the blur's
+  drawn in the canvas itself (paint: the 64 x 52 picture in an offscreen
+  canvas, drawn blurred, 2.4 px, into the shown one at 256 x 208; no CSS
+  filter, kept only where a canvas can't blur, Safari before 18, class
+  css-blur), painted 18 times a second at most; screenshots before and
+  after differ by 6 of 255 at most. And the app's let in once the
+  playback's over (rewoundNow -> letAppIn; at once with reduced motion,
+  no clip, Escape or the stall guard), the board, its last frame, held
+  still while it comes up; the title fades once it's up, as before.
+  e2e-title checks the app came only once the playback was over, under
+  the title still.
 
 - **Restart the story leaves nothing of the switcher behind**
   (2026-10-21; user, with a phone screenshot of the store's Standard

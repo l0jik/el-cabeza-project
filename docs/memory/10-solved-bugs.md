@@ -39,3 +39,16 @@
   and past the black frame() runs only the crawl and the menu, none of
   the void's figure, wisps or camera (nothing drawn there anyway), so the
   page's frames stay light while it goes.
+- **The title splash hitched, the rewind after Begin worst** (2026-10-22;
+  user: "The splash screen animation is, it kind of gets hung up. I think
+  I especially notice it when it's after begin is pressed and it goes
+  back."). Two causes, each measured by taking it away (scratchpad
+  splash/measure.mjs, variants nofilter/nomask/nopaint/late): the
+  backdrop canvas's CSS blur(16px), on an element four screens wide,
+  recomputed every video frame (the compositor dropped every other
+  frame; gone, a steady 30 fps); and the app mounting under the 4.8 s
+  playback (7.5 s of long tasks, the longest 2.5 s). Fixed in
+  apps/title-screen.js: the blur drawn in the canvas (offscreen 64 x 52,
+  blurred into a 256 x 208 shown canvas, at most 18 paints a second), the
+  app let in once the playback's over. The masks on the videos cost a
+  little too (fewer skips without them) but were kept for the look.

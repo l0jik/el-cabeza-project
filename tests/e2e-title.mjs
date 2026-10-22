@@ -14,8 +14,10 @@
      the screen"), the video playing on into its last two breaths, then
      looping them, never past them; Begin alone. A tap off the button does
      nothing; Begin begins: squeezed to a line, the splash played back to
-     the board as the app comes up under it ("it should play the animation
-     in reverse"), then the title goes and the story's at Big Glutts, the
+     the board ("it should play the animation in reverse"), the app let in
+     under it only once that's over (mounted as it played, it held it up:
+     "it kind of gets hung up ... especially ... after begin is pressed and
+     it goes back"), then the title goes and the story's at Big Glutts, the
      lid on the box. Escape as it plays back: gone once the app's up. On
      a phone, Begin tapped the moment it's in, the page's first tap: full
      screen and begun, both ("as soon as BEGIN is on screen ... you should
@@ -72,6 +74,12 @@ async function open({ story = null, last = null, phone = false, path = "?title" 
     // when it began to fade, where its playback back to the board was.
     const T = (window.__TITLE_T__ = {});
     new MutationObserver(() => {
+      // (And when the app's first canvas came, where the playback was.)
+      if (T.app == null && document.querySelector("#root canvas")) {
+        const v = document.querySelector('[data-testid="title-rewind"]');
+        T.app = performance.now();
+        T.appRew = v ? { on: v.classList.contains("on"), ended: v.ended, t: v.currentTime, d: v.duration } : null;
+      }
       const r = document.querySelector('[data-testid="title-screen"]');
       if (!r) return;
       if (T.open == null) T.open = performance.now();
@@ -138,17 +146,21 @@ console.log("\na new player: the splash, the logo held, Begin");
   // should play the animation in reverse. Like maybe begin like zooms out
   // like vertically, and then as it's doing that, then everything goes in
   // reverse"): Begin squeezed to a line, the splash played back from the
-  // held logo to the board as the app comes up under it, the title off it
-  // once that's over.
+  // held logo to the board, then the app let in under it, the title off it
+  // once the app's up.
   check("Begin: squeezed to a line as it goes", await page.evaluate(() => document.querySelector('[data-testid="title-primary"]').classList.contains("picked") && getComputedStyle(document.querySelector('[data-testid="title-primary"]')).animationName === "ecPicked"));
-  // (The app's mounting can hold the page's script up for a while here, the
-  // playback going on regardless: by the time the page answers it may be over.)
+  // (On a loaded machine the page may answer late: by then it may be over.)
   const R = await poll(() => page.evaluate(() => { const v = document.querySelector('[data-testid="title-rewind"]'); return !!v && v.classList.contains("on") && (v.ended || (!v.paused && v.currentTime > 0.2)) && { t: v.currentTime, d: v.duration, ended: v.ended }; }), 8000, 50);
   // (4.8 s: user, of the first, 2.75 s: "the reverse sequence needs to go
   // a little bit more slowly".)
   check("...the splash played back to the board (4.8 s)", !!R && R.d > 4.6 && R.d < 5.0, JSON.stringify(R));
   check("...the logo's loop stopped under it", !!(await poll(() => page.evaluate(() => document.querySelector('[data-testid="title-video"]').paused), 10000, 50)));
-  check("...the app coming up under it meanwhile", !!(await poll(() => page.evaluate(() => !!document.querySelector("#root canvas") && !!document.querySelector('[data-testid="title-screen"]')), 10000, 50)));
+  // The app let in only once it's played back, the title still up over the
+  // board (user: "it kind of gets hung up ... especially ... after begin is
+  // pressed and it goes back": the app mounting under the playback held it
+  // up).
+  const A = await poll(() => page.evaluate(() => { const T = window.__TITLE_T__; return T.app != null && { app: T.app, gone: T.gone, rew: T.appRew }; }), 15000, 50);
+  check("...the app let in once it's played back, under the title still", !!A && !!A.rew && A.rew.on && (A.rew.ended || A.rew.t >= A.rew.d - 0.1) && (A.gone == null || A.gone > A.app), JSON.stringify(A));
   await page.screenshot({ path: "/tmp/title-new-rewind.png" });
   check("Begin: the title goes", !!(await gone(page)));
   const G = await page.evaluate(() => window.__TITLE_T__);
