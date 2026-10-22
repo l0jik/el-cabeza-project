@@ -46,7 +46,7 @@ import { createGovernor } from "../chassis/device-fit.js";
 import { setCommercialOn, onJourneyChange } from "../engine/journey.js";
 import { createDenCall } from "./den-call.js";
 import { createTrip } from "./den-trip.js";
-import { createHall, echoRoom } from "./den-hall.js";
+import { createHall, echoRoom, SHOUT_TIMES } from "./den-hall.js";
 import { createEnding, prewarmFigure, prefetchVoidMusic } from "./den-ending.js";
 import { WORLDS } from "./realities.js";
 
@@ -1280,49 +1280,100 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        below: two tugs, the room going first, the drag), then the rush.
        The set slams on into its dive,
        everything else is put away and nothing takes a tap; the camera is
-       yanked from wherever it is across the room and into the glass
-       (PULL_RUSH, slow then all at once), the lens widening as it goes and
-       the picture drawn out toward the set, streaks of light pouring into
-       it; the set drawing breath (den-audio.js tvHaunt "pull") and his yell
-       (the hall's shout, den-hall.js: the same voice, with its echo); and at
-       the glass (PULL_ENTER) Nova's transition takes over, as when it's
-       turned on. Nova busy: a while later (PULL_RETRY). */
-    const PULL_FIXED = 9000, PULL_LATE = 20000, PULL_RUSH = 1150, PULL_ENTER = 1350, PULL_RETRY = 4000, PULL_YELL_AT = 180;
+       drawn on from the drag across the room and into the glass
+       (PULL_RUSH, gathering speed all the way), the lens widening as it
+       goes and the picture drawn out toward the set, streaks of light
+       pouring into it; the set drawing breath (den-audio.js tvHaunt "pull")
+       and his yell (the hall's shout, den-hall.js: the same voice, its
+       preverb swelling up into it from the drag, its echo ringing on);
+       over the last of it the dark closes in round the set (PULL_DARK on);
+       and at the glass (PULL_ENTER), all dark, Nova's transition takes
+       over, as when it's turned on, opening out of the black. Nova busy: a
+       while later (PULL_RETRY). (It ended in 1.35 s with a lunge in its
+       last 0.2 s, after a second all but still, then a cut from the
+       picture to black, and the den's sound, the echo with it, cut dead
+       0.38 s on; user: "The last part of the pull into the TV still
+       happens too abruptly ... Maybe the voice, the shout at the end, at
+       least that needs to have some preverb on it".) */
+    const PULL_FIXED = 9000, PULL_LATE = 20000, PULL_RUSH = 1500, PULL_DARK = 1000, PULL_ENTER = 1700, PULL_RETRY = 4000, PULL_YELL_AT = 180;
+    // (How near the set's middle the rush has the camera at the glass.)
+    const PULL_NEAR = 5;
     let blastAt = 0, pullBase = 0, tvPullIn = null, pullHeld = false, pullSoon = 0, pullFx = null;
-    // His yell: the hall's recording, fetched once the set's acting up.
-    let yellBuf = null, yellAsked = false, yellRoom = null;
+    /* His yell: the hall's recording and its preverb (its own room run
+       backwards, swelling up into it for SHOUT_TIMES.PRE s), fetched once
+       the set's acting up. The pair is cued from the drag (tugFrame,
+       YELL_AHEAD before the shout's due PULL_YELL_AT into the rush), both
+       from the one cue so they line up to the sample, as the hall's do
+       (den-hall.js shout). Without the preverb (not in yet, or from disk:
+       no fetching), the rush yells as it goes, alone (yell). */
+    const YELL_PRE = SHOUT_TIMES.PRE + SHOUT_TIMES.PRE_LEAD, YELL_AHEAD = YELL_PRE + SHOUT_TIMES.LEAD, YELL_GAIN = 0.85;
+    let yellBuf = null, preBuf = null, yellAsked = false, yellRoom = null, shoutCued = null;
     function loadYell() {
       if (yellAsked || typeof fetch === "undefined" || (typeof location !== "undefined" && location.protocol === "file:")) return;
       const o = audio && audio.phoneOutput ? audio.phoneOutput() : null;
       if (!o || !o.ctx) return;
       yellAsked = true;
-      fetch("el-cabeza-hall-scream.mp3").then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => o.ctx.decodeAudioData(b))
-        .then((buf) => { yellBuf = buf; }).catch(() => { /* the set's own sound, then */ });
+      const get = (url) => fetch(url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => o.ctx.decodeAudioData(b));
+      get("el-cabeza-hall-scream.mp3").then((buf) => { yellBuf = buf; }).catch(() => { /* the set's own sound, then */ });
+      get("el-cabeza-hall-pre.mp3").then((buf) => { preBuf = buf; }).catch(() => { /* the shout alone, then */ });
     }
-    function yell() {
-      const o = audio && audio.phoneOutput ? audio.phoneOutput() : null;
-      if (!o || !o.ctx || !yellBuf) return false;
-      const { ctx } = o, t = ctx.currentTime + 0.01;
-      // (From its first sound: decoders differ in the silence before it.)
-      const d = yellBuf.getChannelData(0);
-      let i = 0; while (i < d.length && i < yellBuf.sampleRate * 0.3 && Math.abs(d[i]) < 1e-4) i++;
+    // The shout at `t` (the audio clock), `from` s into its file: its echo
+    // swelling as it goes, ringing on into the set, and the den's sound let
+    // ring that long should the den be put away meanwhile (ringOut).
+    function shoutAt(o, t, from) {
+      const { ctx } = o, lead = Math.max(0, SHOUT_TIMES.LEAD - from), sound = t + lead;
       const src = ctx.createBufferSource(); src.buffer = yellBuf;
-      const g = ctx.createGain(); g.gain.value = 0.85;
+      const g = ctx.createGain(); g.gain.value = YELL_GAIN;
       src.connect(g).connect(o.ear);
-      // Its echo, swelling as it goes, ringing on into the set.
       if (!yellRoom || yellRoom.sampleRate !== ctx.sampleRate) yellRoom = echoRoom(ctx);
       const send = ctx.createGain(), room = ctx.createConvolver(), wet = ctx.createGain();
       room.normalize = false; room.buffer = yellRoom;
-      send.gain.setValueAtTime(0.35, t); send.gain.linearRampToValueAtTime(1, t + 1.1);
+      send.gain.setValueAtTime(0.35, sound); send.gain.linearRampToValueAtTime(1, sound + 1.1);
       wet.gain.value = 1.3;
       g.connect(send).connect(room).connect(wet).connect(o.ear);
-      src.start(t, i / yellBuf.sampleRate, 1.3);
-      setTimeout(() => { [src, g, send, room, wet].forEach((x) => { try { x.disconnect(); } catch (e) { /* gone */ } }); }, 4500);
+      src.start(t, from, lead + 1.3);
+      const rung = sound + 1.3 + SHOUT_TIMES.ECHO;
+      if (audio && audio.ringOut) audio.ringOut(rung + 0.2 - ctx.currentTime);
+      setTimeout(() => { [src, g, send, room, wet].forEach((x) => { try { x.disconnect(); } catch (e) { /* gone */ } }); }, (rung - ctx.currentTime + 0.5) * 1000);
+      return { src, g };
+    }
+    // Alone, now (the rush, when no preverb was cued).
+    function yell() {
+      const o = audio && audio.phoneOutput ? audio.phoneOutput() : null;
+      if (!o || !o.ctx || !yellBuf) return false;
+      // (From its first sound: decoders differ in the silence before it.)
+      const d = yellBuf.getChannelData(0);
+      let i = 0; while (i < d.length && i < yellBuf.sampleRate * 0.3 && Math.abs(d[i]) < 1e-4) i++;
+      shoutAt(o, o.ctx.currentTime + 0.01, i / yellBuf.sampleRate);
       return true;
     }
+    // With its preverb: the preverb from now (`late` s into it, should the
+    // frame that cued it come late), the shout YELL_PRE on, so its sound
+    // comes YELL_AHEAD on. Only if Nova can go (the rush is to follow).
+    function cueShout(late = 0) {
+      const o = audio && audio.phoneOutput ? audio.phoneOutput() : null;
+      if (!o || !o.ctx || !yellBuf || !preBuf || !(novaTv && novaTv.portal && novaTv.portal())) return null;
+      const { ctx } = o, cue = ctx.currentTime + 0.01, off = Math.min(Math.max(0, late), YELL_PRE - 0.05);
+      const pre = ctx.createBufferSource(); pre.buffer = preBuf;
+      const pg = ctx.createGain(); pg.gain.value = YELL_GAIN;
+      pre.connect(pg).connect(o.ear);
+      pre.start(cue, off);
+      const shout = shoutAt(o, cue - off + YELL_PRE, 0);
+      setTimeout(() => { try { pre.disconnect(); pg.disconnect(); } catch (e) { /* gone */ } }, (YELL_AHEAD + SHOUT_TIMES.SECS + 1) * 1000);
+      return { ctx, pre: cue - off, at: cue - off + YELL_AHEAD, nodes: [[pre, pg], [shout.src, shout.g]] };
+    }
+    // (Called off, the pull let go before it's sounded: faded out, not cut.)
+    function uncueShout() {
+      const c = shoutCued;
+      shoutCued = null;
+      if (!c || c.ctx.currentTime >= c.at) return;
+      const t = c.ctx.currentTime;
+      c.nodes.forEach(([src, g]) => { try { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + 0.2); src.stop(t + 0.25); } catch (e) { /* gone */ } });
+    }
     // The stretch: the picture drawn out toward the set, streaks of light
-    // pouring into it (a layer over the scene, under nothing that takes a tap).
-    function pullStretch(k, at) {
+    // pouring into it (a layer over the scene, under nothing that takes a
+    // tap); and, `dark` 0 to 1, the dark closing in round the set.
+    function pullStretch(k, at, dark = 0) {
       const t = three.current, el = t && t.renderer && t.renderer.domElement;
       if (!el || typeof document === "undefined") return;
       if (!pullFx) {
@@ -1331,7 +1382,13 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         streaks.setAttribute("aria-hidden", "true");
         streaks.style.cssText = "position:fixed;inset:0;z-index:1399;pointer-events:none;opacity:0;mix-blend-mode:screen";
         document.body.appendChild(streaks);
-        pullFx = { el, streaks, transform: el.style.transform, origin: el.style.transformOrigin, spin: Math.random() * 360 };
+        // (Over everything of the den's, under Nova's transition: 9999.)
+        const shade = document.createElement("div");
+        shade.setAttribute("data-testid", "den-pull-dark");
+        shade.setAttribute("aria-hidden", "true");
+        shade.style.cssText = "position:fixed;inset:0;z-index:9990;pointer-events:none;opacity:0";
+        document.body.appendChild(shade);
+        pullFx = { el, streaks, shade, transform: el.style.transform, origin: el.style.transformOrigin, spin: Math.random() * 360 };
       }
       const r = el.getBoundingClientRect(), x = at ? at.x - r.left : r.width / 2, y = at ? at.y - r.top : r.height / 2;
       el.style.transformOrigin = `${x.toFixed(1)}px ${y.toFixed(1)}px`;
@@ -1342,11 +1399,22 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       const mask = `radial-gradient(circle at ${ax.toFixed(0)}px ${ay.toFixed(0)}px, transparent ${inner}px, #000 ${inner + 160}px)`;
       pullFx.streaks.style.webkitMaskImage = mask; pullFx.streaks.style.maskImage = mask;
       pullFx.streaks.style.opacity = String(Math.min(0.9, k * 1.3).toFixed(3));
+      // The dark: in from past the corners to nothing round the set's
+      // middle, the middle dimming with it; all black at 1, so Nova's
+      // turn-on comes up out of the dark it's already in (its first frames
+      // are black: unifiedTransition.jsx ec-crt-in-mask), not cut to it.
+      if (dark > 0) {
+        const R = Math.hypot(innerWidth, innerHeight), r = (1 - dark) * R * 0.55, f = 40 + (1 - dark) * R * 0.5;
+        pullFx.shade.style.background = `radial-gradient(circle at ${ax.toFixed(0)}px ${ay.toFixed(0)}px, rgba(0,0,0,${(dark * dark).toFixed(3)}) ${r.toFixed(0)}px, #000 ${(r + f).toFixed(0)}px)`;
+        pullFx.shade.style.opacity = "1";
+      }
+      pullFx.dark = dark;
     }
     function pullStretchOff() {
       if (!pullFx) return;
       pullFx.el.style.transform = pullFx.transform; pullFx.el.style.transformOrigin = pullFx.origin;
       pullFx.streaks.remove();
+      pullFx.shade.remove();
       pullFx = null;
     }
     function startPull(now, { keepHead = false } = {}) {
@@ -1369,14 +1437,18 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       lureDone = true;
       lureLock(true);
       const t = three.current;
-      tvPullIn = { t0: now, from: tvW, fov0: t && t.camera ? t.camera.fov : null, cam: t && t.camera, entered: false, yelled: false };
+      // (His shout, cued from the drag with its preverb, is on its way.)
+      // (From where the drag has the camera, and as fast as it's coming in:
+      // the rush goes on from there, pullDist.)
+      const v0 = tug && tug.v > 0 ? tug.v : 0, d0 = tug && tug.lastD != null ? tug.lastD - (v0 * (now - tug.lastAt)) / 1000 : null;
+      tvPullIn = { t0: now, from: tvW, fov0: t && t.camera ? t.camera.fov : null, cam: t && t.camera, entered: false, yelled: !!shoutCued, yell: shoutCued ? "recording" : null, d0, v0 };
       tvGoal = 1; tvLeaveAt = 0; offAt = 0;
       set.pull(now, () => {
         if (novaTv && novaTv.enter && novaTv.enter() !== false) { if (tvPullIn) tvPullIn.entered = true; return; }
         endPull(true);
       }, PULL_ENTER);
       portalAt = now;
-      if (audio && audio.tvHaunt) audio.tvHaunt("pull", 1);
+      if (audio && audio.tvHaunt) audio.tvHaunt("pull", 1, PULL_ENTER / 1000);
       if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_PULLED__ = (window.__DEN_PULLED__ || 0) + 1;
     }
     // Over (the den going, or Nova couldn't go after all: the set off, the
@@ -1399,8 +1471,9 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       if (!tvPullIn) return;
       const now = performance.now(), s = now - tvPullIn.t0;
       const k = Math.min(1, s / PULL_RUSH);
-      // (Slow, then all at once.)
-      tvW = tvPullIn.from + (1 - tvPullIn.from) * k * k * k;
+      // (The view turning to face the set square on; how near it is, the
+      // rush's own: pullDist, in tugCamera.)
+      tvW = tvPullIn.from + (1 - tvPullIn.from) * k * k * (3 - 2 * k);
       tvGoal = 1; tvLeaveAt = 0;
       if (!tvPullIn.yelled && s >= PULL_YELL_AT) { tvPullIn.yelled = true; tvPullIn.yell = yell() ? "recording" : "none"; }
       const e = Math.min(1, s / PULL_ENTER);
@@ -1411,7 +1484,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         const r = three.current.renderer.domElement.getBoundingClientRect();
         if (p.z < 1) at = { x: r.left + ((p.x + 1) / 2) * r.width, y: r.top + ((1 - p.y) / 2) * r.height };
       }
-      pullStretch(e, at);
+      const dk = Math.min(1, Math.max(0, (s - PULL_DARK) / (PULL_ENTER - PULL_DARK)));
+      pullStretch(e, at, dk * dk * (3 - 2 * dk));
     }
     const pullPt = new THREE.Vector3();
     /* The build-up (user: "Getting pulled into the TV against your will,
@@ -1460,6 +1534,10 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       if (thinkCard && s >= TUG.tug2 + 350) { thinkCard.remove(500); thinkCard = null; }
       if (!e.uhoh && s >= TUG.uhoh) { e.uhoh = true; if (doc) uhohCard = dealCard(doc, { testid: "den-uhoh", l1: TUG_UHOH }); }
       if (!e.drag && s >= TUG.drag) { e.drag = true; if (set) set.jolt(now, "surge", 1.2, TUG.rush - TUG.drag + 200); hit("drag", 1); if (debris) debris.launch(now, "drag"); }
+      // His shout's preverb, swelling up through the end of the drag into
+      // the shout as the rush takes hold (cueShout).
+      const cueAt = TUG.rush + PULL_YELL_AT - YELL_AHEAD * 1000;
+      if (!e.shout && s >= cueAt) { e.shout = true; shoutCued = cueShout((s - cueAt) / 1000); }
       // (Each thing in at the glass: a flash on the tube, a crackle.)
       if (debris) debris.frame(now, () => { if (set) set.kick(now, 1); if (audio && audio.tvHaunt) audio.tvHaunt("flicker", 0.7); });
       // The rush, once Nova can go; should it not, held there and tried
@@ -1479,6 +1557,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     function endTugs(failed = false) {
       if (thinkCard) { thinkCard.remove(300); thinkCard = null; }
       if (uhohCard) { uhohCard.remove(300); uhohCard = null; }
+      if (failed) uncueShout(); else shoutCued = null;
       if (!tug) return;
       tug = null;
       if (!failed) return;
@@ -1489,25 +1568,48 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     /* The camera's part, after everything else has placed it: toward the
        screen by the tug's lurch (a fraction of the way, never nearer the
        glass than a few units), still looking where it was, and shaken.
-       Through the rush what's left of it eases off as the rush takes the
-       camera in. */
+       Through the rush, as near as the rush has it (pullDist), the shake
+       easing off. */
     const tugAim = new THREE.Vector3(), tugLook = new THREE.Vector3(), tugDir = new THREE.Vector3(), tugTo = new THREE.Vector3(), tugRight = new THREE.Vector3(), tugUp = new THREE.Vector3();
     const WORLD_UP = new THREE.Vector3(0, 1, 0);
+    /* The rush's way in (user: the last part "happens too abruptly"; it
+       had stopped dead where the drag left off, then lunged into the glass
+       in its last 0.2 s): how far from the set's middle, `ms` into it.
+       On from where the drag had the camera (d0) at the drag's own speed
+       (v0, a second), gathering pace evenly to PULL_NEAR at the glass
+       (PULL_ENTER, all dark by then), and on a little into the dark. */
+    function pullDist(ms) {
+      const p = tvPullIn, T = PULL_ENTER / 1000, s = ms / 1000;
+      const v0 = Math.min(p.v0, Math.max(0, p.d0 - PULL_NEAR) / T), a = (2 * (p.d0 - PULL_NEAR - v0 * T)) / (T * T);
+      return Math.max(PULL_NEAR * 0.4, p.d0 - v0 * s - 0.5 * a * s * s);
+    }
     function tugCamera(camera) {
       const t = three.current;
       if (!tug || !den || !den.tv || !t || !t.boardGroup || !camera) return;
       const now = performance.now();
       let { lurch, shake } = tugAt(now - tug.t0);
-      if (tvPullIn) { const w = Math.min(1, tvW); lurch *= 1 - w; shake *= Math.max(0.2, 1 - 0.8 * w); }
-      if (Math.abs(lurch) < 0.0005 && shake < 0.002) return;
+      if (tvPullIn) shake *= Math.max(0.2, 1 - 0.8 * Math.min(1, tvW));
+      if (!tvPullIn && Math.abs(lurch) < 0.0005 && shake < 0.002) return;
       t.boardGroup.localToWorld(tugAim.copy(den.tv.dive.target));
       camera.getWorldDirection(tugDir);
       const dist = camera.position.distanceTo(tugAim);
       if (dist < 1e-3) return;
       tugLook.copy(camera.position).addScaledVector(tugDir, dist);
-      const travel = Math.min(lurch * dist, Math.max(0, dist - 6));
       tugTo.subVectors(tugAim, camera.position).normalize();
-      camera.position.addScaledVector(tugTo, travel);
+      if (tvPullIn) {
+        // The rush: as near as pullDist has it, wherever the turn toward
+        // the set has the camera (tvW).
+        if (tvPullIn.d0 == null) { tvPullIn.d0 = dist; tvPullIn.v0 = 0; }
+        camera.position.addScaledVector(tugTo, dist - pullDist(now - tvPullIn.t0));
+      } else {
+        const travel = Math.min(lurch * dist, Math.max(0, dist - 6));
+        camera.position.addScaledVector(tugTo, travel);
+        // (How near, and how fast it's coming in, a second: the rush goes
+        // on from there.)
+        const d = dist - travel;
+        if (tug.lastD != null && now > tug.lastAt) { const v = (tug.lastD - d) / ((now - tug.lastAt) / 1000); tug.v = tug.v == null ? v : tug.v + (v - tug.v) * 0.35; }
+        tug.lastD = d; tug.lastAt = now;
+      }
       // The shake: quick, uneven, mostly in the look.
       tugRight.crossVectors(tugDir, WORLD_UP);
       if (tugRight.lengthSq() < 1e-6) tugRight.set(1, 0, 0);
@@ -1701,7 +1803,10 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
       window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, waking: wake ? (wake.woke ? "woke" : "dark") : null, lureWaited: lureStart ? performance.now() - lureStart - LURE_WAIT : null, glance: glance ? (glance.fix ? "fix" : "round") : null, glanceAt: glance && glance.seen.length ? glance.seen[glance.seen.length - 1] : null, lock: lockOn, fixed: lureFix, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, adShown: den && den.tv && den.tv.commercialShown ? den.tv.commercialShown() : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0,
         // (The pull: how far in (ms), his yell, through the glass; else how long till it's due.)
-        pull: tvPullIn ? { s: Math.round(performance.now() - tvPullIn.t0), yell: tvPullIn.yell || null, entered: tvPullIn.entered, fov: three.current && three.current.camera ? +three.current.camera.fov.toFixed(1) : null, fov0: tvPullIn.fov0 ? +tvPullIn.fov0.toFixed(1) : null } : null,
+        pull: tvPullIn ? { s: Math.round(performance.now() - tvPullIn.t0), yell: tvPullIn.yell || null, entered: tvPullIn.entered, fov: three.current && three.current.camera ? +three.current.camera.fov.toFixed(1) : null, fov0: tvPullIn.fov0 ? +tvPullIn.fov0.toFixed(1) : null, dark: pullFx && pullFx.dark != null ? +pullFx.dark.toFixed(3) : 0 } : null,
+        // (His shout with its preverb, cued: when, on the audio clock, the
+        // preverb started and the shout's due, and the clock now.)
+        shout: shoutCued ? { pre: +shoutCued.pre.toFixed(3), at: +shoutCued.at.toFixed(3), now: +shoutCued.ctx.currentTime.toFixed(3) } : null,
         pullIn: blastAt && !tvPullIn && !lureDone ? Math.round((pullSoon || pullBase + (lureFix ? PULL_FIXED : PULL_LATE)) - performance.now()) : null,
         // (The build-up: how far in (ms), the camera's tug and shake now,
         // what's still in the room, and how far the camera is from the glass.)

@@ -123,6 +123,8 @@ const SHOUT = { walk: 0.7, drag: 0.75 };
    PRE_LEAD before that, and plays from PRE + PRE_LEAD before the shout's
    take, both started from the one cue so they line up to the sample. */
 const ECHO_SECS = 1.7, PRE = 1.7, PRE_LEAD = 0.1;
+// (The set's pull plays the same shout, preverb and echo: den-fx.js.)
+export const SHOUT_TIMES = { LEAD, SECS: SCREAM_SECS, PRE, PRE_LEAD, ECHO: ECHO_SECS };
 const SCREAM_AT = ENDING_AT - Math.round((LEAD + SCREAM_SECS) * 1000);
 const SCREAM_CUE = SCREAM_AT - Math.round((PRE + PRE_LEAD) * 1000);
 /* The echo's room, made: a wash of noise dying away (and darkening as it

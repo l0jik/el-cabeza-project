@@ -369,6 +369,42 @@ in; leaving Singularity, back in the den as the set switches off.
   first frame 19 ms in, already lurching, and the 5% and 2.5% checks
   missed by a hair, run 39552534043; the lurch is looked for over 0-400
   ms at 3%, so a frame every 200 ms still sees it.)
+  Its last part, smoother (2026-10-22; user: "The last part of the
+  pull into the TV still happens too abruptly. I'm not sure what's going
+  on there. We need to figure out how to make that a bit smoother.
+  Maybe the voice, the shout at the end, at least that needs to have
+  some preverb on it."). Recorded first (scratchpad pull/cast.mjs and
+  run.sh: a phone page over http, the composited frames with the page's
+  own time stamped on them, the camera's distance from the glass and the
+  den's output level each frame; sheet.py): the rush started from a
+  standstill (the drag's lurch frozen as tvW took over with k^3), a
+  second all but still, then a lunge in its last 0.2 s (to 200 units a
+  second); Nova's transition opens on black, so the picture was cut to
+  black at once; the shout jumped in 25 dB at once; and the den's audio
+  context was closed with the den, 0.38 s after the glass, cutting his
+  echo dead at -23 dB. Now (den-fx.js, den-tug.js, den-audio.js): the
+  rush goes on from the drag at its own speed (tug.v, measured in
+  tugCamera) gathering pace evenly to PULL_NEAR 5 at the glass (pullDist:
+  tugCamera sets the distance, tvW only turns the view square on,
+  smoothstep), 44 to 81 units a second, no stop, no lunge; PULL_RUSH 1.5
+  s, PULL_ENTER 1.7 (was 1.15, 1.35); the dark closes in round the set
+  from PULL_DARK 1.0 s (den-pull-dark, z 9990, a radial dark from past
+  the corners to nothing, the middle dimming too) to all black at the
+  glass, so the turn-on opens out of it; his shout comes with the hall's
+  preverb (el-cabeza-hall-pre.mp3, 1.7 s of its own room run backwards),
+  cued from the drag 1.9 s ahead (cueShout, both from one cue as the
+  hall's are; SHOUT_TIMES from den-hall.js) so it lands 0.18 s into the
+  rush (from disk, no recordings: none); the set's breath (tvHaunt
+  "pull", secs) reaches the glass at 1.7 s; and the den's audio rings on
+  after the den's gone (den-audio.js ringOut / dispose: the den's own
+  sound faded over 0.25 s, the ear left till the echo's out, then the
+  context closed). Measured: the swell from -39 dB 1.7 s ahead up into
+  the shout at -14, the echo at -33 dB after the den's gone, silent
+  before the context closes (4.2 s). tests/e2e-tv-pull.mjs: speeds (drag
+  43, rush 47, 58, 68 a second), the dark (none before 0.95 s, all black
+  when Nova's transition comes), the dark layer gone after; over http
+  the preverb cued 1.900 s ahead from the drag, the shout due just into
+  the rush, the den's context closed after his echo's end.
 
 - **The check alert stops for the phone** (2026-10-21; user, a phone
   screenshot of the den after the trip, the CHECK / SHOW AGAIN chip

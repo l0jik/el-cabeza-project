@@ -39,6 +39,9 @@ export function createAudio() {
   let phoneBus = null, phonePan = null, earBus = null, phoneNear = 1, phoneSide = 0;
   let noiseBuf = null, brownBuf = null;
   let muted = false, windingDown = false, roomOn = false, disposed = false;
+  // (Till when, on the audio clock, the ear's to ring on should the den be
+  // put away: ringOut.)
+  let tailUntil = 0;
   let zoom = 0.5, fireNear = 1, lastChimeHour = null, chimes = 0;
   let music = null; // { el, src, extra: [nodes], track }
   const channelOff = { room: false, stereo: false, pieces: false };
@@ -667,7 +670,8 @@ export function createAudio() {
     src.start(at, Math.random() * Math.max(0, len - d * Math.max(rate[0], rate[1]) - 0.02), d * Math.max(rate[0], rate[1]) + 0.02);
     src.stop(at + d + 0.05);
   }
-  function tvHaunt(kind, strength = 0.5) {
+  // (`secs`: for the pull, how long till the glass.)
+  function tvHaunt(kind, strength = 0.5, secs = 0) {
     ensureGraph();
     if (!ctx) return;
     loadGlitch();
@@ -772,14 +776,14 @@ export function createAudio() {
       burst(W, hauntBus, 0.16 * k, 0.9, [["highpass", 3000]], 0.002);
       tone(3950, 3900, 2.8, 0.02, "sine", 0, W + 0.1);
     } else if (kind === "pull") {
-      /* Pulled in (den-fx.js, PULL_ENTER 1.35 s to the glass): the set
-         drawing breath, everything going toward it. A rushing roar
+      /* Pulled in (den-fx.js, PULL_ENTER: `secs` to the glass, 1.7 s): the
+         set drawing breath, everything going toward it. A rushing roar
          climbing (noise, its band swept up and widening), a whine with
          it, a sub-bass suck rising (a boom run backwards), the glitch
          recording swelling; at the glass, a muffled whump and the rush
          cut off. */
-      const G2 = t + 1.35;
-      { const n = noise(t, 1.45); const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 0.55;
+      const G2 = t + (secs || 1.35);
+      { const n = noise(t, G2 - t + 0.1); const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 0.55;
         bp.frequency.setValueAtTime(180, t); bp.frequency.exponentialRampToValueAtTime(3400, G2);
         const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.42 * k, G2 - 0.04); g.gain.linearRampToValueAtTime(0.0001, G2 + 0.03);
         n.connect(bp).connect(g).connect(hauntBus); }
@@ -790,7 +794,7 @@ export function createAudio() {
       { const o = ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(34, t); o.frequency.exponentialRampToValueAtTime(96, G2);
         const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.45 * k, G2 - 0.03); g.gain.linearRampToValueAtTime(0.0001, G2 + 0.02);
         o.connect(g).connect(hauntBus); o.start(t); o.stop(G2 + 0.1); }
-      glitchSlice(t + 0.1, 1.2, G * 1.3, { swell: true, rate: [0.6, 1.6] });
+      glitchSlice(t + 0.1, Math.max(1.2, G2 - t - 0.15), G * 1.3, { swell: true, rate: [0.6, 1.6] });
       tone(72, 30, 0.7, 0.4, "sine", 0, G2);
       burst(G2, hauntBus, 0.3 * k, 0.5, [["lowpass", 900]], 0.003);
     } else if (kind === "tug") {
@@ -1030,12 +1034,32 @@ export function createAudio() {
       master.gain.setValueAtTime(master.gain.value, t);
       master.gain.linearRampToValueAtTime(0, t + secs);
     },
+    /* Ringing out (den-fx.js, the set's pull: his shout and its echo):
+       should the den be put away in the next `secs`, the ear's left to
+       ring that long first (Nova's way in takes the den 0.38 s after the
+       glass, and closing the context there cut the echo dead, user: "The
+       last part of the pull into the TV still happens too abruptly"). */
+    ringOut(secs) { if (ctx) tailUntil = Math.max(tailUntil, now() + secs); },
     dispose() {
       disposed = true;
-      stopMusic();
-      if (fireEl) { try { fireEl.pause(); } catch (e) { /* gone */ } fireEl = null; }
       timers.forEach((id) => clearTimeout(id)); timers.clear();
-      if (ctx) { try { ctx.close(); } catch (e) { /* already closed */ } }
+      const c = ctx, t = c ? now() : 0;
+      const quiet = () => {
+        stopMusic();
+        if (fireEl) { try { fireEl.pause(); } catch (e) { /* gone */ } fireEl = null; }
+      };
+      if (!c || c.state === "closed" || tailUntil <= t + 0.05) {
+        quiet();
+        if (c) { try { c.close(); } catch (e) { /* already closed */ } }
+        return;
+      }
+      // The den's own sound out over a moment (not cut), the ear ringing on
+      // till tailUntil, its last 0.3 s faded; then the context closed.
+      const ramp = (param, from, end) => { param.cancelScheduledValues(t); param.setValueAtTime(param.value, t); if (from > t) param.setValueAtTime(param.value, from); param.linearRampToValueAtTime(0, end); };
+      ramp(denOut.gain, t, t + 0.25);
+      ramp(master.gain, tailUntil - 0.3, tailUntil);
+      setTimeout(quiet, 300);
+      setTimeout(() => { try { c.close(); } catch (e) { /* already closed */ } }, (tailUntil - t) * 1000 + 150);
     },
   };
 }

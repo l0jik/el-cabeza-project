@@ -19,7 +19,8 @@
      dragged across the room toward the set, catching twice as if it
      grabbed hold of something, shaking harder and harder.
    - 9500: the rush (den-fx.js startPull: the yell, the lens, the stretch,
-     Nova's way in at the glass).
+     the dark closing in, Nova's way in at the glass), the drag going on
+     into it.
 
    tugAt(ms) is the camera's part (how far toward the screen, 0 to 1 of
    the way, and how hard it shakes); createTugDebris the loose things,
@@ -54,9 +55,12 @@ export function tugAt(ms) {
   let lurch = tug(ms - TUG.tug1, 110, 0.09, 280, 760) + tug(ms - TUG.tug2, 150, 0.17, 380, 900);
   let shake = (ms >= TUG.tug1 ? 0.45 * Math.exp(-(ms - TUG.tug1) / 300) : 0) + (ms >= TUG.tug2 ? 0.75 * Math.exp(-(ms - TUG.tug2) / 380) : 0);
   if (ms >= TUG.drag) {
-    // The third: at once, then dragged faster and faster, catching twice.
-    const d = ms - TUG.drag, u = clamp01(d / DRAG_MS);
-    lurch += 0.1 * easeOut(clamp01(d / 140)) + 0.32 * u * u - 0.055 * bump(u, 0.36, 0.09) - 0.05 * bump(u, 0.7, 0.08);
+    // The third: at once, then dragged faster and faster, catching twice;
+    // and on into the rush still gaining (v past 1), so the rush takes over
+    // a view already on its way in, not one stopped dead (user: the last
+    // part "happens too abruptly"), for a while at most.
+    const d = ms - TUG.drag, u = clamp01(d / DRAG_MS), v = Math.min(d / DRAG_MS, 1.6);
+    lurch += 0.1 * easeOut(clamp01(d / 140)) + 0.32 * v * v - 0.055 * bump(u, 0.36, 0.09) - 0.05 * bump(u, 0.7, 0.08);
     shake += 0.35 + 0.55 * u + 0.35 * bump(u, 0.36, 0.06) + 0.3 * bump(u, 0.7, 0.06);
   }
   return { lurch, shake: Math.min(1.2, shake) };

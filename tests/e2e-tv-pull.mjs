@@ -13,13 +13,25 @@
    "Uh-oh…"; the third that doesn't let go, the records and the newspaper
    going, the view dragged across the room; nothing taking a tap, the
    set's included. Then the rush: the set on into its dive, the camera
-   rushing into the glass (slow, then all at once), the lens widening,
-   the picture drawn out toward the set with streaks of light (den-pull),
-   Nova's transition into Futuris. From disk there's no recording, so the
-   yell reads "none" here; over http it's the hall's shout.
+   drawn on in from the drag at its own pace, gathering speed evenly
+   into the glass (user: "The last part of the pull into the TV still
+   happens too abruptly": it had stopped dead where the drag left off,
+   then lunged in), the lens widening, the picture drawn out toward the
+   set with streaks of light (den-pull), the dark closing in round the
+   set till it's all black at the glass (den-pull-dark), then Nova's
+   transition into Futuris opening out of it. From disk there's no
+   recording, so the yell reads "none" here. Over http: the hall's shout
+   with its preverb (user: "Maybe the voice, the shout at the end, at
+   least that needs to have some preverb on it"), cued from the drag to
+   swell up into the shout as the rush takes hold, and the den's sound
+   left to ring on (its echo) after the den's gone, not cut dead.
 
    node tests/e2e-tv-pull.mjs */
 import { chromium } from "playwright";
+import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 let failures = 0;
 const check = (l, c, extra) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && extra ? " — " + extra : ""}`); };
 const poll = async (fn, ms = 20000, step = 250) => { const end = Date.now() + ms; for (;;) { const v = await fn().catch(() => null); if (v) return v; if (Date.now() > end) return null; await new Promise((r) => setTimeout(r, step)); } };
@@ -59,7 +71,7 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
         if (t.tug && !t.pull) window.__TUG_LOG__.push({ s: t.tug.s, lurch: +t.tug.lurch.toFixed(3), shake: +t.tug.shake.toFixed(3), dist: t.glassDist, phase: t.phase, lock: t.lock, debris: t.tug.debris.map((d) => `${d.id}:${d.phase}`).join(" "), think: !!document.querySelector('[data-testid="den-tug-think"]:not(.off)'), uhoh: !!document.querySelector('[data-testid="den-uhoh"]:not(.off)') });
         if (t.pull) {
           const c = document.querySelector("canvas"), el = document.querySelector('[data-testid="den-pull"]');
-          window.__PULL_LOG__.push({ s: t.pull.s, focus: +t.focus.toFixed(3), dive: +t.dive.toFixed(3), fov: t.pull.fov, fov0: t.pull.fov0, transform: c ? c.style.transform : "", streaks: el ? Number(el.style.opacity) : null, phase: t.phase, lock: t.lock, yell: t.pull.yell, tugged: t.tug ? t.tug.s : null });
+          window.__PULL_LOG__.push({ s: t.pull.s, focus: +t.focus.toFixed(3), dive: +t.dive.toFixed(3), fov: t.pull.fov, fov0: t.pull.fov0, transform: c ? c.style.transform : "", streaks: el ? Number(el.style.opacity) : null, phase: t.phase, lock: t.lock, yell: t.pull.yell, tugged: t.tug ? t.tug.s : null, dist: t.glassDist, dark: t.pull.dark, crt: !!document.querySelector(".ec-crt-overlay") });
         }
       }
       if (window.__DEN_TV__ || !window.__PULL_LOG__.length) requestAnimationFrame(tick);
@@ -118,9 +130,17 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
   const wide = late.length ? late[late.length - 1] : null;
   check(`...the lens widening (${wide && wide.fov0} -> ${wide && wide.fov})`, !!wide && wide.fov > wide.fov0 * 1.4, JSON.stringify(wide));
   check(`...the picture drawn out toward the set, streaks of light (${wide && wide.transform}, ${wide && wide.streaks})`, !!wide && /scale\(/.test(wide.transform) && wide.streaks > 0.5, JSON.stringify(wide));
+  // How fast it's coming in (units a second), first sample to last in a
+  // window (a slow renderer's frames are far apart).
+  const speed = (log, a, b) => { const xs = log.filter((x) => x.s >= a && x.s <= b && x.dist != null); if (xs.length < 2) return null; const f = xs[0], l = xs[xs.length - 1]; return l.s > f.s ? +((f.dist - l.dist) / ((l.s - f.s) / 1000)).toFixed(1) : null; };
+  const vDrag = speed(tugs, 9050, 9500), vStart = speed(samples, 0, 350), vMid = speed(samples, 450, 950), vEnd = speed(samples, 1000, 1550);
+  check(`...on in from the drag at its own pace, gathering speed evenly: no stop, no lunge (drag ${vDrag}; rush ${vStart}, ${vMid}, ${vEnd} a second)`, vDrag > 0 && vStart > vDrag * 0.6 && vMid >= vStart * 0.9 && vEnd >= vMid * 0.9 && vEnd < vDrag * 2.5, JSON.stringify(samples.map((x) => [x.s, x.dist])));
+  const darks = samples.filter((x) => x.dark != null), handOff = samples.find((x) => x.crt);
+  check(`...the dark closing in over its last part (none before 0.95 s; ${darks.length ? darks[darks.length - 1].dark : "?"} at the end)`, darks.length > 0 && darks.filter((x) => x.s < 950).every((x) => !x.dark) && darks.every((x, i) => i === 0 || x.dark >= darks[i - 1].dark) && darks.some((x) => x.dark > 0.2 && x.dark < 0.9), JSON.stringify(darks.map((x) => [x.s, x.dark])));
+  check(`...all black by the time Nova's transition comes up (${handOff ? handOff.dark : "?"} at ${handOff ? handOff.s : "?"} ms)`, !!handOff && handOff.dark >= 0.95, JSON.stringify(handOff));
   const yelled = samples.find((x) => x.yell);
   check(`...his yell cued (${yelled ? yelled.yell : "no"}: from disk there's no recording)`, !!yelled && yelled.yell === "none");
-  check("...the lens and the picture as they were", await page.evaluate(() => { const c = document.querySelector("canvas"); return !document.querySelector('[data-testid="den-pull"]') && (!c || !/scale\(/.test(c.style.transform)); }));
+  check("...the lens and the picture as they were, the dark gone", await page.evaluate(() => { const c = document.querySelector("canvas"); return !document.querySelector('[data-testid="den-pull"]') && !document.querySelector('[data-testid="den-pull-dark"]') && (!c || !/scale\(/.test(c.style.transform)); }));
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
@@ -147,6 +167,59 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
   check("...into Futuris", !!(await poll(() => futuris(page), 30000)));
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
+}
+{
+  // Over http (as GitHub Pages serves it): his shout with its preverb, and
+  // the den's sound ringing on after it's gone.
+  const DIST = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
+  const TYPES = { ".html": "text/html; charset=utf-8", ".mp3": "audio/mpeg", ".mp4": "video/mp4", ".webm": "video/webm", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
+  const server = http.createServer((req, res) => {
+    const f = path.join(DIST, decodeURIComponent(req.url.split("?")[0]));
+    if (!f.startsWith(DIST) || !fs.existsSync(f) || !fs.statSync(f).isFile()) { res.writeHead(404); res.end(); return; }
+    res.writeHead(200, { "Content-Type": TYPES[path.extname(f)] || "application/octet-stream" });
+    fs.createReadStream(f).pipe(res);
+  }).listen(0, "127.0.0.1");
+  await new Promise((r) => server.once("listening", r));
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
+  await ctx.addInitScript(() => {
+    window.__EC_TEST_HOOKS__ = true;
+    try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true })); } } catch (e) { /* none */ }
+    // When each sound context is closed (the den's, as it goes).
+    window.__CLOSED__ = [];
+    const close = AudioContext.prototype.close;
+    AudioContext.prototype.close = function () { window.__CLOSED__.push(performance.now()); return close.call(this); };
+  });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto(`http://127.0.0.1:${server.address().port}/el-cabeza-nova.html`);
+  await poll(() => page.evaluate(() => !!window.__DEN_TV__), 30000);
+  await page.waitForTimeout(1500);
+  const tv = () => page.evaluate(() => (window.__DEN_TV__ ? window.__DEN_TV__() : null));
+  console.log("over http: his shout with its preverb; the den's sound ringing on");
+  await page.evaluate(() => window.__DEN_LURE_SKIP__(-window.__DEN_TV__().lureWaited + 15200));
+  await poll(async () => { const t = await tv(); return t.blasted && t.fixed; }, 15000, 100);
+  // (The recordings in, then on into the drag.)
+  await page.waitForTimeout(2500);
+  await page.evaluate(() => window.__DEN_PULL_NOW__());
+  await poll(async () => { const t = await tv(); return t && t.tug; }, 3000, 50);
+  await page.evaluate(() => window.__DEN_TUG_SKIP__(6200));
+  const cued = await poll(async () => { const t = await tv(); return t && t.shout ? { ...t.shout, tug: t.tug && t.tug.s, pull: !!t.pull } : null; }, 8000, 40);
+  check(`the shout cued from the drag with its preverb, 1.9 s ahead of it (${cued && (cued.at - cued.pre).toFixed(3)} s; in the drag at ${cued && cued.tug} ms)`, !!cued && Math.abs(cued.at - cued.pre - 1.9) < 0.02 && !cued.pull && cued.tug > 6900, JSON.stringify(cued));
+  const rush = await poll(() => page.evaluate(() => { const t = window.__DEN_TV__ && window.__DEN_TV__(); return t && t.pull && t.shout ? { s: t.pull.s, yell: t.pull.yell, lead: +(t.shout.at - t.shout.now).toFixed(3), now: performance.now() } : null; }), 6000, 20);
+  check(`...the rush: the preverb swelling up, the shout just into it (due in ${rush && rush.lead} s, ${rush && rush.s} ms in)`, !!rush && rush.yell === "recording" && rush.lead > -0.05 && rush.lead + rush.s / 1000 < 0.5 && rush.lead + rush.s / 1000 > 0, JSON.stringify(rush));
+  const gone = await poll(() => page.evaluate(() => (!window.__DEN_TV__ ? performance.now() : null)), 20000, 40);
+  check("...into Futuris, the den gone", !!gone);
+  // (The first context closed as the den goes or after: the den's.)
+  const closed = await poll(() => page.evaluate((g) => window.__CLOSED__.find((t) => t >= g - 200) || null, gone), 6000, 100);
+  // (His echo's due to ring out 1.3 s of shout and 1.7 s of echo after
+  // the shout comes. Closed with the den, it had been cut dead: now, gone
+  // first, the den's sound rings on that long; gone after, nothing to cut.)
+  const echoEnd = rush ? rush.now + (rush.lead + 1.3 + 1.7) * 1000 : null;
+  check(`...its sound let ring on: the context closed ${closed && gone ? ((closed - gone) / 1000).toFixed(2) : "?"} s after the den went, ${closed && echoEnd ? ((closed - echoEnd) / 1000).toFixed(2) : "?"} s from his echo's end (it was closed with the den)`, !!closed && !!gone && !!echoEnd && (closed - gone > 300 || gone > echoEnd - 350) && closed > echoEnd - 350, JSON.stringify({ closed, gone, echoEnd }));
+  check("no page errors", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+  server.close();
 }
 await browser.close();
 console.log(failures ? `${failures} failure(s)` : "all passed");
