@@ -332,8 +332,10 @@ box art and an ad standee (assets/tienda/*.jpg).
      drawn on the card as the menu draws it (FOOT_ICONS) with what it does
      (Control bar where offered, Piece guide, Move costs where the world
      has them, Actions left, Sound), each ringed on the menu in turn as
-     its glyph on the card lights, and "That's the tour. Your turn: tap
-     any of your pieces to see what it does. Good luck!"; Got it puts the
+     its glyph on the card lights, and "That's the tour. Your move: tap
+     any of your pieces to see what it does. Good luck!" (was "Your
+     turn:"; user, 2026-10-22: "Change the word circled in red to
+     'move'"); Got it puts the
      menu away and ends it. With reduced motion, every ring at once.
   The cards keep with the menu: a tap outside it puts it away and brings
   back card 1; Back from card 2 closes it; from card 1, back to the other

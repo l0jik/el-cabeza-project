@@ -297,7 +297,7 @@ function cardText(t) {
         body: ["Most switch something on or off: a line through one means it's off."],
         icons,
         lit: true,
-        note: `That's the tour. Your turn: ${tap} any of your pieces to see what it does. Good luck!`,
+        note: `That's the tour. Your move: ${tap} any of your pieces to see what it does. Good luck!`,
       };
     }
     default:
