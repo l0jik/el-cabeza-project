@@ -286,13 +286,17 @@ html.ec-splash-on { background: #120C08; }
     video.addEventListener("loadedmetadata", () => { video.currentTime = HOLD_FROM; }, { once: true });
     W.setTimeout(() => hold(true), 50);
   } else {
-    /* Started once it can play to its end without running dry: on a slow
-       line it started with a little in and ran stop and go through the
-       board's change ("it kind of gets hung up"). Its first frame, the
-       board, is up until then (the poster). Once it could start, 3 s more
-       at most; and if the browser isn't fetching it at all (one that
-       fetches only once it's played), started 2.5 s on. Not started by
-       the stall guard's time: the logo, still, and the menu. */
+    /* Started once it's in up to the menu (MENU_AT + 1 s of it; the
+       breathing after, light, comes in as it plays): on a slow line it
+       started with a little in and ran stop and go through the board's
+       change ("it kind of gets hung up"), and the browser's own "can play
+       through" ran out the same way (its guess made while the game's
+       scripts shared the line). Its first frame, the board, is up until
+       then (the poster). If the browser isn't fetching it at all (one
+       that fetches only once it's played), started 2.5 s on. Not started
+       by the stall guard's time: the logo, still, and the menu. */
+    const inTo = () => { try { const b = video.buffered; return b.length > 0 && b.start(0) <= 0.05 ? b.end(0) : 0; } catch (e) { return 0; } };
+    const enough = () => allIn(video) || inTo() >= MENU_AT + 1;
     const start = () => {
       if (started || state !== "playing") return;
       started = true;
@@ -301,11 +305,10 @@ html.ec-splash-on { background: #120C08; }
       // (No autoplay, e.g. a phone saving power: the logo, held.)
       if (p && p.catch) p.catch(() => { if (state === "playing") hold(true); });
     };
-    if (playsThrough(video)) start();
+    if (enough()) start();
     else {
-      video.addEventListener("canplaythrough", start, { once: true });
-      video.addEventListener("canplay", () => W.setTimeout(start, 3000), { once: true });
-      video.addEventListener("progress", () => { if (playsThrough(video)) start(); });
+      video.addEventListener("progress", () => { if (enough()) start(); });
+      video.addEventListener("canplaythrough", () => { if (enough()) start(); });
       W.setTimeout(() => { if (video.networkState !== 2 /* NETWORK_LOADING */) start(); }, 2500);
     }
   }

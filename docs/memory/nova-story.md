@@ -232,15 +232,19 @@ in; leaving Singularity, back in the den as the set switches off.
   The splash itself, over such lines, started with a little in and ran
   stop and go through the board's change (3 Mbit/s: 5.5 s on the poster,
   then four stops in its first 2 s, up to 0.3 s each; 1.5 Mbit/s: 11 s,
-  then stops, then the stall guard's still logo). Now it starts once it
-  can play through (canplaythrough or playsThrough on progress), the
-  poster (its first frame) up meanwhile; 3 s after it could start at
-  most, 2.5 s on if the browser isn't fetching it at all (networkState
-  not LOADING: one that fetches only once played; the first try counted
-  "no data yet" as that and started it too soon, worse at 1.5 Mbit/s);
-  the stall guard counts from its start (MENU_AT + 6 s), and one that
-  can't start by MENU_AT + 6 s from the page's start gets the still logo
-  and the menu, as before. And a line under 5 Mbit/s
+  then stops, then the stall guard's still logo). The browser's own
+  "can play through" (canplaythrough, readyState 4) ran out the same way
+  (its guess made while the game's 4.3 MB of scripts shared the line),
+  and a first try that also counted "no data yet" as a browser that
+  fetches only once played started it too soon, worse at 1.5 Mbit/s.
+  Now it starts once it's in up to the menu (buffered from 0 to
+  MENU_AT + 1 s, or all of it; the breathing after is light), the poster
+  (its first frame) up meanwhile; 2.5 s on if the browser isn't fetching
+  it at all (networkState not LOADING: one that fetches only once
+  played, or a phone's preload cut to metadata); the stall guard counts
+  from its start (MENU_AT + 6 s), and one that can't start by
+  MENU_AT + 6 s from the page's start gets the still logo and the menu,
+  as before. And a line under 5 Mbit/s
   (navigator.connection.downlink) takes the 720p files, as Save Data does.
 
 - **Restart the story leaves nothing of the switcher behind**
