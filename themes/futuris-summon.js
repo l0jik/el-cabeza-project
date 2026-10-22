@@ -30,6 +30,7 @@
    full-range mix on a computer, a phone-speaker mix on a phone. */
 
 import * as THREE from "three";
+import { sideAt, sideAsItGoes } from "../chassis/turn-where.js";
 import { getBoardDimensions, ORBIT_SENS_THETA, ORBIT_SENS_PHI } from "../engine/constants.js";
 import { createSummonSound, summonMixFor } from "./futuris-summon-audio.js";
 
@@ -445,8 +446,10 @@ export function mountSummon(three, { delay = 300, audio = null, cam = null } = {
     }
     if (!gesture.moved && Math.hypot(e.clientX - prev.x0, e.clientY - prev.y0) < 7) return;
     gesture.moved = true;
-    // (Which way: as the chassis's drag, the turn one way wherever the
-    // touch begins and goes; finger up tilts toward the horizon.)
+    // (Which way: as the chassis's drag, where you touch, the side under
+    // the finger following it, turn-where.js; finger up tilts toward the
+    // horizon.)
+    if (t.renderer) gesture.turn = sideAsItGoes(gesture.turn, t, t.renderer.domElement.getBoundingClientRect(), e.clientY);
     cam.current.theta += gesture.turn * (e.clientX - prev.x) * ORBIT_SENS_THETA;
     cam.current.phi = Math.max(home.phi - 0.3, Math.min(Math.min(1.2, home.phi + 0.25), cam.current.phi - (e.clientY - prev.y) * ORBIT_SENS_PHI));
   };
@@ -458,9 +461,8 @@ export function mountSummon(three, { delay = 300, audio = null, cam = null } = {
     try { shield.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
     if (camOk() && !home) home = { radius: cam.current.radius, phi: cam.current.phi };
-    // (One way wherever the drag begins, as the chassis's: user, "Check to
-    // make sure this never happens anywhere globally".)
-    if (ptrs.size === 1) gesture = { moved: false, span: 0, r0: camOk() ? cam.current.radius : 0, at: e.timeStamp, turn: 1 };
+    // (Where you touch, as the chassis's: the side under the finger.)
+    if (ptrs.size === 1) gesture = { moved: false, span: 0, r0: camOk() ? cam.current.radius : 0, at: e.timeStamp, turn: t.renderer ? sideAt(t, t.renderer.domElement.getBoundingClientRect(), e.clientY) : 1 };
     else if (gesture) { gesture.moved = true; gesture.span = pinchSpan(); gesture.r0 = camOk() ? cam.current.radius : 0; }
   };
   const onUp = (e) => {

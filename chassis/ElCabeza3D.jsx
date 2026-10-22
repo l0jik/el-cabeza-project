@@ -52,7 +52,7 @@ import { gameRecord, encodeReplay, checkReplay, readPastedLog, VANILLA_LAWS } fr
 import { quality, createGovernor } from "./device-fit.js";
 import { createShadowWatch } from "./shadow-watch.js";
 import { fpsWanted, createFpsReadout } from "./fps-readout.js";
-import { turnTestWanted, turnTestMode, createTurnTestChip } from "./turn-test.js";
+import { sideAt, sideAsItGoes } from "./turn-where.js";
 import { collectSave, applySave, downloadSave, readSaveFile, cloudSave, cloudFetch, cloudRecord, restoreLink, restoreFromLink, takeRestoreNote, normalizeCode } from "./saves.js";
 import { relayReady, relayUrl } from "./online-config.js";
 import { createRelayClient, takeJoinParam, joinLink, keepOnlineSession, savedOnlineSession, otherSide } from "./online.js";
@@ -6402,8 +6402,6 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     warmId = idle ? window.requestIdleCallback(warmShaders, { timeout: 6000 }) : setTimeout(warmShaders, 2500);
     // ?fps: the readout (fps-readout.js).
     const readout = fpsWanted() ? createFpsReadout() : null;
-    // ?turntest: three ways a drag turns the board, to choose from (turn-test.js).
-    const turnChip = turnTestWanted() ? createTurnTestChip() : null;
     const aboutFrame = () => ({
       pixelRatio: renderer.getPixelRatio(), tier: fit.tier, shadowMap: key.castShadow ? key.shadow.mapSize.x : 0, shadowsAlways,
       paced: !!(governorNow() && governorNow().state().paced),
@@ -6824,7 +6822,6 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (warmId != null) { if (idle) window.cancelIdleCallback(warmId); else clearTimeout(warmId); }
       ro.disconnect();
       if (readout) readout.dispose();
-      if (turnChip) turnChip.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       ambientRef.current && ambientRef.current.dispose();
@@ -8554,38 +8551,22 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        two gestures mutually exclusive. */
     const active = new Map();
     let dragging = false;
-    /* Which way a drag turns and tilts the view, decided as the finger
-       touches down and kept for the whole drag. The turn goes one way
-       wherever the drag begins and wherever it goes, as the board's far
-       side does (user, back in the den from Big Glutts: "If I start
-       rotating at the top of the screen and then cross the 50% threshold
-       to the bottom, it reverses and vice versa. Check to make sure this
-       never happens anywhere globally"). It was a turntable, begun below
-       the board's middle the other way, and the lower half kept feeling
-       reversed: the store ("if you drop below the halfway point on the
-       screen, it is reversed"), the Room view home from the trip, back
-       from the other realities. Finger up tilts the view toward the
-       horizon, down toward overhead; in the Room view (freeCamera.
-       dollhouse: looking round a room from above, user) the tilt goes the
-       other way. */
+    /* Which way a drag turns and tilts the view. The turn: where you
+       touch (turn-where.js; user, of three ways tried on a phone: "'C.
+       Where you touch' seems the most correct option, but there's still
+       the issue of reversal when crossing the vertical, mid-screen
+       boundary"). The side of the board under the finger follows it, the
+       far side begun above the board's middle on screen, the near side
+       below; and once the finger's well into the other half, that side
+       takes over (onMove), so it's always the side under the finger that
+       follows. (Before: one way everywhere, the far side's, and the near
+       side went against the finger along the bottom, user's video: "Are
+       you sure you fixed the spin / turn??"; before that, a turntable kept
+       from touch-down, which past the middle went against the finger.)
+       Finger up tilts the view toward the horizon, down toward overhead;
+       in the Room view (freeCamera.dollhouse: looking round a room from
+       above, user) the tilt goes the other way. */
     const grab = { theta: 0, phi: 0 };
-    // (?turntest's "where you touch": above the board's middle on screen,
-    // through the camera as it is, or below it. turn-test.js.)
-    const axisAt = new THREE.Vector3();
-    function aboveAxis(clientY) {
-      const rect = el.getBoundingClientRect();
-      let mid = rect.height / 2;
-      const { camera: c, boardGroup: g } = three.current;
-      if (c && g) {
-        g.getWorldPosition(axisAt);
-        c.updateMatrixWorld();
-        axisAt.applyMatrix4(c.matrixWorldInverse);
-        if (axisAt.z >= -1e-3) return true; // behind the camera: all of it's beyond
-        axisAt.applyMatrix4(c.projectionMatrix);
-        mid = (1 - axisAt.y) / 2 * rect.height;
-      }
-      return clientY - rect.top < mid;
-    }
     function grabLatch(pointerType, clientY) {
       // A finger tilts as Futuris's does in every world, before a game as
       // in one (user: "that is the correct way they should all be when
@@ -8594,8 +8575,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // tilt (Big Glutts' the other way) is a mouse's. The Room view keeps
       // its own tilt.
       const futurisWay = pointerType === "touch";
-      const test = turnTestMode();
-      grab.theta = test === "near" ? -1 : test === "grab" ? (aboveAxis(clientY) ? 1 : -1) : 1;
+      grab.theta = sideAt(three.current, el.getBoundingClientRect(), clientY);
       grab.phi = (cam.current.dollhouse ? 1 : -1) * (futurisWay ? 1 : invertTiltRef.current ? -1 : 1);
     }
     /* Stays false until cumulative pointer travel since the down event
@@ -9276,8 +9256,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         /* These only move the GOAL (cam.current); the render loop damps
            the actual view toward it every frame, which is what removes
            the raw, sample-for-sample twitchiness a direct 1:1 mapping had.
-           Which way each goes: latched at touch-down (grabLatch, above). */
+           Which way each goes: set at touch-down (grabLatch, above); the
+           turn's, the side under the finger, taken over by the other once
+           the finger's well into its half. */
         const follow = grab;
+        follow.theta = sideAsItGoes(follow.theta, three.current, el.getBoundingClientRect(), ev.clientY);
         cam.current.theta += follow.theta * dx * ORBIT_SENS_THETA;
         /* Lower bound is a hair above zero rather than zero itself: at
            exactly vertical the view direction is parallel to the camera's

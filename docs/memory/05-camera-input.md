@@ -221,3 +221,25 @@ immediately.
   camera, latched); the pick kept for the tab. grabLatch takes clientY
   again for C. Temporary: an open reminder in PROJECT_MEMORY.md until the
   user picks.
+
+- **The turn: where you touch** (2026-10-22; user, of ?turntest's three
+  ways: "'C. Where you touch' seems the most correct option, but there's
+  still the issue of reversal when crossing the vertical, mid-screen
+  boundary"). C was the old turntable, kept from touch-down: past the
+  middle the side under the finger went against it, and a stir round the
+  board (right along the top, down the side, left along the bottom) turned
+  back on the way along the bottom. chassis/turn-where.js: sideAt (at
+  touch-down: 1, the far side, above the board's middle on screen through
+  the camera as it is; -1, the near side, below; behind the camera all of
+  it's beyond) and sideAsItGoes (every move: the other side once the
+  pointer's more than 7% of the view's height, at least 24 px, into the
+  other half; inside that band the side it had, so a drag along the middle
+  keeps its way). grabLatch and onMove (chassis), Futuris's summon drag
+  (futuris-summon.js) both use it; any pointer, board and Room view, before
+  and in a game; the tilt rules unchanged. turn-test.js and the chip gone.
+  Supersedes "The turn goes one way everywhere" above (8b16028) and the
+  ?turntest note. The walkthrough's board card already draws it this way
+  (a fingertip on the near edge, a mouse's on the far one). Tests:
+  e2e-drag-latch (begun high theta up, begun low theta down, high to low
+  and low to high one change over past the middle, along the middle steady;
+  play and Room view), e2e-touch-in-game (begun below: theta down).

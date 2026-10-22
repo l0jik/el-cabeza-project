@@ -534,10 +534,12 @@ export function TourMarks({ marks, geo, subscribe, cardRef }) {
           const cx = (Math.max(...xs) + Math.min(...xs)) / 2, cy = (Math.max(...ys) + Math.min(...ys)) / 2;
           const rx = (Math.max(...xs) - Math.min(...xs)) / 2 + 18, ry = (Math.max(...ys) - Math.min(...ys)) / 2 + 18;
           const P = (deg) => [cx + rx * Math.cos((deg * Math.PI) / 180), cy + ry * Math.sin((deg * Math.PI) / 180)];
-          /* The way round a drag turns it: a finger's drag right along the
-             near edge carries that edge right (the far one goes left); a
-             mouse's, wherever it begins, carries the far edge right (the
-             near one goes left). The fingertip shows the drag. */
+          /* The way round a drag turns it: where you touch, the side under
+             the pointer follows it (turn-where.js). Shown with a finger's
+             drag right along the near edge, carrying that edge right (the
+             far one goes left), as a thumb low on a phone would; a mouse's
+             along the far edge, carrying it right (the near one goes
+             left). The fingertip shows the drag. */
           const mouse = !!marks.orbit.mouse;
           const arcD = (a0, a1) => { const [x0, y0] = P(a0), [x1, y1] = P(a1); return `M${x0.toFixed(1)},${y0.toFixed(1)}A${rx.toFixed(1)},${ry.toFixed(1)} 0 0 ${a1 > a0 ? 1 : 0} ${x1.toFixed(1)},${y1.toFixed(1)}`; };
           const tip = (deg, rising) => { const [x, y] = P(deg); const a = (deg * Math.PI) / 180; let ux = (rising ? -1 : 1) * rx * Math.sin(a), uy = (rising ? 1 : -1) * ry * Math.cos(a); const n = Math.hypot(ux, uy) || 1; ux /= n; uy /= n; return head(x + ux * 6, y + uy * 6, ux, uy, 15); };
