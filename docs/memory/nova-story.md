@@ -405,6 +405,7 @@ in; leaving Singularity, back in the den as the set switches off.
   when Nova's transition comes), the dark layer gone after; over http
   the preverb cued 1.900 s ahead from the drag, the shout due just into
   the rush, the den's context closed after his echo's end.
+  The user, after: "The pull feels much smoother now." (2026-10-22).
 
 - **The check alert stops for the phone** (2026-10-21; user, a phone
   screenshot of the den after the trip, the CHECK / SHOW AGAIN chip
