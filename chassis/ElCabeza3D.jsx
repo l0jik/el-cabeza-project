@@ -52,6 +52,7 @@ import { gameRecord, encodeReplay, checkReplay, readPastedLog, VANILLA_LAWS } fr
 import { quality, createGovernor } from "./device-fit.js";
 import { createShadowWatch } from "./shadow-watch.js";
 import { fpsWanted, createFpsReadout } from "./fps-readout.js";
+import { turnTestWanted, turnTestMode, createTurnTestChip } from "./turn-test.js";
 import { collectSave, applySave, downloadSave, readSaveFile, cloudSave, cloudFetch, cloudRecord, restoreLink, restoreFromLink, takeRestoreNote, normalizeCode } from "./saves.js";
 import { relayReady, relayUrl } from "./online-config.js";
 import { createRelayClient, takeJoinParam, joinLink, keepOnlineSession, savedOnlineSession, otherSide } from "./online.js";
@@ -6401,6 +6402,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     warmId = idle ? window.requestIdleCallback(warmShaders, { timeout: 6000 }) : setTimeout(warmShaders, 2500);
     // ?fps: the readout (fps-readout.js).
     const readout = fpsWanted() ? createFpsReadout() : null;
+    // ?turntest: three ways a drag turns the board, to choose from (turn-test.js).
+    const turnChip = turnTestWanted() ? createTurnTestChip() : null;
     const aboutFrame = () => ({
       pixelRatio: renderer.getPixelRatio(), tier: fit.tier, shadowMap: key.castShadow ? key.shadow.mapSize.x : 0, shadowsAlways,
       paced: !!(governorNow() && governorNow().state().paced),
@@ -6821,6 +6824,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (warmId != null) { if (idle) window.cancelIdleCallback(warmId); else clearTimeout(warmId); }
       ro.disconnect();
       if (readout) readout.dispose();
+      if (turnChip) turnChip.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       ambientRef.current && ambientRef.current.dispose();
@@ -8565,7 +8569,24 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        dollhouse: looking round a room from above, user) the tilt goes the
        other way. */
     const grab = { theta: 0, phi: 0 };
-    function grabLatch(pointerType) {
+    // (?turntest's "where you touch": above the board's middle on screen,
+    // through the camera as it is, or below it. turn-test.js.)
+    const axisAt = new THREE.Vector3();
+    function aboveAxis(clientY) {
+      const rect = el.getBoundingClientRect();
+      let mid = rect.height / 2;
+      const { camera: c, boardGroup: g } = three.current;
+      if (c && g) {
+        g.getWorldPosition(axisAt);
+        c.updateMatrixWorld();
+        axisAt.applyMatrix4(c.matrixWorldInverse);
+        if (axisAt.z >= -1e-3) return true; // behind the camera: all of it's beyond
+        axisAt.applyMatrix4(c.projectionMatrix);
+        mid = (1 - axisAt.y) / 2 * rect.height;
+      }
+      return clientY - rect.top < mid;
+    }
+    function grabLatch(pointerType, clientY) {
       // A finger tilts as Futuris's does in every world, before a game as
       // in one (user: "that is the correct way they should all be when
       // playing the game"; then, of the story's first visit to the store,
@@ -8573,7 +8594,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // tilt (Big Glutts' the other way) is a mouse's. The Room view keeps
       // its own tilt.
       const futurisWay = pointerType === "touch";
-      grab.theta = 1;
+      const test = turnTestMode();
+      grab.theta = test === "near" ? -1 : test === "grab" ? (aboveAxis(clientY) ? 1 : -1) : 1;
       grab.phi = (cam.current.dollhouse ? 1 : -1) * (futurisWay ? 1 : invertTiltRef.current ? -1 : 1);
     }
     /* Stays false until cumulative pointer travel since the down event
@@ -8871,7 +8893,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (active.size === 1) {
         dragging = true;
         dragArmed = false;
-        grabLatch(ev.pointerType);
+        grabLatch(ev.pointerType, ev.clientY);
         /* pointerType check is belt-and-braces: a touch contact won't
            carry altKey anyway, so excluding it here simply guarantees
            the touch paths below are reached in exactly the same states

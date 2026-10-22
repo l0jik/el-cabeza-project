@@ -204,3 +204,20 @@ immediately.
   e2e-drag-latch: begun low, right and up across the middle, as from high
   (low = 1 for every page); e2e-touch-in-game: begun below the middle,
   right: theta up too (before Begin and in a game).
+
+- **?turntest: the three ways, to pick from** (2026-10-22; user, a phone
+  video of 8b16028's one way in the den: "Are you sure you fixed the spin
+  / turn??"). Measured from the video (scratchpad spin2/track.py: the
+  "show taps" dot, and the scene's turn as the grid's 4th-power gradient
+  angle, unwrapped): swipes along the bottom (0.84 of the screen), across
+  the middle (0.72) and high in a low view (0.30) all turned it the same
+  way for the same swipe, no flip within a drag (the few opposite frames
+  are the view's easing lag at turnarounds). So the one way is live; what
+  reads wrong is that along the bottom the near edge goes against the
+  finger. chassis/turn-test.js: `?turntest` (kept for the tab in
+  sessionStorage, `?turntest=0` off) puts a chip at the top, A far edge
+  (one way, grab.theta 1, the default), B near edge (one way, -1), C where
+  you touch (the old turntable: aboveAxis, the board's centre through the
+  camera, latched); the pick kept for the tab. grabLatch takes clientY
+  again for C. Temporary: an open reminder in PROJECT_MEMORY.md until the
+  user picks.
