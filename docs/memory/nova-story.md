@@ -235,11 +235,13 @@ in; leaving Singularity, back in the den as the set switches off.
   then stops, then the stall guard's still logo). Now it starts once it
   can play through (canplaythrough or playsThrough on progress), the
   poster (its first frame) up meanwhile; 3 s after it could start at
-  most, 2.5 s on if nothing's coming in at all (a browser that fetches
-  only once played), 9 s at the latest; the stall guard counts from its
-  start (MENU_AT + 6 s), 20 s if it never starts. And a line under
-  5 Mbit/s (navigator.connection.downlink) takes the 720p files, as Save
-  Data does.
+  most, 2.5 s on if the browser isn't fetching it at all (networkState
+  not LOADING: one that fetches only once played; the first try counted
+  "no data yet" as that and started it too soon, worse at 1.5 Mbit/s);
+  the stall guard counts from its start (MENU_AT + 6 s), and one that
+  can't start by MENU_AT + 6 s from the page's start gets the still logo
+  and the menu, as before. And a line under 5 Mbit/s
+  (navigator.connection.downlink) takes the 720p files, as Save Data does.
 
 - **Restart the story leaves nothing of the switcher behind**
   (2026-10-21; user, with a phone screenshot of the store's Standard

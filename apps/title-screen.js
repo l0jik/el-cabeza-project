@@ -271,10 +271,11 @@ html.ec-splash-on { background: #120C08; }
   }
   video.addEventListener("timeupdate", menuDue);
   // (A video that stalls on a slow line never gets there: the logo, still,
-  // and the choices under it, a few seconds on, counted from its start;
-  // one that never starts, 20 s on.)
+  // and the choices under it, a few seconds on, counted from its start; one
+  // that can't start by then, as many seconds from the page's.)
   const stalled = () => { if (state === "playing") hold(true); };
-  W.setTimeout(stalled, 20000);
+  let started = false;
+  W.setTimeout(() => { if (!started) stalled(); }, (MENU_AT + 6) * 1000);
   video.addEventListener("ended", () => { if (state === "playing") hold(); else holdLoop(); });
   video.addEventListener("seeked", () => paint(true));
   video.addEventListener("error", () => { if (state === "playing") hold(); });
@@ -289,9 +290,9 @@ html.ec-splash-on { background: #120C08; }
        line it started with a little in and ran stop and go through the
        board's change ("it kind of gets hung up"). Its first frame, the
        board, is up until then (the poster). Once it could start, 3 s more
-       at most; and if nothing's coming in at all (a browser that fetches
-       only once it's played), started 2.5 s on, as before. */
-    let started = false, coming = false;
+       at most; and if the browser isn't fetching it at all (one that
+       fetches only once it's played), started 2.5 s on. Not started by
+       the stall guard's time: the logo, still, and the menu. */
     const start = () => {
       if (started || state !== "playing") return;
       started = true;
@@ -304,9 +305,8 @@ html.ec-splash-on { background: #120C08; }
     else {
       video.addEventListener("canplaythrough", start, { once: true });
       video.addEventListener("canplay", () => W.setTimeout(start, 3000), { once: true });
-      video.addEventListener("progress", () => { coming = true; if (playsThrough(video)) start(); });
-      W.setTimeout(() => { if (!coming) start(); }, 2500);
-      W.setTimeout(start, 9000);
+      video.addEventListener("progress", () => { if (playsThrough(video)) start(); });
+      W.setTimeout(() => { if (video.networkState !== 2 /* NETWORK_LOADING */) start(); }, 2500);
     }
   }
 
