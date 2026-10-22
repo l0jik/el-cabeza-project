@@ -401,8 +401,12 @@ box art and an ad standee (assets/tienda/*.jpg).
   (NOTICE_EARLY = 0.5 of a minute, so a test's shortened minute scales
   it). Its heading still says "The store closes in one minute." The
   moves' way (the third move after the walkthrough) is as it was.
-  e2e-store-nudge times it against the minute between three and two
-  (0.25 to 0.8 of one; it was a whole one).
+  e2e-store-nudge times it against its own shortened minute (2 s; 0.25
+  to 0.8 of one, it was a whole one). Not against the minute between
+  three and two as it went: on a loaded CI runner each card can come a
+  few frames late by its own amount (CI on 22b90f4: that minute 0.98 s
+  of 1.2, the notice 0.79 s after the two, 0.81 by it), though the app
+  keeps the clock from PA.closingAt and never drifts.
 - **Recorded PA candidates** (2026-10-21; user: "See if you can find any
   other audio online for store announcements."): seventeen Freesound
   recordings (CC0 / CC BY only; three NC ones left out) on a listening

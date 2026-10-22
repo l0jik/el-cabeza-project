@@ -219,13 +219,14 @@ console.log("\nthe PA's cards: swiped away after 3 s, not before");
    subsequent minute, announcing how many more minutes there are until it
    closes. And 1 minute before closing, have something show up with the
    big Glutz logo ... we're going to have to ask you to leave. Please take
-   all purchases to the front"): a minute shortened to 1.2 s
+   all purchases to the front"): a minute shortened to 2 s
    (__EC_TEST_CLOSING_MINUTE_MS__). */
+const MINUTE = 2000;
 async function lastMinutes() {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
-  await ctx.addInitScript(() => {
+  await ctx.addInitScript((minute) => {
     window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NUDGE_MS__ = 600000;
-    window.__EC_TEST_PA_MS__ = 3000; window.__EC_TEST_CLOSING_MS__ = 4000; window.__EC_TEST_CLOSING_MIN_MS__ = 2000; window.__EC_TEST_CLOSING_MINUTE_MS__ = 1200;
+    window.__EC_TEST_PA_MS__ = 3000; window.__EC_TEST_CLOSING_MS__ = 4000; window.__EC_TEST_CLOSING_MIN_MS__ = 2000; window.__EC_TEST_CLOSING_MINUTE_MS__ = minute;
     try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("el-cabeza:first-game-tour", "done"); } } catch (e) { /* none */ }
     // What the PA says, in order, and when each first came.
     window.__PA_SAID__ = [];
@@ -234,7 +235,7 @@ async function lastMinutes() {
       const id = n.nodeType === 1 && n.getAttribute("data-testid");
       if (id && /^tienda-(pa-|closing-notice)/.test(id)) { window.__PA_SAID__.push(id); if (window.__PA_AT__[id] == null) window.__PA_AT__[id] = performance.now(); }
     }))).observe(document, { childList: true, subtree: true });
-  });
+  }, MINUTE);
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
@@ -247,15 +248,19 @@ async function lastMinutes() {
   await q(page, "tienda-try-game").click();
   await poll(() => has(page, "end-game"), 10000);
   check("closing time: the PA, ten minutes", await poll(() => has(page, "tienda-pa-closing"), 20000));
-  const notice = await poll(() => has(page, "tienda-closing-notice"), 20000, 100);
+  const notice = await poll(() => has(page, "tienda-closing-notice"), 9 * MINUTE + 8000, 100);
   const said = (await page.evaluate(() => window.__PA_SAID__)).filter((id, i, a) => a.indexOf(id) === i);
   check("then five, four, three and two minutes, a minute apart, in that order", JSON.stringify(said) === JSON.stringify(["tienda-pa-instock", "tienda-pa-closing", "tienda-pa-5min", "tienda-pa-4min", "tienda-pa-3min", "tienda-pa-2min", "tienda-closing-notice"]), JSON.stringify(said));
   check("one minute to closing: Big Glutts' notice", !!notice);
   // Half a minute after the two-minute words, not a whole one (user: "Have
   // the last we are closing pop-up, the big one, show up about 30 seconds
-  // sooner"), against the minute between three and two as it went here.
+  // sooner"), against the minute set here. (Not the minute between three
+  // and two as it went: on a loaded machine each card can come a few frames
+  // late, each by its own amount. On CI once that minute went 0.98 s of
+  // 1.2, the notice 0.79 s after the two: 0.81 of it, half a minute all
+  // the same by the clock it keeps, PA.closingAt.)
   const at = await page.evaluate(() => window.__PA_AT__);
-  const early = (at["tienda-closing-notice"] - at["tienda-pa-2min"]) / (at["tienda-pa-2min"] - at["tienda-pa-3min"]);
+  const early = (at["tienda-closing-notice"] - at["tienda-pa-2min"]) / MINUTE;
   check("...half a minute after the two-minute words (it was a whole one)", early > 0.25 && early < 0.8, `${early.toFixed(2)} of a minute: ${JSON.stringify(at)}`);
   const text = notice ? (await q(page, "tienda-closing-notice").innerText()).replace(/\s+/g, " ") : "";
   check("...its logo, and we're going to have to ask you to leave; take all purchases to the front", /Big Glutts/i.test(text) && /closes in one minute/i.test(text) && /We’re going to have to ask you to leave\. Please take all purchases to the front registers\./.test(text), text);
