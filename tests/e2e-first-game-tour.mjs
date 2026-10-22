@@ -236,6 +236,9 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await next(page);
   t = await cardText(page);
   check("Next: you move first, a piece rolled once or twice a turn, the Opa once (the user's words)", /You move first\./.test(t) && /Each turn, select a piece to roll on its edge either once or twice\./.test(t) && /Note: the Opa \(large cube\) only rolls on its edge once due to its large size\./.test(t) && /The lights at the foot of the screen count how many are left\./.test(t) && !/actions, all for one piece/.test(t), t);
+  // (Hold to end, always on: said here, user: "As long as it is clearly
+  // explained somewhere".)
+  check("...and how to end a turn sooner: hold the piece you moved, or End turn", /To end it sooner, hold the piece you moved until its ring closes, or press End turn\./.test(t), t);
   check("...the Note in italics", await page.evaluate(() => { const i = document.querySelector('[data-testid="tour-note-line"] i'); return !!i && i.textContent === "Note" && getComputedStyle(i).fontStyle === "italic"; }));
   const counter = await boxOf(page, '[data-testid="points-counter"]');
   const ring = await ringRect(page, "actions");
@@ -319,7 +322,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const endBtn = await boxOf(page, '[data-testid="stop-here-float"]');
   const endRing = await ringRect(page, "end");
   const endTag = await tagBox(page, "end");
-  check("...one action left: the card says move it again or press End turn", /One action left: move it again, or press End turn\./.test(t), t);
+  check("...one action left: the card says move it again, press End turn, or hold the piece", /One action left: move it again, or press End turn, or hold the piece until its ring closes\./.test(t), t);
   check("...End turn ringed and labelled", !!endBtn && !!endRing && endRing.w > endBtn.w && !!endTag && /or end your turn here/i.test(endTag.text) && endTag.y + endTag.h <= endBtn.y, JSON.stringify({ endBtn, endRing, endTag }));
   check("...and arrows for its next roll", (await tourOf(page)).marks.arrows.length >= 1);
   await page.locator('[data-testid="stop-here-float"]').click();
@@ -409,12 +412,13 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   t = await cardText(page);
   const rowText = (k) => page.evaluate((key) => { const e = document.querySelector(`[data-testid="tour-row-${key}"]`); return e ? e.textContent : ""; }, k);
   check("a tap on it: the menu open, its card 2 of 3 with it, the piece's light out", (await dockOpen()) && (await tourOf(page)).step === "panel" && /Inside your menu\./.test(t) && /Your menu · 2 of 3/i.test(await page.locator('[data-testid="tour-band"]').innerText()) && (await page.locator('[data-testid="dock-call-aura"]').count()) === 0, t);
-  check("...Undo turn, the views, the check alert, Hold to end and Put them down, each said in the menu's words", /Takes back your last turn, and your opponent's answer\./.test(await rowText("undo-turn")) && /Your side, From above, and The aisle: ready-made views of the board\./.test(await rowText("views")) && /Warns you when your opponent could crush your Cabeza on its next turn\./.test(await rowText("check-alert")) && /On: hold the piece you moved to end your turn, so a stray tap can't\./.test(await rowText("hold-to-end")) && /Ends this game\./.test(await rowText("put-them-down")), t);
-  const ringed = await Promise.all([["undo", '[data-testid="undo-turn"]'], ["views", '[data-dock-role="views"]'], ["check", '[data-testid="check-alert-switch"]'], ["hold", '[data-testid="hold-to-end-switch"]'], ["end-game", '[data-testid="end-game"]']].map(async ([k, sel]) => ({ k, ring: await ringRect(page, k), el: await boxOf(page, `[data-testid="dock-panel"] ${sel}`) })));
+  check("...Undo turn, the views, the check alert and Put them down, each said in the menu's words", /Takes back your last turn, and your opponent's answer\./.test(await rowText("undo-turn")) && /Your side, From above, and The aisle: ready-made views of the board\./.test(await rowText("views")) && /Warns you when your opponent could crush your Cabeza on its next turn\./.test(await rowText("check-alert")) && /Ends this game\./.test(await rowText("put-them-down")), t);
+  check("...no Hold to end, in the menu or on its card (always on)", (await page.locator('[data-testid="hold-to-end-switch"]').count()) === 0 && !/hold to end/i.test(t) && !/hold to end/i.test(await page.locator('[data-testid="dock-panel"]').innerText()), t);
+  const ringed = await Promise.all([["undo", '[data-testid="undo-turn"]'], ["views", '[data-dock-role="views"]'], ["check", '[data-testid="check-alert-switch"]'], ["end-game", '[data-testid="end-game"]']].map(async ([k, sel]) => ({ k, ring: await ringRect(page, k), el: await boxOf(page, `[data-testid="dock-panel"] ${sel}`) })));
   check("...each ringed in the menu", ringed.every((x) => around(x.ring, x.el)), JSON.stringify(ringed));
   const lines = await page.locator('[data-testid="tour-card"] [data-lit]').count();
   const round = await litRound(lines * 2.6 + 0.8);
-  check(`...lit one at a time, round all ${lines}: the ring on the menu and its line on the card together`, lines === 5 && round.seen === lines && round.both === 0 && round.apart === 0, JSON.stringify({ lines, round }));
+  check(`...lit one at a time, round all ${lines}: the ring on the menu and its line on the card together`, lines === 4 && round.seen === lines && round.both === 0 && round.apart === 0, JSON.stringify({ lines, round }));
   const panelBox = await boxOf(page, '[data-testid="dock-panel"]');
   cardBox = await card(page).boundingBox();
   check("...the card above the menu, clear of it", !!panelBox && !!cardBox && cardBox.y + cardBox.height <= panelBox.y, JSON.stringify({ cardBox, panelBox }));

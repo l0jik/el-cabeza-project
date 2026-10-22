@@ -10,10 +10,11 @@
    - a double click on a move marker (the accident: its second click lands
      on the square the piece is going to) moves the piece and nothing
      more: the turn goes on, no note;
-   - switched off (the dock's switch, remembered), a tap ends the turn, as
-     before.
-   On a phone (the den's bar): the menu's switch; a tap, the note; a held
-   touch ends the turn.
+   - always on (user: "Hold to End should be a default, always-on
+     mechanic. The toggle is unnecessary"): no switch in the dock, a tap
+     still the note, End turn the one tap that ends it.
+   On a phone (the den's bar, the old switch's "off" kept from before):
+   no switch in the menu; a tap, the note; a held touch ends the turn.
 
    node tests/e2e-hold-to-end.mjs */
 import { chromium } from "playwright";
@@ -159,18 +160,20 @@ async function desktop(world) {
     check("...and the turn goes on (it used to end), no note", (await turns(page)) === 1 && (await hint(page).count()) === 0);
   }
 
-  // Switched off (the dock's switch): a tap ends the turn, as before.
+  // Always on, no switch (user: "Hold to End should be a default,
+  // always-on mechanic. The toggle is unnecessary"): a tap still only says
+  // how; End turn, the one tap that ends it.
   await openDockPanel(page);
-  const sw = page.locator('[data-testid="hold-to-end-switch"]');
-  check("the dock in play has the switch, on", (await sw.count()) === 1 && (await sw.getAttribute("aria-checked")) === "true");
-  if (await sw.count()) await sw.click();
-  await page.waitForTimeout(300);
-  check("...off (remembered)", (await sw.getAttribute("aria-checked")) === "false" && (await page.evaluate(() => localStorage.getItem("el-cabeza:hold-to-end"))) === "0");
+  check("the dock in play has no Hold to end switch", (await page.locator('[data-testid="hold-to-end-switch"]').count()) === 0 && !/hold to end/i.test(await page.locator('[data-testid="dock-panel"]').innerText()));
   await page.mouse.click(4, 430);
   await page.waitForTimeout(600);
   p = await at(page, "light-turrito");
   await page.mouse.click(p.x, p.y);
-  check("...then a tap on the piece that's moved ends the turn", !!(await poll(async () => (await turns(page)) === 2, 3000)));
+  check("...a tap on the piece that's moved: the note, the turn goes on", !!(await poll(async () => (await hint(page).count()) === 1, 2000)) && (await turns(page)) === 1);
+  await page.locator('[data-testid="stop-here-float"]').click();
+  await page.waitForTimeout(400);
+  if (await page.locator('[data-testid="end-turn-ask-end"]').count()) await page.locator('[data-testid="end-turn-ask-end"]').click();
+  check("...End turn ends it", !!(await poll(async () => (await turns(page)) === 2, 3000)));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }
@@ -180,8 +183,9 @@ await desktop("ciudad");
 
 console.log("The den on a phone, the bar layout");
 {
-  // (The hold learned already: the usual one, quick and plain.)
-  const seed = { "el-cabeza:story": JSON.stringify({ owned: true }), "el-cabeza:singularity-seen": "1", "el-cabeza:commercial-aired": "1", "el-cabeza:special-order-noted": "1", "el-cabeza:nova-layout": "bar", "el-cabeza:hold-to-end-learned": "1" };
+  // (The hold learned already: the usual one, quick and plain. And the old
+  // switch's "off" kept from before: passed over now.)
+  const seed = { "el-cabeza:story": JSON.stringify({ owned: true }), "el-cabeza:singularity-seen": "1", "el-cabeza:commercial-aired": "1", "el-cabeza:special-order-noted": "1", "el-cabeza:nova-layout": "bar", "el-cabeza:hold-to-end-learned": "1", "el-cabeza:hold-to-end": "0" };
   const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
   await ctx.addInitScript((seed) => {
     window.__EC_TEST_HOOKS__ = true;
@@ -199,11 +203,10 @@ console.log("The den on a phone, the bar layout");
   await page.waitForTimeout(1500);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), POSITION);
   await page.waitForTimeout(800);
-  // the menu's switch
+  // the menu: no switch
   await page.locator('[data-testid="shell-menu-button"]').click();
   await page.waitForTimeout(600);
-  const menuSw = page.locator('[data-testid="shell-menu-hold"]');
-  check("the menu has Hold to end a turn, on", (await menuSw.count()) === 1 && (await menuSw.getAttribute("aria-checked")) === "true");
+  check("the menu has no Hold to end switch", (await page.locator('[data-testid="shell-menu-hold"]').count()) === 0 && (await page.locator('[data-testid="shell-menu-close"]').count()) === 1 && !/hold to end/i.test(await page.locator("body").innerText()));
   await page.locator('[data-testid="shell-menu-close"]').click();
   await page.waitForTimeout(500);
   // a move, then a tap on the piece: the note; a held touch: the end

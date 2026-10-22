@@ -42,7 +42,7 @@ const RELAY = process.env.RELAY || `ws://127.0.0.1:${port}`;
 console.log(relay ? `relay on ${port}` : `relay at ${RELAY}`);
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--allow-file-access-from-files"] });
-const SEED = { "el-cabeza:show-points": "0", "el-cabeza:hold-to-end": "0", "el-cabeza:last-world": "noir", "elcabeza.ciudad.time": "night" };
+const SEED = { "el-cabeza:show-points": "0", "el-cabeza:check-alert": "0", "el-cabeza:last-world": "noir", "elcabeza.ciudad.time": "night" };
 async function open({ page: file = "standard", seed = null, query = "", relayOn = true }) {
   const ctx = await browser.newContext({ viewport: { width: 1100, height: 820 }, acceptDownloads: true });
   await ctx.addInitScript(({ s }) => { window.__EC_TEST_HOOKS__ = true; if (s) Object.entries(s).forEach(([k, v]) => localStorage.setItem(k, v)); }, { s: seed });

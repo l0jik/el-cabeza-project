@@ -121,6 +121,15 @@ immediately.
   time. tests/e2e-hold-to-end.mjs: the first hold the teaching one,
   ending after 1.3 s or more, then learned; the phone (seeded as learned)
   the usual one.
+- **Hold to end always on** (2026-10-22; user: "Hold to End should be a
+  default, always-on mechanic. The toggle is unnecessary"). HOLD_END_KEY,
+  loadHoldToEnd / saveHoldToEnd, the holdToEnd state and its ref, the
+  dock's switch and the bar menu's Toggle are gone; onDown arms the hold
+  and a tap on the moved piece (or the square it's headed for) gives the
+  note, never ends the turn. End turn is unchanged. e2e-hold-to-end: no
+  switch in the dock or the phone's menu, a tap still the note, End turn
+  ends it, and on the phone a stored "0" from the old switch is passed
+  over (the note, then a held touch ends the turn).
 
 - **A finger whose lift never arrived** (2026-10-21; user's video, home
   from the trip: "Something screwed up the spin, zoom, pan. The single

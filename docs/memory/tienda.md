@@ -321,13 +321,13 @@ box art and an ad standee (assets/tienda/*.jpg).
      from there." Open it (or a tap on the piece) opens it, bounce and all.
   2. "Inside your menu." The menu stays open under the card; rows in the
      menu's own words: Undo turn, Views (the world's words: Your side,
-     From above, and The aisle), Check alert, Hold to end ("On: hold the
-     piece you moved to end your turn, so a stray tap can't."), Put them
-     down (dockWords.endGame). Lit one at a time, round and round, 2.6 s
-     each: a ring round the control on the menu and its line's label on
-     the card in the rings' yellow, together (both start as the card comes
-     up; TURN_S, turnFrames). All at once, five rings ran into each other:
-     the controls sit about 8 px apart.
+     From above, and The aisle), Check alert, Put them down
+     (dockWords.endGame). Lit one at a time, round and round, 2.6 s each:
+     a ring round the control on the menu and its line's label on the card
+     in the rings' yellow, together (both start as the card comes up;
+     TURN_S, turnFrames). All at once, five rings ran into each other: the
+     controls sit about 8 px apart. (Hold to end was a fifth row till its
+     switch went, 2026-10-22: always on now, see below.)
   3. "The buttons along the bottom." Each of the menu's foot buttons
      drawn on the card as the menu draws it (FOOT_ICONS) with what it does
      (Control bar where offered, Piece guide, Move costs where the world
@@ -461,3 +461,20 @@ box art and an ad standee (assets/tienda/*.jpg).
   on a phone). Tests: e2e-story (no tag in a game; Put one in the cart
   from the dock after New Game, then Check out), e2e-store-nudge (a game
   is on: end-game, not the tag).
+
+- **Hold to end, always on; said on card 6** (2026-10-22; user, a
+  screenshot of "Inside your menu." with HOLD TO END lit: "Hold to End
+  should be a default, always-on mechanic. The toggle is unnecessary. As
+  long as it is clearly explained somewhere, this can be removed, unless
+  you know of a good reason to keep it."). No reason found to keep it:
+  End turn is always there as the one tap that ends a turn, so nobody
+  needs the old tap-to-end. The switch is gone from the dock in play
+  (hold-to-end-switch), the bar's menu (shell-menu-hold) and the menu
+  card's rows (four now); el-cabeza:hold-to-end is no longer read, so an
+  "off" kept from before is passed over. Said in the walkthrough: card 6
+  (the turn) ends "To end it sooner, hold the piece you moved until its
+  ring closes, or press End turn." (budget over one), and the first move's
+  status line "One action left: move it again, or press End turn, or hold
+  the piece until its ring closes." Also: How to play's "hold the piece you
+  moved, or press End turn", the tap's note, the first hold's teaching
+  ring. Fits on a 360x640 phone with the board in view.

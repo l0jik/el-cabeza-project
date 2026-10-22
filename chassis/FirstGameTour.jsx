@@ -212,6 +212,9 @@ function cardText(t) {
           t.punto ? `${t.youFirst ? "Your" : "Your opponent's"} very first turn has one action fewer: this game plays the Punto law.` : null,
           t.dots || null,
           "When they're used up, your turn ends and your opponent moves.",
+          // (Ending it sooner, Hold to end being always on, user: "As long
+          // as it is clearly explained somewhere": a tap on the piece won't.)
+          t.budget > 1 ? "To end it sooner, hold the piece you moved until its ring closes, or press End turn." : null,
         ],
       };
     case "board":
@@ -278,7 +281,6 @@ function cardText(t) {
       if (t.undo) rows.push([t.undo, "Takes back your last turn, and your opponent's answer."]);
       if (t.views && t.views.length) rows.push(["Views", `${list(t.views)}: ready-made views of the board.`]);
       if (t.check) rows.push([t.check, "Warns you when your opponent could crush your Cabeza on its next turn."]);
-      if (t.hold) rows.push([t.hold, "On: hold the piece you moved to end your turn, so a stray tap can't."]);
       if (t.endGame) rows.push([t.endGame, "Ends this game."]);
       return { title: "Inside your menu.", rows, lit: true };
     }
