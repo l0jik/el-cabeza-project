@@ -243,3 +243,6 @@ immediately.
   e2e-drag-latch (begun high theta up, begun low theta down, high to low
   and low to high one change over past the middle, along the middle steady;
   play and Room view), e2e-touch-in-game (begun below: theta down).
+  Confirmed on the user's phone (2026-10-22): "The spin feels right now, no
+  reversal crossing the middle". This is the settled rule: don't change the
+  turn's direction rules again without the user asking.
