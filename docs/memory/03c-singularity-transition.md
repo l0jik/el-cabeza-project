@@ -79,4 +79,20 @@ to-black → draggable Fresnel-glow sphere sequence, in a new module,
   SINGULARITY_DESIGN.md: the sphere's surface is simple placeholder
   DOM text, not the real UV-mapped/raycast-hit-testable MATTER/LAWS/
   TOPOLOGIES menu — those rules systems don't exist yet.~~
-
+- **The invite's halo, square** (2026-10-22; user, with a screenshot of
+  the SINGULARITY invite, its top and bottom circled: "edges on the top
+  and the bottom of this overlay. I'm not sure why they're there. I
+  don't know why. And it seems like the halos kind of cut off, as if,
+  I'm not sure. I would like for this to be extended out, as you know,
+  naturally throughout the entire page. I'm not sure why it gets cut off
+  like that."). The halo behind the word (`.ec-singularity-halo`,
+  radial-gradient circles, farthest-corner) sat in a box 175% x 300% of
+  the invite button, wide and short on a phone (687 x 264): the rings,
+  sized to the box's corners, ran past its top and bottom and were cut
+  off flat there, the hard edges above and below the word. Now the
+  invite's halo is square (`width: 175%; height: auto; aspect-ratio:
+  1 / 1`; themes/futuris.js): its last stop (70% of the corner
+  distance) falls inside the round edge, so the glow fades out all the
+  way round, over the page (phone 687 x 687, desktop the same shape).
+  Before and after screenshots at the halo's brightest moment
+  (scratchpad halo/shot.mjs, the 38% frame held).

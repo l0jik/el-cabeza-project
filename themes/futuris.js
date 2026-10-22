@@ -3143,9 +3143,18 @@ export const styleSheet = `
     font-size: clamp(1.9rem, min(13vmin, 9vw), 9rem);
     letter-spacing: 0.14em;
   }
+  /* Square, and wide: the halo's rings are circles, and in a box wider
+     than tall (175% x 300% of a wide, short button) they ran past its
+     top and bottom and were cut off flat, the glow ending in edges above
+     and below the word (user: "edges on the top and the bottom of this
+     overlay ... the halos kind of cut off ... I would like for this to
+     be extended out ... naturally throughout the entire page"). In a
+     square the rings fade out inside it all round (the last stop, 70%
+     of the corner distance, falls within the round edge). */
   .ec-singularity-invite-btn .ec-singularity-halo {
     width: 175%;
-    height: 300%;
+    height: auto;
+    aspect-ratio: 1 / 1;
   }
   @media (prefers-reduced-motion: reduce) {
     .ec-singularity-invite-backdrop { animation: none; opacity: 1; }

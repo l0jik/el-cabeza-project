@@ -489,7 +489,7 @@ function glowShows(glow, ground) {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
-export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTilt = false }) {
+export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTilt = false, titleInfo = true }) {
   // Up and down the other way for a mouse (a page's choice: Big Glutts,
   // user; a finger always goes Futuris's way, grabLatch).
   const invertTiltRef = useRef(invertTilt);
@@ -3346,12 +3346,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   });
 
   function handleTitleClick() {
-    setInfoBtnVisible(true);
-    // Re-clicking the title while the button is already showing just
-    // restarts its 4-second clock, rather than letting an earlier timer
-    // hide it out from under a still-fresh reveal.
-    if (infoBtnTimerRef.current) clearTimeout(infoBtnTimerRef.current);
-    infoBtnTimerRef.current = setTimeout(() => setInfoBtnVisible(false), 4000);
+    // (Not in the story: Nova's page turns it off till the story's over,
+    // titleInfo; user, of the summons: "remove the info button or disable
+    // it on the story".)
+    if (titleInfo) {
+      setInfoBtnVisible(true);
+      // Re-clicking the title while the button is already showing just
+      // restarts its 4-second clock, rather than letting an earlier timer
+      // hide it out from under a still-fresh reveal.
+      if (infoBtnTimerRef.current) clearTimeout(infoBtnTimerRef.current);
+      infoBtnTimerRef.current = setTimeout(() => setInfoBtnVisible(false), 4000);
+    }
     // Futuris's hidden SINGULARITY trigger: five masthead taps reveal the
     // invite (see useSetupExtras/handleMastheadTap in themes/futuris.js).
     // A no-op in Standard (no useSetupExtras -> setupExtras null), and
@@ -11551,6 +11556,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         </h1>
         <button
           className="ec-btn"
+          data-testid="masthead-info"
           onClick={handleInfoButtonClick}
           style={{
             ...ghostButtonStyle(),

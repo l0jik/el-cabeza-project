@@ -250,6 +250,25 @@ in; leaving Singularity, back in the den as the set switches off.
   menu at the guard, no stop and go, the playback the same; from files,
   as fast as before. e2e-title passes. And a line under 5 Mbit/s
   (navigator.connection.downlink) takes the 720p files, as Save Data does.
+  The user, after: "The splash feels smooth now after pressing Begin."
+  (2026-10-22).
+
+- **No INFO from a tap on the title in the story** (2026-10-22; user,
+  with a phone screenshot of Futuris's summons: "remove the info button
+  from here. Summoning, I guess that's the name of this page, I forget.
+  But remove the info button or disable it on the story."). A tap on EL
+  CABEZA showed the masthead's INFO button for 4 s (chassis
+  handleTitleClick) in every world, the summons too. The chassis takes a
+  `titleInfo` prop now (default on); Nova's page passes the story's end
+  (unified.jsx `titleInfo={ended}`), so nowhere on the story, the store,
+  the den, the summons and the sphere, does a tap on the title bring it
+  up; after the story it does again, and on every world's own page.
+  The title taps still count toward Futuris's five-tap SINGULARITY.
+  ?scene=summons and ?scene=lure play as the story (storyPreview: not
+  ended), so they have none either. The button: data-testid
+  masthead-info. Checked in a browser (scratchpad info/check.mjs): the
+  summons by its link, fresh and from a finished story, INFO stays at 0;
+  Nova ?world=futuris after the story and Futuris's own page, at 1.
 
 - **Restart the story leaves nothing of the switcher behind**
   (2026-10-21; user, with a phone screenshot of the store's Standard

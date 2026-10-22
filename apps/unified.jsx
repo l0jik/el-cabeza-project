@@ -854,6 +854,10 @@ function UnifiedApp() {
             // Futuris's way everywhere, the story's first visit to the
             // store too, user: "the XY spin axis is reversed".)
             invertTilt={themeName === "tienda" && readOwned()}
+            // (No INFO from a tap on the title till the story's over, user,
+            // of the summons: "remove the info button or disable it on the
+            // story".)
+            titleInfo={ended}
             initialMuted={muted}
             onMutedChange={(m) => {
               setMuted(m);
