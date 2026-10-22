@@ -300,6 +300,22 @@ html.ec-splash-on { background: #120C08; }
   };
   W.addEventListener("resize", fit);
 
+  /* The way out's playback, fetched behind the splash: as soon as the
+     splash itself is all in (so the two don't share a slow line), or at
+     the menu at the latest; a phone's is 2.7 MB, and it plays only once
+     it's all in (rewindOut). */
+  const fetchRewind = () => {
+    if (reduce || rew.src) return;
+    rew.preload = "auto";
+    rew.src = REWIND_SRC;
+    try { rew.load(); } catch (e) { /* as it comes */ }
+  };
+  // (All of it in; or, for the playback, enough to play to its end at the
+  // rate it's coming.)
+  const allIn = (v) => { try { const b = v.buffered; return b.length > 0 && v.duration > 0 && b.end(b.length - 1) >= v.duration - 0.05; } catch (e) { return false; } };
+  const playsThrough = (v) => v.readyState >= 4 || allIn(v);
+  video.addEventListener("progress", () => { if (allIn(video)) fetchRewind(); });
+
   // 6.9 s in (or the video over, or skipped): the menu, the logo held
   // breathing once it's into its last two breaths.
   function hold(still = false) {
@@ -307,8 +323,7 @@ html.ec-splash-on { background: #120C08; }
     setState("held");
     fit();
     root.classList.add("menu-on");
-    // (The way out's playback, fetched now, behind the splash.)
-    if (!reduce) { rew.preload = "auto"; rew.src = REWIND_SRC; try { rew.load(); } catch (e) { /* as it comes */ } }
+    fetchRewind();
     if (still) { try { video.pause(); video.currentTime = HOLD_FROM; } catch (e) { /* as it is */ } }
     else holdLoop();
   }
@@ -423,16 +438,27 @@ html.ec-splash-on { background: #120C08; }
       W.requestAnimationFrame(tick);
       W.setTimeout(rewoundNow, 8000); // (a stalled playback still ends; it's 4.8 s)
     };
-    rew.addEventListener("ended", rewoundNow, { once: true });
+    /* Shown once it can play to its end without running dry. Not yet (a
+       slow line, Begin straight away): played unseen, so it comes in, the
+       logo breathing on over it, then shown from its start; a playback
+       stopping and starting read as the splash hanging. Not in 3 s: the
+       title fades without it. */
+    const ready = () => {
+      if (rewinding || rewound || !playsThrough(rew)) return;
+      try { if (rew.currentTime > 0.05) rew.currentTime = 0; } catch (e) { /* from where it is */ }
+      if (rew.paused) { const q = rew.play(); if (q && q.catch) q.catch(giveUp); }
+      show();
+    };
+    rew.addEventListener("ended", () => { if (rewinding) rewoundNow(); else ready(); });
     try { if (rew.currentTime > 0) rew.currentTime = 0; } catch (e) { /* from where it is */ }
-    // Played in the tap itself (a phone saving power lets it then), and
-    // shown at once if its first frame's in, else as soon as it is.
+    // (Played in the tap itself, which a phone saving power asks.)
     const p = rew.play();
     if (p && p.catch) p.catch(giveUp);
-    if (rew.readyState >= 2) show();
+    if (playsThrough(rew)) show();
     else {
-      rew.addEventListener("loadeddata", show, { once: true });
-      W.setTimeout(() => { if (!rewinding) giveUp(); }, 900);
+      rew.addEventListener("canplaythrough", ready);
+      rew.addEventListener("progress", ready);
+      W.setTimeout(() => { if (!rewinding) giveUp(); }, 3000);
     }
   }
   let gone = false;

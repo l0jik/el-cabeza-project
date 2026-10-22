@@ -217,6 +217,18 @@ in; leaving Singularity, back in the den as the set switches off.
   still while it comes up; the title fades once it's up, as before.
   e2e-title checks the app came only once the playback was over, under
   the title still.
+  And over a phone's line (its files are the 1080p ones: the splash
+  4.4 MB, the playback 2.7 MB at 4.6 Mbit/s, which was only fetched once
+  the menu came): the playback's fetched as soon as the splash is all in
+  (fetchRewind on the splash's progress; at the menu at the latest), and
+  plays only once it can play to its end without running dry
+  (playsThrough: HAVE_ENOUGH_DATA or all of it buffered); not yet at
+  Begin, it plays unseen while it comes in, the logo breathing on, then
+  shows from its start; not in 3 s, the title fades without it. Measured
+  over throttled lines (scratchpad splash/serve.mjs, a byte-range server
+  like GitHub Pages; measure.mjs MEASURE_BASE, MEASURE_KBPS,
+  MEASURE_TAP_AFTER); the local browser has no H.264, so it plays the
+  720p WebM files, a sixth to an eighth of a phone's.
 
 - **Restart the story leaves nothing of the switcher behind**
   (2026-10-21; user, with a phone screenshot of the store's Standard
