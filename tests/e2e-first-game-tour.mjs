@@ -17,7 +17,10 @@
    you Ash, moving first, chosen already; Try a Game brings the cards at
    the top, the board framed under them and what each names lit up: both
    sides ringed and labelled; the two ways to win, both Cabezas ringed and
-   numbered; your Cabeza, the row you win on lit green and an arrow to it;
+   numbered; your Cabeza, the row you win on lit green and an arrow to it,
+   its head held a moment straight up from your Cabeza, then sliding along
+   the row to both ends and back (user: "anywhere on the back row is
+   valid"; held still with reduced motion);
    Walnut's Cabeza crushed, a cut to a close-up of copies of a block of
    yours rolling onto a copy of it, over and over (the real pieces
    untouched), the camera gliding back out on Next; your four blocks, named; the
@@ -86,6 +89,39 @@ const anchorOf = (page, key) => page.evaluate((k) => { const e = document.queryS
 const boxOf = (page, sel) => page.evaluate((s) => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; }, sel);
 const overlap = (a, b) => !!a && !!b && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 const inView = (b, W, H) => !!b && b.x >= 0 && b.y >= 0 && b.x + b.w <= W && b.y + b.h <= H;
+/* The arrow to the row you win on, its head along the row (user: "Have
+   the arrowhead of this long green arrow kind of slide across the back to
+   indicate that anywhere on the back row is valid"): at each frame till
+   it's read, the head's tip, and where the row's end squares and the
+   square straight up from your Cabeza then are. Read, each tip along the
+   row (u: 0 at its first square, 1 at its last), off its line and from
+   the square up from your Cabeza (in squares). */
+const sweepLog = (page) => page.evaluate(() => {
+  const cols = (window.__EC_TEST_BOARD__ && window.__EC_TEST_BOARD__.cols) || 10;
+  const cab = window.__EC_TEST_PIECES__.find((p) => p.id === "light-cabeza");
+  const log = (window.__SWEEP__ = []), t0 = performance.now();
+  const at = (c) => { const p = window.__EC_TEST_SQUARE_POS__(0, c); return p && [p.x, p.y]; };
+  const tick = () => {
+    if (window.__SWEEP__ !== log) return;
+    const h = document.querySelector('[data-testid="tour-marks"] [data-head="arrow-path"]');
+    const m = h && /^M(-?[\d.]+),(-?[\d.]+)/.exec(h.getAttribute("d") || "");
+    log.push({ t: Math.round(performance.now() - t0), tip: m ? [+m[1], +m[2]] : null, a: at(0), b: at(cols - 1), c: at(cab.col), cols });
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+});
+const sweepFor = async (page, ms) => {
+  for (let i = 0; i < 200 && (await page.evaluate(() => { const l = window.__SWEEP__ || []; return l.length ? l[l.length - 1].t : 0; })) < ms; i++) await page.waitForTimeout(100);
+  const log = await page.evaluate(() => { const l = window.__SWEEP__; window.__SWEEP__ = null; return l || []; });
+  return log.filter((s) => s.tip && s.a && s.b && s.c).map((s) => {
+    const dx = s.b[0] - s.a[0], dy = s.b[1] - s.a[1], L = Math.hypot(dx, dy), sq = L / (s.cols - 1);
+    const px = s.tip[0] - s.a[0], py = s.tip[1] - s.a[1];
+    return { t: s.t, u: +((px * dx + py * dy) / (L * L)).toFixed(3), off: +(Math.abs(px * dy - py * dx) / L / sq).toFixed(2), fromCab: +(Math.hypot(s.tip[0] - s.c[0], s.tip[1] - s.c[1]) / sq).toFixed(2) };
+  });
+};
+const spread = (sw) => (sw.length ? Math.max(...sw.map((s) => s.u)) - Math.min(...sw.map((s) => s.u)) : 0);
+// (How many times it turns back: u moving the other way by more than 0.02.)
+const turnsOf = (sw) => { let dir = 0, turns = 0, last = sw.length ? sw[0].u : 0; sw.forEach((s) => { const d = s.u - last; if (Math.abs(d) > 0.02) { const nd = Math.sign(d); if (dir && nd !== dir) turns++; dir = nd; last = s.u; } }); return turns; };
 async function begin(page) {
   await openDockPanel(page);
   await page.waitForTimeout(600);
@@ -145,6 +181,9 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   check("...both Cabezas ringed and pulsing, the row you'd win on lit", r.length === 2 && r.some((x) => x.id === "light-cabeza" && x.tone === "mine" && x.pulse) && r.some((x) => x.id === "dark-cabeza" && x.tone === "foe" && x.pulse) && (await band(page)) === 0, JSON.stringify({ r, band: await band(page) }));
   check("...each numbered, on the screen and clear of the card", !!way1 && /1 · Your Cabeza across/i.test(way1.text) && !!way2 && /2 · Crush opponent's Cabeza/i.test(way2.text) && [way1, way2].every((b) => inView(b, W, H) && !overlap(b, cardBox)) && !overlap(way1, way2), JSON.stringify({ way1, way2, cardBox }));
   check("...an arrow from your Cabeza up to the row", ((await arrowD(page, "arrow-path")) || "").length > 10);
+  await sweepLog(page);
+  const ways = await sweepFor(page, 2600);
+  check(`...its head sliding along the row, not held on one square (across ${spread(ways).toFixed(2)} of it)`, ways.length >= 5 && ways.every((s) => s.off < 0.35) && spread(ways) > 0.4, JSON.stringify(ways.slice(0, 4)));
 
   // The first: your Cabeza, the row lit green, an arrow there. Shown big
   // first, then brought down into its place (user: "start it with an
@@ -167,6 +206,8 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
     last = c;
     await page.waitForTimeout(50);
   }
+  // (The arrow's head, from when it's drawn: read below.)
+  await sweepLog(page);
   check(`...then down it comes, shrinking, onto its own square (${last && Math.round(last.x)},${last && Math.round(last.y)} vs ${last && Math.round(last.realX)},${last && Math.round(last.realY)})`, smaller && !!last && Math.hypot(last.x - last.realX, last.y - last.realY) < 3 && Math.abs(last.px - last.realPx) < 2 && !(await tourOf(page)).cabIntro, JSON.stringify(last));
   check("...the real one back on the board, and only one Cabeza drawn", (await realShown()) && (await page.evaluate(() => window.__EC_TEST_THREE__().boardGroup.children.filter((c) => c.userData.kind === "tour-cab").length)) === 0);
   await page.waitForTimeout(300);
@@ -183,6 +224,12 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const goalTag = await tagBox(page, "goal");
   await cover("goal");
   check("...an arrow from it to the row, and the row labelled your goal", !!path && path.length > 10 && !!goalTag && /back row · your goal/i.test(goalTag.text) && inView(goalTag, W, H), JSON.stringify({ path, goalTag }));
+  // Its head where your Cabeza would come in, then along the row to both
+  // ends and back: anywhere on it wins.
+  const sw = await sweepFor(page, 7200);
+  const early = sw.filter((s) => s.t < 400);
+  check(`...its head first straight up from your Cabeza, held a moment (${early.length ? Math.max(...early.map((s) => s.fromCab)) : "-"} of a square off)`, early.length >= 2 && early.every((s) => s.fromCab < 0.3) && spread(early) < 0.01, JSON.stringify(early));
+  check(`...then sliding along the row, to its first square and its last and back (${Math.min(...sw.map((s) => s.u))} to ${Math.max(...sw.map((s) => s.u))}, ${turnsOf(sw)} turns, ${Math.max(...sw.map((s) => s.off))} of a square off its line at most)`, sw.length >= 20 && sw.every((s) => s.off < 0.35) && Math.min(...sw.map((s) => s.u)) < 0.03 && Math.max(...sw.map((s) => s.u)) > 0.97 && turnsOf(sw) >= 2, JSON.stringify(sw.filter((_, i) => i % 6 === 0)));
 
   // The second: a cut to a close-up of a crush, played over and over.
   const boardCam = await camOf(page);
@@ -588,6 +635,13 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const { ctx, page } = await open(false);
   await begin(page);
   check("Try a Game: the welcome card", (await tourOf(page)).step === "welcome");
+  // With reduced motion, the arrow to the row held still.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.locator('[data-testid="tour-next"]').click();
+  await page.waitForTimeout(1000);
+  await sweepLog(page);
+  const calm = await sweepFor(page, 1500);
+  check(`reduced motion: the arrow's head held still, straight up from your Cabeza (moved ${spread(calm).toFixed(3)} of the row)`, (await tourOf(page)).step === "ways" && calm.length >= 3 && calm.every((s) => s.fromCab < 0.3) && spread(calm) < 0.01, JSON.stringify(calm.slice(0, 3)));
   await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
   check("Escape skips it, kept as done", (await card(page).count()) === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");

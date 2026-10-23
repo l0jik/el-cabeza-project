@@ -483,17 +483,47 @@ export default function FirstGameTour({ tour, cardRef }) {
    labels keep off one another, off the card and off what `avoid` names;
    the arrows run from a label's edge to the edge of what it names. */
 const HALO = "rgba(22,14,6,0.62)";
+/* An arrow to a row, not a square (sweep: { lo, hi }, the columns it runs
+   between; user, the goal card's arrow to the back row: "Have the
+   arrowhead of this long green arrow kind of slide across the back to
+   indicate that anywhere on the back row is valid ... having the arrow
+   point at that one specific point might be a little bit misleading"):
+   its head held a moment where it first points (`hold`), then gliding to
+   the row's farther end and on between its two ends, a crossing taking
+   `leg` and resting a beat (`rest`) at each end. Still with reduced
+   motion. */
+const SWEEP = { hold: 700, leg: 2400, rest: 300 };
 export function TourMarks({ marks, geo, subscribe, cardRef }) {
   const tagEls = useRef({});
   const lineEls = useRef({});
   const boxEls = useRef({});
   const orbitEls = useRef({});
+  // (When each sweeping arrow was first drawn, kept while it's shown.)
+  const sweptFrom = useRef({});
   useEffect(() => {
     if (!marks || !subscribe || !geo) return undefined;
     const tags = marks.tags || [];
     const sizes = {};
     tags.forEach((g) => { const e = tagEls.current[g.key]; if (e) sizes[g.key] = { w: e.offsetWidth, h: e.offsetHeight }; });
     const still = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const swept = sweptFrom.current;
+    Object.keys(swept).forEach((k) => { if (!(marks.arrows || []).some((ar) => ar.sweep && ar.key === k)) delete swept[k]; });
+    const sweepCol = (ar, now) => {
+      const { lo, hi } = ar.sweep, c0 = ar.to.box.col, span = hi - lo;
+      if (still || !(span > 0)) return c0;
+      if (swept[ar.key] == null) swept[ar.key] = now;
+      const s = now - swept[ar.key] - SWEEP.hold;
+      if (s <= 0) return c0;
+      const ease = (x) => x * x * (3 - 2 * x);
+      const far = hi - c0 >= c0 - lo ? hi : lo, near = far === hi ? lo : hi;
+      const first = (SWEEP.leg * Math.abs(far - c0)) / span;
+      if (s < first) return c0 + (far - c0) * ease(s / first);
+      const k = (s - first) % (2 * (SWEEP.rest + SWEEP.leg));
+      if (k < SWEEP.rest) return far;
+      if (k < SWEEP.rest + SWEEP.leg) return far + (near - far) * ease((k - SWEEP.rest) / SWEEP.leg);
+      if (k < 2 * SWEEP.rest + SWEEP.leg) return near;
+      return near + (far - near) * ease((k - 2 * SWEEP.rest - SWEEP.leg) / SWEEP.leg);
+    };
     const noLine = (l) => { l.halo.setAttribute("d", ""); l.line.setAttribute("d", ""); l.head.setAttribute("d", ""); };
     const hide = (k) => {
       const e = tagEls.current[k]; if (e) e.style.transform = "translate(-300vw, 0)";
@@ -558,11 +588,12 @@ export function TourMarks({ marks, geo, subscribe, cardRef }) {
 
       // A move's arrow: from the middle of one thing to the middle of the
       // other (or short of it, trimEnd: to its edge), bowed to the left of
-      // its way, so several from one piece fan out.
+      // its way, so several from one piece fan out. One to a row, its head
+      // along the row (sweepCol).
       (marks.arrows || []).forEach((ar) => {
         const l = lineEls.current[`arrow-${ar.key}`];
         if (!l) return;
-        const a = geo.rect(ar.from), b = geo.rect(ar.to);
+        const a = geo.rect(ar.from), b = geo.rect(ar.sweep ? { box: { ...ar.to.box, col: sweepCol(ar, now) } } : ar.to);
         if (!a || !b) { noLine(l); return; }
         const P0 = [(a.l + a.r) / 2, (a.t + a.b) / 2];
         let P2 = [(b.l + b.r) / 2, (b.t + b.b) / 2];
@@ -705,7 +736,7 @@ export function TourMarks({ marks, geo, subscribe, cardRef }) {
     <g key={k}>
       <path ref={keep(lineEls, k, "halo")} fill="none" stroke={HALO} strokeWidth={w + 3.4} strokeLinecap="round" />
       <path ref={keep(lineEls, k, "line")} data-arrow={k} fill="none" stroke={tone(t)} strokeWidth={w} strokeLinecap="round" />
-      <path ref={keep(lineEls, k, "head")} fill={tone(t)} stroke={HALO} strokeWidth={1.6} strokeLinejoin="round" />
+      <path ref={keep(lineEls, k, "head")} data-head={k} fill={tone(t)} stroke={HALO} strokeWidth={1.6} strokeLinejoin="round" />
     </g>
   );
   const orbitPart = (k, t) => (

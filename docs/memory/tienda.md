@@ -287,6 +287,26 @@ box art and an ad standee (assets/tienda/*.jpg).
   settle, px, x, y, realPx, realX, realY }, __EC_TEST_TOUR_CAB_SLOW__ to
   slow it for a look. Phone 163 px across against 30 on the board;
   desktop 229 against 56. tests/e2e-first-game-tour.mjs checks it.
+- **The arrow to the back row slides along it** (2026-10-23; user, a
+  phone screenshot of card 3 with the arrow circled in red: "Have the
+  arrow of the arrowhead of this long green arrow kind of slide across
+  the back to indicate that anywhere on the back row is valid. I mean,
+  even though it's all highlighted green, having the arrow point at that
+  one specific point might be a little bit misleading."): the arrow from
+  your Cabeza (cards 2 and 3, key "path") carries sweep { lo: 0, hi:
+  BOARD_COLS - 1 }; TourMarks (FirstGameTour.jsx SWEEP, sweepCol) holds
+  its head 0.7 s on the square straight up from the Cabeza (where it
+  always pointed), then glides it to the row's farther end and on between
+  the two ends, a full crossing 2.4 s (smoothstep) and 0.3 s at each end,
+  the line swinging with it. It starts over each time the arrow's drawn
+  anew (card 3 once the Cabeza's come down; Back); still with reduced
+  motion. Any square of the back row wins (engine: candidate.row ===
+  GOAL_ROW). The head's path carries data-head (tests).
+  tests/e2e-first-game-tour.mjs (sweepLog, sweepFor) reads the tip every
+  frame against __EC_TEST_SQUARE_POS__: card 2's head moving along the
+  row; card 3's held at first straight up from the Cabeza, then reaching
+  both end squares and turning back twice in 7.2 s, on the row's line
+  throughout; with reduced motion (desktop) held still.
 - **No label over what it names** (2026-10-21; user, a phone screenshot
   of card 4 with OPPONENT'S CABEZA over the copied Cabeza: "Opponent's
   cabeza flag is obscuring the actual piece a little bit too much.

@@ -4631,7 +4631,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      arrows round the board where it says the board turns. (A move's arrow
      is drawn on the screen, not the board: one up the board, seen from
      behind, was edge on, a stick.) Each card in turn: both sides; your
-     Cabeza, an arrow to the row you win on; the other side's Cabeza; your
+     Cabeza, an arrow to the row you win on, its head sliding along the
+     row, end to end (anywhere on it wins: TourMarks' sweep); the other
+     side's Cabeza; your
      blocks, named; the actions' lights; the board turning. Your first
      turn: the pieces that can move, named (those that can't, said so); a
      piece picked, an arrow to each square it can reach (and End turn,
@@ -4719,7 +4721,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       t3.band = { row: goalRow, tone: "goal" };
       if (myCab) {
         ring(myCab, "mine", { pulse: true });
-        t2.arrows.push({ key: "path", from: { piece: myCab.id }, to: { box: { type: "square", row: goalRow, col: myCab.col, w: 1, h: 1, z: 0 } }, tone: "goal", bend: 0.08 });
+        t2.arrows.push({ key: "path", from: { piece: myCab.id }, to: { box: { type: "square", row: goalRow, col: myCab.col, w: 1, h: 1, z: 0 } }, sweep: { lo: 0, hi: BOARD_COLS - 1 }, tone: "goal", bend: 0.08 });
         tag("way-1", { piece: myCab.id }, "1 · Your Cabeza across", "mine");
       }
       // (User: it "should read, 'Crush opponent's Cabeza'".)
@@ -4733,7 +4735,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         // the arrow once it's in its place.)
         if (tourCabIntro) tag("cabeza", { intro: true }, "Your Cabeza", "mine", "below");
         else {
-          t2.arrows.push({ key: "path", from: { piece: myCab.id }, to: { box: { type: "square", row: goalRow, col: myCab.col, w: 1, h: 1, z: 0 } }, tone: "goal", bend: 0.08 });
+          t2.arrows.push({ key: "path", from: { piece: myCab.id }, to: { box: { type: "square", row: goalRow, col: myCab.col, w: 1, h: 1, z: 0 } }, sweep: { lo: 0, hi: BOARD_COLS - 1 }, tone: "goal", bend: 0.08 });
           tag("cabeza", { piece: myCab.id }, "Your Cabeza", "mine");
         }
       }
