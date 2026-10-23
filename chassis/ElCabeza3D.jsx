@@ -14781,8 +14781,8 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
               </p>
 
               <p style={{ margin: "0 0 16px" }}>
-                Developed sometime prior to 1977 in Argentina by Jaime
-                Poniachik and Enrique Lindenbaum, El Cabeza was never officially
+                Developed sometime prior to 1977 in Argentina by Enrique
+                Lindenbaum and Jaime Poniachik, El Cabeza was never officially
                 published for reasons unknown. It was, however, fully
                 described in a 1987 issue of the Argentine gaming magazine{" "}
                 <em>Revista Humor y Juegos</em>, with such vivid detail that
@@ -14903,7 +14903,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
               }}
             >
               This is an unofficial, non-commercial implementation of El
-              Cabeza, the game by Jaime Poniachik and Enrique Lindenbaum, and
+              Cabeza, the game by Enrique Lindenbaum and Jaime Poniachik, and
               is not affiliated with or endorsed by them, by <em>Revista Humor
               y Juegos</em>, or by anyone holding rights in the original game.
               Music and recordings by others belong to their respective

@@ -45,7 +45,7 @@ const theme = (page) => page.evaluate(() => {
   // affiliated with or endorsed by, named.
   const last = await page.evaluate(() => { const ps = [...document.querySelectorAll('[data-testid="info-body"] p')]; const l = ps[ps.length - 1]; return l ? { id: l.getAttribute("data-testid"), text: l.textContent.replace(/\s+/g, " "), shown: l.getBoundingClientRect().height > 0 } : null; });
   check("ABOUT ends with the disclaimer", !!last && last.id === "info-disclaimer" && last.shown, JSON.stringify(last));
-  check("...unofficial and non-commercial, not affiliated with or endorsed by the game's creators or the magazine", !!last && /unofficial, non-commercial implementation/.test(last.text) && /not affiliated with or endorsed by them/.test(last.text) && /Jaime Poniachik and Enrique Lindenbaum/.test(last.text) && /Revista Humor y Juegos/.test(last.text), last && last.text);
+  check("...unofficial and non-commercial, not affiliated with or endorsed by the game's creators or the magazine", !!last && /unofficial, non-commercial implementation/.test(last.text) && /not affiliated with or endorsed by them/.test(last.text) && /Enrique Lindenbaum and Jaime Poniachik/.test(last.text) && /Revista Humor y Juegos/.test(last.text), last && last.text);
   await page.locator('[data-testid="play-original"]').click();
   await page.waitForTimeout(800);
   check("the link closes INFO", (await page.locator('[data-testid="info-overlay"]').getAttribute("data-open")) === "false");

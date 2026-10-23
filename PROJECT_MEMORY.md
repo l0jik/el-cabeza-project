@@ -65,6 +65,12 @@ rim, the front-page mock-ups of NOVA as a neon sign.
 - (Done: the disclaimer, user 2026-10-08, in since 2026-10-14 at the foot
   of ABOUT in every world; what was said about rights along the way is
   kept in docs/memory/00-open-reminders.md.)
+- The creators are named Lindenbaum first: "Enrique Lindenbaum and Jaime
+  Poniachik", in ABOUT's history paragraph and its disclaimer (user,
+  2026-10-23, of "by Jaime Poniachik and Enrique Lindenbaum" ringed: "On a
+  chassis level, reverse the names in this text."). The front-page
+  mock-ups (front/) and the old root copies (el_cabeza_3d.jsx,
+  el-cabeza-futuris-3d.html) still have the old order.
 
 ## Backlog (as given to the user, 2026-10-18: "what's in the backlog.")
 
@@ -247,3 +253,4 @@ built or dropped.
 - The TV pull's streaks meet on the set's glass (user: "The white lines that radiate outward as you're getting pulled into the TV ... what are those pointing to? Because I'm not sure, it's like kind of off screen. Is it supposed to be the screen itself ... What's up with those lines? Because something seems off there."): they were measured before the camera was placed each frame, from where the board's camera stood, so on a phone they met past the screen's right edge; now from the placed camera, on the glass's middle, the picture stretched about it and the dark closing in on it. den-fx.js pullDraw, pullStretch; docs/memory/nova-story.md.
 - The tour's arrow to the back row slides along it (user: "Have the arrow of the arrowhead of this long green arrow kind of slide across the back to indicate that anywhere on the back row is valid. I mean, even though it's all highlighted green, having the arrow point at that one specific point might be a little bit misleading."): on cards 2 and 3 its head holds a moment straight up from your Cabeza, then glides to both ends of the row and back; still with reduced motion. chassis/FirstGameTour.jsx SWEEP, sweepCol; ElCabeza3D.jsx (sweep on the "path" arrow); docs/memory/tienda.md.
 - On the phone call, the camera stays with the phone (user: "During the phone call, I'm not sure where I touched, but I was able to get back to the table in the conversation pit. That probably shouldn't happen."): on the line a tap on the room is swallowed and Escape doesn't leave (while it rings they still go back); picked up from elsewhere, the camera goes over to the phone; hung up, back to the board. The receiver now comes up to the camera you see through (posed after the den places it), not the room camera's ear across the room. themes/den-fx.js onPhoneDown/onPhoneKey, den-call.js onLine, answer(), pose(); docs/memory/nova-story.md.
+- The creators' names reversed in ABOUT, every world (user: "On a chassis level, reverse the names in this text. Ask me if you don't understand what I mean before you make any changes."): "by Enrique Lindenbaum and Jaime Poniachik" in the history paragraph and the disclaimer under it. chassis/ElCabeza3D.jsx; tests/e2e-original.mjs.
