@@ -530,8 +530,20 @@ box art and an ad standee (assets/tienda/*.jpg).
   a shine over it; E, the order form's pointing hand (Noto Sans Symbols
   2) poking at it; F, the store's own blue tap-me glow (Try a Game's)
   round it as a pill. https://claude.ai/artifact/NyehatFyneA1yEWqN8Ruf4
-  (scratchpad flyer-go/page). Waiting on the user's pick; nothing but the
-  "!" is in the game.
+  (scratchpad flyer-go/page). The user: "Let's go with A, circled in red
+  pen, but make the circle a bit messier and have it redraw the line
+  until the user selects it. Have it redraw differently each time." In
+  the game now (tienda-overlay.js penLoop, circleGo): the line 13.5 px,
+  full strength as taps start to count (5 s); then a red pen loop
+  (#C8281E, 2-2.7 px, multiplied into the paper) draws round it in 0.75
+  to 1.05 s, held 1.4 to 2.1 s, fades in 0.38 s, and another, until the
+  flyer's tapped. Each one new: from about one o'clock anticlockwise,
+  1.12 to 1.45 times round, its width and height 14-19 and 9-12.5 px off
+  the line's, two wobbles and a shake at random phases, tipped up to 4
+  degrees, the second lap drifting wider or tighter and rising or
+  falling, set down 10% short and lifted with a 12% flick. Reduced
+  motion: one loop, still. tests/e2e-try-it.mjs: circled, then circled
+  again differently.
 - **In the store, full screen always comes back** (2026-10-23; user, a
   phone screenshot of the tour's "Your menu is in the corner" card:
   "These pages during the tutorial or in Tienda should always

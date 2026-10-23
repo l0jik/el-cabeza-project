@@ -198,8 +198,12 @@ const TRY_IT_CSS = `
   .td-tryit .policy { margin-top: 6px; padding: 4px 6px 5px; border: 1px solid #17110c; font: 500 8px/1.28 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
   .td-tryit .policy b { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
   .td-tryit .charge { margin-top: 6px; font: 800 8.5px/1.2 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #17110c; }
-  .td-tryit .go { display: block; margin-top: 8px; text-align: left; font: 700 11px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0;
-    animation: tdTryGo 0.5s ease ${TRY_IT_HOLD_MS}ms both, tdTryCall 1.8s ease-in-out ${TRY_IT_HOLD_MS + 700}ms infinite; }
+  /* "Let's play!", circled in red pen as taps start to count (user: "Let's
+     go with A, circled in red pen"; penLoop, circleGo). */
+  .td-tryit .go { position: relative; display: inline-block; margin: 11px 0 6px 18px; text-align: left; font: 700 13.5px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #17110c; opacity: 0;
+    animation: tdTryGo 0.3s ease ${TRY_IT_HOLD_MS}ms both; }
+  .td-tryit .go .pen { position: absolute; overflow: visible; pointer-events: none; }
+  .td-tryit .go .pen path { fill: none; stroke: #C8281E; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; mix-blend-mode: multiply; }
   .td-tryit.off { transition: opacity 0.35s ease, transform 0.35s ease; opacity: 0; transform: translate(-50%, -46%) rotate(-1.2deg) scale(var(--fit, 1)); pointer-events: none; }
   /* Up until it's tapped: a tap beside it lands on the veil (the store
      behind stays put) and the flyer shakes; its "Let's play" calls. */
@@ -209,8 +213,7 @@ const TRY_IT_CSS = `
   .td-tryit:focus { outline: none; }
   .td-tryit:focus-visible .go { opacity: 1; text-decoration: underline; }
   @keyframes tdTryIn { from { opacity: 0; transform: translate(-50%, -40%) rotate(-4deg) scale(calc(0.9 * var(--fit, 1))); } to { opacity: 1; transform: translate(-50%, -50%) rotate(-1.2deg) scale(var(--fit, 1)); } }
-  @keyframes tdTryGo { to { opacity: 0.75; } }
-  @keyframes tdTryCall { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+  @keyframes tdTryGo { to { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .td-tryit, .td-tryit .go, .td-tryit .sheet::after, .td-tryit .sheet.nudge { animation: none; opacity: 1; } }
 `;
 /* The flyer's edges, its mask, made at its size. A web press's folder cuts
@@ -246,6 +249,70 @@ function flyerMask(w, h) {
     + '<rect y="' + f(D * 2) + '" width="' + w + '" height="' + f(h - D * 4) + '"/>'
     + '<path filter="url(#soft)" d="' + top + '"/><path filter="url(#soft)" d="' + bottom + '"/></svg>';
   return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
+}
+/* "Let's play!" circled in red pen (user, of six ways to make it seen:
+   "Let's go with A, circled in red pen, but make the circle a bit messier
+   and have it redraw the line until the user selects it. Have it redraw
+   differently each time."). penLoop: a loop round a w x h line (its top
+   left at 0,0) as a hand makes one, from about one o'clock anticlockwise,
+   a little more than once round, never the same twice: its width and
+   height a touch off, wobbling and shaking, tipped, the second lap wider
+   or tighter and drifting, the pen set down short and lifted with a
+   flick. circleGo draws one as taps start to count, holds it, lets it
+   fade and draws another, until the flyer's tapped (one, still, for a
+   reader who wants no motion). */
+function penLoop(w, h) {
+  const between = (a, b) => a + (b - a) * Math.random();
+  const ease = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+  const cx = w / 2 + between(-3, 3), cy = h / 2 + between(-1.5, 1.5);
+  const rx = w / 2 + between(14, 19), ry = h / 2 + between(9, 12.5);
+  const turns = between(1.12, 1.45), start = between(-1.1, -0.25), tilt = between(-0.07, 0.07);
+  const drift = between(-0.03, 0.1), rise = between(-2.5, 1);
+  const wob = [between(0.025, 0.05), between(1.2, 2.4), between(0, 6.3)], rip = [between(0.012, 0.025), between(3, 5), between(0, 6.3)];
+  const shake = [between(0.3, 0.7), between(9, 14), between(0, 6.3)];
+  const pts = [];
+  for (let i = 0, n = 150; i <= n; i++) {
+    const u = i / n, a = start - u * turns * 2 * Math.PI;
+    const k = 1 + wob[0] * Math.sin(2 * Math.PI * wob[1] * u + wob[2]) + rip[0] * Math.sin(2 * Math.PI * rip[1] * u + rip[2]) + drift * u
+      - 0.1 * (1 - ease(0, 0.07, u)) + 0.12 * ease(0.9, 1, u);
+    const j = shake[0] * Math.sin(2 * Math.PI * shake[1] * u + shake[2]);
+    const x = (rx * k + j) * Math.cos(a), y = (ry * k + j) * Math.sin(a) + rise * u;
+    pts.push([cx + x * Math.cos(tilt) - y * Math.sin(tilt), cy + x * Math.sin(tilt) + y * Math.cos(tilt)]);
+  }
+  return { d: "M" + pts.map((p) => p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" L"), width: between(2, 2.7).toFixed(2), ms: Math.round(between(750, 1050)) };
+}
+function circleGo(go, since) {
+  const NS = "http://www.w3.org/2000/svg", PAD = 26;
+  const still = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let timer = 0, svg = null, gone = false;
+  const draw = () => {
+    if (gone || !go || !go.isConnected) return;
+    if (svg) svg.remove();
+    const w = go.offsetWidth, h = go.offsetHeight, loop = penLoop(w, h);
+    svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("class", "pen");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("width", String(w + 2 * PAD));
+    svg.setAttribute("height", String(h + 2 * PAD));
+    svg.setAttribute("viewBox", `${-PAD} ${-PAD} ${w + 2 * PAD} ${h + 2 * PAD}`);
+    svg.style.left = svg.style.top = -PAD + "px";
+    const path = document.createElementNS(NS, "path");
+    path.setAttribute("d", loop.d);
+    path.style.strokeWidth = loop.width;
+    svg.appendChild(path);
+    go.appendChild(svg);
+    if (still || !path.animate) return;
+    const len = path.getTotalLength();
+    path.style.strokeDasharray = `${len} ${len}`;
+    path.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: loop.ms, easing: "cubic-bezier(0.4, 0.1, 0.3, 1)", fill: "both" });
+    timer = setTimeout(() => {
+      if (gone) return;
+      svg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 380, easing: "ease-in", fill: "forwards" });
+      timer = setTimeout(draw, 580);
+    }, loop.ms + 1400 + Math.random() * 700);
+  };
+  timer = setTimeout(draw, Math.max(0, TRY_IT_HOLD_MS + 150 - (performance.now() - since)));
+  return { stop() { gone = true; clearTimeout(timer); } };
 }
 /* The flyer (user: "This is the image that you will incorporate into the
    advertising flyer"), the store's page with the game on it, round the
@@ -521,13 +588,14 @@ export function useSetupExtras(x) {
   tryItLive.current = { ok: store && x.awaitingBegin && !overlay && !(story.after && story.after()) && !(story.realities && story.realities()), openDock: x.openDock };
   React.useEffect(() => {
     if (!store) return undefined;
-    let card = null, veil = null, marks = null, refit = null;
+    let card = null, veil = null, marks = null, refit = null, pen = null;
     const done = () => {
       if (!card) return;
       const c = card; card = null;
       if (veil) { veil.remove(); veil = null; }
       if (marks) { marks.disconnect(); marks = null; }
       if (refit) { window.removeEventListener("resize", refit); refit = null; }
+      if (pen) { pen.stop(); pen = null; }
       c.classList.add("off"); setTimeout(() => c.remove(), 400);
       const live = tryItLive.current;
       if (live.openDock) live.openDock();
@@ -585,9 +653,11 @@ export function useSetupExtras(x) {
       mark();
       if (typeof ResizeObserver !== "undefined") { marks = new ResizeObserver(mark); marks.observe(sheet); }
       refit = mark; window.addEventListener("resize", refit);
+      // Its "Let's play!" circled, again and again till it's tapped.
+      pen = circleGo(sheet.querySelector(".go"), since);
     };
     window.addEventListener(TRY_IT_EVENT, onTry);
-    return () => { window.removeEventListener(TRY_IT_EVENT, onTry); if (marks) marks.disconnect(); if (refit) window.removeEventListener("resize", refit); if (veil) veil.remove(); if (card) card.remove(); };
+    return () => { window.removeEventListener(TRY_IT_EVENT, onTry); if (marks) marks.disconnect(); if (refit) window.removeEventListener("resize", refit); if (pen) pen.stop(); if (veil) veil.remove(); if (card) card.remove(); };
   }, []);
   React.useEffect(() => {
     if (!idleNudge) return undefined;

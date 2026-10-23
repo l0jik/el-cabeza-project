@@ -71,6 +71,17 @@ const stripes = await page.evaluate(() => [".sv", ".sc", ".sh"].every((q) => {
 check("...the three sale days, the store's stripes down the side and round the top (user)", /3 days only/i.test(await card.innerText()) && stripes);
 const fb = await card.boundingBox();
 check("...all of it on the screen", !!fb && fb.x >= 0 && fb.y >= 0 && fb.x + fb.width <= 390 && fb.y + fb.height <= 844, JSON.stringify(fb));
+// Its call (user, of six ways to make "Let's play!" seen: "Let's go with
+// A, circled in red pen, but make the circle a bit messier and have it
+// redraw the line until the user selects it. Have it redraw differently
+// each time."): a red pen loop round it, drawn again and again, never the
+// same.
+const loopD = () => page.evaluate(() => { const p = document.querySelector('[data-testid="tienda-try-it"] .go .pen path'); return p ? p.getAttribute("d") : null; });
+const waitFor = async (fn, ms) => { const end = Date.now() + ms; for (;;) { const v = await fn().catch(() => null); if (v) return v; if (Date.now() > end) return null; await page.waitForTimeout(150); } };
+const d1 = await waitFor(loopD, 3000);
+check("...\"Let's play!\" circled in red pen", !!d1 && /let.s play!/i.test(await page.locator('[data-testid="tienda-try-it"] .go').innerText()));
+const d2 = await waitFor(async () => { const d = await loopD(); return d && d !== d1 ? d : null; }, 7000);
+check("...and circled again, differently", !!d2);
 // A tap beside it: the store behind doesn't take it, the flyer stays.
 await page.touchscreen.tap(195, 800);
 await page.waitForTimeout(400);
