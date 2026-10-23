@@ -470,3 +470,12 @@ in; leaving Singularity, back in the den as the set switches off.
   rest over it it hadn't.) Tests: e2e-story (the note up: resting on the
   title, then a press held, no CONNECT), e2e-original (resting brings no
   CONNECT; a press held still does).
+  Then CI's e2e-original (af606c8, shard 6): the press held 4.4 s brought
+  no CONNECT. The hold completed only when its 4 s timer ran, and a busy
+  page runs it late: on a loaded machine (three of four cores busy, here)
+  0.8 s late, the release handled first, the hold cancelled (2 runs of 2);
+  the mouse's arrival had started it a beat before the press, which had
+  hidden the race. Now the hold is timed by the press's and the
+  release's own event times (MastheadHoldZone stamp(): event.timeStamp,
+  on performance.now()'s clock): let go after 4 s, it's held, timer or
+  not, as a slow Chromebook needs too.

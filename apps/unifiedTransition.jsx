@@ -384,6 +384,10 @@ function useHoldTrigger(ms, onComplete) {
 // title had begun it, the CONNECT prompt coming up unasked (user, at
 // home after the commercial, the special-order note up, which takes
 // every click but its own: "basically couldn't click on anything").
+// A hold is timed by the press and the release themselves (their
+// events' own times): a busy page runs the hold's timer late, a second
+// late on a slow machine, and a release that came in first had cancelled
+// a hold of well over HOLD_MS.
 export function MastheadHoldZone({ zoneRef, onBegin, onEnd, onHoldComplete, onTap }) {
   const activeRef = useRef(false);
   const completedRef = useRef(false);
@@ -397,12 +401,19 @@ export function MastheadHoldZone({ zoneRef, onBegin, onEnd, onHoldComplete, onTa
     onHoldComplete();
   });
 
+  // When the event happened (performance.now()'s clock), not when it's
+  // handled; now, where a browser's event time is on another clock.
+  const stamp = (ev) => {
+    const now = performance.now(), t = ev && ev.timeStamp;
+    return t > now - 60000 && t <= now + 50 ? t : now;
+  };
+
   const begin = (ev) => {
     if (activeRef.current) return;
     if (ev && ev.type === "mousedown" && ev.button !== 0) return;
     activeRef.current = true;
     completedRef.current = false;
-    startedAtRef.current = performance.now();
+    startedAtRef.current = stamp(ev);
     const touch = ev && ev.touches && ev.touches[0];
     startXRef.current = touch ? touch.clientX : ev ? ev.clientX : 0;
     startYRef.current = touch ? touch.clientY : ev ? ev.clientY : 0;
@@ -414,10 +425,16 @@ export function MastheadHoldZone({ zoneRef, onBegin, onEnd, onHoldComplete, onTa
     if (ev && ev.preventDefault && ev.type && ev.type.indexOf("touch") === 0) ev.preventDefault();
     if (!activeRef.current) return;
     activeRef.current = false;
-    onEnd();
     cancelHold();
+    const elapsed = stamp(ev) - startedAtRef.current;
+    // Let go after HOLD_MS, its timer not yet run: held all the same.
+    if (allowTap && !completedRef.current && elapsed >= HOLD_MS) {
+      completedRef.current = true;
+      onHoldComplete();
+      return;
+    }
+    onEnd();
     if (!allowTap) return;
-    const elapsed = performance.now() - startedAtRef.current;
     if (completedRef.current || elapsed >= TAP_MAX_MS) return;
     const touch = ev && ev.changedTouches && ev.changedTouches[0];
     const x = touch ? touch.clientX : ev ? ev.clientX : startXRef.current;
