@@ -138,7 +138,15 @@ to-black → draggable Fresnel-glow sphere sequence, in a new module,
   Now the light reverbs (futuris-summon-audio.js lightReverbsFor, used by
   the summons, futuris.js's makeImpulse and the ring's room in
   futuris-unease.js) go to a phone and to a computer that may not keep up:
-  a Chromebook (CrOS), four cores or fewer, or 4 GB or less;
+  a Chromebook (CrOS), 4 GB or less, or two cores or fewer;
   localStorage ec:reverbs = light | full overrides. The summons' mix (its
   EQ) is still by touch. Tests: tests/futuris-reverbs.smoke.mjs (which
-  devices), e2e-summon (the phone's sound light).
+  devices), e2e-summon (the phone's sound light), audio-bell (pinned to
+  the full set: the loudest case, and the toll's long ring-out).
+  First pushed with "four cores or fewer" too (af606c8): that took in
+  ordinary four-core computers, the test machines among them (GitHub's
+  runners and this container report four), and CI's audio-bell failed,
+  the toll no longer ringing 10 to 12 s after the click (its tail
+  0.0001), the light set's shorter reverb. A four-core desktop keeps up
+  with the full set (the test machines played it before), so now two
+  cores or fewer.

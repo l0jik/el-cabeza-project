@@ -42,6 +42,10 @@ const page = await browser.newPage({ viewport: { width: 1100, height: 900 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 
+// The full reverbs, whatever the machine (a computer's; the light set, a
+// phone's or a Chromebook's, is shorter and quieter: futuris-summon-audio.js
+// lightReverbsFor): the loudest case, and the long ring-out checked below.
+await page.addInitScript(() => { try { localStorage.setItem("ec:reverbs", "full"); } catch (e) { /* as it is */ } });
 await page.addInitScript(() => {
   const BUCKET_S = 0.25;
   const taps = [];

@@ -1,10 +1,11 @@
 /* Which devices get the Singularity's light reverbs (one channel, the long
    ones shorter; themes/futuris-summon-audio.js lightReverbsFor): a phone,
    and a computer that may not keep up with the full ones, a Chromebook or
-   one with four cores or fewer or 4 GB or less (user, on a Chromebook: no
-   sound from the tap into the wormhole on, "the sound of going through the
-   black hole and the 'ear-ringing' when you arrive are absent"). The full
-   set needs about 30% of a desktop core's real time, the light about 9%.
+   one with 4 GB or less or two cores or fewer, not an ordinary four-core
+   one (user, on a Chromebook: no sound from the tap into the wormhole on,
+   "the sound of going through the black hole and the 'ear-ringing' when you
+   arrive are absent"). The full set needs about 30% of a desktop core's
+   real time, the light about 9%.
 
    node tests/futuris-reverbs.smoke.mjs */
 let fails = 0, checks = 0;
@@ -21,7 +22,8 @@ const CROS = "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML
 
 check("a desktop with 8 cores and 8 GB: the full reverbs", device() === false);
 check("a Chromebook: light, even with 8 cores and 8 GB", device({ ua: CROS }) === true);
-check("a computer with 4 cores: light", device({ cores: 4 }) === true);
+check("a computer with 4 cores and 8 GB: the full reverbs (the test machines' own)", device({ cores: 4 }) === false);
+check("...with 2 cores: light", device({ cores: 2 }) === true);
 check("...with 4 GB: light", device({ memory: 4 }) === true);
 check("a phone (touch only): light", device({ touchOnly: true }) === true);
 check("a browser that doesn't say its cores or memory: full", device({ cores: undefined, memory: undefined }) === false);

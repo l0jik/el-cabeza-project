@@ -50,17 +50,20 @@ const dB = (x) => Math.pow(10, x / 20);
 
 /* Light reverbs (one channel, the long ones shorter), here and in
    futuris.js and futuris-unease.js: on a phone, and on a computer that may
-   not keep up with the full ones either, a Chromebook, or one with four
-   cores or fewer or 4 GB or less (user, on a Chromebook: no sound from the
-   tap into the wormhole on, "the sound of going through the black hole and
-   the 'ear-ringing' when you arrive are absent", as on the Android phone).
+   not keep up with the full ones either, a Chromebook, or one with 4 GB or
+   less or two cores or fewer (user, on a Chromebook: no sound from the tap
+   into the wormhole on, "the sound of going through the black hole and the
+   'ear-ringing' when you arrive are absent", as on the Android phone). Not
+   every four-core computer: an ordinary one keeps up with the full set (as
+   the test machines do, four cores each), and the toll's long ring-out is
+   the full set's (audio-bell).
    (localStorage "ec:reverbs" = "light" | "full" overrides, for trying both.) */
 export function lightReverbsFor() {
   try { const o = localStorage.getItem("ec:reverbs"); if (o === "light" || o === "full") return o === "light"; } catch (e) {}
   if (typeof window === "undefined") return false;
   if (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) return true;
   const nav = window.navigator || {};
-  return /\bCrOS\b/.test(nav.userAgent || "") || (nav.hardwareConcurrency > 0 && nav.hardwareConcurrency <= 4) || (nav.deviceMemory > 0 && nav.deviceMemory <= 4);
+  return /\bCrOS\b/.test(nav.userAgent || "") || (nav.hardwareConcurrency > 0 && nav.hardwareConcurrency <= 2) || (nav.deviceMemory > 0 && nav.deviceMemory <= 4);
 }
 
 // "phone" on a touch-only device, "full" otherwise. (localStorage
