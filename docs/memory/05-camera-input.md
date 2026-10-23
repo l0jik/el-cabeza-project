@@ -31,7 +31,13 @@ screen from a tap/click/key, so the first trusted click anywhere requests
 it, once a visit (module-level `fullscreenOffered`), not if a
 fullscreenchange came first (the player chose), not on the full screen
 button itself (`data-fullscreen-toggle`), and not within 600 ms of a
-two-finger contact.
+two-finger contact. (Since then every screen: any tap that finds the page
+out of full screen puts it back, unless the player came out themselves
+(`fullscreenDeclined`: the button or the two-finger double-tap); and in
+the store and the first game's tour even then (2026-10-23, user: "These
+pages during the tutorial or in Tienda should always auto-maximize";
+the theme's setup extras `fullscreenAlways`, or a tour step,
+`fullscreenAlwaysRef`).)
 
 **The board-visibility clamp is a hard product requirement** ("no more
 than 25% of the board may ever be fully out of view... at ANY tilt

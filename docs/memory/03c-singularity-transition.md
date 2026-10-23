@@ -150,3 +150,19 @@ to-black → draggable Fresnel-glow sphere sequence, in a new module,
   0.0001), the light set's shorter reverb. A four-core desktop keeps up
   with the full set (the test machines played it before), so now two
   cores or fewer.
+- **The sphere in the middle of the screen on arrival** (2026-10-23; user,
+  a phone screenshot of the sphere well above the middle: "After you go
+  through the black hole, it seems like that the sphere should be
+  centered ... if it's making room for when the hand shows up, then it
+  can slide up at that point. But I think when you first arrive on that,
+  it should be centered on the screen."). It sat at the board's middle,
+  where the board's framing camera put it: 41% down a 450 x 1000 phone
+  in the test (36% in the user's). Now it rests where the middle of the
+  screen is at the board's middle's depth (futuris-singularity.js
+  sphereRest: the screen's centre unprojected at that depth, so its size
+  is the same; its arrival from near the camera eases in to that point);
+  while the lost card (the hand) is up it slides up just clear of it, 16
+  px above the card's top (LostNudge sets s.lostCardTop; a quarter-second
+  ease). Measured (scratchpad flyer-go sphere-probe.mjs): before 41.2%
+  down on arrival and with the card; after 50.0% on arrival, 43.2% with
+  the card (its top at 633 of 1000).

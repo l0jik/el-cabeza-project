@@ -5,8 +5,11 @@
    chassis also listens on the document for two-finger taps that land
    anywhere else: Tienda's box lid, the dock, the menus. Tienda
    (theme.fullscreenOnFirstTap) goes full screen at the first tap, the
-   one that opens the box, once a visit, and not when the player has
-   already entered or left full screen some other way.
+   one that opens the box; and in the store a tap always puts it back,
+   even after the player came out of it themselves (user: "These pages
+   during the tutorial or in Tienda should always auto-maximize"), as it
+   does during Nova's first game's tour; elsewhere (Standard), having
+   come out themselves, it stays out.
 
    The touches are real ones (CDP Input.dispatchTouchEvent): a page only
    goes full screen from a real tap, and headless Chromium does enter it
@@ -33,7 +36,7 @@ const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromi
 let failures = 0;
 const check = (l, c, extra) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && extra ? " — " + extra : ""}`); };
 
-async function open(name, { touch = true } = {}) {
+async function open(name, { touch = true, query = "" } = {}) {
   const ctx = await browser.newContext(touch
     ? { viewport: { width: 390, height: 780 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
     : { viewport: { width: 1366, height: 768 } });
@@ -41,7 +44,7 @@ async function open(name, { touch = true } = {}) {
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/ERR_CERT|ERR_CONNECTION|ERR_TUNNEL|Failed to load resource|fonts\.g/.test(m.text())) errs.push(m.text()); });
-  await page.goto(`${BASE}/el-cabeza-${name}.html`);
+  await page.goto(`${BASE}/el-cabeza-${name}.html${query}`);
   await page.waitForTimeout(2500);
   const client = await ctx.newCDPSession(page);
   /* The touches carry their own timestamps, as a quick real double-tap
@@ -83,7 +86,7 @@ console.log("\nTienda, phone: the two-finger double-tap on the box lid");
   await page.touchscreen.tap(openBtn.x, openBtn.y);
   await page.waitForTimeout(1500);
   check("Open the box opens it", (await lid.count()) === 0);
-  check("...and doesn't go full screen again: the player chose", !(await full()));
+  check("...and, in the store, puts full screen back though the player came out (user: always)", await full());
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
@@ -117,7 +120,7 @@ console.log("\nTienda, phone: full screen at the first tap");
   check("...and restores", !(await full()));
   await page.touchscreen.tap(spot.x, spot.y);
   await page.waitForTimeout(900);
-  check("a later tap doesn't maximize again (once a visit)", !(await full()));
+  check("a later tap puts it back: in the store, always (user)", await full());
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
@@ -143,6 +146,38 @@ console.log("\nTienda, phone: out of full screen by itself, back at the first to
   await client.send("Input.dispatchTouchEvent", { type: "touchEnd", timestamp: at + 0.25, touchPoints: [] });
   await page.waitForTimeout(900);
   check("the first touch back, a drag across the board: full screen again", await full());
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+/* ---- Nova's story at the store, its first game's tour (user, of a tour
+   card: "These pages during the tutorial or in Tienda should always
+   auto-maximize"): out of full screen with the corner button, and the
+   next card's tap puts it back. ---- */
+console.log("\nNova's store, phone: the tour's cards put full screen back");
+{
+  const { ctx, page, errs, full, centre } = await open("nova", { query: "?fresh" });
+  await page.waitForSelector('[data-testid="tienda-open-box"]', { timeout: 60000 });
+  await page.waitForTimeout(1500);
+  const openBtn = await centre('[data-testid="tienda-open-box"]');
+  await page.touchscreen.tap(openBtn.x, openBtn.y);
+  await page.waitForTimeout(3500);
+  check("the box opened: full screen", await full());
+  check("the dock's panel opens", await openDockPanel(page));
+  await page.waitForTimeout(600);
+  const tryGame = await centre('[data-testid="tienda-try-game"]');
+  await page.touchscreen.tap(tryGame.x, tryGame.y);
+  for (let i = 0; i < 60 && !(await page.locator('[data-testid="tour-card"]').count()); i++) await page.waitForTimeout(250);
+  await page.waitForTimeout(2500);
+  check("Try a Game: the tour's first card, full screen", (await page.locator('[data-testid="tour-card"]').count()) === 1 && await full());
+  const corner = await centre("[data-fullscreen-toggle]");
+  await page.touchscreen.tap(corner.x, corner.y);
+  await page.waitForTimeout(800);
+  check("the corner button takes it out", !(await full()));
+  const next = await centre('[data-testid="tour-next"]');
+  await page.touchscreen.tap(next.x, next.y);
+  await page.waitForTimeout(1500);
+  check("...and the next card's tap puts it back (user: always, in the tutorial)", await full());
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

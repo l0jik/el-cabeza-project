@@ -266,7 +266,7 @@ const FLYER_HTML = '<span class="sv"></span>'
   + '<p class="fine">Prices good thru Sat., Dec. 13, 1975. Quantities limited. Limit rights reserved. No\u00a0sales\u00a0to\u00a0dealers.</p>'
   + '<div class="policy"><b>Our advertised merchandise policy:</b> we mean to have every advertised item on our shelves. If one sells out, ask for a Rain Check and buy it at the sale price when it arrives.</div>'
   + '<div class="charge">Charge it! Big Glutts Charge • BankAmericorp$\u00a0•\u00a0Disaster\u00a0Charge</div>'
-  + '<span class="go">Let’s play ›</span>';
+  + '<span class="go">Let’s play! ›</span>';
 const IDLE_NUDGE_MS = 30000;
 const NUDGE_GROW_MS = 90000;
 const NUDGE_CSS = `
@@ -680,6 +680,10 @@ export function useSetupExtras(x) {
     // buttons are hidden there (STORY_CSS).
     // (Over the box lid too: it's the one other thing there that takes a tap.)
     cornerControlsZ: overlay === "clerk" || overlay === "lid" ? 1250 : undefined,
+    // In the store a tap always puts full screen back, even after the
+    // player came out of it (user: "These pages during the tutorial or in
+    // Tienda should always auto-maximize"; the chassis's full screen).
+    fullscreenAlways: store || !story,
     tiendaOverlay: overlay,
     openOrderForm: () => { x.audio && x.audio.playRulesOpen && x.audio.playRulesOpen(); if (specialNote && !store && specialOpen) dismissSpecialNote(); setOverlay(store || !specialOpen ? "catalog" : "order"); },
     openCustomRules: () => { if (specialOpen) { if (specialNote) dismissSpecialNote(); setOverlay("order"); } },

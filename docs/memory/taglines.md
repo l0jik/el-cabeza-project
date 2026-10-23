@@ -81,7 +81,7 @@ The flyer, as in the game (made, round the user's photograph):
 - "NEW! El Cabeza game set. The Game of Unparalleled Intention. Hardwood
   board and ten pieces, walnut and ash. For 2 players, ages 10 to adult."
 - "A demonstration set is free to play in our Games & Hobby Dept., Aisle 9."
-- "Sale 7.97, Our Reg. 9.97" / "Let's play ›"
+- "Sale 7.97, Our Reg. 9.97" / "Let's play! ›" (the "!" 2026-10-23, user)
 - "Charge it! Big Glutts Charge • BankAmericorp$ • Disaster Charge"
 
 The box, the catalog, the signs, the PA (made):

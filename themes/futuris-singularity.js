@@ -1121,13 +1121,47 @@ function fitSphereToScreen(t, s) {
      along the line between them, so it shrinks toward the same spot. */
   const age = s.sphereArriveAt ? (performance.now() - s.sphereArriveAt) / SPHERE_FADE_IN_MS : 1;
   const reduced = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const rest = sphereRest(t, s, reduced);
   if (age < 1 && t.camera && !reduced) {
     const e = 1 - Math.pow(1 - Math.max(0, age), 3);
-    s.sphereFrame.position.copy(t.camera.position).multiplyScalar(0.55 * (1 - e));
+    s.sphereFrame.position.copy(t.camera.position).sub(rest).multiplyScalar(0.55 * (1 - e)).add(rest);
   } else {
-    s.sphereFrame.position.set(0, 0, 0);
+    s.sphereFrame.position.copy(rest);
     s.sphereArriveAt = 0;
   }
+}
+
+/* Where it rests: in the middle of the screen (user, after the black
+   hole: "when you first arrive on that, it should be centered on the
+   screen"; at the board's middle the camera's framing for the board had
+   it above centre, 36-41% down a phone), as deep as the board's middle,
+   so its size is the same; and while the lost card (the hand) is up,
+   slid up just clear of it ("if it's making room for when the hand shows
+   up, then it can slide up at that point"; LostNudge sets
+   s.lostCardTop). The slide eases (sphereLiftY, the height on the screen
+   it's at, -1 to 1, a quarter-second ease); a new arrival starts it in
+   the middle. */
+const LIFT_EASE_S = 0.25;
+function sphereRest(t, s, reduced) {
+  const cam = t.camera, el = t.renderer && t.renderer.domElement;
+  const rect = el && el.getBoundingClientRect();
+  if (!cam || !rect || !rect.height) return new THREE.Vector3(0, 0, 0);
+  cam.updateMatrixWorld();
+  const depth = new THREE.Vector3(0, 0, 0).project(cam).z;
+  let want = 0;
+  if (typeof s.lostCardTop === "number") {
+    // Its radius on the screen there, and the room above the card.
+    const mid = new THREE.Vector3(0, 0, depth).unproject(cam);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion).multiplyScalar(SPHERE_RADIUS * s.sphereFrame.scale.x);
+    const r = Math.abs(mid.clone().add(up).project(cam).y) * rect.height / 2;
+    const y = Math.max(r * 0.6, Math.min(rect.height / 2, s.lostCardTop - rect.top - 16 - r));
+    want = 1 - (2 * y) / rect.height;
+  }
+  const now = performance.now();
+  const dt = Math.min(0.1, Math.max(0, (now - (s.sphereLiftAt || now)) / 1000));
+  s.sphereLiftAt = now;
+  s.sphereLiftY = s.sphereLiftY == null || reduced ? want : s.sphereLiftY + (want - s.sphereLiftY) * (1 - Math.exp(-dt / LIFT_EASE_S));
+  return new THREE.Vector3(0, s.sphereLiftY, depth).unproject(cam);
 }
 
 function buildSphere(markLabelsDirty) {
@@ -1748,6 +1782,7 @@ export function advanceSingularityScene(t, now, chromeRefs) {
       if (now - s.blackoutStartedAt >= BLACKOUT_DWELL_MS) {
         s.phase = PHASES.SPHERE;
         s.sphereArriveAt = performance.now();
+        s.sphereLiftY = null; // (in the middle of the screen: sphereRest)
         /* Faces the checklist toward wherever the camera actually ends
            up, rather than assuming a fixed "u=0.5 is front-facing"
            longitude. That assumption doesn't hold: the sphere's own
@@ -4042,6 +4077,14 @@ function LostNudge({ stage, onExit, sing }) {
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, []);
+  // The card's top, for the sphere to slide up clear of it (sphereRest).
+  React.useEffect(() => {
+    if (!card || !sing) return undefined;
+    const mark = () => { const el = document.querySelector(".ec-lost"); sing.lostCardTop = el ? el.getBoundingClientRect().top : null; };
+    mark();
+    window.addEventListener("resize", mark);
+    return () => { window.removeEventListener("resize", mark); sing.lostCardTop = null; };
+  }, [card]);
   if (!card) return null;
   const swallow = (e) => { e.stopPropagation(); if (e.cancelable) e.preventDefault(); };
   return h(React.Fragment, null,

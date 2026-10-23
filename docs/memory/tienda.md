@@ -511,3 +511,39 @@ box art and an ad standee (assets/tienda/*.jpg).
   tape and the arrangements, and their reverb sends; "N% lower" as
   always, the level times 1 - N; the store's compressor, at -16 dB,
   isn't reached at these levels).
+- **"Let's play!" on the flyer, and ways to make it seen** (2026-10-23;
+  user, a phone screenshot of the Try it! flyer, "LET'S PLAY ›" circled in
+  red: "Add an exclamation point after let's play, and then also there
+  needs to be a way to attract the user's attention to it because it is
+  kind of small at the bottom of the page. Give me some options."). The
+  line reads "Let’s play! ›" (themes/tienda-overlay.js FLYER_HTML; the
+  same 11 px line, fading in at the 5 s hold, pulsing faintly). Six ways
+  to draw the eye to it, each live on the real flyer (its CSS, paper,
+  photo and cut edges copied) over the store as a phone sees it (450 x
+  1000, captured with the flyer hidden), the cue 2 s after it lands
+  there (5 s in the game): A, a red pen loop drawn round it twice, the
+  way shoppers marked the Sunday circular (my pick); B, a clip-out
+  coupon, scissors running along its dashed line, "Free demonstration
+  game, Aisle 9, No purchase necessary"; C, a yellow sale burst "Free!
+  Let's play!" stuck on the bottom corner, wiggling now and then; D, a
+  full-width red bar in the 3 DAYS ONLY! sticker's style, breathing,
+  a shine over it; E, the order form's pointing hand (Noto Sans Symbols
+  2) poking at it; F, the store's own blue tap-me glow (Try a Game's)
+  round it as a pill. https://claude.ai/artifact/NyehatFyneA1yEWqN8Ruf4
+  (scratchpad flyer-go/page). Waiting on the user's pick; nothing but the
+  "!" is in the game.
+- **In the store, full screen always comes back** (2026-10-23; user, a
+  phone screenshot of the tour's "Your menu is in the corner" card:
+  "These pages during the tutorial or in Tienda should always
+  auto-maximize."). Measured with real taps (scratchpad flyer-go
+  fs-probe.mjs): the store's pages kept full screen all the way to the
+  tour's cards; only once the player had come out of it themselves (the
+  corner button, or a two-finger double-tap, easy to make by accident in
+  the tour's two-finger lessons) did they stay out, as everywhere
+  (fullscreenDeclined). Now in the store (Nova's story at the store, and
+  Tienda's own page: tienda-overlay.js setup extras fullscreenAlways) and
+  whenever the first game's tour is under way, a tap puts it back even
+  then (chassis ElCabeza3D fullscreenAlwaysRef); the button still takes
+  it out, till the next tap. Elsewhere (Standard, the den) the player's
+  choice stands. tests/e2e-fullscreen.mjs: Tienda's taps after coming
+  out put it back; Nova's store, the corner button then the tour's Next.

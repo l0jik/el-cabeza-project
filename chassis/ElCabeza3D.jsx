@@ -2681,6 +2681,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      full screen. `lastMultiTouchRef` notes when two fingers were last
      down, anywhere, for the first-tap full screen below. */
   const lastMultiTouchRef = useRef(0);
+  const fullscreenAlwaysRef = useRef(false); // (see the full screen effect below)
   useEffect(() => {
     let gesture = null; // { at, start, last, travel } while a clean two-finger contact off the board is down
     let lastTapAt = 0;
@@ -2752,6 +2753,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      a click, so it stayed out. A browser may count a touch's end as the
      tap it needs; if not, nothing's lost. Not while other fingers are
      still down, or just after two.) */
+  /* (Except in the store and the first game's tour, user: "These pages
+     during the tutorial or in Tienda should always auto-maximize": there
+     a tap puts it back even after the player came out themselves; the
+     button still takes it out, till the next tap. fullscreenAlwaysRef:
+     the world's setup extras' fullscreenAlways, or a tour under way.) */
   useEffect(() => {
     if (theme.fullscreenOnFirstTap === false) return undefined;
     function onClick(ev) {
@@ -2761,7 +2767,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // (Not when it's full screen already as an app opened from a home
       // screen, Nova's manifest.)
       if (window.matchMedia && window.matchMedia("(display-mode: fullscreen)").matches) return;
-      if (!own && !fullscreenDeclined && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+      if (!own && (!fullscreenDeclined || fullscreenAlwaysRef.current) && !document.fullscreenElement && document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(() => {});
       }
     }
@@ -3281,6 +3287,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const tourOfferRef = useRef(null);
   tourOfferRef.current = tourOffer;
   const [tourStep, setTourStep] = useState(null);
+  fullscreenAlwaysRef.current = !!(setupExtras && setupExtras.fullscreenAlways) || tourStep != null;
   const tourCardUp = TOUR_CARDS.includes(tourStep) || TOUR_MENU.includes(tourStep) || tourStep === TOUR_BAR;
   // (While a card's up a tap on the board picks nothing: it's being shown.)
   const tourCardUpRef = useRef(false);
