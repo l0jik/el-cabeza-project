@@ -111,16 +111,14 @@ console.log("\nTienda, phone: full screen at the first tap");
   // the dock's panel is open (closed, it lets touches through to the board).
   check("the dock's panel opens", await openDockPanel(page));
   await page.waitForTimeout(600);
+  check("...and the tap that opens it puts full screen back: in the store, always (user)", await full());
   const orderBtn = await centre('[data-testid="tienda-order-form"]');
   check("See the pieces is over the board, not the canvas", orderBtn && (await under(orderBtn.x, orderBtn.y)) !== "canvas", orderBtn && await under(orderBtn.x, orderBtn.y));
   await doubleTap(orderBtn.x, orderBtn.y);
-  check("a two-finger double-tap over a button maximizes again", await full());
+  check("a two-finger double-tap over a button restores", !(await full()));
   check("...without pressing it (no order form)", (await page.locator(".td-layer").count()) === 0);
   await doubleTap(orderBtn.x, orderBtn.y);
-  check("...and restores", !(await full()));
-  await page.touchscreen.tap(spot.x, spot.y);
-  await page.waitForTimeout(900);
-  check("a later tap puts it back: in the store, always (user)", await full());
+  check("...and another maximizes again", await full());
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
