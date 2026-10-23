@@ -571,8 +571,14 @@ in; leaving Singularity, back in the den as the set switches off.
   (you needn't answer). Picked up from elsewhere (the Room view, say),
   answer() takes the camera over to the phone too (onGoToPhone), so the
   whole call is seen from there; hung up, it comes back to the board as
-  before. (The swallowed presses are kept by pointer id, a Set, so a
-  two-finger press is let go of whole; pointercancel clears them.) Tests:
+  before. The receiver is posed after the den places the camera (den-call
+  pose(), called from den-fx cameraOverride, as the bell's direction now
+  is too): at the ear of the camera you see through, so at the phone it
+  comes up to you there, low and to the right (posed in tick, it had gone
+  to the room camera's ear, ~77 units off, out of frame from the phone,
+  its cord trailing across the room). (The swallowed presses are kept by
+  pointer id, a Set, so a two-finger press is let go of whole;
+  pointercancel clears them.) Tests:
   e2e-den-phone (on the line a click away and Escape: still at the
   phone, the receiver at your ear, no piece card; hung up, back to the
   board; picked up from the Room view: down and over to the phone).

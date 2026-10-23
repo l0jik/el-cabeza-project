@@ -1903,7 +1903,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         paperFrame(t, now);
         focusFrame(t, now);
         listen(t, now);
-        if (call) call.tick(now, t, den);
+        if (call) call.tick(now);
         tripPull(t, now);
         if (hall) {
           const ts = trip ? trip.state().stage : "idle";
@@ -2301,9 +2301,10 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       },
     };
     /* After the chassis has set its camera: blend it toward the view of
-       the console, the set or the book (placeCamera); the pull's stretch
-       drawn about where the set's glass then is (pullDraw); then the set's
-       stirring is heard from where the camera ended up. */
+       the console, the set, the book or the phone (placeCamera); the
+       pull's stretch drawn about where the set's glass then is (pullDraw);
+       the telephone's receiver at that camera's ear (den-call.js pose);
+       then the set's stirring is heard from where the camera ended up. */
     /* While the ending covers the screen, the den underneath isn't drawn
        (the chassis skips its own render when this says it's done): two
        full scenes a frame had been too much for a phone. */
@@ -2312,6 +2313,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       const placed = api.placeCamera(camera, dtMs);
       tugCamera(camera);
       pullDraw(camera);
+      if (call) call.pose(performance.now(), camera, den);
       hearTv(camera);
       return placed;
     };

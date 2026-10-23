@@ -556,9 +556,9 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
   }
   let lastHand = null;
 
-  function animateHandset(now, t, den) {
+  function animateHandset(now, cam, den) {
     const hand = den && den.phone && den.phone.handset;
-    if (!hand || !t || !t.camera) return;
+    if (!hand || !cam) return;
     lastHand = hand;
     if (!hsV.ctor) { const V = hand.position.constructor, Q = hand.quaternion.constructor; hsV.ctor = { Vector3: V, Quaternion: Q, Euler: hand.rotation.constructor }; hsV.a = new V(); hsV.q = new Q(); }
     const rest = hand.userData.rest;
@@ -580,7 +580,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
       tint(hand, 1);
       return;
     }
-    earPose(hand, t.camera, hsV.a, hsV.q);
+    earPose(hand, cam, hsV.a, hsV.q);
     const light = (e) => tint(hand, 1 + 0.75 * e);
     if (hs.mode === "held") { hand.position.lerp(hsV.a, 0.25); hand.quaternion.slerp(hsV.q, 0.25); light(1); return; }
     const dur = hs.mode === "lift" ? 950 : 750;
@@ -592,10 +592,27 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     if (k >= 1) hs = { mode: hs.mode === "lift" ? "held" : "rest", t0: now };
   }
 
-  function tick(now, t, den) {
-    animateHandset(now, t, den);
-    // (Its cord after it, when it's moved: den-room.js.)
+  /* After the den has placed the camera for the frame (den-fx.js
+     cameraOverride): the handset posed at the ear of the camera you see
+     through, at the phone when you're over there, its cord after it
+     (den-room.js), and the bell heard from there (every few frames).
+     (Posed in tick, it went to the ear of the room's own camera, before
+     the visit took the camera over: from the phone, out of frame across
+     the room, its cord trailing after it.) */
+  function pose(now, camera, den) {
+    animateHandset(now, camera, den);
     if (den && den.phone && den.phone.cordUpdate) den.phone.cordUpdate();
+    if (stage === "ringing" && den && den.phone && den.phone.point && camera && audio && audio.setPhoneListener && now - lastEar > 120) {
+      lastEar = now;
+      camera.updateMatrixWorld();
+      const p = den.phone.point.clone();
+      den.group.localToWorld(p);
+      const c = p.clone().applyMatrix4(camera.matrixWorldInverse);
+      audio.setPhoneListener(p.distanceTo(camera.position), c.x / Math.max(1, Math.hypot(c.x, c.z)));
+    }
+  }
+
+  function tick(now) {
     if (stage === "done") return;
     // (Hurried along by the test hook.)
     const R = rushed ? 0.02 : 1;
@@ -642,14 +659,6 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
         if (onPhoneDone) onPhoneDone();
       }
     }
-    // The bell heard from where the camera is (every few frames).
-    if (stage === "ringing" && den && den.phone && den.phone.point && t && t.camera && t.boardGroup && audio && audio.setPhoneListener && now - lastEar > 120) {
-      lastEar = now;
-      const p = den.phone.point.clone();
-      den.group.localToWorld(p);
-      const c = p.clone().applyMatrix4(t.camera.matrixWorldInverse);
-      audio.setPhoneListener(p.distanceTo(t.camera.position), c.x / Math.max(1, Math.hypot(c.x, c.z)));
-    }
   }
 
   if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
@@ -665,6 +674,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
 
   return {
     tick,
+    pose,
     ringing: () => stage === "ringing",
     // On the line: picked up, till the receiver's back on the cradle.
     onLine: () => stage === "call",
