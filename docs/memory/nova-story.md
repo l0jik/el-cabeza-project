@@ -494,7 +494,8 @@ in; leaving Singularity, back in the den as the set switches off.
   the board camera's position with the last frame's turn. So the lines
   met where the set stood from over the table: on a 450 x 1000 phone at
   x 479, past the right edge, the glass at 217, still 120 px off it at
-  the glass; the dark closing in round that point too. Its aim was also
+  the glass (on 1100 x 800 about 250 px right of the glass; 412 x 915,
+  x 438 against 163); the dark closing in round that point too. Its aim was also
   den.tv.focus.target (the framing point, 3 left of the screen's middle),
   and the stretch's origin was read off the stretched box (origin = the
   point x the last frame's scale, 32% low by the end). Now pullFrame
@@ -508,7 +509,8 @@ in; leaving Singularity, back in the den as the set switches off.
   the glass outlined over the frames). tests/e2e-tv-pull.mjs (aimLog,
   aimCheck): the streaks meet inside the glass's box, within 15% of its
   size from its middle, through the rush, in the 1100 x 800 pass and the
-  412 x 915 phone pass.
+  412 x 915 phone pass (on the old code both fail, 1.86 and 1.83 of the
+  glass's size off; on the fix 0.01).
 
 - **The check alert stops for the phone** (2026-10-21; user, a phone
   screenshot of the den after the trip, the CHECK / SHOW AGAIN chip
