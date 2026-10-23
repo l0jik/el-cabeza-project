@@ -505,9 +505,10 @@ in; leaving Singularity, back in the den as the set switches off.
   box less the last frame's stretch), so the glass stays put and the
   streaks and the dark meet on it: 1-4 px from its middle all the way in
   on the phone and on 1100 x 800 (scratchpad pull-lines/probe.mjs, with
-  the glass outlined over the frames). tests/e2e-tv-pull.mjs: the
-  streaks meet inside the glass's box, within 15% of its size from its
-  middle, through the rush.
+  the glass outlined over the frames). tests/e2e-tv-pull.mjs (aimLog,
+  aimCheck): the streaks meet inside the glass's box, within 15% of its
+  size from its middle, through the rush, in the 1100 x 800 pass and the
+  412 x 915 phone pass.
 
 - **The check alert stops for the phone** (2026-10-21; user, a phone
   screenshot of the den after the trip, the CHECK / SHOW AGAIN chip

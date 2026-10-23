@@ -54,6 +54,31 @@ async function home() {
   return { ctx, page, errs };
 }
 const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.querySelector(".ec-title") && /Chakra/.test(getComputedStyle(document.querySelector(".ec-title")).fontFamily));
+/* In the page, through the rush: where its streaks meet, and the set's
+   glass on the screen (its box and its middle), where they should (user:
+   "what are those pointing to? ... it's like kind of off screen": they'd
+   met where the board's own camera saw the set, past the edge on a phone). */
+const aimLog = () => {
+  let glass = null;
+  window.__PULL_AIM__ = () => {
+    const t3 = window.__DEN_THREE__, c = t3 && t3.renderer && t3.renderer.domElement, el = document.querySelector('[data-testid="den-pull"]');
+    const m = el && /at (-?[\d.]+)px (-?[\d.]+)px/.exec(el.style.background || "");
+    if (!m || !c || !t3.camera) return null;
+    if (!glass) { t3.scene.traverse((o) => { if (o.userData && o.userData.tv === "screen") glass = o; }); if (glass) glass.geometry.computeBoundingBox(); }
+    if (!glass) return null;
+    const b = glass.geometry.boundingBox, V = glass.position.constructor, r = c.getBoundingClientRect();
+    const on = (x, y) => { const p = new V(x, y, b.max.z).applyMatrix4(glass.matrixWorld).project(t3.camera); return [Math.round(r.left + ((p.x + 1) / 2) * r.width), Math.round(r.top + ((1 - p.y) / 2) * r.height)]; };
+    const cs = [on(b.min.x, b.min.y), on(b.max.x, b.min.y), on(b.max.x, b.max.y), on(b.min.x, b.max.y)], xs = cs.map((q) => q[0]), ys = cs.map((q) => q[1]);
+    return { meet: [+m[1], +m[2]], glass: { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), mid: on((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2) } };
+  };
+};
+// ...and the check: all through the rush, inside the glass's box, within
+// 15% of its size from its middle.
+const aimCheck = (label, samples) => {
+  const aimed = samples.filter((x) => x.s > 100 && x.s < 1500 && x.aim);
+  const off = (a) => Math.hypot(a.meet[0] - a.glass.mid[0], a.meet[1] - a.glass.mid[1]) / Math.max(40, Math.min(a.glass.x1 - a.glass.x0, a.glass.y1 - a.glass.y0));
+  check(`${label} (${aimed.length ? Math.max(...aimed.map((x) => off(x.aim))).toFixed(2) : "?"} of its size off, at most)`, aimed.length >= 3 && aimed.every(({ aim: a }) => a.meet[0] > a.glass.x0 && a.meet[0] < a.glass.x1 && a.meet[1] > a.glass.y0 && a.meet[1] < a.glass.y1 && off(a) < 0.15), JSON.stringify(aimed.slice(0, 3)));
+};
 
 {
   const { ctx, page, errs } = await home();
@@ -65,21 +90,9 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
   const due = (await tv()).pullIn;
   check(`...the pull due about 9 s after it (${due} ms)`, due > 6000 && due <= 9000, JSON.stringify(await tv()));
   // (Each frame of what's coming, logged in the page: it's quick.)
+  await page.evaluate(aimLog);
   await page.evaluate(() => {
     window.__PULL_LOG__ = []; window.__TUG_LOG__ = [];
-    // (The set's glass on the screen, its box and its middle: where the
-    // streaks should meet.)
-    let glass = null;
-    const glassOn = () => {
-      const t3 = window.__DEN_THREE__, c = t3 && t3.renderer && t3.renderer.domElement;
-      if (!c || !t3.camera) return null;
-      if (!glass) { t3.scene.traverse((o) => { if (o.userData && o.userData.tv === "screen") glass = o; }); if (glass) glass.geometry.computeBoundingBox(); }
-      if (!glass) return null;
-      const b = glass.geometry.boundingBox, V = glass.position.constructor, r = c.getBoundingClientRect();
-      const on = (x, y) => { const p = new V(x, y, b.max.z).applyMatrix4(glass.matrixWorld).project(t3.camera); return [Math.round(r.left + ((p.x + 1) / 2) * r.width), Math.round(r.top + ((1 - p.y) / 2) * r.height)]; };
-      const cs = [on(b.min.x, b.min.y), on(b.max.x, b.min.y), on(b.max.x, b.max.y), on(b.min.x, b.max.y)], xs = cs.map((q) => q[0]), ys = cs.map((q) => q[1]);
-      return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), mid: on((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2) };
-    };
     const tick = () => {
       const f = window.__DEN_TV__;
       if (f) {
@@ -87,8 +100,7 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
         if (t.tug && !t.pull) window.__TUG_LOG__.push({ s: t.tug.s, lurch: +t.tug.lurch.toFixed(3), shake: +t.tug.shake.toFixed(3), dist: t.glassDist, phase: t.phase, lock: t.lock, debris: t.tug.debris.map((d) => `${d.id}:${d.phase}`).join(" "), think: !!document.querySelector('[data-testid="den-tug-think"]:not(.off)'), uhoh: !!document.querySelector('[data-testid="den-uhoh"]:not(.off)') });
         if (t.pull) {
           const c = document.querySelector("canvas"), el = document.querySelector('[data-testid="den-pull"]');
-          const m = el && /at (-?[\d.]+)px (-?[\d.]+)px/.exec(el.style.background || "");
-          window.__PULL_LOG__.push({ s: t.pull.s, focus: +t.focus.toFixed(3), dive: +t.dive.toFixed(3), fov: t.pull.fov, fov0: t.pull.fov0, transform: c ? c.style.transform : "", streaks: el ? Number(el.style.opacity) : null, meet: m ? [+m[1], +m[2]] : null, glass: glassOn(), phase: t.phase, lock: t.lock, yell: t.pull.yell, tugged: t.tug ? t.tug.s : null, dist: t.glassDist, dark: t.pull.dark, crt: !!document.querySelector(".ec-crt-overlay") });
+          window.__PULL_LOG__.push({ s: t.pull.s, focus: +t.focus.toFixed(3), dive: +t.dive.toFixed(3), fov: t.pull.fov, fov0: t.pull.fov0, transform: c ? c.style.transform : "", streaks: el ? Number(el.style.opacity) : null, aim: window.__PULL_AIM__(), phase: t.phase, lock: t.lock, yell: t.pull.yell, tugged: t.tug ? t.tug.s : null, dist: t.glassDist, dark: t.pull.dark, crt: !!document.querySelector(".ec-crt-overlay") });
         }
       }
       if (window.__DEN_TV__ || !window.__PULL_LOG__.length) requestAnimationFrame(tick);
@@ -147,12 +159,7 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
   const wide = late.length ? late[late.length - 1] : null;
   check(`...the lens widening (${wide && wide.fov0} -> ${wide && wide.fov})`, !!wide && wide.fov > wide.fov0 * 1.4, JSON.stringify(wide));
   check(`...the picture drawn out toward the set, streaks of light (${wide && wide.transform}, ${wide && wide.streaks})`, !!wide && /scale\(/.test(wide.transform) && wide.streaks > 0.5, JSON.stringify(wide));
-  // ...and where they meet: on the set's glass, at its middle (user: "what
-  // are those pointing to? ... it's like kind of off screen": they'd met
-  // where the set stood from the board's own camera, past the edge).
-  const aimed = samples.filter((x) => x.s > 100 && x.s < 1500 && x.meet && x.glass);
-  const off = (x) => Math.hypot(x.meet[0] - x.glass.mid[0], x.meet[1] - x.glass.mid[1]) / Math.max(40, Math.min(x.glass.x1 - x.glass.x0, x.glass.y1 - x.glass.y0));
-  check(`...the streaks meeting on the set's glass, at its middle (${aimed.length ? Math.max(...aimed.map(off)).toFixed(2) : "?"} of its size off, at most)`, aimed.length >= 3 && aimed.every((x) => x.meet[0] > x.glass.x0 && x.meet[0] < x.glass.x1 && x.meet[1] > x.glass.y0 && x.meet[1] < x.glass.y1 && off(x) < 0.15), JSON.stringify(aimed.slice(0, 3)));
+  aimCheck("...the streaks meeting on the set's glass, at its middle", samples);
   // How fast it's coming in (units a second), first sample to last in a
   // window (a slow renderer's frames are far apart).
   const speed = (log, a, b) => { const xs = log.filter((x) => x.s >= a && x.s <= b && x.dist != null); if (xs.length < 2) return null; const f = xs[0], l = xs[xs.length - 1]; return l.s > f.s ? +((f.dist - l.dist) / ((l.s - f.s) / 1000)).toFixed(1) : null; };
@@ -226,6 +233,18 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
   await page.waitForTimeout(2500);
   await page.evaluate(() => window.__DEN_PULL_NOW__());
   await poll(async () => { const t = await tv(); return t && t.tug; }, 3000, 50);
+  // (Where the rush's streaks meet, each frame: on a phone they'd met
+  // past the screen's edge.)
+  await page.evaluate(aimLog);
+  await page.evaluate(() => {
+    window.__AIM_LOG__ = [];
+    const tick = () => {
+      const t = window.__DEN_TV__ ? window.__DEN_TV__() : null;
+      if (t && t.pull) window.__AIM_LOG__.push({ s: t.pull.s, aim: window.__PULL_AIM__() });
+      if (window.__DEN_TV__) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
   await page.evaluate(() => window.__DEN_TUG_SKIP__(6200));
   const cued = await poll(async () => { const t = await tv(); return t && t.shout ? { ...t.shout, tug: t.tug && t.tug.s, pull: !!t.pull } : null; }, 8000, 40);
   check(`the shout cued from the drag with its preverb, 1.9 s ahead of it (${cued && (cued.at - cued.pre).toFixed(3)} s; in the drag at ${cued && cued.tug} ms)`, !!cued && Math.abs(cued.at - cued.pre - 1.9) < 0.02 && !cued.pull && cued.tug > 6900, JSON.stringify(cued));
@@ -233,6 +252,7 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
   check(`...the rush: the preverb swelling up, the shout just into it (due in ${rush && rush.lead} s, ${rush && rush.s} ms in)`, !!rush && rush.yell === "recording" && rush.lead > -0.05 && rush.lead + rush.s / 1000 < 0.5 && rush.lead + rush.s / 1000 > 0, JSON.stringify(rush));
   const gone = await poll(() => page.evaluate(() => (!window.__DEN_TV__ ? performance.now() : null)), 20000, 40);
   check("...into Futuris, the den gone", !!gone);
+  aimCheck("...on the phone, the streaks meeting on the set's glass, at its middle", await page.evaluate(() => window.__AIM_LOG__));
   // (The first context closed as the den goes or after: the den's.)
   const closed = await poll(() => page.evaluate((g) => window.__CLOSED__.find((t) => t >= g - 200) || null, gone), 6000, 100);
   // (His echo's due to ring out 1.3 s of shout and 1.7 s of echo after
