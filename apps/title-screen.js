@@ -137,6 +137,13 @@ html.ec-splash-on { background: #120C08; }
 .ec-splash.leaving .ec-splash-menu > .picked .w::before, .ec-splash.leaving .ec-splash-menu > .picked .w::after { width: 96px; transition: width 0.65s ease; }
 @keyframes ecPicked { 0% { opacity: 1; transform: none; } 55% { opacity: 1; transform: scale(1.04, 0.16); } 100% { opacity: 0; transform: scale(1.18, 0.02); } }
 @media (prefers-reduced-motion: reduce) { .ec-splash-stage, .ec-splash-menu > *, .ec-splash-video { transition: none; } .ec-splash.leaving .ec-splash-menu > .picked { animation: none; } }
+/* A wide screen: the wide splash (16:9), as large as fits, the room round
+   it the same drawn-out blur; the menu under the name, on the right (the
+   name's middle at 75.5% across the frame, NOVA ending at 49% down). */
+.ec-splash.land .ec-splash-video { width: min(100vw, 177.7778vh); height: min(100vh, 56.25vw); }
+.ec-splash.land .ec-splash-back { width: calc(min(100vw, 177.7778vh) * 1.8571); height: calc(min(100vh, 56.25vw) * 4); }
+.ec-splash.land .ec-splash-menu { left: calc(50% + 0.2552 * min(100vw, 177.7778vh)); right: auto; bottom: auto;
+  top: calc(50% + 0.053 * min(100vh, 56.25vw)); transform: translateX(-50%) scale(var(--k, 1)); transform-origin: 50% 0; padding: 0 16px; width: max-content; }
 `;
 
   const el = (tag, cls, attrs = {}) => {
@@ -158,12 +165,21 @@ html.ec-splash-on { background: #120C08; }
   const conn = navigator.connection || {};
   const px = Math.min(W.screen.width, W.screen.height) * (W.devicePixelRatio || 1);
   const light = conn.saveData || /(^|-)2g$/.test(conn.effectiveType || "") || (conn.downlink > 0 && conn.downlink < 5) || px < 900 || (navigator.deviceMemory && navigator.deviceMemory <= 2);
-  const video = el("video", "ec-splash-video", { muted: "", playsinline: "", "webkit-playsinline": "", preload: "auto", poster: "el-cabeza-title-poster.jpg", "aria-hidden": "true", "data-testid": "title-video" });
+  /* A screen wider than it is tall (a computer's, a phone on its side)
+     gets the splash made for it (user: "the splash screen for the game,
+     when opened on large screens still uses the mobile splash screen"):
+     16:9, the board and the emblem on the left, the name on the right and
+     the menu under it (tools/splash render.mjs --land). */
+  const land = W.innerWidth > W.innerHeight * 1.15;
+  const tag = land ? "-land" : "";
+  if (land) root.classList.add("land");
+  root.setAttribute("data-frame", land ? "wide" : "tall");
+  const video = el("video", "ec-splash-video", { muted: "", playsinline: "", "webkit-playsinline": "", preload: "auto", poster: `el-cabeza-title${tag}-poster.jpg`, "aria-hidden": "true", "data-testid": "title-video" });
   video.muted = true;
   video.playsInline = true;
   // (VP9 where a browser has no H.264, as some builds of Chromium.)
   const h264 = video.canPlayType('video/mp4; codecs="avc1.640028"') !== "";
-  video.src = !h264 ? "el-cabeza-title-720.webm" : light ? "el-cabeza-title-720.mp4" : "el-cabeza-title.mp4";
+  video.src = !h264 ? `el-cabeza-title${tag}-720.webm` : light ? `el-cabeza-title${tag}-720.mp4` : `el-cabeza-title${tag}.mp4`;
   stage.appendChild(video);
   /* The splash played back, for the way out (user: "When clicking begin
      on the splash screen, it should play the animation in reverse. Like
@@ -177,8 +193,77 @@ html.ec-splash-on { background: #120C08; }
   const rew = el("video", "ec-splash-video ec-splash-rewind", { muted: "", playsinline: "", "webkit-playsinline": "", preload: "none", "aria-hidden": "true", "data-testid": "title-rewind" });
   rew.muted = true;
   rew.playsInline = true;
-  const REWIND_SRC = !h264 ? "el-cabeza-title-rewind-720.webm" : light ? "el-cabeza-title-rewind-720.mp4" : "el-cabeza-title-rewind.mp4";
+  const REWIND_SRC = !h264 ? `el-cabeza-title${tag}-rewind-720.webm` : light ? `el-cabeza-title${tag}-rewind-720.mp4` : `el-cabeza-title${tag}-rewind.mp4`;
   stage.appendChild(rew);
+
+  /* Its sounds (user: "When BEGIN is clicked, perhaps a tiny
+     acknowledgement, and when the pieces are placed on the board, each
+     appropriate wood sound for the specific position they land in can also
+     call in succession as they land, perhaps with some rarefied
+     processing"): the game's own knocks, rendered (tools/splash
+     sounds.mjs): a soft one at the tap; and the way out's, each piece
+     knocked down on its square as the playback brings it back, in the
+     order they come, from where it lies across the board, in a high, light
+     room. Woken in the tap (a phone allows sound only from one), the way
+     out's started where its playback is once it's shown. (The same for the
+     wide splash: the board's the same, played back on the same clock.) */
+  const sound = (() => {
+    const AC = W.AudioContext || W.webkitAudioContext, BEGIN = "el-cabeza-title-begin.mp3", LAND = "el-cabeza-title-landings.mp3";
+    let ctx = null, out = null, landing = null, closeAt = 0;
+    const bytes = {}, bufs = {}, played = (title.sounds = []);
+    const get = (u) => bytes[u] || (bytes[u] = W.fetch(u).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null));
+    const buf = (u) => bufs[u] || (bufs[u] = get(u).then((b) => new Promise((res) => {
+      if (!b || !ctx) return res(null);
+      try { const q = ctx.decodeAudioData(b.slice(0), res, () => res(null)); if (q && q.catch) q.catch(() => res(null)); } catch (e) { res(null); }
+    })));
+    const quiet = (p) => { if (p && p.catch) p.catch(() => {}); };
+    const wake = () => { try { if (ctx && ctx.state === "suspended") quiet(ctx.resume()); } catch (e) { /* no sound */ } };
+    // (Let go once it's all rung out: the game's own sound is up by then.)
+    let closer = 0;
+    const letGo = (ms) => {
+      const at = W.performance.now() + ms;
+      if (at < closeAt) return;
+      closeAt = at;
+      W.clearTimeout(closer);
+      closer = W.setTimeout(() => { try { if (ctx) quiet(ctx.close()); } catch (e) { /* gone */ } ctx = null; }, ms);
+    };
+    const play = (name, b, from = 0) => {
+      if (!b || !ctx) return null;
+      const s = ctx.createBufferSource(), g = ctx.createGain();
+      s.buffer = b;
+      s.connect(g).connect(out);
+      from = Math.max(0, Math.min(b.duration - 0.01, from));
+      s.start(ctx.currentTime + 0.005, from);
+      letGo((b.duration - from) * 1000 + 600);
+      played.push({ name, from: +from.toFixed(3), state: ctx.state });
+      return g;
+    };
+    return {
+      fetch() { if (AC) { get(BEGIN); get(LAND); } },
+      begin() {
+        if (!AC || ctx) return;
+        try {
+          ctx = new AC();
+          out = ctx.createGain();
+          out.gain.value = 0.8;
+          out.connect(ctx.destination);
+          wake();
+          // (A phone's tap counts as it ends, the touch's: woken there too.)
+          for (const ev of ["touchend", "click"]) D.addEventListener(ev, wake, { once: true, capture: true });
+        } catch (e) { ctx = null; return; }
+        buf(BEGIN).then((b) => play("begin", b));
+        buf(LAND);
+        letGo(12000);
+      },
+      landings() { if (ctx) buf(LAND).then((b) => { if (rewinding && !rewound) landing = play("landings", b, rew.currentTime || 0); }); },
+      // The playback cut short (Escape, a stall): its knocks with it.
+      cut() {
+        if (!landing || !ctx) return;
+        try { landing.gain.setTargetAtTime(0, ctx.currentTime, 0.08); } catch (e) { /* as it is */ }
+        landing = null;
+      },
+    };
+  })();
   const menu = el("div", "ec-splash-menu");
   const primary = el("button", "ec-splash-primary", { type: "button", "data-testid": "title-primary", "data-action": first.action });
   const word = el("span", "w");
@@ -211,7 +296,8 @@ html.ec-splash-on { background: #120C08; }
   /* Behind the picture, the picture again, tiny, its edges drawn out to the
      sides and above and below it, and blurred: so the room round it on any
      screen is the frame's own edge colours (the table's, then the
-     ground's), lined up with it. 16 x 28 in the middle of 64 x 52.
+     ground's), lined up with it. 16 x 28 in the middle of 64 x 52 (on
+     the wide splash 28 x 16 in 52 x 64).
      The blur's drawn in the canvas itself (at four times that, 256 x 208,
      so it's smooth spread over the screen), not a CSS blur on the canvas:
      an element several screens in size blurred again each time it
@@ -222,7 +308,8 @@ html.ec-splash-on { background: #120C08; }
   const bctx = back.getContext("2d");
   const inCanvas = typeof CanvasRenderingContext2D !== "undefined" && "filter" in CanvasRenderingContext2D.prototype;
   const small = inCanvas ? D.createElement("canvas") : back;
-  if (inCanvas) { small.width = 64; small.height = 52; back.width = 256; back.height = 208; } else back.classList.add("css-blur");
+  const CW = land ? 52 : 64, CH = land ? 64 : 52, BX = land ? 12 : 24, BY = land ? 24 : 12, BW = land ? 28 : 16, BH = land ? 16 : 28;
+  if (inCanvas) { small.width = CW; small.height = CH; back.width = 4 * CW; back.height = 4 * CH; } else { back.width = CW; back.height = CH; back.classList.add("css-blur"); }
   const sctx = inCanvas ? small.getContext("2d") : bctx;
   let rewinding = false; // (the way out's playback: the picture's from it)
   let paintedAt = -1e4;
@@ -232,16 +319,16 @@ html.ec-splash-on { background: #120C08; }
     try {
       const v = rewinding ? rew : video;
       if (v.readyState < 2) return;
-      sctx.drawImage(v, 24, 12, 16, 28);
-      sctx.drawImage(small, 24, 12, 1, 28, 0, 12, 24, 28);
-      sctx.drawImage(small, 39, 12, 1, 28, 40, 12, 24, 28);
-      sctx.drawImage(small, 0, 12, 64, 1, 0, 0, 64, 12);
-      sctx.drawImage(small, 0, 39, 64, 1, 0, 40, 64, 12);
+      sctx.drawImage(v, BX, BY, BW, BH);
+      sctx.drawImage(small, BX, BY, 1, BH, 0, BY, BX, BH);
+      sctx.drawImage(small, BX + BW - 1, BY, 1, BH, BX + BW, BY, CW - BX - BW, BH);
+      sctx.drawImage(small, 0, BY, CW, 1, 0, 0, CW, BY);
+      sctx.drawImage(small, 0, BY + BH - 1, CW, 1, 0, BY + BH, CW, CH - BY - BH);
       if (inCanvas) {
         // (The CSS blur's 16 px, about 2.4 of these where it's seen.)
-        bctx.clearRect(0, 0, 256, 208);
+        bctx.clearRect(0, 0, 4 * CW, 4 * CH);
         bctx.filter = "blur(2.4px)";
-        bctx.drawImage(small, 0, 0, 256, 208);
+        bctx.drawImage(small, 0, 0, 4 * CW, 4 * CH);
         bctx.filter = "none";
       }
       paintedAt = t;
@@ -317,6 +404,17 @@ html.ec-splash-on { background: #120C08; }
      the frame's height) eased up, and down in size if it must, to sit in
      the middle of what's above the menu. */
   const fit = () => {
+    /* The wide splash has its menu beside the emblem, under the name: a
+       little larger on a large screen, smaller where it would run off the
+       bottom (a phone on its side, Continue and the rest under Begin). */
+    if (land) {
+      stage.style.setProperty("--s", "1");
+      stage.style.setProperty("--dy", "0px");
+      const vw = W.innerWidth, vh = W.innerHeight, hv = Math.min(vh, (vw * 1080) / 1920);
+      const room = vh / 2 - 0.053 * hv - 12, grow = Math.max(1, Math.min(1.5, hv / 800));
+      menu.style.setProperty("--k", Math.max(0.6, Math.min(grow, room / (menu.offsetHeight || 1))).toFixed(3));
+      return;
+    }
     const vw = W.innerWidth, vh = W.innerHeight, V = Math.min(vh, (vw * 1920) / 1080);
     const top = (vh - V) / 2, menuH = menu.offsetHeight, pad = 16;
     const avail = Math.max(120, vh - menuH - pad);
@@ -349,6 +447,7 @@ html.ec-splash-on { background: #120C08; }
     fit();
     root.classList.add("menu-on");
     fetchRewind();
+    sound.fetch();
     if (still) { try { video.pause(); video.currentTime = HOLD_FROM; } catch (e) { /* as it is */ } }
     else {
       holdLoop();
@@ -418,6 +517,7 @@ html.ec-splash-on { background: #120C08; }
     const picked = action === "realities" ? second : action === "restart" ? restart : primary;
     if (picked) picked.classList.add("picked");
     fullScreen();
+    sound.begin();
     title.choice = action === "continue" && first.world ? { action, world: first.world } : { action };
     rewindOut();
   }
@@ -450,6 +550,7 @@ html.ec-splash-on { background: #120C08; }
     if (rewound) return;
     rewound = true;
     if (rewinding) paint(true);
+    if (rewinding && !rew.ended) sound.cut();
     letAppIn();
     goIfDone();
   };
@@ -462,6 +563,7 @@ html.ec-splash-on { background: #120C08; }
       rewinding = true;
       rew.classList.add("on");
       root.classList.add("settle");
+      sound.landings();
       W.setTimeout(() => { try { video.pause(); } catch (e) { /* as it is */ } }, 350);
       const tick = () => { if (!rewinding || gone || rew.ended) return; paint(); W.requestAnimationFrame(tick); };
       W.requestAnimationFrame(tick);

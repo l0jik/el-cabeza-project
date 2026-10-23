@@ -21,10 +21,11 @@
      pulse   NOVA breathing once it's in (the logo posters only; user: "At
              the end, have Nova pulsing in a subtle way"): a slow swell of
              light behind it and in its letters, a hair larger, then back */
-import { W } from "./size.js";
+import { W, LAND } from "./size.js";
 
-// EL CABEZA at rest, and where it is from the first frame (the opening's board ends at y 1403).
-export const TITLE = { base: 1562, width: 776, track: 0.06 };
+// EL CABEZA at rest, and where it is from the first frame (the opening's board ends at y 1403);
+// cx, its middle. On the wide frame, on the right of the board and the emblem.
+export const TITLE = LAND ? { base: 437, width: 680, track: 0.06, cx: 1450 } : { base: 1562, width: 776, track: 0.06, cx: W / 2 };
 
 /* Each poster's inks. light: the name's colour over a dark ground (the
    opening's table), where a poster's own ink is dark (5, on paper). The
@@ -84,7 +85,7 @@ function fit(ctx, text, fontFn, width, track) {
 function cabeza(ctx, sc, s, base) {
   const c = s.cabeza ?? 1, ink = s.ink ?? 1, halo = s.halo ?? 0;
   const size = fit(ctx, "EL CABEZA", CINZEL, TITLE.width, TITLE.track);
-  const word = layout(ctx, "EL CABEZA", CINZEL(size), (TITLE.track + 0.12 * (1 - easeOut(c))) * size, W / 2);
+  const word = layout(ctx, "EL CABEZA", CINZEL(size), (TITLE.track + 0.12 * (1 - easeOut(c))) * size, TITLE.cx);
   const alpha = smooth(c * 1.25);
   if (alpha > 0) {
     ctx.save();
@@ -173,7 +174,7 @@ const bloomCurve = (n, peak = 0.24, fade = 1) => smooth(span01(n, 0.04, peak)) *
    focus, a soft bloom behind. o: y (the line), size, track (ems), gap,
    len, rule (thickness). p: the breath once it's in (0..1). */
 function ruledNova(ctx, sc, n, o, p = 0) {
-  const cx = W / 2, y = o.y, dark = sc.ground === "dark", glow = sc.glow, k = o.size / 48;
+  const cx = TITLE.cx, y = o.y, dark = sc.ground === "dark", glow = sc.glow, k = o.size / 48;
   const rest = layout(ctx, "NOVA", JOSEFIN(o.size), o.track * o.size, cx);
   const gi = rest.full / 2 + o.gap;
   bloom(ctx, sc, cx, y, 560 * Math.sqrt(k), 146 * Math.sqrt(k), bloomCurve(n, 0.24, 1));
@@ -216,7 +217,7 @@ function ruledNova(ctx, sc, n, o, p = 0) {
 // The breath's light behind NOVA and along its rules.
 function breath(ctx, sc, p, o) {
   if (!(p > 0)) return;
-  const cx = W / 2, k = o.size / 48;
+  const cx = TITLE.cx, k = o.size / 48;
   bloom(ctx, sc, cx, o.y, 470 * Math.sqrt(k), 120 * Math.sqrt(k), (sc.ground === "dark" ? 0.62 : 0.5) * p);
   const word = layout(ctx, "NOVA", JOSEFIN(o.size), o.track * o.size, cx), gi = word.full / 2 + o.gap;
   ctx.save();
@@ -228,9 +229,9 @@ function breath(ctx, sc, p, o) {
 }
 
 // NOVA: its line, size, letter-spacing (ems), the rules' gap, length and thickness.
-const NOVA = { y: 1612, size: 150, track: 0.3, gap: 36, len: 120, rule: 3 };
+const NOVA = LAND ? { y: 480, size: 130, track: 0.3, gap: 32, len: 104, rule: 3 } : { y: 1612, size: 150, track: 0.3, gap: 36, len: 120, rule: 3 };
 // EL CABEZA's baseline once NOVA is in (it starts at TITLE.base).
-const CABEZA_UP = 1478;
+const CABEZA_UP = LAND ? 363 : 1478;
 
 export function drawTitle(ctx, id, s = {}) {
   const sc = SCHEME[id], n = s.nova ?? 1;

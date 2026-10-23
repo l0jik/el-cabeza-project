@@ -16,7 +16,7 @@
    EL CABEZA and NOVA over it. Everything is drawn from the numbers kept here
    (centre, radius, the line the blocks stand on, the blocks' faces), so the
    videos can build each emblem up from the same parts. */
-import { W, H } from "./size.js";
+import { W, H, LAND } from "./size.js";
 import { clamp, lerp, smooth, rng, fbm, noise3, canvas } from "./anim.js";
 
 const D2R = Math.PI / 180;
@@ -83,8 +83,9 @@ export const LOGO = {
     ],
   },
   L5: {
-    name: "Horizon", C: [540, 860], R: 320, cut: 1.18, whole: true, ghost: true,
-    ground: { c0: "#5E452D", c1: "#21160D", empty: "#3E2C1C", at: [540, 820], r: 1300, mott: 0.045, fine: true, fleck: [236, 206, 150], flecks: 1400 },
+    // (On the wide frame, on the left: the name's on the right.)
+    name: "Horizon", C: LAND ? [530, 520] : [540, 860], R: LAND ? 290 : 320, cut: 1.18, whole: true, ghost: true,
+    ground: { c0: "#5E452D", c1: "#21160D", empty: "#3E2C1C", at: LAND ? [610, 520] : [540, 820], r: LAND ? 1500 : 1300, mott: 0.045, fine: true, fleck: [236, 206, 150], flecks: 1400 },
     stone: { lo: [17, 12, 9], hi: [96, 79, 58], speck: 0.012, seed: 51, fleckGold: true },
     gold: { lo: [112, 80, 42], mid: [184, 146, 90], hi: [230, 198, 140], seed: 52, kind: "leaf", aged: true },
     line: "#C9A46A", lw: 2.5, edge: "#D2AD72",

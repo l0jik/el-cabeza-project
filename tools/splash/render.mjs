@@ -16,7 +16,8 @@
      node tools/splash/render.mjs video <version> <poster>
      node tools/splash/render.mjs all                      every version x poster
      node tools/splash/render.mjs rewind <version> <poster>  played back from 8.5 s to the start (REWIND)
-   Options: --out DIR (default /tmp/splash-out), --fps N (default 60),
+   Options: --land (the wide frame, 1920 x 1080: lib/size.js; files named
+   -land), --out DIR (default /tmp/splash-out), --fps N (default 60),
    --from S --to S (a part of a video, for checking), --keyframes S,S,...
    (key frames at these times as well, so a player can jump there at
    once: the app's title screen loops its last breath from one).
@@ -31,6 +32,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { REWIND, rewindAt } from "./lib/rewind.js";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -40,6 +42,10 @@ const FPS = Number(opt("fps", 60));
 const FROM = Number(opt("from", 0));
 const TO = opt("to", null);
 const KEYFRAMES = opt("keyframes", null);
+const LAND = args.includes("--land");
+if (LAND) args.splice(args.indexOf("--land"), 1);
+const SIZE = LAND ? { width: 1920, height: 1080 } : { width: 1080, height: 1920 };
+const TAG = LAND ? "-land" : "";
 const FF = process.env.FFMPEG || "ffmpeg";
 const VERSIONS = ["tiles", "sand", "liquid", "sweep", "build"];
 const POSTERS = ["v1", "v2", "v5"];
@@ -51,12 +57,12 @@ const browser = await chromium.launch({
   executablePath: process.env.CHROME || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
   args: ["--allow-file-access-from-files", "--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--disable-gpu-vsync"],
 });
-const ctx = await browser.newContext({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
+const ctx = await browser.newContext({ viewport: SIZE, deviceScaleFactor: 1 });
 const page = await ctx.newPage();
 const errs = [];
 page.on("pageerror", (e) => errs.push(e.message));
 page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") console.log("  page:", m.text()); });
-await page.goto(`file://${DIR}/splash.html`);
+await page.goto(`file://${DIR}/splash.html${LAND ? "?land" : ""}`);
 await page.evaluate(() => window.SPLASH.ready);
 const cdp = await ctx.newCDPSession(page);
 const shot = async () => Buffer.from((await cdp.send("Page.captureScreenshot", { format: "png", optimizeForSpeed: true })).data, "base64");
@@ -65,7 +71,7 @@ const check = () => { if (errs.length) { console.error("page errors:", errs.join
 async function still(version, poster, t) {
   await page.evaluate(([v, p, tt]) => window.SPLASH.frame(v, p, tt), [version, poster, t]);
   check();
-  const file = path.join(OUT, `${version}-${poster}-${t.toFixed(2)}.png`);
+  const file = path.join(OUT, `${version}-${poster}${TAG}-${t.toFixed(2)}.png`);
   fs.writeFileSync(file, await shot());
   return file;
 }
@@ -74,7 +80,7 @@ async function video(version, poster) {
   const dur = await page.evaluate(([v, p]) => window.SPLASH.duration(v, p), [version, poster]);
   const end = TO == null ? dur : Math.min(dur, Number(TO));
   const n0 = Math.round(FROM * FPS), n1 = Math.round(end * FPS);
-  const file = path.join(OUT, `${version}-${poster}${FROM || TO ? `-${FROM}-${end}` : ""}.mp4`);
+  const file = path.join(OUT, `${version}-${poster}${TAG}${FROM || TO ? `-${FROM}-${end}` : ""}.mp4`);
   const ff = spawn(FF, ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "png", "-i", "-",
     // capped near 8 Mbit/s: Sand's half a million grains would otherwise run to 50 MB
     "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-maxrate", "8M", "-bufsize", "16M", "-pix_fmt", "yuv420p", "-profile:v", "high",
@@ -94,42 +100,10 @@ async function video(version, poster) {
   return file;
 }
 
-/* The title screen's way out (user: "When clicking begin on the splash
-   screen, it should play the animation in reverse"): a video's own frames
-   from the held logo (8.5 s, where the title screen's loop begins) back to
-   its first, the board, quicker than it came: through the breath and the
-   ghost's rise, NOVA closing back into its line, the emblem coming apart
-   into the board, EL CABEZA's letters drawn off it. REWIND maps the
-   rewind's seconds to the video's (a monotone cubic through them), eased
-   in from the loop's own speed and set down gently on the board. 4.8 s
-   (user, of the first, 2.75 s at four times the video's speed: "the
-   reverse sequence needs to go a little bit more slowly. It happens so
-   fast you don't really get to see anything"): NOVA closes at twice the
-   speed, the emblem held whole (3.5 to 5 s, nothing moving) goes by
-   quickly, and the emblem comes apart into the board (3.25 to 1.25 s,
-   where the change is) at about its own speed, 1.7 s of it. */
-const REWIND = [[0, 8.5], [0.6, 6.8], [1.35, 5.2], [1.9, 3.3], [3.6, 1.25], [4.8, 0]];
-const REWIND_IN = 1.4, REWIND_OUT = 0.6; // the video's seconds a second, at its start and its end
-function rewindAt(u) {
-  const P = REWIND, n = P.length - 1;
-  if (u <= P[0][0]) return P[0][1];
-  if (u >= P[n][0]) return P[n][1];
-  const h = [], d = [];
-  for (let i = 0; i < n; i++) { h.push(P[i + 1][0] - P[i][0]); d.push((P[i + 1][1] - P[i][1]) / h[i]); }
-  const m = [Math.max(d[0] * 3, -REWIND_IN)];
-  for (let i = 1; i < n; i++) {
-    const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1];
-    m.push(d[i - 1] * d[i] <= 0 ? 0 : (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]));
-  }
-  m.push(Math.max(d[n - 1] * 3, -REWIND_OUT));
-  let i = 0;
-  while (u > P[i + 1][0]) i++;
-  const s = (u - P[i][0]) / h[i], s2 = s * s, s3 = s2 * s;
-  return (2 * s3 - 3 * s2 + 1) * P[i][1] + (s3 - 2 * s2 + s) * h[i] * m[i] + (-2 * s3 + 3 * s2) * P[i + 1][1] + (s3 - s2) * h[i] * m[i + 1];
-}
+// (The rewind's timing: lib/rewind.js.)
 async function rewind(version, poster) {
   const last = REWIND[REWIND.length - 1][0], n1 = Math.round(last * FPS) + 1;
-  const file = path.join(OUT, `${version}-${poster}-rewind.mp4`);
+  const file = path.join(OUT, `${version}-${poster}${TAG}-rewind.mp4`);
   const ff = spawn(FF, ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "png", "-i", "-",
     "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-maxrate", "8M", "-bufsize", "16M", "-pix_fmt", "yuv420p", "-profile:v", "high",
     "-movflags", "+faststart", "-an", file], { stdio: ["pipe", "inherit", "inherit"] });
@@ -153,8 +127,8 @@ if (cmd === "rewind") {
   for (const p of rest.length ? rest : POSTERS) {
     await page.evaluate((id) => window.SPLASH.poster(id), p);
     check();
-    fs.writeFileSync(path.join(OUT, `poster-${p}.png`), await shot());
-    console.log(path.join(OUT, `poster-${p}.png`));
+    fs.writeFileSync(path.join(OUT, `poster-${p}${TAG}.png`), await shot());
+    console.log(path.join(OUT, `poster-${p}${TAG}.png`));
   }
 } else if (cmd === "still") {
   const [v, p, ...ts] = rest;

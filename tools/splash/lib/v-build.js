@@ -767,6 +767,22 @@ function buildLogo(ctx, id, T) {
   if (L.ghost && T > LOGO_SETTLE) ghostBoard(ctx, id, 0.5 - 0.5 * Math.cos((2 * Math.PI * (T - LOGO_SETTLE)) / GHOST_ROUND));
 }
 
+/* When each piece comes back to its square in the title screen's way out
+   (this video played back: render.mjs rewind; sounds.mjs knocks each one
+   down as it lands): the cast ones where their flights begin (1.65 s, then
+   0.2 s a piece, the morph's own seconds), the rest where they start to
+   sink (1.2 s, then 0.07 s a piece), both easing in to rest there; in the
+   video's seconds, with the square each comes to (column and row, 0 to 9)
+   and when they all touch down together (the lift's end, 0.75 s). */
+export function landingsOf(id) {
+  const cast = castLogo(id), video = (t) => 0.6 + (t - 0.6) * LOGO_MORPH;
+  const cell = (v, lines) => Math.max(0, Math.min(9, lines.findIndex((x, i) => i < 10 && v >= x && v < lines[i + 1])));
+  const at = (p, t) => ({ kind: p.kind, side: p.side, col: cell(p.cx, XS), row: cell(p.cy, YS), at: video(t) });
+  const landings = cast.map((p, i) => at(p, 1.65 + 0.2 * i));
+  BOARD.pieces.filter((p) => !cast.includes(p)).forEach((p, j) => landings.push(at(p, 1.2 + 0.07 * j)));
+  return { landings, settle: video(0.75) };
+}
+
 /* ---------------- the version ---------------- */
 
 export const build = {

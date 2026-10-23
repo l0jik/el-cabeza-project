@@ -129,12 +129,18 @@ const targets = [
   // opens on the title screen (apps/title-screen.js, in the page itself so
   // it's up before the app has loaded): the Horizon · Build splash
   // (tools/splash), sharp and light, and its first frame; and the same
-  // played back to the board, for the way out (render.mjs rewind).
+  // played back to the board, for the way out (render.mjs rewind). Each
+  // twice: upright, and wide for a screen wider than it's tall (--land,
+  // "-land"). And its sounds: Begin's knock, and the pieces' landings on
+  // the way out (tools/splash/sounds.mjs).
   { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover",
     head: '<meta name="theme-color" content="#120C08">' + APP_HEAD + '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400&display=swap">',
     bodyStart: "title",
     files: { ...DEN_RECORDS, ...CIUDAD_FILES, "el-cabeza-title.mp4": "assets/title/title.mp4", "el-cabeza-title-720.mp4": "assets/title/title-720.mp4", "el-cabeza-title-720.webm": "assets/title/title-720.webm", "el-cabeza-title-poster.jpg": "assets/title/poster.jpg",
-      "el-cabeza-title-rewind.mp4": "assets/title/rewind.mp4", "el-cabeza-title-rewind-720.mp4": "assets/title/rewind-720.mp4", "el-cabeza-title-rewind-720.webm": "assets/title/rewind-720.webm", ...APP_FILES } },
+      "el-cabeza-title-rewind.mp4": "assets/title/rewind.mp4", "el-cabeza-title-rewind-720.mp4": "assets/title/rewind-720.mp4", "el-cabeza-title-rewind-720.webm": "assets/title/rewind-720.webm",
+      "el-cabeza-title-land.mp4": "assets/title/title-land.mp4", "el-cabeza-title-land-720.mp4": "assets/title/title-land-720.mp4", "el-cabeza-title-land-720.webm": "assets/title/title-land-720.webm", "el-cabeza-title-land-poster.jpg": "assets/title/poster-land.jpg",
+      "el-cabeza-title-land-rewind.mp4": "assets/title/rewind-land.mp4", "el-cabeza-title-land-rewind-720.mp4": "assets/title/rewind-land-720.mp4", "el-cabeza-title-land-rewind-720.webm": "assets/title/rewind-land-720.webm",
+      "el-cabeza-title-begin.mp3": "assets/title/begin.mp3", "el-cabeza-title-landings.mp3": "assets/title/landings.mp3", ...APP_FILES } },
   // Tienda's page can draw under a phone's
   // notch and home bar (the theme keeps its controls clear of them).
   // Its files beside the page: the store's reels (the 1974 Muzak tape and

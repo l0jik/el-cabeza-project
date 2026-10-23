@@ -64,7 +64,10 @@ const gateWorld = (page) => q(page, "reality-gate").getAttribute("data-world").c
 const AFTER = { owned: true, storeGone: true, ended: true, hallDue: false };
 
 async function open({ story = null, last = null, phone = false, path = "?title" } = {}) {
-  const ctx = await browser.newContext(phone
+  // (phone "side": a phone on its side, the wide splash's.)
+  const ctx = await browser.newContext(phone === "side"
+    ? { viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
+    : phone
     ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
     : { viewport: { width: 1280, height: 800 } });
   await ctx.addInitScript(({ story, last }) => {
@@ -120,6 +123,10 @@ console.log("\na new player: the splash, the logo held, Begin");
 {
   const { ctx, page, errs } = await open();
   check("the title screen's up at once", await poll(() => has(page, "title-screen"), 5000));
+  // (A wide screen, the wide splash: user, "the splash screen for the game,
+  // when opened on large screens still uses the mobile splash screen".)
+  const frame = await page.evaluate(() => ({ frame: document.querySelector('[data-testid="title-screen"]').getAttribute("data-frame"), src: document.querySelector('[data-testid="title-video"]').getAttribute("src"), poster: document.querySelector('[data-testid="title-video"]').getAttribute("poster") }));
+  check("...on a wide screen, the wide splash (16:9)", frame.frame === "wide" && /^el-cabeza-title-land(-720)?\.(mp4|webm)$/.test(frame.src) && frame.poster === "el-cabeza-title-land-poster.jpg", JSON.stringify(frame));
   check("...the splash playing", await poll(() => page.evaluate(() => { const v = document.querySelector('[data-testid="title-video"]'); return v && !v.paused && v.currentTime > 0.3; }), 8000));
   check("...the address as it was (no ?title)", !(await page.evaluate(() => location.search.includes("title"))));
   check("the app's not mounted under it", !(await mounted(page)));
@@ -135,6 +142,13 @@ console.log("\na new player: the splash, the logo held, Begin");
   for (let i = 0; i < 12; i++) { times.push(await page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime)); await page.waitForTimeout(400); }
   check("...breathing: the last two breaths again and again (8.5 to 11.9 s)", times.every((t) => t >= 8.4 && t <= 12.15) && new Set(times.map((t) => t.toFixed(1))).size > 3, times.map((t) => t.toFixed(2)).join(" "));
   check("...the menu: Begin alone", (await q(page, "title-primary").innerText()).trim().toUpperCase() === "BEGIN" && !(await has(page, "title-realities")) && !(await has(page, "title-restart")));
+  // The wide splash's menu: under the name, on the right, beside the emblem
+  // (the name's middle 75.5% across the frame, NOVA ending 49% down it).
+  const wm = await page.evaluate(() => {
+    const v = document.querySelector('[data-testid="title-video"]').getBoundingClientRect(), b = document.querySelector('[data-testid="title-primary"]').getBoundingClientRect();
+    return { x: (b.x + b.width / 2 - v.x) / v.width, top: (b.y - v.y) / v.height, bottom: (b.y + b.height - v.y) / v.height };
+  });
+  check("...the menu under the name, on the right of the emblem", wm.x > 0.7 && wm.x < 0.81 && wm.top > 0.5 && wm.bottom < 0.95, JSON.stringify(wm));
   await page.screenshot({ path: "/tmp/title-new-held.png" });
   // Only the button (user: "you have to hit the buttons").
   await q(page, "title-screen").click({ position: { x: 30, y: 30 } });
@@ -312,6 +326,7 @@ console.log("\na phone: room made for the menu");
 console.log("\na phone, a new player: Begin tapped the moment it's in");
 {
   const { ctx, page, errs } = await open({ phone: true });
+  check("an upright phone: the upright splash", await poll(() => page.evaluate(() => { const r = document.querySelector('[data-testid="title-screen"]'), v = document.querySelector('[data-testid="title-video"]'); return !!r && r.getAttribute("data-frame") === "tall" && /^el-cabeza-title(-720)?\.(mp4|webm)$/.test(v.getAttribute("src")); }), 5000));
   const T = await poll(() => page.evaluate(() => window.__TITLE_T__.held != null && window.__TITLE_T__), 25000, 50);
   const at = await page.evaluate(() => document.querySelector('[data-testid="title-video"]').currentTime);
   check(`Begin in once NOVA is (the video at ${at.toFixed(2)} s)`, !!T && at >= 6.85 && at < 7.8, JSON.stringify(T));
@@ -324,6 +339,63 @@ console.log("\na phone, a new player: Begin tapped the moment it's in");
   check("...the title goes, the store", !!(await gone(page)) && (await poll(() => place(page), 20000)) === "store");
   check("no errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
+}
+
+/* ---------------- a phone on its side ---------------- */
+// The wide splash, and its menu (all of it after the story: Continue,
+// Other realities, Restart) on the screen, smaller if it must be.
+console.log("\na phone on its side, after the story: the wide splash, its whole menu on the screen");
+{
+  const { ctx, page, errs } = await open({ story: AFTER, last: "lluvia", phone: "side" });
+  check("the wide splash", await poll(() => page.evaluate(() => { const r = document.querySelector('[data-testid="title-screen"]'); return !!r && r.getAttribute("data-frame") === "wide"; }), 5000));
+  check("...the logo held", !!(await toMenu(page)));
+  await page.waitForTimeout(900);
+  const m = await page.evaluate(() => { const el = document.querySelector(".ec-splash-menu"), r = el.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), h: innerHeight, k: el.style.getPropertyValue("--k") }; });
+  check("...Continue, Other realities and Restart, all on the screen", m.top > 0 && m.bottom <= m.h && (await has(page, "title-realities")) && (await has(page, "title-restart")), JSON.stringify(m));
+  check("no errors", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+/* ---------------- its sounds, over HTTP ---------------- */
+// (From disk the page can't fetch them.) User: "When BEGIN is clicked,
+// perhaps a tiny acknowledgement, and when the pieces are placed on the
+// board, each appropriate wood sound for the specific position they land
+// in can also call in succession as they land": the knock in the tap, and
+// the landings' track started where the playback back to the board is.
+console.log("\nits sounds: a knock at Begin, the pieces' landings with the playback");
+{
+  const http = await import("node:http"), fs = await import("node:fs"), path = await import("node:path");
+  const dist = "/home/user/el-cabeza-project/dist";
+  const types = { ".html": "text/html", ".js": "text/javascript", ".mp4": "video/mp4", ".webm": "video/webm", ".mp3": "audio/mpeg", ".jpg": "image/jpeg", ".png": "image/png", ".json": "application/json", ".webmanifest": "application/manifest+json", ".css": "text/css" };
+  const server = http.createServer((req, res) => {
+    const f = path.join(dist, decodeURIComponent(req.url.split("?")[0]));
+    if (!f.startsWith(dist) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); }
+    const size = fs.statSync(f).size, type = types[path.extname(f)] || "application/octet-stream", range = /bytes=(\d*)-(\d*)/.exec(req.headers.range || "");
+    if (range) {
+      const a = range[1] ? +range[1] : 0, b = range[2] ? +range[2] : size - 1;
+      res.writeHead(206, { "Content-Type": type, "Content-Range": `bytes ${a}-${b}/${size}`, "Accept-Ranges": "bytes", "Content-Length": b - a + 1 });
+      fs.createReadStream(f, { start: a, end: b }).pipe(res);
+    } else { res.writeHead(200, { "Content-Type": type, "Accept-Ranges": "bytes", "Content-Length": size }); fs.createReadStream(f).pipe(res); }
+  });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto(`http://127.0.0.1:${server.address().port}/el-cabeza-nova.html?title`);
+  check("the logo held", !!(await toMenu(page)));
+  await page.waitForTimeout(1500); // (its sounds fetched as the menu comes)
+  await q(page, "title-primary").click();
+  const S = () => page.evaluate(() => (window.ecTitle && window.ecTitle.sounds ? window.ecTitle.sounds.slice() : []));
+  const begin = await poll(async () => (await S()).find((x) => x.name === "begin"), 3000, 25);
+  check("Begin: the knock at once, its sound running", !!begin && begin.from === 0 && begin.state === "running", JSON.stringify(await S()));
+  const land = await poll(async () => (await S()).find((x) => x.name === "landings"), 8000, 25);
+  const rewT = await page.evaluate(() => document.querySelector('[data-testid="title-rewind"]').currentTime);
+  check(`...the pieces' landings with the playback, from where it is (${land ? land.from : "?"} s in)`, !!land && land.from >= 0 && land.from < 1 && rewT >= land.from, JSON.stringify({ land, rewT }));
+  check("no errors", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+  server.close();
 }
 
 /* ---------------- on a home screen ---------------- */

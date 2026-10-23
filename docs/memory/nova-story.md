@@ -252,6 +252,82 @@ in; leaving Singularity, back in the den as the set switches off.
   (navigator.connection.downlink) takes the 720p files, as Save Data does.
   The user, after: "The splash feels smooth now after pressing Begin."
   (2026-10-22).
+- **The wide splash** (2026-10-23; user: "the splash screen for the game,
+  when opened on large screens still uses the mobile splash screen. I
+  thought a large screen version was created. If not, we'll need to do
+  that."). None had been: every splash (the fifteen poster videos, the
+  five logo videos, the title's) was 1080 x 1920, and a computer got that
+  upright frame in the middle of its screen with the blurred room round
+  it. Now tools/splash renders the Horizon · Build splash wide as well,
+  1920 x 1080 (render.mjs --land, splash.html?land, lib/size.js LAND):
+  the board on the left (820 wide, centred at 530,540: lib/board.js
+  REST), the emblem where it was on it (logos.js L5 C 530,520, R 290; its
+  ground lit a little to the right, 610,520, r 1500), the name on the
+  right, EL CABEZA 680 wide centred at x 1450 (lockup.js TITLE.cx; base
+  437, up to 363 as NOVA comes; NOVA's line at 480, 130 px), all else as
+  the upright one and its timing the same to the frame (the menu at 6.9
+  s, the loop 8.5 to 11.9 s, the playback the same REWIND). First tried
+  with the name at 1420 and NOVA at 515: NOVA's left rule all but met the
+  emblem's right-hand line (15 px apart in height, 24 across), so the
+  emblem 30 px left, the name 30 px right and 35 px up; everything clear
+  of the title screen's 5% edge fade. assets/title/ title-land.mp4
+  (1080p60, 4.2 MB; the upright's 4.4), title-land-720.mp4 (720p30 crf 25,
+  800 KB), title-land-720.webm (VP9 crf 36, 459 KB), poster-land.jpg (its
+  first frame, 1280 x 720, 60 KB), rewind-land.mp4 (2.5 MB),
+  rewind-land-720.mp4 (446 KB), rewind-land-720.webm (378 KB); build/build.js
+  nova files el-cabeza-title-land*. apps/title-screen.js takes it on a
+  screen more than 1.15 times as wide as it's tall (a computer's, a tablet
+  or phone on its side; data-frame "wide", class land): the video as large
+  as fits at 16:9, the room round it its own edges as before (the backdrop
+  canvas 52 x 64, the picture 28 x 16 in it), the menu under the name on
+  the right (its middle 75.5% across the frame, its top 55% down, NOVA
+  ending at 49%), the picture not moved up for it; fit() scales the menu
+  instead (--k): up to 1.5 times on a large screen (the picture's height
+  over 800 px), smaller where it would run off the bottom (a phone on its
+  side, Continue and the rest under it), 0.6 at least.
+  Chosen as the page opens: a phone turned after keeps its first frame.
+  (Scratch pipeline: scratchpad land/run.sh stills|rstills|video|rewind|
+  encode|sounds|install.) tests/e2e-title.mjs: a desktop gets the wide
+  files and the menu under the name; an upright phone the upright ones; a
+  phone on its side (844 x 390) after the story, the wide splash with its
+  whole menu on the screen.
+- **The title's sounds** (2026-10-23; user: "I also want to add some audio
+  to the splash screen... When BEGIN is clicked, perhaps a tiny
+  acknowledgement, and when the pieces are placed on the board, each
+  appropriate wood sound for the specific position they land in can also
+  call in succession as they land, perhaps with some rarefied
+  processing."). The splash had been silent (the user's own "Silent" for
+  the first splashes). Two short files rendered offline from the game's
+  own knocks (themes/wood-sfx.js, the solid slab's: tools/splash/
+  sounds.mjs drives sounds.html in Chromium; ffmpeg to MP3 112k):
+  begin.mp3, one soft Turrito knock and its ghost an octave up in a high,
+  light room, peak 0.24 (1.6 s, 23 KB); landings.mp3, the way out's: each piece
+  knocked down as the playback brings it back over its square, in the
+  order they come (lib/v-build.js landingsOf: the three pieces cast into
+  the emblem where their flights began, 1.65 s + 0.2 s each, then the
+  other seven out of the disc, 1.2 s + 0.07 s each, the morph's own
+  seconds, timed by the playback's clock, lib/rewind.js rewindTimeOf):
+  2.41 s the light Opa, 2.63 the light Turrito, 2.88 the dark Flaco,
+  2.92 the dark Chato, 3.01 the dark Turrito, 3.11 the dark Cabeza, 3.20
+  the dark Opa, 3.30 the light Chato, 3.39 the light Cabeza, 3.48 the
+  light Flaco; all of them settle down together after, at 3.99 s, without
+  a sound. Each as the game lands it (landingSize: a Turrito's 1 square,
+  a Flaco on its side 2, a Chato 2, an Opa 4 and its 8 cubes; a Cabeza
+  brushes, it never knocks in the game), across the stereo by its column
+  (the board's width as 0.9 of the pan, so these middle columns about
+  0.3 either side), the far rows a little softer and further into the
+  room; the "rarefied" part: the room (3.6 s of decaying noise, nothing
+  under 420 Hz in it) and each knock's ghost an octave up, in the room
+  alone. Peak 0.5 (8.4 s, 118 KB). The onsets measured in the file match the
+  list to the millisecond. apps/title-screen.js: fetched as the menu
+  comes; the context made and woken in the tap that chooses (a phone
+  allows sound only from one; touchend and click wake it too), the knock
+  at once, the landings started from where the playback is when it shows
+  (its currentTime), faded with it if it's cut short (Escape, the stall
+  guard), the context closed once they've rung out. The same for both
+  frames (the same board, on the same clock). e2e-title, over HTTP (a page
+  from disk can't fetch them): the knock at Begin, its context running;
+  the landings from where the playback is.
 
 - **No INFO from a tap on the title in the story** (2026-10-22; user,
   with a phone screenshot of Futuris's summons: "remove the info button

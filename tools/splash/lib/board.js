@@ -4,6 +4,7 @@
    colour from the same column), each piece as its own cut-out, and the
    opening frame (the board on a dark table). */
 import { W, H } from "./posters.js";
+import { LAND } from "./size.js";
 
 // The playable 10 x 10: grid-line centres in the photo.
 export const XS = [107, 243, 387, 534, 681, 822, 964, 1108, 1255, 1399, 1534];
@@ -39,8 +40,9 @@ const UNDER = [[3, 0], [3, 1], [4, 0], [5, 0], [6, 0], [6, 1], [4, 1], [5, 1], [
 // The ring's cells over cols 3, 4 and 6 at the top, from cols 1, 8 and 9.
 const RING_FIX = [[3, 1], [4, 8], [6, 9]];
 
-// At rest in the frame: the whole photo, 980 wide, centred at (540, 900).
-export const REST = { w: 980, cx: 540, cy: 900 };
+// At rest in the frame: the whole photo, 980 wide, centred at (540, 900);
+// on the wide frame 820 wide on the left, where the emblem comes.
+export const REST = LAND ? { w: 820, cx: 530, cy: 540 } : { w: 980, cx: 540, cy: 900 };
 REST.k = REST.w / PHOTO.w;
 REST.h = PHOTO.h * REST.k;
 REST.x = REST.cx - REST.w / 2;

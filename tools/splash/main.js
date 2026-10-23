@@ -5,13 +5,15 @@ import { W, H, posterCanvas } from "./lib/posters.js";
 import { TITLE, SCHEME, drawTitle } from "./lib/lockup.js";
 import { BOARD, loadBoard, drawStart, drawPiece } from "./lib/board.js";
 import { length, titleState } from "./lib/title.js";
-import { build } from "./lib/v-build.js";
+import { build, landingsOf } from "./lib/v-build.js";
 import { tiles } from "./lib/v-tiles.js";
 import { sand } from "./lib/v-sand.js";
 import { liquid } from "./lib/v-liquid.js";
 import { sweep } from "./lib/v-sweep.js";
 
 const canvas = document.getElementById("c");
+canvas.width = W;
+canvas.height = H;
 const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
 const VERSIONS = {
@@ -45,7 +47,7 @@ function inkAt(version, id) {
   if (SCHEME[id].ground === "dark") return null;
   const key = `${version}-${id}`;
   if (key in INK) return INK[key];
-  const bx = W / 2 - TITLE.width / 2, by = TITLE.base - 110, bw = TITLE.width, bh = 120;
+  const bx = TITLE.cx - TITLE.width / 2, by = TITLE.base - 110, bw = TITLE.width, bh = 120;
   const end = VERSIONS[version].settle(id);
   let last = 0;
   for (let t = 0; t <= end + 1e-6; t += 0.05) {
@@ -67,6 +69,8 @@ window.SPLASH = {
     ]);
   })(),
   versions: VERSIONS,
+  // (Where and when each piece lands as the title screen plays it back: sounds.mjs.)
+  landings: (id) => landingsOf(id),
   poster(id) {
     ctx.clearRect(0, 0, W, H);
     ctx.drawImage(posterCanvas(id), 0, 0);
