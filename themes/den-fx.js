@@ -1370,9 +1370,11 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       const t = c.ctx.currentTime;
       c.nodes.forEach(([src, g]) => { try { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + 0.2); src.stop(t + 0.25); } catch (e) { /* gone */ } });
     }
-    // The stretch: the picture drawn out toward the set, streaks of light
-    // pouring into it (a layer over the scene, under nothing that takes a
-    // tap); and, `dark` 0 to 1, the dark closing in round the set.
+    // The stretch: the picture drawn out about the set's glass, streaks of
+    // light pouring into it (a layer over the scene, under nothing that
+    // takes a tap); and, `dark` 0 to 1, the dark closing in round the set.
+    // `at`: the glass's middle, as a fraction of the picture across and
+    // down (pullDraw); null, where it was last seen.
     function pullStretch(k, at, dark = 0) {
       const t = three.current, el = t && t.renderer && t.renderer.domElement;
       if (!el || typeof document === "undefined") return;
@@ -1388,12 +1390,19 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         shade.setAttribute("aria-hidden", "true");
         shade.style.cssText = "position:fixed;inset:0;z-index:9990;pointer-events:none;opacity:0";
         document.body.appendChild(shade);
-        pullFx = { el, streaks, shade, transform: el.style.transform, origin: el.style.transformOrigin, spin: Math.random() * 360 };
+        pullFx = { el, streaks, shade, transform: el.style.transform, origin: el.style.transformOrigin, spin: Math.random() * 360, at: null, ox: 0, oy: 0, sx: 1, sy: 1 };
       }
-      const r = el.getBoundingClientRect(), x = at ? at.x - r.left : r.width / 2, y = at ? at.y - r.top : r.height / 2;
-      el.style.transformOrigin = `${x.toFixed(1)}px ${y.toFixed(1)}px`;
-      el.style.transform = `scale(${(1 + 0.1 * k).toFixed(4)}, ${(1 + 0.32 * k * k).toFixed(4)})`;
-      const ax = at ? at.x : innerWidth / 2, ay = at ? at.y : innerHeight / 2, inner = Math.round(70 - 55 * k);
+      if (at) pullFx.at = at;
+      const f = pullFx.at || { x: 0.5, y: 0.5 };
+      // (Where the picture lies unstretched: its box less the last frame's
+      // stretch. Stretched about the glass's middle, that stays put.)
+      const r = el.getBoundingClientRect();
+      const left = r.left - pullFx.ox * (1 - pullFx.sx), top = r.top - pullFx.oy * (1 - pullFx.sy);
+      pullFx.ox = f.x * (r.width / pullFx.sx); pullFx.oy = f.y * (r.height / pullFx.sy);
+      pullFx.sx = 1 + 0.1 * k; pullFx.sy = 1 + 0.32 * k * k;
+      el.style.transformOrigin = `${pullFx.ox.toFixed(1)}px ${pullFx.oy.toFixed(1)}px`;
+      el.style.transform = `scale(${pullFx.sx.toFixed(4)}, ${pullFx.sy.toFixed(4)})`;
+      const ax = left + pullFx.ox, ay = top + pullFx.oy, inner = Math.round(70 - 55 * k);
       pullFx.spin += 2 + 9 * k;
       pullFx.streaks.style.background = `repeating-conic-gradient(from ${pullFx.spin.toFixed(1)}deg at ${ax.toFixed(0)}px ${ay.toFixed(0)}px, rgba(190,225,255,0) 0deg 2.6deg, rgba(205,232,255,0.85) 3.1deg, rgba(190,225,255,0) 3.6deg 7deg)`;
       const mask = `radial-gradient(circle at ${ax.toFixed(0)}px ${ay.toFixed(0)}px, transparent ${inner}px, #000 ${inner + 160}px)`;
@@ -1466,7 +1475,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       }
       endTugs(failed);
     }
-    // Each frame, in placeCamera: the rush (tvW), the lens and the stretch.
+    // Each frame, in placeCamera: the rush (tvW) and the lens; the stretch
+    // once the camera's placed (pullDraw).
     function pullFrame(camera) {
       if (!tvPullIn) return;
       const now = performance.now(), s = now - tvPullIn.t0;
@@ -1478,14 +1488,26 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       if (!tvPullIn.yelled && s >= PULL_YELL_AT) { tvPullIn.yelled = true; tvPullIn.yell = yell() ? "recording" : "none"; }
       const e = Math.min(1, s / PULL_ENTER);
       if (tvPullIn.fov0 && camera) { camera.fov = Math.min(118, tvPullIn.fov0 * (1 + 0.95 * e * e)); camera.updateProjectionMatrix(); }
+    }
+    /* Then, with the camera where this frame has it (the rush's part too,
+       tugCamera), the stretch and the streaks, about the middle of the
+       set's glass, where it's pulling the player in. (They had been
+       measured before the camera was placed, from where the board's own
+       camera stood: on a phone the streaks met past the screen's right
+       edge, the set well left of them; user: "what are those pointing
+       to? ... it's like kind of off screen".) */
+    function pullDraw(camera) {
+      if (!tvPullIn) return;
+      const t = three.current, s = performance.now() - tvPullIn.t0;
       let at = null;
-      if (den && den.tv && three.current && three.current.boardGroup && camera) {
-        const p = three.current.boardGroup.localToWorld(pullPt.copy(den.tv.focus.target)).project(camera);
-        const r = three.current.renderer.domElement.getBoundingClientRect();
-        if (p.z < 1) at = { x: r.left + ((p.x + 1) / 2) * r.width, y: r.top + ((1 - p.y) / 2) * r.height };
+      if (den && den.tv && t && t.boardGroup && camera) {
+        camera.updateMatrixWorld();
+        const dv = den.tv.dive;
+        const p = t.boardGroup.localToWorld(pullPt.set(dv.x, dv.y, den.tv.focus.front)).project(camera);
+        if (Math.abs(p.z) < 1) at = { x: (p.x + 1) / 2, y: (1 - p.y) / 2 };
       }
       const dk = Math.min(1, Math.max(0, (s - PULL_DARK) / (PULL_ENTER - PULL_DARK)));
-      pullStretch(e, at, dk * dk * (3 - 2 * dk));
+      pullStretch(Math.min(1, s / PULL_ENTER), at, dk * dk * (3 - 2 * dk));
     }
     const pullPt = new THREE.Vector3();
     /* The build-up (user: "Getting pulled into the TV against your will,
@@ -2268,7 +2290,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       },
     };
     /* After the chassis has set its camera: blend it toward the view of
-       the console, the set or the book (placeCamera); then the set's
+       the console, the set or the book (placeCamera); the pull's stretch
+       drawn about where the set's glass then is (pullDraw); then the set's
        stirring is heard from where the camera ended up. */
     /* While the ending covers the screen, the den underneath isn't drawn
        (the chassis skips its own render when this says it's done): two
@@ -2277,6 +2300,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     api.cameraOverride = (camera, dtMs) => {
       const placed = api.placeCamera(camera, dtMs);
       tugCamera(camera);
+      pullDraw(camera);
       hearTv(camera);
       return placed;
     };

@@ -482,6 +482,32 @@ in; leaving Singularity, back in the den as the set switches off.
   the preverb cued 1.900 s ahead from the drag, the shout due just into
   the rush, the den's context closed after his echo's end.
   The user, after: "The pull feels much smoother now." (2026-10-22).
+  Where its streaks meet (2026-10-23; user: "The white lines that
+  radiate outward as you're getting pulled into the TV, I'm not sure if
+  those are supposed to indicate, I mean, what are those pointing to?
+  Because I'm not sure, it's like kind of off screen. Is it supposed to
+  be the screen itself, like showing those lines, like focusing there?
+  What's up with those lines? Because something seems off there."). They
+  are light pouring into the set's glass and were meant to meet on it.
+  But the point was taken in placeCamera before the camera was placed
+  for the frame: the chassis's lookAt had left the camera's matrices at
+  the board camera's position with the last frame's turn. So the lines
+  met where the set stood from over the table: on a 450 x 1000 phone at
+  x 479, past the right edge, the glass at 217, still 120 px off it at
+  the glass; the dark closing in round that point too. Its aim was also
+  den.tv.focus.target (the framing point, 3 left of the screen's middle),
+  and the stretch's origin was read off the stretched box (origin = the
+  point x the last frame's scale, 32% low by the end). Now pullFrame
+  does the rush and the lens only, and pullDraw (in cameraOverride,
+  after tugCamera) takes the glass's middle (dive.x, dive.y on
+  focus.front) through the placed camera, as a fraction of the picture.
+  pullStretch stretches about that, measured on the unstretched box (its
+  box less the last frame's stretch), so the glass stays put and the
+  streaks and the dark meet on it: 1-4 px from its middle all the way in
+  on the phone and on 1100 x 800 (scratchpad pull-lines/probe.mjs, with
+  the glass outlined over the frames). tests/e2e-tv-pull.mjs: the
+  streaks meet inside the glass's box, within 15% of its size from its
+  middle, through the rush.
 
 - **The check alert stops for the phone** (2026-10-21; user, a phone
   screenshot of the den after the trip, the CHECK / SHOW AGAIN chip

@@ -17,7 +17,10 @@
    into the glass (user: "The last part of the pull into the TV still
    happens too abruptly": it had stopped dead where the drag left off,
    then lunged in), the lens widening, the picture drawn out toward the
-   set with streaks of light (den-pull), the dark closing in round the
+   set with streaks of light (den-pull) meeting on its glass (user:
+   "what are those pointing to? ... it's like kind of off screen": they
+   had met where the board's own camera saw the set, past the screen's
+   edge on a phone), the dark closing in round the
    set till it's all black at the glass (den-pull-dark), then Nova's
    transition into Futuris opening out of it. From disk there's no
    recording, so the yell reads "none" here. Over http: the hall's shout
@@ -64,6 +67,19 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
   // (Each frame of what's coming, logged in the page: it's quick.)
   await page.evaluate(() => {
     window.__PULL_LOG__ = []; window.__TUG_LOG__ = [];
+    // (The set's glass on the screen, its box and its middle: where the
+    // streaks should meet.)
+    let glass = null;
+    const glassOn = () => {
+      const t3 = window.__DEN_THREE__, c = t3 && t3.renderer && t3.renderer.domElement;
+      if (!c || !t3.camera) return null;
+      if (!glass) { t3.scene.traverse((o) => { if (o.userData && o.userData.tv === "screen") glass = o; }); if (glass) glass.geometry.computeBoundingBox(); }
+      if (!glass) return null;
+      const b = glass.geometry.boundingBox, V = glass.position.constructor, r = c.getBoundingClientRect();
+      const on = (x, y) => { const p = new V(x, y, b.max.z).applyMatrix4(glass.matrixWorld).project(t3.camera); return [Math.round(r.left + ((p.x + 1) / 2) * r.width), Math.round(r.top + ((1 - p.y) / 2) * r.height)]; };
+      const cs = [on(b.min.x, b.min.y), on(b.max.x, b.min.y), on(b.max.x, b.max.y), on(b.min.x, b.max.y)], xs = cs.map((q) => q[0]), ys = cs.map((q) => q[1]);
+      return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), mid: on((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2) };
+    };
     const tick = () => {
       const f = window.__DEN_TV__;
       if (f) {
@@ -71,7 +87,8 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
         if (t.tug && !t.pull) window.__TUG_LOG__.push({ s: t.tug.s, lurch: +t.tug.lurch.toFixed(3), shake: +t.tug.shake.toFixed(3), dist: t.glassDist, phase: t.phase, lock: t.lock, debris: t.tug.debris.map((d) => `${d.id}:${d.phase}`).join(" "), think: !!document.querySelector('[data-testid="den-tug-think"]:not(.off)'), uhoh: !!document.querySelector('[data-testid="den-uhoh"]:not(.off)') });
         if (t.pull) {
           const c = document.querySelector("canvas"), el = document.querySelector('[data-testid="den-pull"]');
-          window.__PULL_LOG__.push({ s: t.pull.s, focus: +t.focus.toFixed(3), dive: +t.dive.toFixed(3), fov: t.pull.fov, fov0: t.pull.fov0, transform: c ? c.style.transform : "", streaks: el ? Number(el.style.opacity) : null, phase: t.phase, lock: t.lock, yell: t.pull.yell, tugged: t.tug ? t.tug.s : null, dist: t.glassDist, dark: t.pull.dark, crt: !!document.querySelector(".ec-crt-overlay") });
+          const m = el && /at (-?[\d.]+)px (-?[\d.]+)px/.exec(el.style.background || "");
+          window.__PULL_LOG__.push({ s: t.pull.s, focus: +t.focus.toFixed(3), dive: +t.dive.toFixed(3), fov: t.pull.fov, fov0: t.pull.fov0, transform: c ? c.style.transform : "", streaks: el ? Number(el.style.opacity) : null, meet: m ? [+m[1], +m[2]] : null, glass: glassOn(), phase: t.phase, lock: t.lock, yell: t.pull.yell, tugged: t.tug ? t.tug.s : null, dist: t.glassDist, dark: t.pull.dark, crt: !!document.querySelector(".ec-crt-overlay") });
         }
       }
       if (window.__DEN_TV__ || !window.__PULL_LOG__.length) requestAnimationFrame(tick);
@@ -130,6 +147,12 @@ const futuris = (page) => page.evaluate(() => !window.__DEN_TV__ && !!document.q
   const wide = late.length ? late[late.length - 1] : null;
   check(`...the lens widening (${wide && wide.fov0} -> ${wide && wide.fov})`, !!wide && wide.fov > wide.fov0 * 1.4, JSON.stringify(wide));
   check(`...the picture drawn out toward the set, streaks of light (${wide && wide.transform}, ${wide && wide.streaks})`, !!wide && /scale\(/.test(wide.transform) && wide.streaks > 0.5, JSON.stringify(wide));
+  // ...and where they meet: on the set's glass, at its middle (user: "what
+  // are those pointing to? ... it's like kind of off screen": they'd met
+  // where the set stood from the board's own camera, past the edge).
+  const aimed = samples.filter((x) => x.s > 100 && x.s < 1500 && x.meet && x.glass);
+  const off = (x) => Math.hypot(x.meet[0] - x.glass.mid[0], x.meet[1] - x.glass.mid[1]) / Math.max(40, Math.min(x.glass.x1 - x.glass.x0, x.glass.y1 - x.glass.y0));
+  check(`...the streaks meeting on the set's glass, at its middle (${aimed.length ? Math.max(...aimed.map(off)).toFixed(2) : "?"} of its size off, at most)`, aimed.length >= 3 && aimed.every((x) => x.meet[0] > x.glass.x0 && x.meet[0] < x.glass.x1 && x.meet[1] > x.glass.y0 && x.meet[1] < x.glass.y1 && off(x) < 0.15), JSON.stringify(aimed.slice(0, 3)));
   // How fast it's coming in (units a second), first sample to last in a
   // window (a slow renderer's frames are far apart).
   const speed = (log, a, b) => { const xs = log.filter((x) => x.s >= a && x.s <= b && x.dist != null); if (xs.length < 2) return null; const f = xs[0], l = xs[xs.length - 1]; return l.s > f.s ? +((f.dist - l.dist) / ((l.s - f.s) / 1000)).toFixed(1) : null; };
