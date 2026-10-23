@@ -816,6 +816,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      next roll. Reading beginMoveRef.current at call time instead always
      gets whatever render most recently ran. */
   const beginMoveRef = useRef(null);
+  /* The board the test hooks move on (__EC_TEST_MOVE__, __EC_TEST_SPLIT_TO__),
+     set beside beginMoveRef at every render, so a test's move is made on
+     the board beginMove will check it against. The hooks themselves are
+     made in an effect, which React may run a frame after it draws: a test
+     reading the screen in between and moving at once would otherwise send
+     a piece from where it stood before its last move (most likely why CI
+     once dropped e2e-points' roll back after a roll: from the old square
+     it runs off the board). */
+  const testBoardRef = useRef(null);
   const stepInFlightRef = useRef(false); // (see snapshotGame)
   /* The AI's fully-decided turn for its current move, set once when it
      starts thinking and cleared the moment that turn ends for any
@@ -1020,6 +1029,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // (animation, commit, turn logic), and projects a piece's body to
     // screen pixels for tests that then click on it.
     window.__EC_TEST_MOVE__ = (id, dir) => {
+      const { pieces, stepsUsed, selectedId } = testBoardRef.current;
       const piece = pieces.find((p) => p.id === id);
       // Under Split Movement, mid-turn, only the selected piece moves, as on
       // the board (a tap on another piece is what hands it the turn's
@@ -1031,6 +1041,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // Mid-turn under Split Movement, hand the turn's points to another
     // piece, as a tap on it does (the piece limit and all); false if not.
     window.__EC_TEST_SPLIT_TO__ = (id) => {
+      const { pieces, stepsUsed, canTakeSplitPoints } = testBoardRef.current;
       const p = pieces.find((x) => x.id === id);
       if (!(stepsUsed > 0 && ACTIVE_LAWS.splitMovement && canTakeSplitPoints(p))) return false;
       setSelectedId(p.id);
@@ -8283,6 +8294,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     [pieces, busy, selectedId, stepsUsed, animateStep, currentPlayer, foeSide]
   );
   beginMoveRef.current = beginMove;
+  testBoardRef.current = { pieces, stepsUsed, selectedId, canTakeSplitPoints };
 
   /* Runs findBestAiTurn on a dedicated Worker thread (see engine/ai-
      worker.js and build/build.js's own comments on how it gets

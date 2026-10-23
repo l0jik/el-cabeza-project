@@ -54,6 +54,18 @@
   build-time regressions. Piped through `tee`, this reports `tee`'s exit
   code, not npm's — use `set -o pipefail` or check `$PIPESTATUS`, a real
   gap that once let a failure read as success.
+- **The move hooks read the board at call time** (2026-10-23).
+  `__EC_TEST_MOVE__` and `__EC_TEST_SPLIT_TO__` are made in an effect,
+  but take the board, the points spent and the selection from
+  `testBoardRef`, set beside `beginMoveRef` at every render (ElCabeza3D),
+  not from the effect's closure. React can run an effect a frame after it
+  draws, so a test that reads the screen (the counter) and moves at once
+  could send a piece from where it stood before its last move. Most
+  likely why CI shard 3 on 22a65bb dropped e2e-points' roll back after a
+  roll (from the old square it runs off the board); not reproduced here
+  (Chromium 141 ran the effect before the next task every time, even
+  with the CPU slowed 4x; CI runs Chrome for Testing 153). Keep any new
+  hook that acts on game state reading it the same way.
 - Playwright launches via a pinned local Chromium path
   (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome` as of this
   session) — don't `playwright install`.

@@ -38,6 +38,13 @@ const left = (page) => page.evaluate(() => {
   const el = document.querySelector('[data-testid="points-counter"]');
   return el ? Number(el.getAttribute("data-left")) : null;
 });
+// The counter, and where the test hooks last saw the dark Turrito (row,
+// col, footprint and height), for a failed check's detail.
+const leftAndTurrito = (page) => page.evaluate(() => {
+  const el = document.querySelector('[data-testid="points-counter"]');
+  const p = (window.__EC_TEST_PIECES__ || []).find((q) => q.id === "dark-turrito");
+  return `${el ? el.getAttribute("data-left") : "no counter"}; Turrito ${p ? `${p.row},${p.col} ${p.w}x${p.h}x${p.z}` : "gone"}`;
+});
 
 for (const theme of ["futuris", "standard"]) {
   console.log(`[${theme}]`);
@@ -71,12 +78,12 @@ for (const theme of ["futuris", "standard"]) {
 
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
   await page.waitForTimeout(1400);
-  check("a roll spends one", (await left(page)) === 1, String(await left(page)));
+  check("a roll spends one", (await left(page)) === 1, await leftAndTurrito(page));
   if (theme === "futuris") await page.screenshot({ path: "/tmp/e2e-points.png" });
 
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "N"));
   await page.waitForTimeout(1400);
-  check("rolling back to where it was refunds it", (await left(page)) === 2, String(await left(page)));
+  check("rolling back to where it was refunds it", (await left(page)) === 2, await leftAndTurrito(page));
 
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
   await page.waitForTimeout(1400);
