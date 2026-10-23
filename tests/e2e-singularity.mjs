@@ -1339,9 +1339,11 @@ if (state.activeCategory === "topologies") {
 // as a player's do, at their own pace: real clicks (CDP's Input, as
 // Playwright's own), each sent without waiting on the last's handling.
 // And, as a player would, tap three times again, up to three tries,
-// saying how many it took.)
-const bareX = cx2;
-const bareY = obox2.y + obox2.height * 0.15;
+// saying how many it took.) Where: bare sphere as the sphere is now (the
+// test hook's bareSpot, on its face toward the camera above the labels).
+// A fixed spot 15% down the screen found it while the sphere rode high; at
+// rest in the middle its top edge is lower, and CI shard 1 on dd5f43d
+// tapped empty space three times.
 const cdp = await page.context().newCDPSession(page);
 async function tapThrice(x, y) {
   const sent = [cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y })];
@@ -1356,7 +1358,8 @@ async function tapThrice(x, y) {
 let tries = 0;
 while (tries < 3) {
   tries++;
-  await tapThrice(bareX, bareY);
+  const bare = (await sphereState()).bareSpot;
+  await tapThrice(bare.x, bare.y);
   await page.waitForTimeout(250);
   state = await sphereState();
   if (state.stage !== "labels") break;

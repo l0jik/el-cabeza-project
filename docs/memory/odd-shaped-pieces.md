@@ -207,7 +207,8 @@ could ever be in the way. The rule now, confirmed with the user:
   along the move; and every shove legal with Block the same with Pushed
   too), replay.smoke, rules-selections.smoke, e2e-rules (19 tiles),
   e2e-gate / e2e-lluvia / e2e-tienda / e2e-singularity (the third row and
-  its line).
+  its line). On a phone (390 wide) the row fits everywhere: the store's
+  form on one line, Lluvia wrapping as its other rows do.
 
 Other pieces:
 - The move carries `shoves: [{ id, row, col, teleports }]`, one per

@@ -1861,6 +1861,21 @@ export function advanceSingularityScene(t, now, chromeRefs) {
           return { key: r.key, facing, x: ((ndc.x + 1) / 2) * window.innerWidth, y: ((1 - ndc.y) / 2) * window.innerHeight };
         });
       },
+      // A spot of bare sphere for the triple tap, wherever the sphere is on
+      // the screen now: on the face toward the camera, well clear of the
+      // labels' band (v 0.38-0.62; this is v 0.85, toward the north pole).
+      // (A fixed spot near the top of the screen stopped finding the sphere
+      // once it came to rest in the middle: CI shard 1 on dd5f43d tapped
+      // empty space.) Worked out only when read.
+      get bareSpot() {
+        if (!s.sphere || !t.camera) return null;
+        const mesh = s.sphere.mesh;
+        const cam = mesh.worldToLocal(t.camera.position.clone());
+        const len = Math.hypot(cam.x, cam.z) || 1, theta = 0.15 * Math.PI;
+        const wp = new THREE.Vector3((cam.x / len) * Math.sin(theta), Math.cos(theta), (cam.z / len) * Math.sin(theta)).multiplyScalar(SPHERE_RADIUS).applyMatrix4(mesh.matrixWorld);
+        const ndc = wp.project(t.camera);
+        return { x: ((ndc.x + 1) / 2) * window.innerWidth, y: ((1 - ndc.y) / 2) * window.innerHeight };
+      },
       // Where the south-pole CONFIGURATIONS label is on screen and whether it
       // currently faces the camera (so a test can drag it into view and tap it).
       configLabel: (() => {

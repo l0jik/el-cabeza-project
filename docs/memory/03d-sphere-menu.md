@@ -364,6 +364,20 @@ the same ones aren't retried:
   after saving", reached null; once before on cc1ad27). Each category now
   in at most six steps, passing at 3x CPU throttling as well.
 
+- **The test's triple tap, where the sphere is** (2026-10-23, CI shard 1
+  on dd5f43d: "triple-tapping bare sphere finalizes to the summary menu (3
+  tries) — stage=labels"). The second cycle tapped a fixed spot, the
+  screen's middle 15% down. Since the sphere rests in the middle (23190d9,
+  "centered on arrival"), its top edge at 1100 x 900 is about 160 px down,
+  so 135 px is empty space: reproduced locally, a raycast down the middle
+  line misses until 165 px, and three tries stay on the labels at any
+  speed. Passing locally before was luck of where it sat. Now
+  `__EC_TEST_SINGULARITY__.bareSpot` (a getter, like rootLabelSpots) gives
+  bare sphere where the sphere is: on its face toward the camera, at
+  v 0.85 (well clear of the labels' band, v 0.38-0.62), from the camera's
+  direction in the mesh's own frame; the test reads it before each try.
+  First try at normal speed and at 6x CPU throttling.
+
 - **The test's way to a category, levelled** (2026-10-20, CI on b709aca):
   a level sphere's equator labels face the camera at 0.63 at best (the
   camera's above it), less with tilt; navigateToCategory levels to 0.05
