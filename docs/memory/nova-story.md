@@ -555,7 +555,27 @@ in; leaving Singularity, back in the den as the set switches off.
   phone a click on it leaves the camera in the room, the receiver where
   it was; a tap away, the board with the receiver at your ear; hung up,
   the glass works; Room view first, then the slip or a pick-up: down to
-  the board; the phone bar's menu row greyed, saying why).
+  the board; the phone bar's menu row greyed, saying why). (The tap away
+  mid-call no longer leaves the phone: next note.)
+- **On the line, the camera stays with the phone** (2026-10-23; user, a
+  phone screenshot mid-call, "YOU: Okay. I'll be there." under the board
+  with the Opa's card up: "During the phone call, I'm not sure where I
+  touched, but I was able to get back to the table in the conversation
+  pit. That probably shouldn't happen."). Why: den-fx.js onPhoneDown took
+  any tap on the room away from the phone as "back to the board"
+  (phoneVisit(false)), ringing or on the line, and Escape the same; back
+  at the table, the next tap picked a piece. Now, on the line (den-call
+  onLine(): stage "call", picked up till the receiver's on the cradle), a
+  tap on the room is swallowed (nothing picked, the view kept) and Escape
+  doesn't leave; while it rings, a tap away or Escape still goes back
+  (you needn't answer). Picked up from elsewhere (the Room view, say),
+  answer() takes the camera over to the phone too (onGoToPhone), so the
+  whole call is seen from there; hung up, it comes back to the board as
+  before. (The swallowed presses are kept by pointer id, a Set, so a
+  two-finger press is let go of whole; pointercancel clears them.) Tests:
+  e2e-den-phone (on the line a click away and Escape: still at the
+  phone, the receiver at your ear, no piece card; hung up, back to the
+  board; picked up from the Room view: down and over to the phone).
 - **The title's hold, a press only** (2026-10-23; user, with a desktop
   screenshot of the den after the commercial, the special-order note up
   and CONNECT over it: "Right after the TV commercial plays, I was brought

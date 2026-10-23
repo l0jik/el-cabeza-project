@@ -11,13 +11,16 @@
    - Desktop: from the first ring the glass and the dock's Room view are
      greyed and dead to a click. Over at the phone and picked up, a click
      on the glass leaves the room's camera where it was (not up over the
-     room), the receiver low by it; a tap away brings the view back to
-     the board, the receiver at your ear there, not in the sky. Hung up,
-     the glass works again.
+     room), the receiver low by it; a click away from the phone, and
+     Escape, leave the view with it, the receiver at your ear, and pick
+     nothing on the board (user, mid-call: "I'm not sure where I touched,
+     but I was able to get back to the table in the conversation pit.
+     That probably shouldn't happen."). Hung up, the view's back on the
+     board, and the glass works again.
    - Up in the Room view already when it rings: going over to the phone
-     (the slip) brings the room's camera down to the board, and so does
-     picking it up from up there, the receiver lifting to you at the
-     board.
+     (the slip) brings the room's camera down to the board, and the view
+     to the phone; picked up from up there, the camera comes down and
+     over to the phone too, the receiver lifting to you there.
    - A phone with the control bar: the menu's Room view greyed, saying
      why, while it rings.
 
@@ -105,6 +108,12 @@ const toPhone = async (page) => {
   await page.locator('[data-testid="den-call"]').click();
   return !!(await poll(page, () => page.evaluate(() => window.__DEN_PHONE_VISIT__().w > 0.97), 6000));
 };
+// (A click well away from the phone: the other side of the screen.)
+const awayClick = async (page) => {
+  const at = await page.evaluate(() => window.__DEN_PHONE_AT__());
+  await page.mouse.click(at && at.x > 640 ? 160 : 1120, 300);
+};
+const pieceCard = (page) => page.locator('[data-testid="piece-card"]').count();
 const pickUp = async (page) => {
   const at = await page.evaluate(() => window.__DEN_PHONE_AT__());
   await page.mouse.click(at.x, at.y);
@@ -134,13 +143,16 @@ console.log("\ndesktop: the phone rings, and you take it");
   await page.waitForTimeout(2500);
   s = await where(page);
   check(`on the phone, a click on the glass: no Room view, the receiver stays where it was (y ${s.handY}, was ${held.handY})`, !s.up && s.glass.off && Math.abs(s.handY - held.handY) < 1, JSON.stringify(s));
-  // A tap away from the phone: the view's back on the board.
-  await page.mouse.click(640, 520);
+  // On the line, a click away from the phone and Escape: the view stays
+  // with it, and nothing on the board is picked.
+  await awayClick(page);
+  await page.keyboard.press("Escape");
   await page.waitForTimeout(2500);
   s = await where(page);
-  check(`a tap away: the view back on the board, not up over the room (camera y ${s.camY})`, s.visit < 0.03 && !s.up && s.camY < 40, JSON.stringify(s));
-  check(`...the receiver at your ear there, not in the sky (${s.handToCam} away, y ${s.handY})`, s.hs === "held" && s.handToCam < 15 && s.handY < 40, JSON.stringify(s));
+  check(`on the line, a click away and Escape: the view stays with the phone, not back at the table (camera y ${s.camY})`, s.stage === "call" && s.visit > 0.97 && !s.up && s.camY < 40, JSON.stringify(s));
+  check(`...the receiver at your ear (${s.handToCam} away, y ${s.handY}), nothing picked on the board`, s.hs === "held" && s.handToCam < 15 && s.handY < 40 && (await pieceCard(page)) === 0, JSON.stringify(s));
   check("they hang up", !!(await poll(page, () => page.evaluate(() => window.__DEN_CALL__().stage === "done"), 60000)));
+  check("...and the view's back on the board", !!(await poll(page, async () => (await where(page)).visit < 0.03, 5000)));
   s = await where(page);
   check("hung up: the glass and the dock's Room view work again", !!s.glass && !s.glass.off && s.dockRoom === false, JSON.stringify(s));
   await pressGlass(page);
@@ -164,10 +176,10 @@ console.log("\ndesktop: up in the Room view when it rings, over to the phone");
   check("...and the room's own camera down from the Room view to the board", !!(await poll(page, async () => !(await where(page)).up, 6000)));
   check("a tap on the phone: picked up", await pickUp(page));
   await page.waitForTimeout(800);
-  await page.mouse.click(640, 520);
+  await awayClick(page);
   await page.waitForTimeout(2500);
   const s = await where(page);
-  check(`a tap away: the board, the receiver at your ear there, not in the sky (camera y ${s.camY}, receiver y ${s.handY})`, s.visit < 0.03 && !s.up && s.camY < 40 && s.handY < 40 && s.handToCam < 15, JSON.stringify(s));
+  check(`a click away: still with the phone, the receiver at your ear, not in the sky (camera y ${s.camY}, receiver y ${s.handY})`, s.visit > 0.97 && !s.up && s.camY < 40 && s.handY < 40 && s.handToCam < 15, JSON.stringify(s));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
@@ -181,11 +193,12 @@ console.log("\ndesktop: up in the Room view when it rings, picked up from up the
   await page.waitForTimeout(1200);
   check("the phone rings", await ring(page));
   await page.evaluate(() => window.__DEN_CALL_PICKUP__());
-  check("picked up from up there: the camera comes down to the board", !!(await poll(page, async () => !(await where(page)).up, 6000)));
+  check("picked up from up there: the camera comes down out of the Room view", !!(await poll(page, async () => !(await where(page)).up, 6000)));
+  check("...and over to the phone", !!(await poll(page, () => page.evaluate(() => window.__DEN_PHONE_VISIT__().w > 0.97), 6000)));
   await poll(page, () => page.evaluate(() => window.__DEN_CALL_HANDSET__() === "held"), 5000);
   await page.waitForTimeout(1500);
   const s = await where(page);
-  check(`...the receiver lifted to you at the board (camera y ${s.camY}, receiver ${s.handToCam} away, y ${s.handY})`, s.hs === "held" && s.camY < 40 && s.handToCam < 15 && s.handY < 40, JSON.stringify(s));
+  check(`...the receiver lifted to you there (camera y ${s.camY}, receiver ${s.handToCam} away, y ${s.handY})`, s.hs === "held" && s.visit > 0.97 && s.camY < 40 && s.handToCam < 15 && s.handY < 40, JSON.stringify(s));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

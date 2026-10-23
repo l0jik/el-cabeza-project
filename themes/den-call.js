@@ -17,7 +17,10 @@
      the cradle with each ring. A tap on the slip takes the camera over to
      the phone and pauses the record (a fast fade; den-audio holdForPhone);
      a tap on the phone itself answers it (user): the handset lifts and
-     swings up toward you. Hung up, the record fades back in where it was. Left ringing, it gives up
+     swings up toward you, the camera there (picked up from elsewhere, it
+     goes over) and kept there through the call (den-fx.js; user: "I was
+     able to get back to the table in the conversation pit. That probably
+     shouldn't happen."). Hung up, the record fades back in where it was. Left ringing, it gives up
      after eight rings and tries again a while later.
    - The call: the receiver lifted (a clunk), the line open (a faint hiss),
      and the caller in your ear, down a telephone line (400 Hz - 3 kHz,
@@ -484,6 +487,9 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     const o = output();
     if (!o) { stage = "done"; onCall(false); holdRoom(false); hideBox(); if (onPhoneDone) onPhoneDone(); return true; }
     hold(true);
+    // (Picked up from elsewhere, the Room view say: the camera goes over to
+    // the phone too, and stays there till the receiver's down, den-fx.js.)
+    if (onGoToPhone) onGoToPhone();
     const { ctx } = o;
     let t = ctx.currentTime + 0.05;
     clunk(t, false);
@@ -660,6 +666,8 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
   return {
     tick,
     ringing: () => stage === "ringing",
+    // On the line: picked up, till the receiver's back on the cradle.
+    onLine: () => stage === "call",
     // The phone's under way (ringing, or the call), or its card's up.
     busy: () => stage === "ringing" || stage === "call" || !!yayCard,
     answer,

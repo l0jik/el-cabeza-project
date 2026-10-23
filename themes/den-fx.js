@@ -835,12 +835,17 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     /* ---- the telephone, ringing ----
        A tap on the ringing slip (den-call.js) takes the camera over to the
        credenza, in front of the phone and a little above it (user: right
-       to where the phone is; then a tap on the phone lifts the receiver).
-       It stays through the call and comes back as the receiver goes down;
-       a tap anywhere but the phone, or Escape, comes back sooner (that tap
-       does nothing else). */
+       to where the phone is; then a tap on the phone lifts the receiver;
+       picked up from elsewhere, it goes there too). It stays through the
+       call and comes back as the receiver goes down. While it rings, a
+       tap anywhere but the phone, or Escape, comes back sooner (that tap
+       does nothing else); on the line, neither does, and a tap on the
+       room does nothing at all (user, mid-call: "I'm not sure where I
+       touched, but I was able to get back to the table in the
+       conversation pit. That probably shouldn't happen."). */
     // (Eased on the clock, 1.6 s each way, the same on a slow device.)
-    let phoneGoal = 0, phoneW = 0, phoneFrom = 0, phoneT0 = 0, phoneSwallow = null;
+    let phoneGoal = 0, phoneW = 0, phoneFrom = 0, phoneT0 = 0;
+    const phoneSwallow = new Set();
     const PHONE_MS = 1600;
     function phoneVisit(on) {
       const g = on ? 1 : 0;
@@ -850,26 +855,31 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     }
     const phoneRay = new THREE.Raycaster(), phoneNdc = new THREE.Vector2();
     const onPhoneDown = (e) => {
-      if (!phoneGoal || phoneW < 0.3) return;
-      const t = three.current, el = t && t.renderer && t.renderer.domElement;
-      if (el && t.camera && den && den.phone && call && call.ringing()) {
-        const r = el.getBoundingClientRect();
-        phoneNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-        phoneRay.setFromCamera(phoneNdc, t.camera);
-        if (phoneRay.intersectObjects(den.phone.pickables, false)[0]) return;
+      const onLine = !!(call && call.onLine());
+      if (!onLine) {
+        if (!phoneGoal || phoneW < 0.3) return;
+        const t = three.current, el = t && t.renderer && t.renderer.domElement;
+        if (el && t.camera && den && den.phone && call && call.ringing()) {
+          const r = el.getBoundingClientRect();
+          phoneNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+          phoneRay.setFromCamera(phoneNdc, t.camera);
+          if (phoneRay.intersectObjects(den.phone.pickables, false)[0]) return;
+        }
+        phoneVisit(false);
       }
-      phoneVisit(false);
-      phoneSwallow = e.pointerId;
+      phoneSwallow.add(e.pointerId);
       e.stopImmediatePropagation(); e.preventDefault();
     };
-    const onPhoneUp = (e) => { if (phoneSwallow !== null && e.pointerId === phoneSwallow) { phoneSwallow = null; e.stopImmediatePropagation(); e.preventDefault(); } };
-    const onPhoneKey = (e) => { if (e.key === "Escape" && phoneGoal) { phoneVisit(false); e.stopPropagation(); } };
+    const onPhoneUp = (e) => { if (phoneSwallow.delete(e.pointerId)) { e.stopImmediatePropagation(); e.preventDefault(); } };
+    const onPhoneCancel = (e) => { phoneSwallow.delete(e.pointerId); };
+    const onPhoneKey = (e) => { if (e.key === "Escape" && phoneGoal && !(call && call.onLine())) { phoneVisit(false); e.stopPropagation(); } };
     let phoneListenersOn = null;
     function phoneListeners(t) {
       if (phoneListenersOn || !t.renderer || typeof window === "undefined") return;
       phoneListenersOn = t.renderer.domElement;
       phoneListenersOn.addEventListener("pointerdown", onPhoneDown, true);
       phoneListenersOn.addEventListener("pointerup", onPhoneUp, true);
+      phoneListenersOn.addEventListener("pointercancel", onPhoneCancel, true);
       window.addEventListener("keydown", onPhoneKey, true);
     }
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
@@ -2265,6 +2275,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (phoneListenersOn) {
           phoneListenersOn.removeEventListener("pointerdown", onPhoneDown, true);
           phoneListenersOn.removeEventListener("pointerup", onPhoneUp, true);
+          phoneListenersOn.removeEventListener("pointercancel", onPhoneCancel, true);
           window.removeEventListener("keydown", onPhoneKey, true);
           phoneListenersOn = null;
         }
