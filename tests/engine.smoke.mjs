@@ -509,6 +509,48 @@ setActiveLaws({ splitMovement: false, threeActions: false });
   shoveCheck("...still the X for the opponent's", blockedDiagonalShoves([chato, corner], chato, 3).length === 1);
   setActiveLaws({ ...LAWS_OFF, shoving: true, threeActions: true, shoveOnRolls: true, shoveOwn: true });
 
+  // Pieces behind pushed along too (user: "allow you to push however many
+  // blocks are in the path behind it, as long as the total number of cubes
+  // is less than the pushing piece").
+  const T = (id, row, col, owner = "light") => P(id, "turrito", row, col, 1, 1, 1, owner);
+  setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true, shoveOnRolls: true, shoveOwn: true, shoveChain: true });
+  m = legalMovesFor([chato, turrito, T("t2", 4, 5)], chato, 3)["slide-E"];
+  shoveCheck("pieces behind pushed too: a slide pushes the whole line one square", m && m.shoves.length === 2 && moved(m, "tu").col === 5 && moved(m, "t2").col === 6, JSON.stringify(m));
+  shoveCheck("...for 3 points, the same as one", m && moveCost(m) === 3);
+  m = legalMovesFor([chato, turrito, T("t2", 4, 5), T("t3", 4, 6)], chato, 3)["slide-E"];
+  shoveCheck("...a line of three Turritos (3 cubes) behind a Chato (4)", m && m.shoves.length === 3 && moved(m, "t3").col === 7, JSON.stringify(m));
+  shoveCheck("...but not four (4 cubes, not fewer than the Chato's 4)", !legalMovesFor([chato, turrito, T("t2", 4, 5), T("t3", 4, 6), T("t4", 4, 7)], chato, 3)["slide-E"]);
+  shoveCheck("...nor a Turrito with a Flaco behind it (1 + 2 + ...): a heavier line", !legalMovesFor([chato, turrito, P("f2", "flaco", 4, 5, 1, 1, 3, "light")], chato, 3)["slide-E"]);
+  m = legalMovesFor([chato, turrito, T("gap", 4, 6), T("side", 5, 5)], chato, 3)["slide-E"];
+  shoveCheck("...a piece a square further on, or beside the line, isn't pushed", m && m.shoves.length === 1 && !moved(m, "gap") && !moved(m, "side"), JSON.stringify(m));
+  shoveCheck("...and the board's edge stops the whole line", !legalMovesFor([P("ce", "chato", 4, 7, 1, 2, 2), T("a", 4, 8), T("b", 4, 9)], P("ce", "chato", 4, 7, 1, 2, 2), 3)["slide-E"]);
+  m = legalMovesFor([opa, tur, cab, T("x", 5, 5)], opa, 3)["slide-E"];
+  shoveCheck("...side by side with one behind either: all three pushed", m && m.shoves.length === 3 && moved(m, "x").col === 6, JSON.stringify(m));
+  // A flat L (4 cubes) wrapped round the Turrito: its arm starts west of
+  // it, along the row above, and its foot is right behind it.
+  const ell = { ...P("ell", "hombro", 3, 3, 3, 2, 1, "light"), vox: "0,0,0;1,0,0;2,0,0;2,1,0" };
+  m = legalMovesFor([opa, T("tu", 4, 4), ell], opa, 3)["slide-E"];
+  shoveCheck("...a piece wrapped round the one pushed, starting nearer, is pushed too", m && m.shoves.length === 2 && moved(m, "tu").col === 5 && moved(m, "ell").col === 4, JSON.stringify(m));
+  // Rolls: the line goes just clear of the landing, each just clear of the one ahead.
+  m = legalMovesFor([opa, T("l1", 4, 4), T("l2", 4, 5)], opa, 3).E;
+  shoveCheck("a roll pushes a line inside its landing out past it", m && moved(m, "l1").col === 6 && moved(m, "l2").col === 7, JSON.stringify(m));
+  m = legalMovesFor([opa, standingFlaco, T("bh", 4, 6)], opa, 3).E;
+  shoveCheck("...and a piece where the pushed one must go is pushed on", m && moved(m, "fl").col === 6 && moved(m, "bh").col === 7, JSON.stringify(m));
+  // Only opponents: every piece in the line must be the other side's.
+  setActiveLaws({ shoveOwn: false });
+  shoveCheck("only opponents: one of your own in the line blocks it", !legalMovesFor([chato, turrito, T("own2", 4, 5, "dark")], chato, 3)["slide-E"]);
+  shoveCheck("...a line all theirs is pushed", !!legalMovesFor([chato, turrito, T("t2", 4, 5)], chato, 3)["slide-E"]);
+  setActiveLaws({ shoveOwn: true });
+  // A Turrito at the end of the line drops into a hole and comes out past its pair.
+  setActiveLaws({ blackHoleSquares: true });
+  setBlackHoles([{ row: 4, col: 6 }, { row: 7, col: 7 }]);
+  m = legalMovesFor([chato, turrito, T("t2", 4, 5)], chato, 3)["slide-E"];
+  shoveCheck("a Turrito at the end of the line drops through a hole", m && moved(m, "tu").col === 5 && moved(m, "t2").teleports && moved(m, "t2").row === 7 && moved(m, "t2").col === 6, JSON.stringify(m));
+  shoveCheck("...a Flaco there blocks the line", !legalMovesFor([chato, turrito, P("fh", "flaco", 4, 5, 1, 1, 2, "light")], chato, 3)["slide-E"]);
+  setBlackHoles([]);
+  setActiveLaws({ blackHoleSquares: false, shoveChain: false });
+  shoveCheck("off again: a piece behind blocks, as ever", !legalMovesFor([chato, turrito, T("t2", 4, 5)], chato, 3)["slide-E"]);
+
   // The AI sees shoves (several pieces at once too), and applying/undoing
   // them restores the board exactly.
   setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true });
@@ -520,7 +562,7 @@ setActiveLaws({ splitMovement: false, threeActions: false });
   const plan = await findBestAiTurn(board, "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 300 }, 0, 10);
   shoveCheck("the AI still finds a turn with Shoving on", !!plan);
   setActiveLaws({ ...LAWS_OFF, shoveOnRolls: true, shoveOwn: true });
-  console.log("[shoving] lighter-in-total pieces pushed; slide 1, roll clear of landing; side by side yes, lines no; mass not height; holes, edges, Missing Squares; +1 point; crushes intact; slides only blocks the roll; opponents' only blocks a slide or roll into your own; AI sees it");
+  console.log("[shoving] lighter-in-total pieces pushed; slide 1, roll clear of landing; side by side yes, lines no (yes, the whole line, when pieces behind are pushed too); mass not height; holes, edges, Missing Squares; +1 point; crushes intact; slides only blocks the roll; opponents' only blocks a slide or roll into your own; AI sees it");
 }
 
 // ---------- Cantilever Pivot LAW ----------

@@ -405,7 +405,9 @@ export function pickMissingSquarePairs(pieces, rows, cols, count, avoid = [], ex
    - each of those pieces has room to go: every square it is pushed over
      is on the board, not a Missing Square and not taken by any other
      piece. A piece behind one being pushed blocks the shove (lines are
-     never pushed), even if it is itself in the mover's way.
+     never pushed), even if it is itself in the mover's way; unless
+     ACTIVE_LAWS.shoveChain is set, when the line behind is pushed along
+     too (shoveLine, below).
    Rolls shove only while ACTIVE_LAWS.shoveOnRolls is on (the law's
    setting: "slides and rolls", or "slides only"), and with
    ACTIVE_LAWS.shoveOwn off ("only opponents'") a shove, a slide's or a
@@ -427,6 +429,7 @@ function tryShove(pieces, mover, landing, hits, [dr, dc], clearOfLanding) {
   // (Set to the opponent's pieces only: one of your own in the way blocks
   // the move, as without the law.)
   if (ACTIVE_LAWS.shoveOwn === false && hits.some((p) => p.owner === mover.owner)) return null;
+  if (ACTIVE_LAWS.shoveChain) return shoveLine(pieces, mover, landing, hits, [dr, dc], clearOfLanding);
   const mass = hits.reduce((n, q) => n + cubeCount(q), 0);
   if (cubeCount(mover) <= mass) return null;
   const others = pieces.filter((p) => p.id !== mover.id);
@@ -458,6 +461,77 @@ function tryShove(pieces, mover, landing, hits, [dr, dc], clearOfLanding) {
   for (let i = 0; i < out.length; i++) {
     const a = out[i].pos;
     if (piecesClash(a, landing) || others.some((p) => !hits.includes(p) && piecesClash(a, p))) return null;
+    for (let j = i + 1; j < out.length; j++) if (piecesClash(a, out[j].pos)) return null;
+  }
+  return out.map((m) => ({ id: m.q.id, row: m.pos.row, col: m.pos.col, teleports: m.teleports }));
+}
+
+/* Shoving set to push the line behind (ACTIVE_LAWS.shoveChain): a piece
+   in the way of one being pushed is pushed along too, and any in its way,
+   and so on down the line. Taken nearest first along the push, each goes
+   just clear of the landing and of those pushed ahead of it: on a slide
+   one square, as the rest do; on a roll no further than the piece pushing
+   it went. Everything pushed, all together, must still have fewer cubes
+   than the mover, and set to only opponents every piece of the line must
+   be the other side's. A pushed piece may not pass over one it doesn't
+   push. The board's edge, a Missing Square, and a hole only a Turrito or
+   a Cabeza can drop into stop the whole move, as they stop a single
+   shove; one that drops in comes out past the paired hole and pushes
+   nothing there (anything where it comes out blocks the move). */
+function shoveLine(pieces, mover, landing, hits, [dr, dc], clearOfLanding) {
+  const reach = clearOfLanding ? (dc ? landing.w : landing.h) : 1;
+  const limit = cubeCount(mover);
+  // How far along the push a piece starts: its side facing the mover.
+  const near = (p) => (dc > 0 ? p.col : dc < 0 ? -(p.col + p.w) : dr > 0 ? p.row : -(p.row + p.h));
+  const others = pieces.filter((p) => p.id !== mover.id).sort((a, b) => near(a) - near(b));
+  const hit = new Set(hits.map((q) => q.id));
+  // Where the pushed must end clear of: the landing, and those pushed
+  // ahead (a piece dropped through a hole has left the line).
+  const placed = [landing];
+  const out = [];
+  const pushed = new Set();
+  let mass = 0;
+  // Nearest first, then round again for any piece that only a piece taken
+  // after it runs into (one wrapped round it, an Arco over a Turrito or a
+  // Codo's arm past it, starts nearer).
+  for (let more = true; more; ) {
+    more = false;
+    for (const q of others) {
+      if (pushed.has(q.id) || (!hit.has(q.id) && !placed.some((s) => piecesClash(q, s)))) continue;
+      if (ACTIVE_LAWS.shoveOwn === false && q.owner === mover.owner) return null;
+      mass += cubeCount(q);
+      if (mass >= limit) return null;
+      let end = null;
+      const path = [];
+      for (let k = 1; k <= reach && !end; k++) {
+        const pos = { ...q, row: q.row + dr * k, col: q.col + dc * k };
+        if (!inBounds(pos) || overlapsMissingSquare(pos)) return null;
+        const bh = blackHoleVerdict(pos);
+        if (bh.blocked) return null;
+        if (bh.teleportTo) {
+          if (q.type !== "turrito" && q.type !== "cabeza") return null;
+          const eject = { ...q, row: bh.teleportTo.row - dr, col: bh.teleportTo.col - dc };
+          if (!inBounds(eject) || overlapsMissingSquare(eject) || blackHoleAt(eject.row, eject.col)) return null;
+          end = { pos: eject, teleports: true };
+          break;
+        }
+        if (!placed.some((s) => piecesClash(pos, s))) end = { pos, teleports: false };
+        else path.push(pos);
+      }
+      if (!end) return null;
+      out.push({ q, path, ...end });
+      pushed.add(q.id);
+      more = true;
+      if (!end.teleports) placed.push(end.pos);
+    }
+  }
+  // Where they end up: clear of the landing, of everything not pushed, and
+  // of each other; and nothing not pushed passed over on the way.
+  const still = others.filter((p) => !pushed.has(p.id));
+  for (let i = 0; i < out.length; i++) {
+    const a = out[i].pos;
+    if (piecesClash(a, landing) || still.some((p) => piecesClash(a, p))) return null;
+    if (out[i].path.some((pos) => still.some((p) => piecesClash(pos, p)))) return null;
     for (let j = i + 1; j < out.length; j++) if (piecesClash(a, out[j].pos)) return null;
   }
   return out.map((m) => ({ id: m.q.id, row: m.pos.row, col: m.pos.col, teleports: m.teleports }));

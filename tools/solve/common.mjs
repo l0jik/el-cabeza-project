@@ -8,8 +8,8 @@ export const ai = await import(R + "engine/ai.js");
 export const anomaly = await import(R + "engine/anomaly.js");
 
 export const TEN_A = ["cabeza", "turrito", "flaco", "chato", "opa", "block1x3", "block2x3", "codo", "rayo", "zeta"].map((type) => ({ type, count: 1 }));
-export const ALL_LAWS = { splitMovement: true, splitThree: true, slide: true, diagonalSlide: true, blackHoleSquares: true, cantileverPivot: true, threeActions: true, shoving: true, shoveOnRolls: true, shoveOwn: true };
-export const NO_LAWS = { splitMovement: false, splitThree: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true, shoveOwn: true };
+export const ALL_LAWS = { splitMovement: true, splitThree: true, slide: true, diagonalSlide: true, blackHoleSquares: true, cantileverPivot: true, threeActions: true, shoving: true, shoveOnRolls: true, shoveOwn: true, shoveChain: false };
+export const NO_LAWS = { splitMovement: false, splitThree: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true, shoveOwn: true, shoveChain: false };
 
 export function setup(variant, board, extraLaws = {}) {
   C.setBoardDimensions(board, board);

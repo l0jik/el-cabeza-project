@@ -567,7 +567,7 @@ const LAWS_ITEMS = [
   { key: "threeActions", label: "3 Actions Per Turn", blurb: "3 actions per turn instead of 2." },
   // (On by default: a game begun here is never the standard game.)
   { key: "punto", label: "Punto (Komi)", def: true, blurb: "The side that opens has one action fewer on the game's first turn, to blunt the first strike: one action with 2 a turn, two with 3. On by default unless you turn it off; the standard game has no handicap." },
-  { key: "shoving", label: "Shoving", blurb: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal Slide. Anything behind them blocks. Costs 1 extra action. Choose whether rolls shove too, or only slides, and whether a shove may push your own pieces." },
+  { key: "shoving", label: "Shoving", blurb: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal Slide. Anything behind them blocks, unless set to push the line behind too. Costs 1 extra action. Choose whether rolls shove too, or only slides, whether a shove may push your own pieces, and whether pieces behind block or are pushed along (the whole line, as long as all of it together has fewer cubes than the piece pushing)." },
 ];
 
 // The Shoving law's game-start settings (selections.shove), shown under
@@ -2347,13 +2347,13 @@ function lawWarning(key, sel) {
 
 /* The Shoving law's settings, directly under its checkbox (like Black
    Hole placement under its own): which moves shove and which pieces a
-   shove may push, each a two-way segmented control, and a note on what a
-   shove costs. */
+   shove may push, and whether pieces behind block or are pushed too, each
+   a two-way segmented control, and a note on what a shove costs. */
 function renderShoveSettingsRow(t) {
   const s = t.singularity;
   const h = React.createElement;
   const sel = s.selections;
-  if (!sel.shove || sel.shove.own === undefined) sel.shove = shoveOf(sel.shove);
+  if (!sel.shove || sel.shove.own === undefined || sel.shove.chain === undefined) sel.shove = shoveOf(sel.shove);
   const mono = { fontFamily: "'IBM Plex Mono', monospace" };
   return h(
     "div",

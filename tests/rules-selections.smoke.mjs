@@ -131,6 +131,21 @@ import("../themes/rules-selections.js").then(async (m) => {
   check("...the summary too", m.variantsOf(s)[0].items.includes("Shoving (slides only, only opponents)"), JSON.stringify(m.variantsOf(s)[0].items));
   check("...a game that isn't the default one", !m.isDefaultSelections(s));
   check("...and it survives a save", m.normalizeSelections(m.cloneSelections(s)).shove.own === false);
+  // Pieces behind: they block by default; "Pushed too" pushes the whole
+  // line (user: "allow you to push however many blocks are in the path
+  // behind it, as long as the total number of cubes is less than the
+  // pushing piece").
+  check("pieces behind block by default", m.defaultSelections().shove.chain === false && m.lawsForEngine(m.defaultSelections()).shoveChain === false);
+  check("...the choice shows with the others", m.shoveShown(s).some((st) => st.key === "chain" && st.options.length === 2));
+  {
+    const w = m.cloneSelections(s);
+    m.setShove(w, "chain", true);
+    check("...pushed too reaches the engine", m.lawsForEngine(w).shoveChain === true && m.lawsForEngine(w).shoveOwn === false);
+    check("...the line under it says so", /pushed along too, the whole line, as long as all of it together has fewer cubes than the piece pushing/.test(m.shoveNow(w)), m.shoveNow(w));
+    check("...the summary too", m.variantsOf(w)[0].items.includes("Shoving (slides only, only opponents, whole lines)"), JSON.stringify(m.variantsOf(w)[0].items));
+    check("...and it survives a save", m.normalizeSelections(m.cloneSelections(w)).shove.chain === true);
+  }
+  check("...a save from before it has them block", m.normalizeSelections({ laws: { shoving: true }, shove: { onRolls: true, own: false, v: 2 } }).shove.chain === false);
   s.laws.slide = false;
   s.shove = { onRolls: true, own: true, v: 2 };
   s.counts.opa = 1;

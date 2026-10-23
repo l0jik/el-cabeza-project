@@ -167,6 +167,41 @@ could ever be in the way. The rule now, confirmed with the user:
   rules-selections.smoke (defaults, old saves, Slide off with Shoving off,
   All off), e2e-tienda / e2e-gate / e2e-lluvia / e2e-singularity (the
   menus start on Slides only and Only opponents, Slide on with them).
+- PIECES BEHIND is the third setting (user, 2026-10-23, of the Shove
+  law card's "Anything behind them blocks": "add a chassis level rule
+  toggle, or that allows anything behind a pushed block, a pushed piece.
+  Usually a pushed piece is blocked if there's anything behind it. In
+  this case, this rule that can be toggled will allow you to push however
+  many blocks are in the path behind it, as long as the total number of
+  cubes is less than the pushing piece."): "Block" (the default, the rule
+  as it was) or "Pushed too": the whole line in the way goes along, as
+  long as everything pushed, all together, has fewer cubes than the
+  mover. Engine: `ACTIVE_LAWS.shoveChain` (default false) sends tryShove
+  to `shoveLine` (rules.js). It takes pieces nearest first along the
+  push, then round again for any that only a piece taken later runs into
+  (an L wrapped round the pushed piece, an Arco over a Turrito). Each goes
+  just clear of the landing and of those pushed ahead: a slide one
+  square, a roll no further than its reach (the landing's depth). With
+  Only opponents every piece of the line must be the other side's. The
+  board's edge, a Missing Square, or a hole reached by anything but a
+  Turrito or Cabeza stops the whole move; a Turrito or Cabeza drops
+  through and comes out past the paired hole, pushing nothing there. A
+  final check: every end clear of the landing, of everything not pushed
+  and of each other, and nothing not pushed passed over (rolls).
+  Selection `shove: { onRolls, own, chain }` (`chain` false in a save
+  from before); `shoveLaws` gives shoveChain; the summary adds ", whole
+  lines"; LINE_PUSHED is the sentence in every menu's line, the rules
+  text (shovingText) and the sphere's blurb; a new rules card "Shove a
+  line" (an Opa sliding two Turritos). Test ids: the store
+  `tienda-shove-chain-on|off`, the sphere `shove-chain-on|off`, Lluvia
+  `lluvia-shove-chain-on|off`, the gate `gate-shove-line|block`. Replay:
+  "shoveChain" in the code's law list `l` (VANILLA_LAWS false, so an old
+  code blocks). shoveFromLaws now carries `v`: without it the corner menu
+  read a game's settings as an old save and showed the defaults (a game
+  of Slides and rolls / All pieces read Slides only / Only opponents).
+  Tests: engine.smoke (lines on slides and rolls, the cube limit, gaps,
+  beside the line, the edge, Only opponents, a hole, an L wrapped round),
+  replay.smoke, rules-selections.smoke.
 
 Other pieces:
 - The move carries `shoves: [{ id, row, col, teleports }]`, one per

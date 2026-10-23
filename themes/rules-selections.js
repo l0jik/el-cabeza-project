@@ -68,7 +68,7 @@ export const LAW_OPTIONS = [
   // menus set it with the board, under Missing squares, not under Rules,
   // and All rules leaves it alone, as it does Missing squares: `board`.)
   { key: "blackHoleSquares", name: "Singularity squares", board: true, note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn. One set or two." },
-  { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal slide. 1 action more. Choose whether rolls shove too, or only slides, and whether a shove may push your own pieces." },
+  { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal slide. 1 action more. Choose whether rolls shove too, or only slides, whether a shove may push your own pieces, and whether pieces behind block it or are pushed along too." },
   { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Hombro, Cruce, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 action." },
   // (3 actions per turn directly above Split movement: user.)
   { key: "threeActions", name: "3 actions per turn", note: "3 actions a turn instead of 2." },
@@ -115,7 +115,7 @@ export { MIN_BOARD_DIM, MAX_BOARD_DIM };
 export const clampDim = (v) => Math.max(MIN_BOARD_DIM, Math.min(MAX_BOARD_DIM, Math.round(v)));
 
 /* A selection:
-   { counts: {key: n}, laws: {key: bool}, shove: {onRolls, own},
+   { counts: {key: n}, laws: {key: bool}, shove: {onRolls, own, chain},
      rows, cols, missing: bool, missingCount: 1..5,
      missingSpots: [{row, col, random}]   one square of each missing pair,
      holeSets: 1..2,                      sets of black holes,

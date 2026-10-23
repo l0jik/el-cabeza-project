@@ -128,6 +128,8 @@ const LAW_SETS = [
   // the code carries it.)
   { shoving: true, threeActions: true, shoveOwn: false },
   { shoving: true, slide: true, threeActions: true, shoveOnRolls: false, shoveOwn: false },
+  // (And pieces behind pushed along too, the whole line.)
+  { shoving: true, slide: true, threeActions: true, shoveChain: true },
 ];
 
 console.log("the opener's first turn");
@@ -195,6 +197,15 @@ check(`${games} random games (${wins} won) through encode, decode and the rules 
   const plain = decodeReplay(`Replay code: ${encodeReplay({ ...g.rec, laws: { ...g.rec.laws, shoveOwn: true } })}`);
   check("shoves pushing only the opponent's survives the code", !!back && back.laws && back.laws.shoveOwn === false && back.laws.shoving === true);
   check("...and all pieces (the default) stays the default", !!plain && plain.laws && plain.laws.shoveOwn === true);
+}
+{
+  // Pieces behind pushed too goes into the code with the laws and comes
+  // back out; a code without it has them block.
+  const g = randomGame(11, { shoving: true, slide: true, threeActions: true, shoveChain: true }, 6);
+  const back = decodeReplay(`Replay code: ${encodeReplay(g.rec)}`);
+  const plain = decodeReplay(`Replay code: ${encodeReplay({ ...g.rec, laws: { ...g.rec.laws, shoveChain: false } })}`);
+  check("shoves pushing the line behind survives the code", !!back && back.laws && back.laws.shoveChain === true && back.laws.shoving === true);
+  check("...and pieces behind blocking (the default) stays the default", !!plain && plain.laws && plain.laws.shoveChain === false);
 }
 check("...each ends on the board it was played to, with the same winner", finals);
 check("...and their readable lines alone read back to the same moves (no shoving)", legacyOk);

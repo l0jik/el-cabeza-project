@@ -12,6 +12,7 @@
    in Standard's paper and Futuris's glass alike. The text states the rules
    exactly as the engine plays them (engine/constants.js, engine/rules.js). */
 import React, { useEffect, useRef } from "react";
+import { LINE_PUSHED } from "./shove-settings.js";
 
 export const OPEN_RULES_EVENT = "el-cabeza:open-rules";
 // Sent when the player asks for the original game (ABOUT's link): the
@@ -62,12 +63,15 @@ export function blackHoleText(laws = {}, holes = 0) {
 // Shoving as this game plays it: its settings (chassis/shove-settings.js)
 // say whether rolls shove too (ACTIVE_LAWS.shoveOnRolls, on unless set to
 // slides only), and whether a shove, a slide's or a roll's, may push your
-// own pieces (ACTIVE_LAWS.shoveOwn, on unless set to opponents' only).
+// own pieces (ACTIVE_LAWS.shoveOwn, on unless set to opponents' only),
+// and whether pieces behind block it or are pushed along too, the whole
+// line (ACTIVE_LAWS.shoveChain, off unless set to push them).
 export function shovingText(laws = {}) {
   const own = laws.shoveOwn === false ? " A shove pushes only the opponent's pieces: one of your own pieces in the way blocks the move." : "";
+  const behind = laws.shoveChain ? ` ${LINE_PUSHED}` : " Nothing may be behind them.";
   if (laws.shoveOnRolls === false)
-    return `Slides only: a piece sliding into pieces with fewer cubes than it, all together, pushes them one square along, for 1 extra action (a shoving slide costs 3), never diagonally. A roll into a piece is blocked. Nothing may be behind them.${own}`;
-  return `${LAW_TEXT.shoving.text}${own}`;
+    return `Slides only: a piece sliding into pieces with fewer cubes than it, all together, pushes them one square along, for 1 extra action (a shoving slide costs 3), never diagonally. A roll into a piece is blocked.${behind}${own}`;
+  return `${LAW_TEXT.shoving.text.replace(/ Nothing may be behind them\.$/, "")}${behind}${own}`;
 }
 
 const mono = "'IBM Plex Mono', monospace";
@@ -426,7 +430,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "shoving", law: "shoving", title: "Shove", cost: <Dots n={1} C={C} plus />, text: "Rolling or sliding into pieces with fewer cubes, all together, pushes them along, for 1 extra action: a slide one square, a roll just past where it lands. Never diagonally. Anything behind them blocks. Set to slides only, a roll can't shove.",
+      key: "shoving", law: "shoving", title: "Shove", cost: <Dots n={1} C={C} plus />, text: "Rolling or sliding into pieces with fewer cubes, all together, pushes them along, for 1 extra action: a slide one square, a roll just past where it lands. Never diagonally. Anything behind them blocks, unless set to push a line. Set to slides only, a roll can't shove.",
       svg: (
         <>
           {grid()}
@@ -447,6 +451,20 @@ function tiles(C) {
           {ticks()}
           <g className="ec-rc-push2" style={fb}>{cube(SX(1), 36)}</g>
           {rot("ec-rc-rotate", SX(1), 48, <>{cube(SX(0), 24)}{cube(SX(0), 36)}</>)}
+        </>
+      ),
+    },
+    {
+      // (User: "allow you to push however many blocks are in the path
+      // behind it, as long as the total number of cubes is less than the
+      // pushing piece.")
+      key: "shoveLine", law: "shoving", title: "Shove a line", cost: <Dots n={1} C={C} plus />, text: "Set to push pieces behind too, a shove pushes the whole line in its way, as long as all of it together has fewer cubes than the piece pushing: here an Opa slides two Turritos along one square. Otherwise anything behind them blocks.",
+      svg: (
+        <>
+          {grid()}
+          <g className="ec-rc-slideT" style={fb}>{piece(0, 0, 2, 2)}</g>
+          <g className="ec-rc-slideT" style={fb}>{piece(2, 1)}</g>
+          <g className="ec-rc-slideT" style={fb}>{piece(3, 1)}</g>
         </>
       ),
     },

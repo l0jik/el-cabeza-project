@@ -636,7 +636,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
         h(Switch, { on: sel.laws[l.key], label: l.name, testid: `gate-law-${l.key}`, onClick: () => change((n) => toggleLaw(n, l.key)) })),
       l.key === "shoving" && sel.laws.shoving && h("div", { className: "rg-sub" },
         shoveShown(sel).map((s) => h(Seg, { key: s.key, label: s.name }, s.options.map((o) => segBtn(String(o.value), shoveOf(sel.shove)[s.key] === o.value, o.name, () => change((n) => setShove(n, s.key, o.value)),
-          s.key === "onRolls" ? `gate-shove-${o.value ? "rolls" : "slides"}` : `gate-shove-${o.value ? "all" : "opponents"}`)))),
+          s.key === "onRolls" ? `gate-shove-${o.value ? "rolls" : "slides"}` : s.key === "own" ? `gate-shove-${o.value ? "all" : "opponents"}` : `gate-shove-${o.value ? "line" : "block"}`)))),
         h("span", { className: "rg-note", "data-testid": "gate-shove-now" }, shoveNow(sel))))),
     warnings.map((w) => h("div", { key: w.testid, className: "rg-warn", "data-testid": `gate-${w.testid}`, ...(w.key === "cantileverPivot" ? { onClick: showPivots, style: { cursor: "pointer" }, title: "Show me" } : {}) }, w.text)));
 

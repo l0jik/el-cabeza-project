@@ -336,6 +336,13 @@ export let ACTIVE_LAWS = {
   // its way, or only the other side's (a move into one of your own is
   // blocked, as without the law). chassis/shove-settings.js.
   shoveOwn: true,
+  // ...and whether pieces behind a pushed one block the shove (off, the
+  // rule as it was: lines are never pushed) or are pushed along too, the
+  // whole line, as long as everything pushed has fewer cubes all together
+  // than the piece pushing (user: "allow you to push however many blocks
+  // are in the path behind it, as long as the total number of cubes is
+  // less than the pushing piece"). See shoveLine in rules.js.
+  shoveChain: false,
   // Punto LAW: the side that opens has one action fewer on the game's
   // first turn, to blunt the first strike: one action with 2 a turn, two
   // with 3 (user: in standard Cabeza there is no handicapping the first

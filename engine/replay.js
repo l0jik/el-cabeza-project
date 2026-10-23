@@ -10,7 +10,8 @@
 
      { v: 1,
        b: [rows, cols],
-       l: ["slide", ...],         laws on (vanilla when empty)
+       l: ["slide", ...],         laws on (vanilla when empty; "shoveChain"
+                                  when shoves push the line behind too)
        s: 0,                      only when Shoving shoves on slides only
        o: 0,                      only when shoves push only the opponent's
        h: [[row, col], ...],      black holes
@@ -46,6 +47,9 @@ export const REPLAY_TAG = "ECR1.";
 export const VANILLA_LAWS = {
   splitMovement: false, splitThree: false, slide: false, diagonalSlide: false, blackHoleSquares: false,
   cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true, shoveOwn: true,
+  // (Pieces behind a pushed one pushed too travels in the law list; a code
+  // from before it has none, and pieces behind block, as they did.)
+  shoveChain: false,
   // (Punto travels in the code's law list like any law; a code
   // from before it has none, and its first turn replays at full length.)
   punto: false,

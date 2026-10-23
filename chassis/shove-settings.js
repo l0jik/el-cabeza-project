@@ -6,53 +6,65 @@
    (themes/rules-selections.js: the store, the worlds' gate menus), Futuris's
    sphere, Lluvia's terminal, the corner menu and the rules cards.
 
-   Two choices while the Shoving law is on:
+   Three choices while the Shoving law is on:
    - which moves shove: "Slides and rolls" or "Slides only" (the default:
      a roll into a piece is simply blocked, as without the law);
    - which pieces a shove may push, a slide's or a roll's: "All pieces"
      or "Only opponents" (the default: one of your own in the way blocks
-     the move, as without the law).
+     the move, as without the law);
+   - what a piece behind one being pushed does: "Block" (the default, the
+     rule as it was) or "Pushed too", the whole line along with it, as
+     long as all of it together has fewer cubes than the piece pushing
+     (user, of the Shove card's "Anything behind them blocks": "add a
+     chassis level rule toggle ... this rule that can be toggled will
+     allow you to push however many blocks are in the path behind it, as
+     long as the total number of cubes is less than the pushing piece").
    (The defaults were Slides and rolls and All pieces until the user,
    2026-10-21, ringing Slides only and Only opponents: "Make the orange
    highlighted buttons the default, globally.")
-   A selection keeps them as shove: { onRolls, own }; the engine gets
-   ACTIVE_LAWS.shoveOnRolls and ACTIVE_LAWS.shoveOwn (engine/rules.js
-   tryShove). */
+   A selection keeps them as shove: { onRolls, own, chain }; the engine
+   gets ACTIVE_LAWS.shoveOnRolls, ACTIVE_LAWS.shoveOwn and
+   ACTIVE_LAWS.shoveChain (engine/rules.js tryShove, shoveLine). */
 
 // Each setting and its two options, in the order the menus show them.
 export const SHOVE_SETTINGS = [
   { key: "onRolls", name: "Shoves on", options: [{ value: true, name: "Slides and rolls" }, { value: false, name: "Slides only" }] },
   { key: "own", name: "Shoves push", options: [{ value: true, name: "All pieces" }, { value: false, name: "Only opponents" }] },
+  { key: "chain", name: "Pieces behind", options: [{ value: true, name: "Pushed too" }, { value: false, name: "Block" }] },
 ];
 // (v: saved since these defaults. A save without it is from before.)
 const SHOVE_V = 2;
-export const DEFAULT_SHOVE = { onRolls: false, own: false, v: SHOVE_V };
+export const DEFAULT_SHOVE = { onRolls: false, own: false, chain: false, v: SHOVE_V };
 
 // A saved setting read back. From before these defaults, an answer it
 // hasn't was the old default (slides and rolls, all pieces), and one
 // from when the pieces choice was for rolls only (ownOnRolls) keeps its
 // answer, now for every shove; and one still on both old defaults takes
 // today's, once ("globally", user: a menu left as it was shows them).
-// An older save's push distance is dropped (the rule fixes it).
+// An older save's push distance is dropped (the rule fixes it). One from
+// before pieces behind could be pushed has them block, as they did.
 export function shoveOf(saved) {
   if (!saved || typeof saved !== "object") return { ...DEFAULT_SHOVE };
   const s = saved, now = s.v === SHOVE_V;
   const onRolls = typeof s.onRolls === "boolean" ? s.onRolls : now ? DEFAULT_SHOVE.onRolls : true;
   const own = typeof s.own === "boolean" ? s.own : typeof s.ownOnRolls === "boolean" ? s.ownOnRolls : now ? DEFAULT_SHOVE.own : true;
-  if (!now && onRolls && own) return { ...DEFAULT_SHOVE };
-  return { onRolls, own, v: SHOVE_V };
+  const chain = s.chain === true;
+  if (!now && onRolls && own) return { ...DEFAULT_SHOVE, chain };
+  return { onRolls, own, chain, v: SHOVE_V };
 }
 
 // What the engine gets (setActiveLaws).
 export function shoveLaws(saved) {
   const s = shoveOf(saved);
-  return { shoveOnRolls: s.onRolls, shoveOwn: s.own };
+  return { shoveOnRolls: s.onRolls, shoveOwn: s.own, shoveChain: s.chain };
 }
 
 // The engine's laws back as a setting (the corner menu, the rules cards):
-// as the engine reads them, a law without its settings shoving on rolls
-// and pushing any piece (every game sets both).
-export const shoveFromLaws = (laws = {}) => ({ onRolls: laws.shoveOnRolls !== false, own: laws.shoveOwn !== false });
+// as the engine reads them, a law without its settings shoving on rolls,
+// pushing any piece and blocked by pieces behind (every game sets all
+// three). (Today's, v: read as an old save, slides and rolls with all
+// pieces came back as the defaults, and the corner menu said so.)
+export const shoveFromLaws = (laws = {}) => ({ onRolls: laws.shoveOnRolls !== false, own: laws.shoveOwn !== false, chain: laws.shoveChain === true, v: SHOVE_V });
 
 // Each setting with the name of what's chosen: [["Shoves on", "Slides
 // only"], ["Shoves push", "Only opponents"]] (the corner menu's lines).
@@ -62,15 +74,19 @@ export function shoveChosen(saved) {
 }
 
 // For a summary: "slides and rolls", "slides only", "slides and rolls,
-// only opponents", "slides only, only opponents".
+// only opponents", "slides only, only opponents", and ", whole lines" when
+// pieces behind are pushed too.
 export function shoveSummary(saved) {
   const s = shoveOf(saved);
-  return `${s.onRolls ? "slides and rolls" : "slides only"}${s.own ? "" : ", only opponents"}`;
+  return `${s.onRolls ? "slides and rolls" : "slides only"}${s.own ? "" : ", only opponents"}${s.chain ? ", whole lines" : ""}`;
 }
 
 // The sentence for "Only opponents", wherever a setting's described
 // ("pieces" said, user: "One of your own pieces in the way...").
 export const OWN_BLOCKS = "A shove pushes only your opponent's pieces: one of your own pieces in the way blocks the move.";
+
+// The sentence for "Pushed too": pieces behind go along, the whole line.
+export const LINE_PUSHED = "Pieces behind the ones pushed are pushed along too, the whole line, as long as all of it together has fewer cubes than the piece pushing.";
 
 /* What actually shoves with the rules as they're set, for the line under
    the settings (user: the Slide/Shoving link confused even the
@@ -87,7 +103,7 @@ export function shoveNow(saved, laws = {}) {
   const s = shoveOf(saved);
   // (And never on a diagonal, user: said while Diagonal slide is on.)
   const diag = laws.diagonalSlide ? " Diagonal slides never shove." : "";
-  const own = s.own ? "" : ` ${OWN_BLOCKS}`;
+  const own = `${s.own ? "" : ` ${OWN_BLOCKS}`}${s.chain ? ` ${LINE_PUSHED}` : ""}`;
   if (!s.onRolls)
     return `Only slides can shove.${diag} A roll into a piece is just blocked.${own}`;
   if (!laws.slide)
