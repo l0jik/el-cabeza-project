@@ -383,6 +383,13 @@ for (const size of [SIZES[2], SIZES[7]]) {
   check("...slides and rolls: it warns that an Opa's shove needs 3 actions", (await attr('[data-testid="tienda-shove-onRolls-on"]', "aria-pressed")) === "true" && (await count('[data-testid="shove-opa-needs-three"]')) === 1);
   check("...says what shoves right now", /shove/.test(await page.locator('[data-testid="tienda-shove-now"]').innerText()));
   check("...and the pieces choice is there with it too", (await count('[data-testid="tienda-shove-own-on"]')) === 1 && (await count('[data-testid="tienda-shove-own-off"]')) === 1);
+  // Pieces behind: they block, or go along, the whole line (user: "this
+  // rule that can be toggled will allow you to push however many blocks
+  // are in the path behind it").
+  check("...and pieces behind: block (chosen), or pushed too", (await attr('[data-testid="tienda-shove-chain-off"]', "aria-pressed")) === "true" && (await count('[data-testid="tienda-shove-chain-on"]')) === 1);
+  await press('[data-testid="tienda-shove-chain-on"]');
+  check("...pushed too, and the line says so", (await attr('[data-testid="tienda-shove-chain-on"]', "aria-pressed")) === "true" && /pushed along too, the whole line/.test(await page.locator('[data-testid="tienda-shove-now"]').innerText()));
+  await press('[data-testid="tienda-shove-chain-off"]');
   await press('[data-testid="tienda-shove-onRolls-off"]');
   check("Slides only again: Slide still on, no nothing-can-shove warning", (await attr('[data-testid="tienda-shove-onRolls-off"]', "aria-pressed")) === "true" && (await page.evaluate(() => document.querySelector('[data-testid="tienda-law-slide-input"]').checked)) && (await count('[data-testid="shove-needs-slide"]')) === 0);
   await press('[data-testid="tienda-law-slide"]');

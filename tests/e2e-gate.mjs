@@ -152,6 +152,14 @@ console.log("Cabeza Nova: the one menu");
       /^Only slides can shove\./.test(await p.locator('[data-testid="gate-shove-now"]').textContent()) && /only your opponent's pieces/.test(await p.locator('[data-testid="gate-shove-now"]').textContent()));
     await p.locator('[data-testid="gate-shove-rolls"]').click();
     await p.locator('[data-testid="gate-shove-all"]').click();
+    // Pieces behind: they block, or go along, the whole line (user: "this
+    // rule that can be toggled will allow you to push however many blocks
+    // are in the path behind it, as long as the total number of cubes is
+    // less than the pushing piece").
+    check("...a third: pieces behind block (chosen), or are pushed too", (await p.locator('[data-testid="gate-shove-block"][aria-pressed="true"]').count()) === 1 && (await p.locator('[data-testid="gate-shove-line"][aria-pressed="false"]').count()) === 1);
+    await p.locator('[data-testid="gate-shove-line"]').click();
+    check("...pushed too, and the line under it says so", /pushed along too, the whole line/.test(await p.locator('[data-testid="gate-shove-now"]').textContent()));
+    await p.locator('[data-testid="gate-shove-block"]').click();
     await all.click();
     check("...off: none", (await p.locator(`${laws}[aria-checked="true"]`).count()) === 0 && (await all.getAttribute("aria-checked")) === "false");
   }

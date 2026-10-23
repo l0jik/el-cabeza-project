@@ -1020,6 +1020,16 @@ if (state.activeCategory === "laws") {
   await page.waitForTimeout(150);
   state = await sphereState();
   check("...or slides and rolls", state.selections.shove.onRolls === true && (await page.locator('[data-testid="shove-needs-slide"]').count()) === 0);
+  // Pieces behind: they block, or go along, the whole line (user: "this
+  // rule that can be toggled will allow you to push however many blocks
+  // are in the path behind it").
+  check("...and pieces behind: block (chosen), or pushed too", state.selections.shove.chain === false && (await page.locator('[data-testid="shove-chain-off"]').getAttribute("aria-pressed")) === "true" && (await page.locator('[data-testid="shove-chain-on"]').count()) === 1, JSON.stringify(state.selections.shove));
+  await page.locator('[data-testid="shove-chain-on"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  check("...pushed too, and the line says so", state.selections.shove.chain === true && /pushed along too, the whole line/i.test(await page.locator('[data-testid="shove-now"]').innerText()), JSON.stringify(state.selections.shove));
+  await page.locator('[data-testid="shove-chain-off"]').click();
+  await page.waitForTimeout(150);
   if ((state.selections.matter.roster.opa || 0) > 0 && !state.selections.laws.threeActions) {
     check("with an Opa and 2 actions a turn it says an Opa's shove needs 3",
       (await page.locator('[data-testid="shove-opa-needs-three"]').count()) === 1);

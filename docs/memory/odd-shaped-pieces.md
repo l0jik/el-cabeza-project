@@ -200,8 +200,14 @@ could ever be in the way. The rule now, confirmed with the user:
   read a game's settings as an old save and showed the defaults (a game
   of Slides and rolls / All pieces read Slides only / Only opponents).
   Tests: engine.smoke (lines on slides and rolls, the cube limit, gaps,
-  beside the line, the edge, Only opponents, a hole, an L wrapped round),
-  replay.smoke, rules-selections.smoke.
+  beside the line, the edge, Only opponents, a hole, an L wrapped round,
+  the AI finding a line shove), shove-line.smoke (3,000 random boards
+  with L's and Arcos, half with singularities and Missing Squares: every
+  shove on the board, nothing in one place, under the mover's cubes,
+  along the move; and every shove legal with Block the same with Pushed
+  too), replay.smoke, rules-selections.smoke, e2e-rules (19 tiles),
+  e2e-gate / e2e-lluvia / e2e-tienda / e2e-singularity (the third row and
+  its line).
 
 Other pieces:
 - The move carries `shoves: [{ id, row, col, teleports }]`, one per

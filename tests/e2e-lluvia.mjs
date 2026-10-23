@@ -124,6 +124,18 @@ check("...slides only can be chosen, with no callout that a shoving slide needs 
   (await page.locator('[data-testid="lluvia-shove-onRolls-off"]').getAttribute("aria-pressed")) === "true" &&
   (await page.locator('[data-testid="shove-needs-three"]').count()) === 0);
 await page.locator('[data-testid="lluvia-shove-onRolls-on"]').click();
+// Pieces behind: they block, or go along, the whole line (user: "this rule
+// that can be toggled will allow you to push however many blocks are in
+// the path behind it").
+check("...and pieces behind: block (chosen), or pushed too",
+  (await page.locator('[data-testid="lluvia-shove-chain-off"]').getAttribute("aria-pressed")) === "true" &&
+  (await page.locator('[data-testid="lluvia-shove-chain-on"]').count()) === 1);
+await page.locator('[data-testid="lluvia-shove-chain-on"]').click();
+await page.waitForTimeout(150);
+check("...pushed too, and the line says so",
+  (await page.locator('[data-testid="lluvia-shove-chain-on"]').getAttribute("aria-pressed")) === "true" &&
+  /pushed along too, the whole line/.test(await page.locator('[data-testid="lluvia-shove-now"]').innerText()));
+await page.locator('[data-testid="lluvia-shove-chain-off"]').click();
 await page.locator('[data-testid="lluvia-law-shoving"]').click();
 await page.waitForTimeout(150);
 check("...and switching Shoving off hides it", (await page.locator('[data-testid="lluvia-shove-settings"]').count()) === 0);

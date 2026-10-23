@@ -561,7 +561,14 @@ setActiveLaws({ splitMovement: false, threeActions: false });
   shoveCheck("generating them leaves the board untouched", JSON.stringify(board) === before);
   const plan = await findBestAiTurn(board, "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 300 }, 0, 10);
   shoveCheck("the AI still finds a turn with Shoving on", !!plan);
-  setActiveLaws({ ...LAWS_OFF, shoveOnRolls: true, shoveOwn: true });
+  // ...and set to push pieces behind too, a whole line.
+  setActiveLaws({ shoveChain: true });
+  const line = [{ ...opa }, { ...tur }, P("t5", "turrito", 4, 5, 1, 1, 1, "light"), P("dc", "cabeza", 0, 0, 1, 1, 1), P("lc", "cabeza", 9, 9, 1, 1, 1, "light")];
+  const lineBefore = JSON.stringify(line);
+  shoveCheck("...the AI's turns include a line shove, set to push pieces behind", generateTurns(line, "dark").some((t) => t.moves.some((mv) => mv.shoves && mv.shoves.some((q) => q.id === "t5"))));
+  shoveCheck("...generating them leaves the board untouched", JSON.stringify(line) === lineBefore);
+  shoveCheck("...and it still finds a turn", !!(await findBestAiTurn(line, "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 300 }, 0, 10)));
+  setActiveLaws({ ...LAWS_OFF, shoveOnRolls: true, shoveOwn: true, shoveChain: false });
   console.log("[shoving] lighter-in-total pieces pushed; slide 1, roll clear of landing; side by side yes, lines no (yes, the whole line, when pieces behind are pushed too); mass not height; holes, edges, Missing Squares; +1 point; crushes intact; slides only blocks the roll; opponents' only blocks a slide or roll into your own; AI sees it");
 }
 
