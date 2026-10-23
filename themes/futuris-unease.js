@@ -11,6 +11,8 @@
 
    createUnease(audio) -> { set(level 0..1), level(), stop(fadeS) } */
 
+import { lightReverbsFor } from "./futuris-summon-audio.js";
+
 export function createUnease(audio) {
   const out = audio && audio.summonOutput ? audio.summonOutput() : null;
   let level = 0, stopped = false, timer = 0;
@@ -38,11 +40,14 @@ export function createUnease(audio) {
     o.start();
     return o;
   });
+  // (One channel where the reverbs are light: a phone, a Chromebook; the
+  // sphere comes up while the toll's and the last clap's still ring.)
   const room = ctx.createConvolver();
   {
-    const RT60 = 2.6, len = Math.floor(ctx.sampleRate * 3.2), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    const chans = lightReverbsFor() ? 1 : 2;
+    const RT60 = 2.6, len = Math.floor(ctx.sampleRate * 3.2), ir = ctx.createBuffer(chans, len, ctx.sampleRate);
     const k = 6.9 / (RT60 * ctx.sampleRate);
-    for (let ch = 0; ch < 2; ch++) {
+    for (let ch = 0; ch < chans; ch++) {
       const d = ir.getChannelData(ch); let lp = 0;
       for (let i = 0; i < len; i++) { lp = lp * 0.7 + (Math.random() * 2 - 1) * 0.3; d[i] = lp * Math.exp(-k * i); }
     }

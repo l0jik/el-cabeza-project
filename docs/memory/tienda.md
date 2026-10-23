@@ -484,3 +484,30 @@ box art and an ad standee (assets/tienda/*.jpg).
   the piece until its ring closes." Also: How to play's "hold the piece you
   moved, or press End turn", the tap's note, the first hold's teaching
   ring. Fits on a 360x640 phone with the board in view.
+- **Walking in, one even rise; the music 20% lower** (2026-10-23; user:
+  "When you enter the Tienda / store, the sound starts low, then suddenly
+  jumps up ...maybe b/c the A/C kicks in or.....something....I think the
+  audio should come in a more graduated way. Also, the store music audio
+  ceiling should be reduced 20%."). The jump was the first reel: once
+  fetched and decoded it came in over 50 ms, onto the hum and the air
+  already up (they had come up on fades of their own, the store bus over
+  2.5 s, the hum 2.5 s, the air 4 s, the speakers 3 s). Measured over
+  HTTP with the first reel held back 6 s (scratchpad store/measure.mjs,
+  run.sh; an analyser on the store's output, the mean power each quarter
+  second): the air at -54 dB, then the reel's landing +12 dB in a quarter
+  second and +8 dB more over the next. Now (themes/tienda-audio.js
+  swell, ENTRY_IN 5 s): walking in, the hum and the air rise together on
+  the ambience bus, and the music, whenever its first reel starts (or the
+  first arrangement, with no reel), rises the same way on its own over
+  5 s; one fade each, nothing stacked (stacked fades bunch the rise up at
+  the end). The swell is an even climb in loudness (an exponential curve,
+  about 8 dB in each of its last three quarters), in short straight steps
+  so a ramp() can take over (a pause, a game's end). The store bus is at
+  its level at once on entry; a later startStore (a game begun, an undo)
+  doesn't cut a swell short (tapeSwellUntil, musicSwellUntil). Measured
+  after: from -87 dB at the press to the music's level at about 8 s
+  (reel late) or 6 s (reel ready), never more than about 3 dB a quarter
+  second. MUSIC_VOLUME 0.3 -> 0.24 (the speakers, after the crunch: the
+  tape and the arrangements, and their reverb sends; "N% lower" as
+  always, the level times 1 - N; the store's compressor, at -16 dB,
+  isn't reached at these levels).

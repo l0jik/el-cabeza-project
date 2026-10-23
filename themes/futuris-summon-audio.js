@@ -48,6 +48,21 @@ const LAST_TAIL_PHONE_S = 5.5;
 const TO_GAME = 0.716 / (1.25 * Math.pow(10, 17 / 20));
 const dB = (x) => Math.pow(10, x / 20);
 
+/* Light reverbs (one channel, the long ones shorter), here and in
+   futuris.js and futuris-unease.js: on a phone, and on a computer that may
+   not keep up with the full ones either, a Chromebook, or one with four
+   cores or fewer or 4 GB or less (user, on a Chromebook: no sound from the
+   tap into the wormhole on, "the sound of going through the black hole and
+   the 'ear-ringing' when you arrive are absent", as on the Android phone).
+   (localStorage "ec:reverbs" = "light" | "full" overrides, for trying both.) */
+export function lightReverbsFor() {
+  try { const o = localStorage.getItem("ec:reverbs"); if (o === "light" || o === "full") return o === "light"; } catch (e) {}
+  if (typeof window === "undefined") return false;
+  if (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) return true;
+  const nav = window.navigator || {};
+  return /\bCrOS\b/.test(nav.userAgent || "") || (nav.hardwareConcurrency > 0 && nav.hardwareConcurrency <= 4) || (nav.deviceMemory > 0 && nav.deviceMemory <= 4);
+}
+
 // "phone" on a touch-only device, "full" otherwise. (localStorage
 // "ec:summon-mix" = "phone" | "full" overrides, for trying both.)
 export function summonMixFor() {
@@ -81,6 +96,8 @@ function makeImpulse(ctx, secs, decay, chans = 2) {
 export function createSummonSound(out, { mix = "full" } = {}) {
   const { ctx, dest } = out;
   const phone = mix === "phone";
+  // (The reverbs light on a phone, and on a computer that may not keep up.)
+  const light = phone || lightReverbsFor();
   const srcs = [];
   const O = (type, f) => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; return o; };
   const G = (v) => { const g = ctx.createGain(); g.gain.value = v; return g; };
@@ -115,7 +132,7 @@ export function createSummonSound(out, { mix = "full" } = {}) {
   } else chain(bus, toGame, dest);
 
   // The mock-up's shared room (its "send" of 0.3 on the mix).
-  const room = ctx.createConvolver(); room.buffer = makeImpulse(ctx, phone ? 2.4 : 3.2, 2.6, phone ? 1 : 2);
+  const room = ctx.createConvolver(); room.buffer = makeImpulse(ctx, light ? 2.4 : 3.2, 2.6, light ? 1 : 2);
   chain(room, bus);
 
   let t0 = 0, started = false, ended = false, lastUpdate = -1;
@@ -148,7 +165,7 @@ export function createSummonSound(out, { mix = "full" } = {}) {
   function startThunder(t) {
     chain(thOut, thWhole);
     chain(loop(brown, t), F("lowpass", 80), thBed, G(dB(10)), whole);
-    const cv = ctx.createConvolver(); cv.buffer = makeImpulse(ctx, phone ? 3.5 : 5, 2.2, phone ? 1 : 2);
+    const cv = ctx.createConvolver(); cv.buffer = makeImpulse(ctx, light ? 3.5 : 5, 2.2, light ? 1 : 2);
     chain(thVerb, cv, F("lowpass", 1200), G(0.9), thOut);
   }
   function thunderRing(t) {
@@ -165,7 +182,7 @@ export function createSummonSound(out, { mix = "full" } = {}) {
   // The last clap: a full one, and into a long, dark reverb of its own
   // (as well as the usual one), so it carries into the sphere.
   function lastClap(t) {
-    const cv = ctx.createConvolver(); cv.buffer = phone ? makeImpulse(ctx, LAST_TAIL_PHONE_S, 1.5, 1) : makeImpulse(ctx, LAST_TAIL_S, 1.7);
+    const cv = ctx.createConvolver(); cv.buffer = light ? makeImpulse(ctx, LAST_TAIL_PHONE_S, 1.5, 1) : makeImpulse(ctx, LAST_TAIL_S, 1.7);
     const verb = G(1.1);
     chain(verb, cv, F("lowpass", 900), G(1), thOut);
     thunderHit(t, 1).forEach((n) => n.connect(verb));
@@ -173,6 +190,7 @@ export function createSummonSound(out, { mix = "full" } = {}) {
 
   return {
     mix,
+    light,
     get ctx() { return ctx; },
     // tau: the summons' own clock (seconds since it began) right now.
     // rate: how fast the summons' build clock runs against real time
@@ -217,7 +235,7 @@ export function createSummonSound(out, { mix = "full" } = {}) {
       setTimeout(() => {
         srcs.forEach((s) => { try { s.stop(); } catch (e) {} });
         try { toGame.disconnect(); } catch (e) {}
-      }, ((clap ? (phone ? LAST_TAIL_PHONE_S : LAST_TAIL_S) : 5) + fade + 0.5) * 1000);
+      }, ((clap ? (light ? LAST_TAIL_PHONE_S : LAST_TAIL_S) : 5) + fade + 0.5) * 1000);
     },
   };
 }

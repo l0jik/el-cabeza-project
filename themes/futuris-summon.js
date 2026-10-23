@@ -549,7 +549,7 @@ export function mountSummon(three, { delay = 300, audio = null, cam = null } = {
       const r = canvas.getBoundingClientRect();
       return {
         active, ready: performance.now() >= readyAt, waves: waves.length, height, S,
-        sound: sound ? { mix: sound.mix, state: sound.ctx.state, thunder } : null,
+        sound: sound ? { mix: sound.mix, light: sound.light, state: sound.ctx.state, thunder } : null,
         screen: { x: r.left + ((ndc.x + 1) / 2) * r.width, y: r.top + ((1 - ndc.y) / 2) * r.height },
         lifted: [...pieces.values()].map((e) => +(e.parts[0].obj.position.y - e.parts[0].pos.y).toFixed(3)),
       };

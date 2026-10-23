@@ -32,8 +32,10 @@ export const hasAudio = true;
 
 // The ceiling speakers' volume: the music (the tape and the arrangements)
 // at half what it was (the user: "cut 50%"), then 40% lower again (0.5 ->
-// 0.3, user); the store's own sounds and the pieces as they were.
-const MUSIC_VOLUME = 0.3;
+// 0.3, user), then 20% lower again (0.3 -> 0.24; user: "the store music
+// audio ceiling should be reduced 20%"); the store's own sounds and the
+// pieces as they were.
+const MUSIC_VOLUME = 0.24;
 // The PA's announcements (chime and voice), 20% lower than they were (user).
 const PA_VOLUME = 0.8;
 
@@ -363,6 +365,23 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
     param.setValueAtTime(param.value, t);
     param.linearRampToValueAtTime(v, t + Math.max(0.01, secs));
   }
+  /* Walking in (user: "the sound starts low, then suddenly jumps up ... I
+     think the audio should come in a more graduated way"): the hum and the
+     air come up together over ENTRY_IN, and the music, whenever its first
+     reel is in (or the first arrangement starts), comes up the same way on
+     its own, one fade each, none on top of another. The reel had come in
+     over 50 ms once fetched and decoded, onto air already up: the jump.
+     swell: from `from` at t to `to` over secs, an even climb in loudness
+     (an exponential curve, about 8 dB in each of its last three quarters),
+     in short straight steps so a ramp() can take over at any moment. */
+  const ENTRY_IN = 5;
+  let entryMusic = false, tapeSwellUntil = 0, musicSwellUntil = 0;
+  function swell(param, from, to, t, secs) {
+    const K = 3, N = 24, span = Math.exp(K) - 1;
+    param.cancelScheduledValues(t);
+    param.setValueAtTime(from, t);
+    for (let i = 1; i <= N; i++) param.linearRampToValueAtTime(from + (to - from) * (Math.exp((K * i) / N) - 1) / span, t + (secs * i) / N);
+  }
   function noise(t0, dur, brown = false) {
     const s = ctx.createBufferSource();
     s.buffer = brown ? brownBuf : noiseBuf; s.loop = true;
@@ -390,7 +409,7 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
     const saw = ctx.createOscillator(); saw.type = "sawtooth"; saw.frequency.value = 120;
     const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2600; bp.Q.value = 2.5;
     saw.connect(bp).connect(buzzGain).connect(humGain); saw.start(t);
-    humGain.gain.setValueAtTime(0, t); humGain.gain.linearRampToValueAtTime(1, t + 2.5);
+    humGain.gain.setValueAtTime(1, t);
     // Air handling: a low rumble and a little hiss from the vents.
     hvacGain = ctx.createGain(); hvacGain.gain.value = 0;
     const rum = noise(t, 1e6, true);
@@ -402,7 +421,10 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
     const hg = ctx.createGain(); hg.gain.value = 0.0045;
     hiss.connect(hbp).connect(hg).connect(hvacGain);
     hvacGain.connect(ambBus);
-    hvacGain.gain.setValueAtTime(0, t); hvacGain.gain.linearRampToValueAtTime(1, t + 4);
+    hvacGain.gain.setValueAtTime(1, t);
+    // (The two together, as one: the air had come up over 4 s, the hum
+    // over 2.5.)
+    swell(ambBus.gain, 0, 1, t, ENTRY_IN);
     scheduleEvent(12000 + Math.random() * 10000);
   }
 
@@ -701,9 +723,10 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
     src.onended = () => { try { tapeRate.disconnect(src.playbackRate); src.disconnect(); } catch (e) { /* gone */ } };
     tapeOffset = r.pos < r.buffer.duration - 8 ? r.pos : 0;
     src.start(at, tapeOffset);
-    tapeIn.gain.cancelScheduledValues(at);
-    tapeIn.gain.setValueAtTime(0, at);
-    tapeIn.gain.linearRampToValueAtTime(TAPE_LEVEL, at + (fadeIn != null ? fadeIn : tapeOffset > 0 ? 1.5 : 0.05));
+    const fade = fadeIn != null ? fadeIn : tapeOffset > 0 ? 1.5 : 0.05;
+    if (fade >= 1) swell(tapeIn.gain, 0, TAPE_LEVEL, at, fade);
+    else { tapeIn.gain.cancelScheduledValues(at); tapeIn.gain.setValueAtTime(0, at); tapeIn.gain.linearRampToValueAtTime(TAPE_LEVEL, at + fade); }
+    tapeSwellUntil = at + fade;
     tapeSrc = src; tapeStartedAt = at;
     tapeEndsAt = at + (r.buffer.duration - tapeOffset) / TAPE_RATE;
     tapeGap = 4 + Math.random() * 3;
@@ -721,6 +744,7 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
     const t = ctx.currentTime;
     if (cur()) cur().pos = t >= tapeEndsAt ? 0 : tapeOffset + Math.max(0, t - tapeStartedAt) * TAPE_RATE;
     ramp(tapeIn.gain, 0, secs);
+    tapeSwellUntil = 0;
     try { tapeSrc.stop(t + secs + 0.05); } catch (e) { /* already stopped */ }
     tapeSrc = null;
   }
@@ -730,9 +754,9 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
     if (!ctx) return;
     if (playing === "wait-tape") {
       // The first time, give the tape a moment to decode.
-      if (tapeReady()) startTape(ctx.currentTime + 0.3);
+      if (tapeReady()) { startTape(ctx.currentTime + 0.3, entryMusic ? ENTRY_IN : undefined); entryMusic = false; }
       else if (cur() && cur().failed && anyReel()) { nextReel(); tapeWaitUntil = Math.max(tapeWaitUntil, ctx.currentTime + 8); }
-      else if (!anyReel() || ctx.currentTime > tapeWaitUntil) nextPiece(ctx.currentTime + 0.3);
+      else if (!anyReel() || ctx.currentTime > tapeWaitUntil) firstPiece(ctx.currentTime + 0.3);
       return;
     }
     if (playing === "tape") {
@@ -768,18 +792,27 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
     if (held) return;
     // Back before the fade had finished (an undo at the end of a game):
     // the tape's still running, so just bring it up again.
-    if (playing === "tape" && tapeSrc) ramp(tapeIn.gain, TAPE_LEVEL, 1.5);
+    // (Not while it's still coming up, walking in.)
+    if (playing === "tape" && tapeSrc && ctx.currentTime >= tapeSwellUntil) ramp(tapeIn.gain, TAPE_LEVEL, 1.5);
+    // (Walking in, the speakers are up at once and the music swells on its
+    // own; not while it's still coming up.)
+    if (ctx.currentTime >= musicSwellUntil) ramp(musicBus.gain, 1, entryMusic ? 0.05 : 3);
     if (!playing) {
       if (anyReel() && !(typeof window !== "undefined" && window.__TIENDA_MUSIC_ONLY__ === "arrangements")) { playing = "wait-tape"; tapeWaitUntil = ctx.currentTime + 8; }
-      else nextPiece(ctx.currentTime + 1.2);
+      else firstPiece(ctx.currentTime + 1.2);
     }
     clearInterval(schedTimer);
     schedTimer = setInterval(schedule, 90);
-    ramp(musicBus.gain, 1, 3);
+  }
+  // An arrangement where there's no reel; walking in, swelling up with it.
+  function firstPiece(at) {
+    nextPiece(at);
+    if (entryMusic) { entryMusic = false; swell(musicBus.gain, 0, 1, at, ENTRY_IN); musicSwellUntil = at + ENTRY_IN; }
   }
   function stopMusic(secs) {
     if (!ctx) return;
     ramp(musicBus.gain, 0, secs);
+    musicSwellUntil = 0;
     if (tapeIn) ramp(tapeIn.gain, 0, secs);
     const id = schedTimer;
     setTimeout(() => {
@@ -808,6 +841,7 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
       held = true; heldAt = t; heldNow = now;
       clearInterval(schedTimer); schedTimer = null;
       ramp(musicBus.gain, 0, HOLD_FADE);
+      musicSwellUntil = 0;
       heldTape = playing === "tape" && !!tapeSrc && t < tapeEndsAt;
       if (heldTape) stopTape(HOLD_FADE);
     } else {
@@ -846,9 +880,11 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
     if (!ctx) return;
     if (!storeOn) {
       storeOn = true;
+      entryMusic = true;
       startAmbience();
-    }
-    ramp(storeBus.gain, zoomLevel(), 2.5);
+      storeBus.gain.cancelScheduledValues(ctx.currentTime);
+      storeBus.gain.setValueAtTime(zoomLevel(), ctx.currentTime);
+    } else ramp(storeBus.gain, zoomLevel(), 2.5);
     startMusic();
   }
   const zoomLevel = () => 0.85 + 0.15 * (1 - zoom);

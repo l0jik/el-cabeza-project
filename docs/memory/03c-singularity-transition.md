@@ -120,3 +120,25 @@ to-black → draggable Fresnel-glow sphere sequence, in a new module,
   9.59 s with the scramble at 14.08 s; after, a menu opened: scramble
   14.25 s, drone 14.30 s; nothing touched: scramble 26.83 s, drone
   26.87 s.
+- **Light reverbs on a Chromebook too** (2026-10-23; user: "On a desktop /
+  Chromebook, when "Singularity" is clicked the audio cue doesn't
+  successfully trigger. The sound of going through the black hole and the
+  'ear-ringing' when you arrive are absent. Something was preventing it
+  from playing."). The tap on the invite starts long reverbs at once (the
+  last thunderclap's 10 s, the toll's 11.5 s, the hum's 6.5 s, then the
+  fall's 4.2 s, with the summons' room and thunder reverbs still going
+  and the ring's room at the sphere), all stereo on a computer: measured
+  offline (scratchpad sing/cost.mjs) 29.5% of a core's real time here,
+  where the light set (one channel, the long ones shorter, as a phone has
+  had since the Android phone's sound stopped dead at the same tap) is
+  8.5%. A Chromebook's core is two or three times slower, and the fall
+  loads its graphics too: the sound drops out. A test browser here plays
+  it all (desktop, phone, by the set or the pull: scratchpad
+  sing/measure.mjs, an analyser on every context), so it's the machine.
+  Now the light reverbs (futuris-summon-audio.js lightReverbsFor, used by
+  the summons, futuris.js's makeImpulse and the ring's room in
+  futuris-unease.js) go to a phone and to a computer that may not keep up:
+  a Chromebook (CrOS), four cores or fewer, or 4 GB or less;
+  localStorage ec:reverbs = light | full overrides. The summons' mix (its
+  EQ) is still by touch. Tests: tests/futuris-reverbs.smoke.mjs (which
+  devices), e2e-summon (the phone's sound light).

@@ -451,3 +451,22 @@ in; leaving Singularity, back in the den as the set switches off.
   it was; a tap away, the board with the receiver at your ear; hung up,
   the glass works; Room view first, then the slip or a pick-up: down to
   the board; the phone bar's menu row greyed, saying why).
+- **The title's hold, a press only** (2026-10-23; user, with a desktop
+  screenshot of the den after the commercial, the special-order note up
+  and CONNECT over it: "Right after the TV commercial plays, I was brought
+  back to the conversation pit table correctly, with the blue ring being
+  correct, etc. However, when I hovered the mouse over the masthead it
+  triggered the old bridge to Futuris. The order form prompt had opened,
+  but the CONNECT button also opened, so basically couldn't click on
+  anything."). The hold zone over the title (apps/unifiedTransition.jsx
+  MastheadHoldZone, in the den once the Singularity's been visited) began
+  on the mouse entering it, so a mouse resting on the title for 4 s
+  brought CONNECT up; the note's lock (tienda-overlay.js) stops every
+  press but its own at the window, so neither CONNECT nor the note could
+  be pressed, nor Escape. Now only a press begins it (the mouse's main
+  button or a finger); hovering does nothing, and while the note holds
+  the screen a press is stopped before it reaches the zone. (A quick click
+  on the title now always passes through to the title, where after a
+  rest over it it hadn't.) Tests: e2e-story (the note up: resting on the
+  title, then a press held, no CONNECT), e2e-original (resting brings no
+  CONNECT; a press held still does).

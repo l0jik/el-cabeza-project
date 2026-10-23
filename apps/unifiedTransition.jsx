@@ -379,7 +379,11 @@ function useHoldTrigger(ms, onComplete) {
 // press-and-hold vs. a quick tap: a tap forwards a synthetic click to
 // whatever element is actually underneath it (so the title's own
 // click behavior, e.g. Futuris's letter-phosphor effect, still works),
-// while a hold past HOLD_MS fires onHoldComplete instead.
+// while a hold past HOLD_MS fires onHoldComplete instead. Only a press
+// begins it, a mouse's main button or a finger: a mouse resting on the
+// title had begun it, the CONNECT prompt coming up unasked (user, at
+// home after the commercial, the special-order note up, which takes
+// every click but its own: "basically couldn't click on anything").
 export function MastheadHoldZone({ zoneRef, onBegin, onEnd, onHoldComplete, onTap }) {
   const activeRef = useRef(false);
   const completedRef = useRef(false);
@@ -395,6 +399,7 @@ export function MastheadHoldZone({ zoneRef, onBegin, onEnd, onHoldComplete, onTa
 
   const begin = (ev) => {
     if (activeRef.current) return;
+    if (ev && ev.type === "mousedown" && ev.button !== 0) return;
     activeRef.current = true;
     completedRef.current = false;
     startedAtRef.current = performance.now();
@@ -435,7 +440,6 @@ export function MastheadHoldZone({ zoneRef, onBegin, onEnd, onHoldComplete, onTa
     <div
       ref={zoneRef}
       className="ec-masthead-hold-zone"
-      onMouseEnter={begin}
       onMouseLeave={(ev) => end(ev, false)}
       onMouseDown={begin}
       onMouseUp={(ev) => end(ev, true)}

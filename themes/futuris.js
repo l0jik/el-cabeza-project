@@ -22,6 +22,7 @@ import { PIECE_ORIENTATIONS, shuffledIndices, generateAnomalySetup } from "../en
 // Moved to engine/anomaly.js; re-exported so existing imports keep working.
 export { PIECE_ORIENTATIONS, shuffledIndices, generateAnomalySetup };
 import { advanceSingularityScene, useSingularityPhase, renderSingularityOverlay } from "./futuris-singularity.js";
+import { lightReverbsFor } from "./futuris-summon-audio.js";
 
 /* Everything visual in this experimental skin lives in these two
    objects (COLORS for the DOM/CSS layer, HEX for the Three.js scene
@@ -4950,8 +4951,10 @@ export function createSoundscape() {
      the tap into the wormhole starts three at once, and on an Android
      phone the audio thread couldn't keep up and the sound dropped out
      (user; measured in futuris-summon-audio.js). A phone's speaker is all but
-     mono, and can't play the long low tails anyway. */
-  const lightReverbs = typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+     mono, and can't play the long low tails anyway. And on a computer that
+     may not keep up either (a Chromebook, user: silent from the tap on;
+     futuris-summon-audio.js lightReverbsFor). */
+  const lightReverbs = lightReverbsFor();
   function makeImpulse(duration, decay) {
     if (lightReverbs) duration = Math.min(duration, 0.4 * duration + 0.5);
     const chans = lightReverbs ? 1 : 2;

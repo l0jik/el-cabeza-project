@@ -250,6 +250,30 @@ console.log("\ndesktop: the store, the purchase, home");
   await page.waitForTimeout(900);
   check("...nothing else takes a tap or a drag: the camera stays", cam0 === await page.evaluate(() => { const p = window.__EC_TEST_THREE__().camera.position; return [p.x, p.y, p.z].map((v) => v.toFixed(2)).join(); }));
   check("...and each tap off it makes it throb", /td-throb/.test(await q(page, "tienda-special-note").getAttribute("class")));
+  // Nor the title's hold into Futuris (there once the Singularity's been
+  // visited): a mouse resting on the masthead had begun it, CONNECT came
+  // up over the note, and then nothing could be pressed (user).
+  {
+    const spot = await page.evaluate(() => {
+      const z = document.querySelector(".ec-masthead-hold-zone"), t = document.querySelector(".ec-title");
+      if (!z || !t) return null;
+      const r = t.getBoundingClientRect();
+      for (const fx of [0.5, 0.3, 0.7, 0.15, 0.85]) for (const fy of [0.6, 0.4, 0.8]) {
+        const x = r.left + r.width * fx, y = r.top + r.height * fy;
+        if (document.elementFromPoint(x, y) === z) return { x, y };
+      }
+      return null;
+    });
+    check("...the title's hold is there, on top (the Singularity's been visited)", !!spot);
+    if (spot) {
+      await page.mouse.move(spot.x, spot.y);
+      await page.waitForTimeout(4600);
+      check("...a mouse resting on the masthead brings no CONNECT", (await page.locator(".ec-hold-modal-word").count()) === 0);
+      await page.mouse.down(); await page.waitForTimeout(4600); await page.mouse.up();
+      check("...nor a press held on it while the note's up", (await page.locator(".ec-hold-modal-word").count()) === 0);
+      await page.mouse.move(8, 300);
+    }
+  }
   await page.waitForFunction(() => { const n = document.querySelector(".td-special-note"); return n && performance.now() - Number(n.dataset.since) > 2600; }, null, { timeout: 8000 }); // (held a moment against wild taps)
   await q(page, "tienda-special-note").click();
   check("the note is the whole order form", await poll(() => has(page, "tienda-order"), 8000));

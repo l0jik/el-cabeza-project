@@ -107,6 +107,10 @@ const theme = (page) => page.evaluate(() => {
   const box = await page.locator("h1").first().boundingBox();
   const at = spot || { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   await page.mouse.move(at.x, at.y);
+  // (Resting there isn't holding: only a press begins it, user: the
+  // mouse over the masthead had brought CONNECT up unasked.)
+  await page.waitForTimeout(4400);
+  check("a mouse resting on the masthead brings no CONNECT", (await page.locator(".ec-hold-modal-word").count()) === 0);
   await page.mouse.down();
   await page.waitForTimeout(4400);
   await page.mouse.up();

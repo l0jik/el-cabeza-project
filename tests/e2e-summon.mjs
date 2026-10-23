@@ -73,7 +73,10 @@ console.log("the first arrival");
   const S = () => page.evaluate(() => (window.__EC_SUMMON__ ? window.__EC_SUMMON__() : { active: false }));
   check("the summons is up", !!(await poll(async () => (await S()).active, 10000)));
   const snd = (await S()).sound;
-  check("its sound: the phone mix, playing", !!snd && snd.mix === "phone" && snd.state === "running", JSON.stringify(snd));
+  // (Its reverbs light, one channel and the long ones shorter: a phone's audio
+  // can't keep up with the full ones at the tap into the wormhole, nor a
+  // Chromebook's, user; tests/futuris-reverbs.smoke.mjs.)
+  check("its sound: the phone mix, light reverbs, playing", !!snd && snd.mix === "phone" && snd.light === true && snd.state === "running", JSON.stringify(snd));
   const s1 = await poll(async () => { const s = await S(); return s.ready && s.lifted.length && s.lifted.every((y) => y > 0.1) ? s : null; }, 12000);
   check("the pieces have lifted off the board, facing it", !!s1, JSON.stringify(await S()));
   check("the singularity sits between the title and the board", !!s1 && s1.screen.y > 110 && s1.screen.y < 420, JSON.stringify(s1 && s1.screen));
