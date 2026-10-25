@@ -10914,7 +10914,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     }).catch((e) => setSavesNote({ text: e.message, kind: "err" }));
   }
   function savesCopy(text, what) {
-    const done = () => setSavesNote({ text: `${what} copied.`, kind: "ok" });
+    const done = () => setSavesNote({ text: t("{what} copied.", { what }), kind: "ok" });
     const fail = () => setSavesNote({ text: t("Couldn't copy; it's {code}", { code: text }), kind: "err" });
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fail);
@@ -10962,7 +10962,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }
   // What the sheet says the log holds.
   function replaySummary(r) {
-    const turns = `${r.total} turn${r.total === 1 ? "" : "s"}`;
+    const turns = t(r.total === 1 ? "{n} turn" : "{n} turns", { n: r.total });
     const won = r.final && r.final.won;
     const result = won ? t("{side} wins ({why})", { side: sideName(won.winner), why: tr(won.why).toLowerCase() }) : t("not finished");
     const rules = replayVariants(r.rec);
@@ -14145,7 +14145,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             onToggleFocus: focusable ? toggleFocus : null,
             // Menu
             playersLine: ["dark", "light"]
-              .map((side) => `${sideName(side)}: ${aiPlayer === side ? `AI (${AI_DIFFICULTY[aiDifficulty].label})` : aiPlayer ? "You" : online ? (side === online.mySide ? "You" : "Online") : "Human"}`)
+              .map((side) => t("{side}: {who}", { side: sideName(side), who: aiPlayer === side ? t("AI ({level})", { level: AI_DIFFICULTY[aiDifficulty].label }) : aiPlayer ? "You" : online ? (side === online.mySide ? "You" : "Online") : "Human" }))
               .join("  \u00b7  "),
             onOpenRules: (tab, focus) => openRulesAt(tab, focus || null),
             rulesTabsHidden: hiddenRulesTabs,
@@ -15035,7 +15035,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
               color: COLORS.charcoal,
             }}
           >
-            {`${sideName(winner)} wins`.toUpperCase()}
+            {t("{side} wins", { side: sideName(winner) }).toUpperCase()}
           </h2>
 
           <p

@@ -37,7 +37,8 @@ menu's CSS reads it.
 
 The English is the key: every line a player reads is looked up by its
 English in the language's table, i18n/es.js or i18n/vi.js (fetched only
-once its language is chosen: separate chunks, about 200 KB each). A line a
+once its language is chosen: separate chunks, Spanish 155 KB and
+Vietnamese 204 KB, 53 and 57 KB as sent compressed). A line a
 table hasn't got shows in English. In English nothing is looked up at all.
 
 - **React's text** needs nothing: the pages' JSX runtime
@@ -118,10 +119,17 @@ table hasn't got shows in English. In English nothing is looked up at all.
 - A new player-facing line in JSX needs nothing but its entry in both
   tables (keyed by the English, exactly; spaces and line breaks don't
   matter). A new line made of parts: write it whole with `t()`.
+- Where a file's `t` is something else, import the words' `t` under
+  another name: the phone shell (chassis/MobileShell.jsx), where `t` is the
+  look's tokens, has `inWords`; futuris-singularity.js `say`; lab/hud.js
+  and tienda-order.js `inWords`. A `t("...")` on a look's tokens throws:
+  7764d69 called it in the shell's play panel (the actions meter, the
+  piece card) and online lines, and every phone game stopped at Begin
+  until the next push. Run e2e-nova-mobile after touching the shell.
 - Which lines the code has and which a table lacks:
   `node tools/i18n_strings.mjs` (counts, the missing, and the lines made of
   parts that want writing whole); `--list` every line by file.
-- The tables were made in 19 batches (2,103 Spanish and 2,116 Vietnamese
+- The tables were made in 19 batches (2,114 Spanish and 2,126 Vietnamese
   lines; ids from a frozen work list, then the lines the list couldn't see:
   the corner menu's HTML, the gate's picker, lines rewritten with holes).
   The batch files were scratch work; the tables are the source now.

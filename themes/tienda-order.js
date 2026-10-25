@@ -216,7 +216,7 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
       cells.push(h("button", {
         key: `${r},${c}`, type: "button", className: cls.join(" "),
         "data-testid": `tienda-cell-${r}-${c}`, "data-row": r, "data-col": c, "data-mark": at ? (at.mirror ? "mirror" : at.spot.random ? "rolled" : "hand") : "",
-        "aria-label": `Row ${r + 1}, column ${c + 1}${at ? (isHole ? `, singularity${count === 2 ? ` of set ${at.set}` : ""}` : ", cut out") : ""}`,
+        "aria-label": inWords(!at ? "Row {r}, column {c}" : !isHole ? "Row {r}, column {c}, cut out" : count === 2 ? "Row {r}, column {c}, singularity of set {n}" : "Row {r}, column {c}, singularity", { r: r + 1, c: c + 1, n: at && at.set }),
         style: { width: cell, height: cell, fontSize: Math.max(10, cell * 0.55) },
         onClick: () => tap(r, c),
       }, mark));

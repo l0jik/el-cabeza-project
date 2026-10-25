@@ -679,6 +679,14 @@ export default {
   "{cols} by {rows}": "{cols} nhân {rows}",
   "Replay code (paste the whole log into Replay a game):": "Mã xem lại (dán cả nhật ký vào Xem lại một ván):",
   "How it moves": "Cách nó di chuyển",
+  "{side} wins": "{side} thắng",
+  "{what} copied.": "{what} đã được chép.",
+  "{n} turn": "{n} lượt",
+  "{n} turns": "{n} lượt",
+  "{n} move": "{n} nước đi",
+  "{n} moves": "{n} nước đi",
+  "{what} volume": "Âm lượng: {what}",
+  "off": "tắt",
 
   // The rules: the laws, the pieces, the cards and the setup menus' words
   "About": "Giới thiệu",
@@ -1486,6 +1494,7 @@ export default {
   "{dim}: one square more": "{dim}: thêm một ô",
   "singularities": "điểm kỳ dị",
   "{piece}: drag to turn": "{piece}: kéo để xoay",
+  "No. 4417 · Made in Argentina · © 1975": "Số 4417 · Sản xuất tại Argentina · © 1975",
 
   // The den: the TV, the phone, the thoughts
   "Finally…": "Cuối cùng…",
@@ -1835,6 +1844,7 @@ export default {
   "New pieces, laws and boards: SINGULARITY": "Quân, luật và bàn cờ mới: ĐIỂM KỲ DỊ",
   "Custom rules ›": "Luật tùy chỉnh ›",
   "A random, rotationally-symmetric opening layout": "Thế mở đầu ngẫu nhiên có đối xứng xoay",
+  "{what} count": "Số lượng: {what}",
 
   // The other worlds' own words (Lluvia, Luna, Noir, the City, Plano, Cromo, Parrish)
   "Glass pavilion": "Nhà kính",

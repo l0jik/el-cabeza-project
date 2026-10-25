@@ -8,6 +8,7 @@
    turned input is the one way to stand it up that every phone browser
    draws the same. Its value is 0-100; `level` and `onLevel` are 0..1. */
 import React from "react";
+import { t, tr } from "./i18n.js";
 
 export default function VolumeFader({ level, onLevel, label, hint, testid, height = 112, accent, color, muted, dim, labelFont }) {
   const pct = Math.round(Math.max(0, Math.min(1, level)) * 100);
@@ -28,9 +29,9 @@ export default function VolumeFader({ level, onLevel, label, hint, testid, heigh
           step={1}
           value={pct}
           onChange={(e) => onLevel(Number(e.target.value) / 100)}
-          aria-label={`${label} volume`}
+          aria-label={t("{what} volume", { what: label })}
           aria-orientation="vertical"
-          aria-valuetext={off ? "off" : `${pct}%`}
+          aria-valuetext={off ? tr("off") : `${pct}%`}
           data-testid={testid}
           data-level={pct}
           style={{

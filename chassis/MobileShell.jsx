@@ -1,7 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import VolumeFader from "./VolumeFader.jsx";
 import NowPlaying from "./NowPlaying.jsx";
-import { t } from "./i18n.js";
+// (Inside the shell `t` is its look's tokens: the words' own is inWords.)
+import { t as inWords } from "./i18n.js";
 import { sideNamesOf, sideDotStyle } from "../themes/side-names.js";
 
 /* The phone layout (a page opts in with ElCabeza3D's mobileShell prop;
@@ -417,7 +418,7 @@ function OnlineBlock({ ctl, t }) {
             <button type="button" className="ec-shell-btn" data-testid="shell-online-copy-link" onClick={() => copy(c.link(), "link")} style={btn}>{copied === "link" ? "Link copied" : "Copy a link"}</button>
             <p data-testid="shell-online-status" style={line}>
               {o.status === "gone" ? "The other player left." : o.status === "playing" ? "In play." : o.peer ? "The other player is here: Begin when ready." : "Waiting for the other player…"}
-              {" "}You play {name(o.mySide)}, first; they play {name(o.theirSide)}.
+              {" "}{inWords("You play {mine}, first; they play {theirs}.", { mine: name(o.mySide), theirs: name(o.theirSide) })}
             </p>
           </>
         )}
@@ -429,8 +430,8 @@ function OnlineBlock({ ctl, t }) {
     body = (
       <>
         <p data-testid="shell-online-status" style={line}>
-          {o.status === "connecting" ? t("Joining {code}…", { code: o.code }) : o.status === "gone" ? "The other player left." : o.status === "playing" ? t("In play with {code}.", { code: o.code }) : t("Joined {code}. Waiting for the host to begin…", { code: o.code })}
-          {o.status !== "connecting" && <>{" "}You play {name(o.mySide)}; they play {name(o.theirSide)}.</>}
+          {o.status === "connecting" ? inWords("Joining {code}…", { code: o.code }) : o.status === "gone" ? "The other player left." : o.status === "playing" ? inWords("In play with {code}.", { code: o.code }) : inWords("Joined {code}. Waiting for the host to begin…", { code: o.code })}
+          {o.status !== "connecting" && <>{" "}{inWords("You play {mine}; they play {theirs}.", { mine: name(o.mySide), theirs: name(o.theirSide) })}</>}
         </p>
         {o.link === "down" && <p data-testid="shell-online-link" style={{ ...line, color: "#e5392d" }}>Your connection dropped; trying again…</p>}
         <button type="button" className="ec-shell-btn" data-testid="shell-online-leave" onClick={c.leave} style={btn}>Leave</button>
@@ -693,7 +694,7 @@ function PlayPanel({ ctl, t }) {
           <span
             data-testid="shell-points"
             data-left={ctl.points.left}
-            aria-label={t("{n} of {total} actions left", { n: ctl.points.left, total: ctl.points.budget })}
+            aria-label={inWords("{n} of {total} actions left", { n: ctl.points.left, total: ctl.points.budget })}
             key={ctl.pointsPulse}
             style={{ display: "flex", gap: 8, flexShrink: 0, animation: ctl.pointsPulse ? "ec-shell-points 0.6s ease-out" : "none", ["--ec-ember"]: ctl.points.glow || accent || t.ink }}
           >
@@ -728,7 +729,7 @@ function PlayPanel({ ctl, t }) {
             data-testid="piece-card"
             data-piece={info.type}
             onClick={() => ctl.onOpenRules("moves", info.tile)}
-            aria-label={`${t(info.name)}: ${t(info.text)} ${t("How it moves")}`}
+            aria-label={`${inWords(info.name)}: ${inWords(info.text)} ${inWords("How it moves")}`}
             style={{
               flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6, textAlign: "left",
               background: "transparent", border: "none", padding: 0, cursor: "pointer",
@@ -839,7 +840,7 @@ function MenuSheet({ ctl, t, open, onClose, landscape, safe }) {
           <Section label="Game" t={t}>
             <Row label="How to play" testid="shell-menu-rules" onClick={run(() => ctl.onOpenRules("quick"))} chevron t={t} />
             {!(ctl.rulesTabsHidden || []).includes("game") && <Row label="Rules in this game" testid="shell-menu-game-rules" onClick={run(() => ctl.onOpenRules("game"))} chevron t={t} />}
-            <Row label="Move log" testid="shell-menu-movelog" disabled={!ctl.logCount} detail={ctl.logCount ? `${ctl.logCount} move${ctl.logCount === 1 ? "" : "s"}` : "No moves yet"} onClick={run(ctl.onOpenMoveLog)} chevron t={t} />
+            <Row label="Move log" testid="shell-menu-movelog" disabled={!ctl.logCount} detail={ctl.logCount ? inWords(ctl.logCount === 1 ? "{n} move" : "{n} moves", { n: ctl.logCount }) : "No moves yet"} onClick={run(ctl.onOpenMoveLog)} chevron t={t} />
             {/* A copied log back in, played back on the board (the chassis's Replay a game). */}
             {ctl.onOpenReplay && <Row label="Replay a game" testid="shell-menu-replay" detail="From a copied move log" onClick={run(ctl.onOpenReplay)} chevron t={t} />}
             {/* Everything this browser keeps, carried (the chassis's Save & carry). */}

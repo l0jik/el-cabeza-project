@@ -671,6 +671,15 @@ export default {
   "Replay code (paste the whole log into Replay a game):": "Código de repetición (pegá el registro entero en Reproducir una partida):",
   "How it moves": "Cómo se mueve",
   "Replay a game [link]": "Ver repetición",
+  "{side} wins": "Gana {side}",
+  "{what} copied.": "{what} se copió.",
+  "{n} turn": "{n} turno",
+  "{n} turns": "{n} turnos",
+  "{n} move": "{n} jugada",
+  "{n} moves": "{n} jugadas",
+  "AI ({level})": "IA ({level})",
+  "{what} volume": "Volumen: {what}",
+  "off": "apagado",
 
   // The rules: the laws, the pieces, the cards and the setup menus' words
   "About": "Acerca de",
@@ -1474,6 +1483,7 @@ export default {
   "{dim}: one square more": "{dim}: una casilla más",
   "singularities": "singularidades",
   "{piece}: drag to turn": "{piece}: arrastrá para girar",
+  "No. 4417 · Made in Argentina · © 1975": "Nro. 4417 · Hecho en la Argentina · © 1975",
 
   // The den: the TV, the phone, the thoughts
   "Finally…": "Por fin…",
@@ -1823,6 +1833,7 @@ export default {
   "New pieces, laws and boards: SINGULARITY": "Piezas, leyes y tableros nuevos: SINGULARIDAD",
   "Custom rules ›": "Reglas a medida ›",
   "A random, rotationally-symmetric opening layout": "Una disposición inicial al azar con simetría rotacional",
+  "{what} count": "Cantidad: {what}",
 
   // The other worlds' own words (Lluvia, Luna, Noir, the City, Plano, Cromo, Parrish)
   "Glass pavilion": "Pabellón de vidrio",

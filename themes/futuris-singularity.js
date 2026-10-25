@@ -3501,7 +3501,7 @@ function renderRosterRow(t, p, viewType) {
       h("div", { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, lineHeight: 1.4, color: "rgba(207,216,220,0.64)", marginTop: 2 } }, detail)
     ),
     h(DrumRoller, {
-      id: `roster-${p.key}`, value: n, min: p.min, max: p.max, inline: true, ariaLabel: `${label} count`,
+      id: `roster-${p.key}`, value: n, min: p.min, max: p.max, inline: true, ariaLabel: say("{what} count", { what: label }),
       onChange: (v) => { sel.matter.roster[p.key] = v; s.labelsDirty = true; s.bump(); },
     })
   );
