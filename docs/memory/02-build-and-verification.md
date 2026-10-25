@@ -69,4 +69,16 @@
 - Playwright launches via a pinned local Chromium path
   (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome` as of this
   session) — don't `playwright install`.
+- **The two test browsers differ on codecs** (2026-10-25). The local one
+  (Chromium 141, an open-source build) has no AAC or H.264: an .m4a fails
+  both `decodeAudioData` (EncodingError) and an `<audio>` (error 4,
+  DEMUXER_ERROR_NO_SUPPORTED_STREAMS). CI's (`npx playwright install
+  chromium` with Playwright 1.63: Google Chrome for Testing
+  153.0.8010.12, symlinked to the same path by e2e.yml) plays MP3, AAC,
+  Opus and H.264. To run CI's exact browser here, take its version from
+  `node_modules/playwright-core/browsers.json` and fetch
+  `https://storage.googleapis.com/chrome-for-testing-public/<version>/linux64/chrome-linux64.zip`
+  into the scratchpad (cdn.playwright.dev, Playwright's own mirror, is
+  refused by the proxy); unzip it (chmod +x chrome, chrome_crashpad_handler)
+  and pass it as `executablePath`. That leaves the pinned browser alone.
 
