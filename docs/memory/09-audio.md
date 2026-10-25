@@ -57,6 +57,27 @@ on "does this theme have audio." Both Standard and Futuris currently have
   set an iOS app's minimum to 18.4. A switch would also need the loops,
   the slices and the den spot's sync checked again (Opus decodes at
   48 kHz) and the files' names changed in the code and build.js.
+- **The Parrish stutter report (2026-10-25, user: the music "very
+  glitchy ... like it's trying to cache").** Not reproduced on the
+  server. Ruled out: the network (every song, the evening and the
+  opening/closing are fetched whole and decoded before they start,
+  AudioBufferSourceNodes on the audio clock); the files (all six scanned
+  for dropouts, clicks and repeats: clean; scratchpad
+  parrish-audio/scan.py); the code (nothing restarts or interrupts a song
+  while it plays). Measured (Chrome's `webaudio` trace, CfT 153, a game
+  begun, scratchpad parrish-audio/trace.mjs): the audio thread busy
+  7.4% in Orinoco (its two ConvolverNodes the most; the den 2.8%,
+  Watermark 2.9%), no render over its 10 ms here; the renderer's memory
+  385 MB Orinoco, 460 MB Watermark, 287 MB the den (the songs and the
+  evening held decoded: about 80 MB a song). Starved (browser held to two
+  cores with taskset, software GL), every world stutters, the den too, so
+  that test can't single Parrish out. Chrome's buffer by latencyHint
+  (desktop Linux): interactive and balanced 10 ms, playback 23 ms, a
+  number (0.1) about 100 ms; nothing in the game sets one. The fix
+  offered: the long recordings (songs, evening, opening, close) on their
+  own AudioContext with a deep buffer (latencyHint about 0.1), the
+  pieces' sounds left on the quick one; and, optionally, the songs
+  streamed (an `<audio>` element) rather than held decoded.
 
 **Standard's wood-impact percussion — do not re-attempt a resonant-filter
 approach.** Three full rewrites happened before landing on the current
