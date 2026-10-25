@@ -16,6 +16,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { facesReady, loadFaces } from "../themes/faces.js";
+import { tr } from "../chassis/i18n.js";
 
 export const STORY_KEY = "el-cabeza:story";
 
@@ -89,27 +90,29 @@ export function saveOwned(owned) {
   }
 }
 
-/* The register tape, 30 columns. The date is today's, in 1975. */
+/* The register tape, 30 columns. The date is today's, in 1975. Its words
+   in the player's language (chassis/i18n.js), each looked up on its own
+   before it's spaced out on the tape. */
 function receiptLines() {
   const d = new Date();
-  const mon = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][d.getMonth()];
+  const mon = tr(["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][d.getMonth()]);
   const row = (l, r) => l + " ".repeat(Math.max(1, 30 - l.length - r.length)) + r;
   const mid = (s) => " ".repeat(Math.max(0, Math.floor((30 - s.length) / 2))) + s;
   return [
-    mid("GAMES & HOBBY DEPT."),
-    row(`${String(d.getDate()).padStart(2, "0")} ${mon} 75`, "REG 3  CLERK 07"),
+    mid(tr("GAMES & HOBBY DEPT.")),
+    row(`${String(d.getDate()).padStart(2, "0")} ${mon} 75`, tr("REG 3  CLERK 07")),
     "-".repeat(30),
-    row("1  EL CABEZA No.4417", "7.97"),
-    row("   SUBTOTAL", "7.97"),
-    row("   TAX", ".48"),
-    row("   TOTAL", "8.45"),
-    row("   CASH", "10.00"),
-    row("   CHANGE", "1.55"),
+    row("1  " + tr("EL CABEZA No.4417"), "7.97"),
+    row("   " + tr("SUBTOTAL"), "7.97"),
+    row("   " + tr("TAX"), ".48"),
+    row("   " + tr("TOTAL"), "8.45"),
+    row("   " + tr("CASH"), "10.00"),
+    row("   " + tr("CHANGE"), "1.55"),
     "-".repeat(30),
     // (The mural's words over the store's way out, user: "change both";
     // on the tape's 30 columns, two lines.)
-    mid("THANK YOU FOR SHOPPING AT"),
-    mid("BIG GLUTTS!"),
+    mid(tr("THANK YOU FOR SHOPPING AT")),
+    mid(tr("BIG GLUTTS!")),
   ];
 }
 

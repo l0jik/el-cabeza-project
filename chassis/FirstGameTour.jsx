@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { t as say, tr, listOf, language } from "./i18n.js";
 
 /* A new player's first game, walked through (user, 2026-10-17: "They
    click begin a game, and then a little pop-up will say, "Welcome to your
@@ -124,24 +125,25 @@ const FOOT_ICONS = {
   ),
 };
 
-/* The marks' colours, bright against the board and its pieces, each with
-   the name the cards call it by: yours, the other side's, the row you
-   win on, and a piece that can't move yet. */
+/* The marks' colours, bright against the board and its pieces: yours (the
+   cards call it yellow), the other side's (red), the row you win on
+   (green), and a piece that can't move yet. */
 export const TOUR_TONES = { mine: "#FFD23F", foe: "#FF5470", goal: "#3FDB7C", dim: "#D9D0C1" };
-const TONE_NAMES = { mine: "yellow", foe: "red", goal: "green" };
 
 const WORDS = ["no", "one", "two", "three", "four", "five"];
-const word = (n) => WORDS[n] || String(n);
+const word = (n) => tr(WORDS[n] || String(n));
 const mono = "'IBM Plex Mono', monospace";
 const sans = "'IBM Plex Sans', sans-serif";
 // "the Flaco and the Opa"; "the Turrito, the Flaco, and the Opa" (the
 // serial comma from three on, user: "where an Oxford comma should be placed").
-const list = (xs) => (xs.length < 2 ? xs.join("") : xs.length === 2 ? `${xs[0]} and ${xs[1]}` : `${xs.slice(0, -1).join(", ")}, and ${xs[xs.length - 1]}`);
+// (In the other languages, their own way of listing: chassis/i18n.js listOf.)
+const list = (xs) => (language() !== "en" ? listOf(xs) : xs.length < 2 ? xs.join("") : xs.length === 2 ? `${xs[0]} and ${xs[1]}` : `${xs.slice(0, -1).join(", ")}, and ${xs[xs.length - 1]}`);
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+// The pieces with "the" before each, in English ("the Flaco and the Opa").
+const theList = (names) => (language() !== "en" ? listOf(names) : list(names.map((n) => `the ${n}`)));
 
 // What a card says: { title, sub, body: [...], rows: [[label, text]], note }.
 function cardText(t) {
-  const tap = t.touch ? "tap" : "click";
   const foe = t.foe;
   switch (t.step) {
     case "welcome":
@@ -149,10 +151,14 @@ function cardText(t) {
         title: (t.copy && t.copy.title) || "Welcome to your first game of El Cabeza.",
         sub: (t.copy && t.copy.fine) || null,
         body: [
-          `You play ${t.mine}: the ${t.mineHint || "near"} pieces on your side, ringed in ${TONE_NAMES.mine}.`,
+          t.mineHint
+            ? say("You play {side}: the {hint} pieces on your side, ringed in yellow.", { side: t.mine, hint: t.mineHint })
+            : say("You play {side}: the near pieces on your side, ringed in yellow.", { side: t.mine }),
           // (Named once, here; after this it's "your opponent", user: "This
           // should say your opponent ... not walnut".)
-          `Your opponent, the computer, plays ${foe}: the ${t.foeHint ? `${t.foeHint} pieces` : "pieces"} across the board, ringed in ${TONE_NAMES.foe}.`,
+          t.foeHint
+            ? say("Your opponent, the computer, plays {side}: the {hint} pieces across the board, ringed in red.", { side: foe, hint: t.foeHint })
+            : say("Your opponent, the computer, plays {side}: the pieces across the board, ringed in red.", { side: foe }),
           "This short tour shows you how to play. The computer waits until you're ready.",
         ],
       };
@@ -171,11 +177,11 @@ function cardText(t) {
       return {
         title: "1. Get your Cabeza across.",
         body: [
-          `This disc is your Cabeza. Bring it all the way to your opponent's back row, the far edge lit ${TONE_NAMES.goal}, and you win.`,
+          "This disc is your Cabeza. Bring it all the way to your opponent's back row, the far edge lit green, and you win.",
           // (How far a turn takes it, not "one square at a time", user: "it
           // will cause a novice to assume it only moves one space per turn,
           // when in fact it can move two".)
-          `It can step up to ${word(t.budget)} squares a turn, in any direction, even diagonally.`,
+          say("It can step up to {n} squares a turn, in any direction, even diagonally.", { n: word(t.budget) }),
         ],
       };
     case "crush":
@@ -191,7 +197,7 @@ function cardText(t) {
       return {
         title: t.blocks.length === 4 ? "Your four blocks." : "Your blocks.",
         body: [
-          t.blocks.length ? `${cap(list(t.blocks.map((n) => `the ${n}`)))}, named on the board.` : null,
+          t.blocks.length ? say("{pieces}, named on the board.", { pieces: cap(theList(t.blocks)) }) : null,
           "A block moves by rolling: it tips over one of its edges into the next squares, never corner to corner.",
           "Only a block can crush. A Cabeza can't.",
         ],
@@ -206,10 +212,12 @@ function cardText(t) {
           // edge once due to its large size.")
           t.budget === 2 && !t.split
             ? "Each turn, select a piece to roll on its edge either once or twice."
-            : `Each turn you get ${word(t.budget)} actions${t.split ? `, shared by up to ${word(t.split)} pieces` : ", all for one piece"}. A roll or a step costs one${t.hasOpa ? "; the Opa's roll costs two" : ""}.`,
+            : t.split
+            ? say(t.hasOpa ? "Each turn you get {n} actions, shared by up to {k} pieces. A roll or a step costs one; the Opa's roll costs two." : "Each turn you get {n} actions, shared by up to {k} pieces. A roll or a step costs one.", { n: word(t.budget), k: word(t.split) })
+            : say(t.hasOpa ? "Each turn you get {n} actions, all for one piece. A roll or a step costs one; the Opa's roll costs two." : "Each turn you get {n} actions, all for one piece. A roll or a step costs one.", { n: word(t.budget) }),
           t.budget === 2 && !t.split && t.hasOpa ? { note: "the Opa (large cube) only rolls on its edge once due to its large size." } : null,
           // (The Punto law cuts the opening turn by one: said where it's on.)
-          t.punto ? `${t.youFirst ? "Your" : "Your opponent's"} very first turn has one action fewer: this game plays the Punto law.` : null,
+          t.punto ? (t.youFirst ? "Your very first turn has one action fewer: this game plays the Punto law." : "Your opponent's very first turn has one action fewer: this game plays the Punto law.") : null,
           t.dots || null,
           "When they're used up, your turn ends and your opponent moves.",
           // (Ending it sooner, Hold to end being always on, user: "As long
@@ -233,10 +241,10 @@ function cardText(t) {
       const l = t.lesson;
       if (!l) {
         return {
-          title: `Your move: ${tap} a glowing piece.`,
+          title: t.touch ? "Your move: tap a glowing piece." : "Your move: click a glowing piece.",
           body: [
             "Each one moves its own way. Pick one to see its name, how it moves, and an arrow to every square it can reach.",
-            t.boxed.length ? `${cap(list(t.boxed))} ${t.boxed.length === 1 ? "is" : "are"} boxed in for now: move another piece out of the way first.` : null,
+            t.boxed.length ? say(t.boxed.length === 1 ? "{pieces} is boxed in for now: move another piece out of the way first." : "{pieces} are boxed in for now: move another piece out of the way first.", { pieces: cap(list(t.boxed.map((b) => (b.mine ? tr("your Cabeza") : language() !== "en" ? b.name : `the ${b.name}`)))) }) : null,
           ],
         };
       }
@@ -250,19 +258,19 @@ function cardText(t) {
       // (Then the menu's cards, where it has its piece in the corner.)
       if (t.menu) {
         const on = "Before your next move, a quick look at your menu.";
-        return t.moved.length ? { title: `Your opponent moved its ${list(t.moved)}.`, body: [`The ${TONE_NAMES.foe} arrow shows where from.`, on] } : { title: "Your turn again.", body: [on] };
+        return t.moved.length ? { title: say("Your opponent moved its {pieces}.", { pieces: list(t.moved) }), body: ["The red arrow shows where from.", on] } : { title: "Your turn again.", body: [on] };
       }
       return t.moved.length
-        ? { title: `Your opponent moved its ${list(t.moved)}.`, body: [`The ${TONE_NAMES.foe} arrow shows where from.`, `Your turn again: ${tap} any of your pieces to see what it does. Good luck!`] }
-        : { title: "Your turn again.", body: [`${cap(tap)} any of your pieces to see what it does. Good luck!`] };
+        ? { title: say("Your opponent moved its {pieces}.", { pieces: list(t.moved) }), body: ["The red arrow shows where from.", t.touch ? "Your turn again: tap any of your pieces to see what it does. Good luck!" : "Your turn again: click any of your pieces to see what it does. Good luck!"] }
+        : { title: "Your turn again.", body: [t.touch ? "Tap any of your pieces to see what it does. Good luck!" : "Click any of your pieces to see what it does. Good luck!"] };
     }
     // The menu: what the piece in the corner is for, and when it opens.
     case "menu":
       return {
         title: "Your menu is in the corner.",
         body: [
-          `The spinning piece at the lower right opens it: the menu you started this game from. ${cap(tap)} it now.`,
-          `${cap(tap)} anywhere outside the menu to put it away again.`,
+          t.touch ? "The spinning piece at the lower right opens it: the menu you started this game from. Tap it now." : "The spinning piece at the lower right opens it: the menu you started this game from. Click it now.",
+          t.touch ? "Tap anywhere outside the menu to put it away again." : "Click anywhere outside the menu to put it away again.",
           "When a game ends, the piece glows like this until you open it: your next game starts from there.",
         ],
       };
@@ -279,7 +287,7 @@ function cardText(t) {
     case "panel": {
       const rows = [];
       if (t.undo) rows.push([t.undo, "Takes back your last turn, and your opponent's answer."]);
-      if (t.views && t.views.length) rows.push(["Views", `${list(t.views)}: ready-made views of the board.`]);
+      if (t.views && t.views.length) rows.push(["Views", say("{views}: ready-made views of the board.", { views: list(t.views) })]);
       if (t.check) rows.push([t.check, "Warns you when your opponent could crush your Cabeza on its next turn."]);
       if (t.endGame) rows.push([t.endGame, "Ends this game."]);
       return { title: "Inside your menu.", rows, lit: true };
@@ -297,7 +305,7 @@ function cardText(t) {
         body: ["Most switch something on or off: a line through one means it's off."],
         icons,
         lit: true,
-        note: `That's the tour. Your move: ${tap} any of your pieces to see what it does. Good luck!`,
+        note: t.touch ? "That's the tour. Your move: tap any of your pieces to see what it does. Good luck!" : "That's the tour. Your move: click any of your pieces to see what it does. Good luck!",
       };
     }
     default:
@@ -345,7 +353,8 @@ export default function FirstGameTour({ tour, cardRef }) {
   if (!text) return null;
   const index = TOUR_CARDS.indexOf(step);
   const of = TOUR_CARDS.length + 1;
-  const band = `${(tour.copy && tour.copy.band) || "First game"}${card ? ` · ${index + 1} of ${of}` : step === "pieces" ? ` · ${of} of ${of}` : step === TOUR_BAR ? " · Your menu" : menuCard ? ` · Your menu · ${TOUR_MENU.indexOf(step) + 1} of ${TOUR_MENU.length}` : ""}`;
+  const nOf = (n, total) => say("{n} of {total}", { n, total });
+  const band = `${tr((tour.copy && tour.copy.band) || "First game")}${card ? ` · ${nOf(index + 1, of)}` : step === "pieces" ? ` · ${nOf(of, of)}` : step === TOUR_BAR ? ` · ${tr("Your menu")}` : menuCard ? ` · ${tr("Your menu")} · ${nOf(TOUR_MENU.indexOf(step) + 1, TOUR_MENU.length)}` : ""}`;
   const primary = card
     ? { label: index < TOUR_CARDS.length - 1 ? "Next ›" : "Let's play ›", onClick: tour.next, testid: "tour-next" }
     : step === TOUR_BAR ? { label: "‹ Back to the tour", onClick: tour.next, testid: "tour-bar-back" }

@@ -24,6 +24,10 @@
 
 import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
+// (Words in the player's language: chassis/i18n.js.)
+import { t as inWords, tr } from "../chassis/i18n.js";
 import { createPortal } from "react-dom";
 import * as THREE from "three";
 import { initialPiecesFor } from "../engine/rules.js";
@@ -40,7 +44,7 @@ import { WORLDS, createRealitiesMenu, goToWorld, REALITIES_VISIT_KEY } from "./r
 import { shoveOf } from "../chassis/shove-settings.js";
 import { sideNamesFor, sideLabel, sideDotStyle } from "./side-names.js";
 
-const h = React.createElement;
+const h = createElement;
 
 /* ------------------------------------------------------------ when */
 
@@ -313,9 +317,9 @@ const ICON_BACK = h("svg", { width: 22, height: 22, viewBox: "0 0 24 24", fill: 
   h("path", { d: "M19 12H5" }), h("path", { d: "M11 6l-6 6 6 6" }));
 function Stepper({ value, min, max, onChange, label, testid }) {
   return h("span", { className: "rg-step", role: "group", "aria-label": label },
-    h("button", { type: "button", "aria-label": `Fewer: ${label}`, "data-testid": testid && `${testid}-minus`, "data-stroke": strokeOf(`${label}-`), disabled: value <= min, onClick: () => onChange(value - 1) }, "−"),
+    h("button", { type: "button", "aria-label": inWords("Fewer: {what}", { what: label }), "data-testid": testid && `${testid}-minus`, "data-stroke": strokeOf(`${label}-`), disabled: value <= min, onClick: () => onChange(value - 1) }, "−"),
     h("output", { "aria-live": "polite", "data-testid": testid && `${testid}-value` }, value),
-    h("button", { type: "button", "aria-label": `More: ${label}`, "data-testid": testid && `${testid}-plus`, "data-stroke": strokeOf(`${label}+`), disabled: value >= max, onClick: () => onChange(value + 1) }, "+"));
+    h("button", { type: "button", "aria-label": inWords("More: {what}", { what: label }), "data-testid": testid && `${testid}-plus`, "data-stroke": strokeOf(`${label}+`), disabled: value >= max, onClick: () => onChange(value + 1) }, "+"));
 }
 const Switch = ({ on, onClick, label, testid }) => h("button", { type: "button", role: "switch", className: "rg-switch", "aria-checked": on ? "true" : "false", "aria-label": label, "data-testid": testid, onClick });
 /* Which of a painted theme's strokes a button wears (Parrish: four, so the
@@ -389,7 +393,7 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
     else {
       if (list.length >= count) {
         const i = list.findIndex((p) => p.random);
-        if (i < 0) { setNote(`All ${count} ${count === 1 ? "pair is" : "pairs are"} marked. Unmark one, or add a pair.`); return; }
+        if (i < 0) { setNote(inWords(count === 1 ? "All {n} pair is marked. Unmark one, or add a pair." : "All {n} pairs are marked. Unmark one, or add a pair.", { n: count })); return; }
         list.splice(i, 1);
       }
       list.push({ row: r, col: c, random: false });
@@ -415,7 +419,7 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
         : other.has(`${r},${c}`) ? (isHole ? h("span", { className: "mk mirror" }, "X") : holeMk(other.get(`${r},${c}`), " mirror")) : null;
       cells.push(h("button", {
         key: `${r},${c}`, type: "button", className: cls.join(" "), "data-testid": `gate-cell-${r}-${c}`,
-        "aria-label": `Row ${r + 1}, column ${c + 1}${at ? (isHole ? `, singularity${count === 2 ? ` of set ${at.set}` : ""}` : ", cut out") : ""}`,
+        "aria-label": inWords(!at ? "Row {r}, column {c}" : !isHole ? "Row {r}, column {c}, cut out" : count === 2 ? "Row {r}, column {c}, singularity of set {n}" : "Row {r}, column {c}, singularity", { r: r + 1, c: c + 1, n: at && at.set }),
         style: { width: cell, height: cell, fontSize: Math.max(10, cell * 0.55) }, onClick: () => tap(r, c),
       }, mark));
     }
@@ -429,16 +433,16 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
         ? count === 2
           ? "Choose a set, then tap a square: that set's singularity moves there, and its partner, turned half round, follows in the same colour. Tap a singularity to choose its set. Then Done. Not in either side's two back rows, nor beside the other set's singularities (those squares are shaded)."
           : "Tap a square for the singularity; its partner, turned half round, is marked for you. Tap another to move them, then Done. Not in either side's two back rows."
-        : `Tap up to ${count} ${count === 1 ? "square" : "squares"}; each one's partner, turned half round, is marked for you. Dashed marks were picked at random: tap one to keep it. Dots show where the pieces start.`),
+        : inWords(count === 1 ? "Tap up to {n} square; each one's partner, turned half round, is marked for you. Dashed marks were picked at random: tap one to keep it. Dots show where the pieces start." : "Tap up to {n} squares; each one's partner, turned half round, is marked for you. Dashed marks were picked at random: tap one to keep it. Dots show where the pieces start.", { n: count })),
       // (Two sets: which set a tap moves, the buttons in its colours.)
       isHole && count === 2 && h("div", { className: "rg-bh-key", role: "group", "aria-label": "The set a tap places", "data-testid": "gate-hole-key" },
         [1, 2].map((n) => h("button", { key: n, type: "button", "data-set": n, "aria-pressed": aim === n ? "true" : "false", "data-testid": `gate-hole-aim-${n}`, onClick: () => { setAim(n); setNote(""); } },
-          h("i", { "data-set": n }), `Set ${n}`))),
+          h("i", { "data-set": n }), inWords("Set {n}", { n })))),
       isHole && count === 2 && h("div", { className: "rg-bh-status", "data-testid": "gate-hole-status", "data-set": aim },
-        h("i", { "data-set": aim }), `Now placing Set ${aim} (${aim === 1 ? "amber" : "blue"}): tap a square for its singularity.`),
-      h("div", { className: "rg-side" }, `Far side · ${names.light}`),
-      h("div", { className: "rg-grid", role: "grid", "aria-label": `${boardLabel(draft)} board`, style: { gridTemplateColumns: `repeat(${cols}, ${cell}px)` } }, cells),
-      h("div", { className: "rg-side" }, `Near side · ${names.dark}`),
+        h("i", { "data-set": aim }), inWords(aim === 1 ? "Now placing Set {n} (amber): tap a square for its singularity." : "Now placing Set {n} (blue): tap a square for its singularity.", { n: aim })),
+      h("div", { className: "rg-side" }, inWords("Far side · {side}", { side: names.light })),
+      h("div", { className: "rg-grid", role: "grid", "aria-label": inWords("{board} board", { board: boardLabel(draft) }), style: { gridTemplateColumns: `repeat(${cols}, ${cell}px)` } }, cells),
+      h("div", { className: "rg-side" }, inWords("Near side · {side}", { side: names.dark })),
       h("div", { className: "rg-pick-note", role: "status" }, note),
       h("div", { className: "rg-pick-btns" },
         h("button", { type: "button", className: "rg-small", "data-testid": "gate-picker-random", onClick: () => setDraft(randomizeSpots(cloneSelections(draft), kind)), "data-stroke": "0" }, "Random"),
@@ -594,7 +598,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
 
   // Each side with a dot of its pieces' colour, and what that colour is
   // where the name doesn't say (user): "Computer plays Photon (dark)".
-  const plays = (side) => h(React.Fragment, null, h("span", { "aria-hidden": "true", style: sideDotStyle(names, side) }), `Computer plays ${sideLabel(names, side)}`);
+  const plays = (side) => h(React.Fragment, null, h("span", { "aria-hidden": "true", style: sideDotStyle(names, side) }), inWords("Computer plays {side}", { side: sideLabel(names, side) }));
   const opponent = selectOpponent && AI_DIFFICULTY ? h("section", { className: "rg-sec", "aria-label": "Who's playing" },
     h("h3", null, "Who's playing"),
     h(Seg, { label: "Opponent", className: "rg-opp" },
@@ -610,15 +614,15 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
     PIECE_OPTIONS.map((p) => h(React.Fragment, { key: p.key },
       h("div", { className: "rg-row rg-piece", "data-testid": `gate-piece-${p.key}` },
         h("span", { className: "rg-piece-id" },
-          h("button", { type: "button", className: "rg-pic", "data-testid": `gate-inspect-${p.key}`, "aria-label": `${p.name} in 3D`, title: `See the ${p.name} in 3D`, disabled: !picOf(p.key), onClick: (e) => inspect.open(pieceTypeOf(p.key), p.name, p.def ? "In the classic game" : p.note, e) },
+          h("button", { type: "button", className: "rg-pic", "data-testid": `gate-inspect-${p.key}`, "aria-label": inWords("{piece} in 3D", { piece: p.name }), title: inWords("See the {piece} in 3D", { piece: p.name }), disabled: !picOf(p.key), onClick: (e) => inspect.open(pieceTypeOf(p.key), p.name, p.def ? "In the classic game" : p.note, e) },
             picOf(p.key) ? h("img", { src: picOf(p.key), alt: "", "data-testid": `gate-pic-${p.key}` }) : null),
           h("span", { className: "rg-name" }, p.name, p.def ? h("span", { className: "rg-note" }, "In the classic game") : p.note ? h("span", { className: "rg-note" }, p.note) : null)),
         h(Stepper, { value: sel.counts[p.key], min: p.min, max: p.max, label: p.name, testid: `gate-count-${p.key}`, onChange: (v) => change((n) => { n.counts[p.key] = v; }) })))),
     // As many as fit (BIG_ARMY_NOTE once it's a big army).
-    h("div", { className: "rg-total", "data-testid": "gate-total" }, `${total} ${total === 1 ? "piece" : "pieces"} a side.`),
+    h("div", { className: "rg-total", "data-testid": "gate-total" }, inWords(total === 1 ? "{n} piece a side." : "{n} pieces a side.", { n: total })),
     bigArmy && h("div", { className: "rg-note", "data-testid": "gate-big-army" }, BIG_ARMY_NOTE),
     !fits && h("div", { className: "rg-warn", "data-testid": "gate-fit" },
-      narrowest ? `These pieces need a board at least ${narrowest} wide. Widen it below.` : "These pieces won't set out on any board. Take some off."));
+      narrowest ? inWords("These pieces need a board at least {n} wide. Widen it below.", { n: narrowest }) : "These pieces won't set out on any board. Take some off."));
 
   // Every law at once, first thing in the sheet (user: "a switch ... at
   // the top of all custom setting menus to turn all laws on").
@@ -643,7 +647,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
   const board = h("section", { className: "rg-sec", "aria-label": "Board" },
     h("h3", null, "Board"),
     h("div", { className: "rg-row" },
-      h("span", { className: "rg-name" }, "Size", h("span", { className: "rg-note" }, `${boardLabel(sel)} squares`)),
+      h("span", { className: "rg-name" }, "Size", h("span", { className: "rg-note" }, inWords("{board} squares", { board: boardLabel(sel) }))),
       h(Seg, { label: "Quick sizes" }, SIZES.map((n) => segBtn(n, sel.rows === n && sel.cols === n, `${n}×${n}`, () => resize(n, n), `gate-size-${n}`)))),
     h("div", { className: "rg-row" }, h("span", { className: "rg-name" }, "Width", h("span", { className: "rg-note" }, "Across a home row")),
       h(Stepper, { value: sel.cols, min: MIN_BOARD_DIM, max: MAX_BOARD_DIM, label: "Board width", testid: "gate-cols", onChange: (v) => resize(sel.rows, v) })),

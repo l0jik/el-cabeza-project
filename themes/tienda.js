@@ -24,6 +24,8 @@
    (themes/tienda-overlay.js). */
 
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
 import * as THREE from "three";
 import { quality } from "./tienda-quality.js";
 import { createWoodSet, paintWood as setPaintWood, WOODS as SET_WOODS, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from "./wood-set.js";
@@ -550,7 +552,7 @@ export function beginLabel(x) {
    from a row beneath; at home the row is Custom rules again, with the way
    back to the store and a fresh start under it. */
 export function renderSetupExtras({ beginGameButton, openOrderForm, story, specialOpen, firstLook }) {
-  const h = React.createElement;
+  const h = createElement;
   const store = !!story && story.mode === "store";
   const home = !!story && story.mode === "home";
   // Until the Singularity's been visited, the catalog's page (look only)
@@ -645,7 +647,7 @@ import { useCart, addToCart, cartCount } from "./tienda-shopping.js";
 // The store's buy button before it's bought: into the cart, then check out.
 function CartButton({ story, style, locked }) {
   const n = useCart();
-  return React.createElement("button", {
+  return createElement("button", {
     type: "button", className: "ec-btn", "data-testid": "story-purchase", "data-cart": n ? "full" : "empty",
     disabled: locked, ...(locked ? { "data-first-lock": "" } : null),
     onClick: () => (n ? story.onPurchase() : addToCart()), style,

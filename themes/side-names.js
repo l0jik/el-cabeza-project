@@ -15,6 +15,8 @@
    the words chosen with the user one world at a time). `hint` only where
    the name doesn't already say it; `swatch` is the pieces' own colour,
    for the dot. */
+import { tr } from "../chassis/i18n.js";
+
 const pair = (dark, light, swatch, hint) => ({ dark, light, swatch: { dark: swatch[0], light: swatch[1] }, ...(hint ? { hint: { dark: hint[0], light: hint[1] } } : {}) });
 
 const WOOD = pair("Walnut", "Ash", ["#4A2C1C", "#D9B77E"], ["dark", "light"]); // the 1975 set: walnut and olive ash blocks
@@ -47,7 +49,7 @@ export const SIDE_NAMES = {
 };
 
 /* "Photon (dark)", or just "Red" where the name says it already. */
-export const sideLabel = (names, side) => (names.hint && names.hint[side] ? `${names[side]} (${names.hint[side]})` : names[side]);
+export const sideLabel = (names, side) => (names.hint && names.hint[side] ? `${tr(names[side])} (${tr(names.hint[side])})` : names[side]);
 /* The side's piece colour, for the dot beside its name. */
 export const sideSwatch = (names, side) => (names.swatch && names.swatch[side]) || (side === "dark" ? "#2E2E2E" : "#ECECEC");
 /* The dot's style: the colour, ringed so a black or white one shows on

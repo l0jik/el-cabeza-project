@@ -24,6 +24,7 @@ import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtil
 import { canvasTexture, repaint } from "./tienda-textures.js";
 import { paintWood } from "./wood-set.js";
 import { quality } from "./tienda-quality.js";
+import { tr } from "../chassis/i18n.js";
 import * as TX from "./den-textures.js";
 import { createCommercial, createSingularityFrame } from "./den-commercial.js";
 
@@ -66,7 +67,7 @@ function testPattern() {
     g.strokeStyle = "rgba(255,255,255,0.9)"; g.lineWidth = 2; g.strokeRect(W * 0.3, H * 0.41, W * 0.4, H * 0.18);
     g.fillStyle = "#F4F4F4"; g.textAlign = "center"; g.textBaseline = "middle";
     g.font = `700 ${Math.round(H * 0.075)}px 'Courier Prime', 'Courier New', monospace`;
-    g.fillText("SINGULARITY", W / 2, H * 0.475);
+    g.fillText(tr("SINGULARITY"), W / 2, H * 0.475);
     g.font = `700 ${Math.round(H * 0.04)}px 'Courier Prime', 'Courier New', monospace`;
     g.fillText("CANAL 99  ·  TEST", W / 2, H * 0.545);
   }, { scale: false });

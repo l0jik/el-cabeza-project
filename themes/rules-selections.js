@@ -15,6 +15,8 @@ import {
   holesTouch,
 } from "../engine/rules.js";
 import { generateAnomalySetup, packHomeBand } from "../engine/anomaly.js";
+// (Words in the player's language: chassis/i18n.js.)
+import { t as inWords, tr } from "../chassis/i18n.js";
 
 /* ------------------------------------------------------------ the choices */
 
@@ -499,7 +501,7 @@ export function lawWarnings(sel) {
 // "Shoving (slides and rolls)", "Shoving (slides only)" and, set to the
 // opponent's pieces, "Shoving (slides only, only opponents)", for the
 // summary.
-export const shovingName = (sel) => `Shoving (${shoveSummary(sel.shove)})`;
+export const shovingName = (sel) => inWords("Shoving ({how})", { how: shoveSummary(sel.shove, tr) });
 const pieceName = (p) => p.name;
 
 /* What the choices change, for the chassis's current-rules panel and its
@@ -515,9 +517,9 @@ export function variantsOf(sel, labels = {}) {
   if (matter.length) groups.push({ key: "matter", label: L.matter, items: matter });
   const topo = [];
   if (sel.rows !== DEFAULT_BOARD_DIM || sel.cols !== DEFAULT_BOARD_DIM) topo.push(`${boardLabel(sel)} board`);
-  if (sel.missing) topo.push(`Missing squares (${sel.missingCount} ${sel.missingCount === 1 ? "pair" : "pairs"})`);
+  if (sel.missing) topo.push(inWords(sel.missingCount === 1 ? "Missing squares ({n} pair)" : "Missing squares ({n} pairs)", { n: sel.missingCount }));
   // (With the board, as the menus set it; two sets say so.)
-  if (sel.laws.blackHoleSquares) topo.push(holeSetsOf(sel) === 2 ? `${HOLES_LAW.name} (2 sets${holeAnyExitOn(sel) ? ", exit from any other singularity" : ""})` : HOLES_LAW.name);
+  if (sel.laws.blackHoleSquares) topo.push(holeSetsOf(sel) === 2 ? inWords(holeAnyExitOn(sel) ? "{law} (2 sets, exit from any other singularity)" : "{law} (2 sets)", { law: HOLES_LAW.name }) : HOLES_LAW.name);
   if (topo.length) groups.push({ key: "topologies", label: L.topologies, items: topo });
   return groups.length ? groups : null;
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { t, trIn } from "./i18n.js";
 
 /* Now playing, across the top of the sound menu (the dock's and the
    phone's), in every theme with music (user: "Go with option 4, all
@@ -86,8 +87,8 @@ export default function NowPlaying({ source, ink, muted, hair, accent, font, tes
     <button
       type="button"
       data-testid={`${testid}-toggle`}
-      aria-label={paused ? `Play ${s.title}` : `Pause ${s.title}`}
-      title={paused ? "Play" : "Pause"}
+      aria-label={paused ? t("Play {title}", { title: s.title }) : t("Pause {title}", { title: s.title })}
+      title={paused ? trIn("Play", "music") : "Pause"}
       onClick={() => { source.toggle(!paused); tick((n) => n + 1); }}
       style={{ ...btn, width: 32, borderRadius: "50%", border: `1.5px solid ${ink}` }}
     >

@@ -10,6 +10,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { openRules } from "./RulesCards.jsx";
 import { cornerMenuParts } from "./corner-menu.js";
 import { useRaise } from "./raise-on-tap.js";
+import { useLanguage } from "./i18n.js";
 
 // Each look's type, fetched once (a world's own CSS may already have it;
 // the den's Caprasimo, for one, comes late).
@@ -33,6 +34,8 @@ export default function CornerMenu({ look, rules, extra = null, audio = null, be
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const lift = useRaise(ref, open);
+  // (Its lines are made in the language: made again when it changes.)
+  useLanguage();
   const { tab, card, css, fonts } = cornerMenuParts(look, rules, extra);
   useFonts(look, fonts);
 

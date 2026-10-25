@@ -30,9 +30,13 @@
    way the game itself does. */
 
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../../chassis/i18n-jsx/jsx-runtime.js";
+// (Words in the player's language: chassis/i18n.js.)
+import { t as inWords } from "../../chassis/i18n.js";
 import { sideNamesFor } from "../side-names.js";
 
-const h = React.createElement;
+const h = createElement;
 
 const SESSION = { startedAt: null, initial: null, gameKey: 0 };
 
@@ -209,7 +213,7 @@ export function LabHud({ spec, x }) {
   const elapsed = SESSION.startedAt ? (SESSION.endedAt || Date.now()) - SESSION.startedAt : 0;
   const recent = game.log.slice(-6).map((e, i, arr) => ({ ...e, n: game.log.length - arr.length + i + 1 })).reverse();
   const corp = spec.hud === "corporateSwiss";
-  const turnText = setup ? "Set up" : game.status === "finished" ? "Game over" : `${who} to move`;
+  const turnText = setup ? "Set up" : game.status === "finished" ? "Game over" : inWords("{side} to move", { side: who });
 
   /* (User: pieces left and taken said little; instead, which theme
      this is and how hard the AI plays, in every direction, its own name
@@ -240,7 +244,7 @@ export function LabHud({ spec, x }) {
       "data-phase": setup ? "setup" : "play",
       "data-focus": game.selectedId ? "selected" : "none",
       "data-captured": captured ? "yes" : "no",
-      "aria-label": `${spec.name}: game status`,
+      "aria-label": inWords("{look}: game status", { look: spec.name }),
     },
     h("div", { className: "lab-id" }, h("span", { className: "num" }, spec.num), h("span", { className: "name" }, spec.name)),
     h("div", { className: "lab-big", "aria-hidden": "true" }, h("small", null, "Turn"), corp ? flap(pad2(turn)) : pad2(turn)),

@@ -13,6 +13,10 @@
      rules, never the opponent), as the sphere's CONFIGURATIONS. */
 
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
+// (Words in the player's language: chassis/i18n.js.)
+import { t as inWords, tr, language } from "../chassis/i18n.js";
 import { initialPiecesFor } from "../engine/rules.js";
 import {
   cloneSelections, normalizeSelections, fillSpots, randomizeSpots, spotProblem, mirrorCell,
@@ -23,7 +27,7 @@ import { sideNamesFor, sideLabel } from "./side-names.js";
 
 const SIDE = sideNamesFor("tienda"); // Walnut / Ash, the set on the table
 
-const h = React.createElement;
+const h = createElement;
 const INK = "#2E2118", RED = "#A33F33", PAPER = "#EFE6CD", PENCIL = "#1F3A6B";
 const FRANKLIN = "'Libre Franklin', 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif";
 const COURIER = "'Courier Prime', 'Courier New', Courier, monospace";
@@ -175,7 +179,7 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
     else {
       if (list.length >= count) {
         const i = list.findIndex((p) => p.random);
-        if (i < 0) { say(`All ${count} ${count === 1 ? "pair is" : "pairs are"} marked. Unmark one, or order more pairs.`); return; }
+        if (i < 0) { say(inWords(count === 1 ? "All {n} pair is marked. Unmark one, or order more pairs." : "All {n} pairs are marked. Unmark one, or order more pairs.", { n: count })); return; }
         list.splice(i, 1);
       }
       list.push({ row: r, col: c, random: false });
@@ -223,7 +227,7 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
     ? count === 2
       ? "Choose a set, then mark a square: that set's singularity moves there, and its partner, turned half round, follows in the same pencil. Mark a singularity to choose its set. Then Done. Not in either side's two back rows, nor beside the other set's singularities (those squares are hatched). Dots show where the pieces start; mark one and they set out round it."
       : "Mark one square for the singularity; its partner, turned half round, is marked for you. Mark another to move them, then Done. Not in either side's two back rows. Dots show where the pieces start; mark one and they set out round it."
-    : `Mark up to ${count} ${count === 1 ? "square" : "squares"} with an X; each one's partner, turned half round, is marked for you. Dashed marks were rolled at random: tap one to keep it. Dots show where the pieces start.`;
+    : inWords(count === 1 ? "Mark up to {n} square with an X; each one's partner, turned half round, is marked for you. Dashed marks were rolled at random: tap one to keep it. Dots show where the pieces start." : "Mark up to {n} squares with an X; each one's partner, turned half round, is marked for you. Dashed marks were rolled at random: tap one to keep it. Dots show where the pieces start.", { n: count });
   return h("div", { className: "td-picker-layer", "data-testid": "tienda-picker", "data-kind": kind, role: "dialog", "aria-modal": "true", "aria-label": title,
     onClick: (e) => { if (e.target === e.currentTarget) onCancel(); } },
     h("div", { className: "td-picker" },
@@ -232,12 +236,12 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
       // (Two sets: which set a mark moves, the buttons in its pencil.)
       isHole && count === 2 && h("div", { className: "td-bh-key", role: "group", "aria-label": "The set a mark places", "data-testid": "tienda-hole-key" },
         [1, 2].map((n) => h("button", { key: n, type: "button", "data-set": n, "aria-pressed": aim === n ? "true" : "false", "data-testid": `tienda-hole-aim-${n}`, onClick: () => { setAim(n); say(""); } },
-          h("i", { "data-set": n }), `Set ${n}`))),
+          h("i", { "data-set": n }), inWords("Set {n}", { n })))),
       isHole && count === 2 && h("div", { className: "td-bh-status", "data-testid": "tienda-hole-status", "data-set": aim },
-        h("i", { "data-set": aim }), `Now placing Set ${aim} (${aim === 1 ? "red" : "blue"} pencil): mark a square for its singularity.`),
-      h("div", { className: "td-picker-side" }, `Far side · ${SIDE.light}`),
+        h("i", { "data-set": aim }), inWords(aim === 1 ? "Now placing Set {n} (red pencil): mark a square for its singularity." : "Now placing Set {n} (blue pencil): mark a square for its singularity.", { n: aim })),
+      h("div", { className: "td-picker-side" }, inWords("Far side · {side}", { side: SIDE.light })),
       h("div", { className: "td-grid", role: "grid", "aria-label": `${boardLabel(draft)} board`, style: { gridTemplateColumns: `repeat(${cols}, ${cell}px)` } }, cells),
-      h("div", { className: "td-picker-side" }, `Your side · ${SIDE.dark}`),
+      h("div", { className: "td-picker-side" }, inWords("Your side · {side}", { side: SIDE.dark })),
       h("div", { key: note.n, className: `td-picker-note${note.text ? " pulse" : ""}`, role: "status", "data-testid": "tienda-picker-note" }, note.text),
       h("div", { className: "td-picker-btns" },
         h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-picker-random", onClick: random }, "Random"),
@@ -272,8 +276,8 @@ export function OpponentSection({ x, audio }) {
       opt(null, "Human", "tienda-opponent-human"),
       // (Each button is its side's wood already, so no dot; the word says
       // which is which, user.)
-      opt("dark", `The demonstrator plays ${sideLabel(SIDE, "dark")}`, "tienda-opponent-dark"),
-      opt("light", `The demonstrator plays ${sideLabel(SIDE, "light")}`, "tienda-opponent-light"),
+      opt("dark", inWords("The demonstrator plays {side}", { side: sideLabel(SIDE, "dark") }), "tienda-opponent-dark"),
+      opt("light", inWords("The demonstrator plays {side}", { side: sideLabel(SIDE, "light") }), "tienda-opponent-light"),
     ),
     aiPlayer != null && h("div", { className: "td-dim" },
       h("span", { className: "td-desc" }, "How well it plays"),
@@ -296,10 +300,10 @@ function readCopies() {
 function writeCopies(list) {
   try { window.localStorage.setItem(COPIES_KEY, JSON.stringify(list)); return true; } catch (e) { return false; }
 }
-const when = (ms) => { try { return new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric" }); } catch (e) { return ""; } };
+const when = (ms) => { try { return new Date(ms).toLocaleDateString(language() === "en" ? undefined : language() === "es" ? "es-AR" : language(), { month: "short", day: "numeric" }); } catch (e) { return ""; } };
 const copySummary = (s) => {
   const laws = Object.values(s.laws || {}).filter(Boolean).length;
-  return `${totalPieces(s)} pieces a side · ${laws} ${laws === 1 ? "rule" : "rules"} · ${boardLabel(s)}${s.missing ? ` · ${s.missingCount} cut` : ""}`;
+  return [inWords("{n} pieces a side", { n: totalPieces(s) }), inWords(laws === 1 ? "{n} rule" : "{n} rules", { n: laws }), boardLabel(s), s.missing ? inWords("{n} cut", { n: s.missingCount }) : null].filter(Boolean).join(" · ");
 };
 
 export function CarbonCopies({ sel, onLoad, audio }) {
@@ -314,11 +318,11 @@ export function CarbonCopies({ sel, onLoad, audio }) {
     const n = Math.max(0, ...readCopies().map((c) => c.no || 0)) + 1;
     list.unshift({ id: `c${Date.now().toString(36)}`, no: n, name: nm, savedAt: Date.now(), selections: cloneSelections(sel) });
     if (!writeCopies(list)) { setSaid("This browser won't keep copies."); return; }
-    setCopies(list); setName(""); setSaid(`Filed: "${nm}".`);
+    setCopies(list); setName(""); setSaid(inWords('Filed: "{name}".', { name: nm }));
     audio && audio.playMenu && audio.playMenu();
   };
-  const load = (c) => { onLoad(normalizeSelections(c.selections)); setSaid(`Copied from "${c.name}".`); audio && audio.playMenu && audio.playMenu(); };
-  const toss = (c) => { const list = readCopies().filter((x) => x.id !== c.id); writeCopies(list); setCopies(list); setConfirm(null); setSaid(`"${c.name}" thrown away.`); };
+  const load = (c) => { onLoad(normalizeSelections(c.selections)); setSaid(inWords('Copied from "{name}".', { name: c.name })); audio && audio.playMenu && audio.playMenu(); };
+  const toss = (c) => { const list = readCopies().filter((x) => x.id !== c.id); writeCopies(list); setCopies(list); setConfirm(null); setSaid(inWords('"{name}" thrown away.', { name: c.name })); };
   return h("div", { "data-testid": "tienda-copies" },
     h("div", { className: "td-copy-new" },
       h("label", { htmlFor: "tienda-copy-name", style: { font: `700 13px/1.2 ${FRANKLIN}` } }, "Name this order"),
@@ -330,7 +334,7 @@ export function CarbonCopies({ sel, onLoad, audio }) {
     copies.length === 0
       ? h("div", { className: "td-form-note", style: { padding: "2px 4px 8px", color: "#6E5D4A" } }, "No copies on file yet.")
       : copies.map((c) => h("div", { key: c.id, className: "td-copy", "data-testid": `tienda-copy-${c.id}`, "data-name": c.name },
-        h("div", null, h("b", null, `No. ${c.no || "—"} · ${c.name}`), `${copySummary(normalizeSelections(c.selections))} · filed ${when(c.savedAt)}`),
+        h("div", null, h("b", null, inWords("No. {n} · {name}", { n: c.no || "—", name: c.name })), `${copySummary(normalizeSelections(c.selections))} · ${inWords("filed {date}", { date: when(c.savedAt) })}`),
         confirm === c.id
           ? h("div", { className: "td-seg" },
             h("button", { type: "button", "data-testid": "tienda-copy-toss-yes", onClick: () => toss(c) }, "Throw away"),

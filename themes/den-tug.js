@@ -28,6 +28,7 @@
    coordinates throughout (the den's group, which turns with the board). */
 
 import * as THREE from "three";
+import { tr } from "../chassis/i18n.js";
 import { canvasTexture, repaint } from "./tienda-textures.js";
 import { PIT_FLOOR, FLOOR, RZ } from "./den-room.js";
 
@@ -95,7 +96,7 @@ const scoreSheet = (seed) => draw(256, 334, (g) => {
   for (let y = 70; y < 320; y += 18) { g.beginPath(); g.moveTo(14, y); g.lineTo(242, y); g.stroke(); }
   g.strokeStyle = "rgba(168,50,31,0.6)"; g.beginPath(); g.moveTo(128, 62); g.lineTo(128, 322); g.stroke();
   g.fillStyle = "#3A3A3A"; g.font = "italic 15px Georgia, serif"; g.textAlign = "left";
-  g.fillText("Me", 46, 84); g.fillText(seed % 2 ? "Uncle Rob" : "Walnut", 150, 84);
+  g.fillText(tr("Me"), 46, 84); g.fillText(tr(seed % 2 ? "Uncle Rob" : "Walnut"), 150, 84);
   // Tallies in pencil.
   let r = seed;
   const rnd = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
@@ -113,12 +114,12 @@ const circular = () => draw(512, 400, (g) => {
   g.fillStyle = "#F6C431"; g.fillRect(0, 92, 512, 10);
   g.fillStyle = "#FFF1C8"; g.font = "900 54px 'Libre Franklin', Arial, sans-serif"; g.textAlign = "center";
   g.fillText("BIG GLUTTS", 256, 64);
-  g.fillStyle = "#B4261C"; g.font = "800 30px 'Libre Franklin', Arial, sans-serif"; g.fillText("FALL SAVINGS!", 256, 142);
+  g.fillStyle = "#B4261C"; g.font = "800 30px 'Libre Franklin', Arial, sans-serif"; g.fillText(tr("FALL SAVINGS!"), 256, 142);
   const blocks = [["Toaster", "$11.88"], ["Lava lamp", "$8.99"], ["Fondue set", "$6.49"], ["EL CABEZA", "$7.97"]];
   blocks.forEach(([name, price], i) => {
     const x = 26 + (i % 2) * 238, y = 166 + Math.floor(i / 2) * 112;
     g.fillStyle = i === 3 ? "#F6C431" : "#D9CFB4"; g.fillRect(x, y, 222, 98);
-    g.fillStyle = "#2A2420"; g.font = "700 22px 'Libre Franklin', Arial, sans-serif"; g.textAlign = "left"; g.fillText(name, x + 12, y + 34);
+    g.fillStyle = "#2A2420"; g.font = "700 22px 'Libre Franklin', Arial, sans-serif"; g.textAlign = "left"; g.fillText(tr(name), x + 12, y + 34);
     g.fillStyle = "#B4261C"; g.font = "900 34px 'Libre Franklin', Arial, sans-serif"; g.fillText(price, x + 12, y + 80);
   });
 });
@@ -128,7 +129,7 @@ const newspaper = () => draw(300, 400, (g) => {
   g.fillStyle = "#1E1E1E"; g.font = "700 30px 'Bodoni Moda', Georgia, serif"; g.textAlign = "center";
   g.fillText("The Evening Star", 150, 40);
   g.fillRect(14, 50, 272, 2); g.fillRect(14, 56, 272, 1);
-  g.font = "800 21px Georgia, serif"; g.fillText("STRANGE SIGNALS", 150, 86); g.fillText("ON CHANNEL 3", 150, 110);
+  g.font = "800 21px Georgia, serif"; g.fillText(tr("STRANGE SIGNALS"), 150, 86); g.fillText(tr("ON CHANNEL 3"), 150, 110);
   g.fillStyle = "#9A968C"; g.fillRect(18, 124, 128, 92);
   g.fillStyle = "rgba(30,30,30,0.55)";
   for (let col = 0; col < 2; col++) for (let y = col ? 124 : 224; y < 388; y += 8) g.fillRect(col ? 156 : 18, y, 126 - (y % 40 === 0 ? 30 : 0), 3);

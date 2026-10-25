@@ -15,10 +15,14 @@
    overlays, so the theme still imports in plain Node. */
 
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
+// (Words in the player's language: chassis/i18n.js.)
+import { t as inWords, tr } from "../chassis/i18n.js";
 import { TIMES, NOW, timeId, setTime, onTimeChange } from "./ciudad-time.js";
 import { useRaise } from "../chassis/raise-on-tap.js";
 
-const h = React.createElement;
+const h = createElement;
 const byId = (id) => TIMES.find((t) => t.id === id) || TIMES[0];
 // A clock's time as minutes round a twelve-hour face.
 const minutesOf = (clock) => { const m = /(\d+):(\d+)/.exec(clock || "") || [0, 12, 0]; return (+m[1] % 12) * 60 + +m[2]; };
@@ -178,7 +182,7 @@ function TimeSwitch() {
   return h("div", { className: "ciu-time", ref: rootRef, "data-testid": "ciudad-time", "data-time": id },
     h("button", {
       type: "button", className: "chip", "data-testid": "ciudad-time-chip", "aria-expanded": open ? "true" : "false", "aria-controls": "ciu-time-dial",
-      "aria-label": `Time of day: ${cur.name}, ${cur.clock}. Change it`, title: `Time of day: ${cur.name}, ${cur.clock}`,
+      "aria-label": inWords("Time of day: {hour}, {clock}. Change it", { hour: cur.name, clock: cur.clock }), title: inWords("Time of day: {hour}, {clock}", { hour: cur.name, clock: cur.clock }),
       "data-raised": lift.raised ? "true" : "false", onPointerDown: lift.onPointerDown,
       onClick: (e) => { if (!open && lift.firstTapRaises(e)) return; setOpen((o) => !o); },
     }, h(Face, { size: 30 }), h("span", { className: "lbl" }, cur.name), h("span", { className: "car" })),

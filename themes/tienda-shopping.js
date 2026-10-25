@@ -58,11 +58,15 @@
    visit; the PA's moments once each, per visit. */
 
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
+// (Words in the player's language: chassis/i18n.js.)
+import { t as inWords, tr, language } from "../chassis/i18n.js";
 import { loadFaces } from "./faces.js";
 import { tourDone } from "../chassis/FirstGameTour.jsx";
 import { dealCard } from "./den-cards.js";
 
-const h = React.createElement;
+const h = createElement;
 const INK = "#2E2118", RED = "#A33F33", PAPER = "#EFE6CD";
 const FRANKLIN = "'Libre Franklin', 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif";
 const COURIER = "'Courier Prime', 'Courier New', Courier, monospace";
@@ -194,9 +198,9 @@ export function ShopCorner({ audio, onPurchase }) {
   if (!n) return null;
   const sel = () => { audio && audio.playSelect && audio.playSelect(); };
   return h("div", { className: "td-shop", "data-testid": "tienda-shop" }, h("style", null, CSS),
-    h("div", { className: "td-cart", "data-testid": "tienda-cart", "data-bump": bumped ? "true" : "false", role: "status", "aria-label": `Cart: ${n} item` },
-      cartIcon(), h("span", null, `Cart · ${n} item`),
-      h("button", { type: "button", "data-testid": "tienda-cart-checkout", onClick: () => { sel(); onPurchase && onPurchase(); } }, `Check out · ${PRICE}`)));
+    h("div", { className: "td-cart", "data-testid": "tienda-cart", "data-bump": bumped ? "true" : "false", role: "status", "aria-label": inWords("Cart: {n} item", { n }) },
+      cartIcon(), h("span", null, inWords("Cart · {n} item", { n })),
+      h("button", { type: "button", "data-testid": "tienda-cart-checkout", onClick: () => { sel(); onPurchase && onPurchase(); } }, inWords("Check out · {price}", { price: PRICE }))));
 }
 
 /* The PA, on the first visit: in stock (a while after arriving), then,

@@ -15,13 +15,17 @@
    game, so a piece looks the same here as on the table. */
 
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
+// (Words in the player's language: chassis/i18n.js.)
+import { t as inWords, tr, language } from "../chassis/i18n.js";
 import * as THREE from "three";
 import { makeRoundedBox, makePolycubeSmooth } from "../engine/geometry.js";
 import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constants.js";
 import { POSES } from "./piece-showcase.js";
 import { woodMaterial, WOODS, EDGE_RADIUS, lights as STORE_LIGHTS } from "./tienda.js";
 
-const h = React.createElement;
+const h = createElement;
 // The form offers the small Arco.
 const POSE_OF = { arco: "arcoChico" };
 const poseKey = (type) => POSE_OF[type] || type;
@@ -285,7 +289,7 @@ export function WoodPieceViewer({ type, name, detail, cat, price, fromRect, clos
       "data-piece": type,
       "data-state": closing ? "closing" : shown ? "open" : "opening",
       role: "dialog",
-      "aria-label": `${name}, in 3D`,
+      "aria-label": inWords("{piece}, in 3D", { piece: name }),
       onPointerDown: (e) => { e.stopPropagation(); if (e.target === e.currentTarget) onClose && onClose(); },
       onClick: (e) => e.stopPropagation(),
       style: {
@@ -299,7 +303,7 @@ export function WoodPieceViewer({ type, name, detail, cat, price, fromRect, clos
     h("canvas", {
       ref: canvasRef,
       "data-testid": "tienda-piece-viewer-canvas",
-      "aria-label": `${name}: drag to turn`,
+      "aria-label": inWords("{piece}: drag to turn", { piece: name }),
       style: {
         position: "fixed", left: cx - size / 2, top: cy - size / 2, width: size, height: size,
         touchAction: "none", cursor: "grab",

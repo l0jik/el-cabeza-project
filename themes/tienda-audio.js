@@ -27,6 +27,7 @@
 
 import { quality } from "./tienda-quality.js";
 import { fetchSoundBytes, loadSound } from "../chassis/sound-files.js";
+import { t as inWords } from "../chassis/i18n.js";
 import { createWoodSfx } from "./wood-sfx.js";
 
 export const hasAudio = true;
@@ -873,7 +874,7 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
     if (playing === "piece" && piece) {
       const spb = 60 / piece.tempo;
       const lead = TUNES[tuneNo] && TUNES[tuneNo].lead;
-      return { title: lead ? `The store's own arrangement (${lead})` : "The store's own arrangement", at: Math.max(0, Math.min(piece.beats * spb, t - pieceStart)), length: piece.beats * spb, paused: false };
+      return { title: lead ? inWords("The store's own arrangement ({lead})", { lead }) : "The store's own arrangement", at: Math.max(0, Math.min(piece.beats * spb, t - pieceStart)), length: piece.beats * spb, paused: false };
     }
     return null;
   }

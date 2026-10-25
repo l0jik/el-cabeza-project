@@ -1,6 +1,8 @@
 import * as esbuild from "esbuild";
 import { writeFileSync, mkdirSync, copyFileSync, readdirSync, existsSync, rmSync, readFileSync } from "fs";
 import { WORLDS } from "../themes/realities.js";
+import ES from "../i18n/es.js";
+import VI from "../i18n/vi.js";
 
 // The den's records: the user's tracks, each through tools/console_1974_turntable.py.
 const DEN_RECORDS = {
@@ -182,9 +184,14 @@ const workerJsEscaped = workerJs.replace(/<\/script/gi, "<\\/script");
 
 /* Nova's title screen, as a plain script in the page (not a module: it
    runs as the page is read, ahead of the app), the worlds' names written
-   into it for its "Continue in ...". */
+   into it for its "Continue in ...", and its own words in the other
+   languages (each say("...") in it, and the worlds' names, from the
+   tables: chassis/i18n.js). */
+const titleSrc = readFileSync("apps/title-screen.js", "utf8");
+const titleKeys = [...titleSrc.matchAll(/\bsay\("([^"]+)"/g)].map((m) => m[1]).concat(WORLDS.map((w) => w.name));
+const titleWords = Object.fromEntries(Object.entries({ es: ES, vi: VI }).map(([code, table]) => [code, Object.fromEntries(titleKeys.filter((k) => table[k]).map((k) => [k, table[k]]))]));
 const titleJs = (await esbuild.transform(
-  readFileSync("apps/title-screen.js", "utf8").replace("__WORLD_NAMES__", JSON.stringify(Object.fromEntries(WORLDS.map((w) => [w.id, w.name])))),
+  titleSrc.replace("__WORLD_NAMES__", JSON.stringify(Object.fromEntries(WORLDS.map((w) => [w.id, w.name])))).replace("__TITLE_WORDS__", JSON.stringify(titleWords)),
   { minify: true, loader: "js" },
 )).code.replace(/<\/script/gi, "<\\/script");
 const BODY_START = { title: `<script>${titleJs}</script>` };
@@ -220,7 +227,10 @@ const BODY_START = { title: `<script>${titleJs}</script>` };
     // (EC_KEEP_NAMES=1 keeps the functions' names, for reading a profile.)
     ...(process.env.EC_KEEP_NAMES ? { minifyWhitespace: true, minifySyntax: true } : { minify: true }),
     jsx: "automatic",
-    jsxImportSource: "react",
+    // React's own JSX runtime, every element's words in the player's
+    // language (chassis/i18n-jsx/jsx-runtime.js).
+    jsxImportSource: "ec-i18n",
+    alias: { "ec-i18n": "./chassis/i18n-jsx" },
     logLevel: "warning",
     // Without this, react/react-dom's own package.json branches on
     // process.env.NODE_ENV to pick cjs/react.development.js — esbuild

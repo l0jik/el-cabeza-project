@@ -17,6 +17,8 @@
    (themes/lluvia-audio.js). */
 
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
 import * as THREE from "three";
 import {
   BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z,
@@ -358,7 +360,7 @@ export function useSetupExtras(x) {
 }
 
 export function renderSetupExtras({ beginGameButton, openCity }) {
-  const h = React.createElement;
+  const h = createElement;
   return h(
     "div",
     { style: { display: "flex", gap: 8, flexShrink: 0, flexWrap: "nowrap", width: "100%" } },
@@ -376,7 +378,7 @@ export function renderSetupExtras({ beginGameButton, openCity }) {
 
 export function renderExtraOverlays(x) {
   if (!x || !x.lluviaOverlay || !x.awaitingBegin) return null;
-  return React.createElement(LluviaOverlay, {
+  return createElement(LluviaOverlay, {
     key: `lluvia-${x.lluviaOverlay}`,
     start: x.lluviaOverlay,
     x,

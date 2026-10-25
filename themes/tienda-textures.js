@@ -9,6 +9,7 @@
 
 import * as THREE from "three";
 import { quality } from "./tienda-quality.js";
+import { tr, t as inWords } from "../chassis/i18n.js";
 
 export const SIGN_FONT = "'Libre Franklin', 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif";
 export const TYPE_FONT = "'Courier Prime', 'Courier New', Courier, monospace";
@@ -54,7 +55,16 @@ export function text(g, str, x, y, { font, size, weight = 700, color, align = "c
   let s = size;
   const setFont = () => { g.font = `${italic ? "italic " : ""}${weight} ${s}px ${font}`; };
   setFont();
-  const measure = () => g.measureText(str).width + spacing * s * (str.length - 1);
+  const widthOf = (t) => g.measureText(t).width + spacing * s * (t.length - 1);
+  // In the player's language (chassis/i18n.js), and no wider than the
+  // English it was laid out round, give or take a little.
+  const en = str;
+  str = tr(str);
+  if (str !== en) {
+    const room = widthOf(en) * 1.12;
+    while (widthOf(str) > room && s > 6) { s *= 0.94; setFont(); }
+  }
+  const measure = () => widthOf(str);
   if (maxWidth) while (measure() > maxWidth && s > 6) { s *= 0.94; setFont(); }
   g.fillStyle = color;
   g.textBaseline = baseline;
@@ -397,7 +407,7 @@ export function aisleSign(num, lines) {
   return (g, w, h) => {
     g.fillStyle = "#EFE8D6"; g.fillRect(0, 0, w, h);
     g.fillStyle = "#4F6B78"; g.fillRect(0, 0, w, h * 0.34);
-    text(g, `AISLE ${num}`, w / 2, h * 0.18, { font: SIGN_FONT, size: h * 0.2, weight: 800, color: "#F2ECDD", spacing: 0.1 });
+    text(g, inWords("AISLE {n}", { n: num }), w / 2, h * 0.18, { font: SIGN_FONT, size: h * 0.2, weight: 800, color: "#F2ECDD", spacing: 0.1 });
     lines.forEach((l, i) => text(g, l, w / 2, h * (0.49 + i * 0.15), { font: SIGN_FONT, size: h * 0.105, weight: 700, color: "#3B2618", spacing: 0.08, maxWidth: w * 0.88 }));
     g.strokeStyle = "#4F6B78"; g.lineWidth = h * 0.02; g.strokeRect(0, 0, w, h);
   };

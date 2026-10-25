@@ -46,6 +46,7 @@ import { createGovernor } from "../chassis/device-fit.js";
 import { setCommercialOn, onJourneyChange } from "../engine/journey.js";
 import { createDenCall } from "./den-call.js";
 import { createTrip } from "./den-trip.js";
+import { t as inWords } from "../chassis/i18n.js";
 import { createHall, echoRoom, SHOUT_TIMES } from "./den-hall.js";
 import { createEnding, prewarmFigure, prefetchVoidMusic } from "./den-ending.js";
 import { WORLDS } from "./realities.js";
@@ -1090,7 +1091,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       }
       // After the story: what the knob and the picture do.
       if (postStory) tvHint.textContent = chan >= 0
-        ? `Channel ${String(chan + 2).padStart(2, "0")}: ${WORLDS[chan].name}\nthe dial: next channel \u00b7 the picture: go there`
+        ? inWords("Channel {n}: {name}\nthe dial: next channel · the picture: go there", { n: String(chan + 2).padStart(2, "0"), name: WORLDS[chan].name })
         : "The dial: the channels\nanywhere else to go back";
       tvHint.classList.toggle("on", on);
     }
@@ -1132,7 +1133,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     let huhPin = null;
     function huhLine(pick = huhPin != null ? huhPin : Math.random() < 0.5) {
       const what = playing === "record" ? "record" : playing === "8track" ? "8-track" : null;
-      return what && pick ? `Who's messing with my ${what}?` : HUH;
+      return what && pick ? inWords("Who's messing with my {thing}?", { thing: what }) : HUH;
     }
     // (The "!!" over the blast's white, den-fx.js whiteOut at 1400, and up till
     // a moment after it's gone: 5.6 s, den-tv.js blastState.)

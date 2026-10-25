@@ -17,6 +17,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
+import { languageReady, useLanguage } from "../chassis/i18n.js";
 import ElCabeza3D from "../chassis/ElCabeza3D.jsx";
 import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js";
 import { LAB_SPECS } from "../themes/lab/specs.js";
@@ -127,6 +128,8 @@ function useLabAudioState() {
 }
 
 function LabApp() {
+  // Drawn again in the player's language when it changes (chassis/i18n.js).
+  useLanguage();
   const [themeId, setThemeId] = useState(initialId);
   const [mount, setMount] = useState({ key: 0, carry: null });
   const [panelOpen, setPanelOpen] = useState(false);
@@ -388,4 +391,5 @@ const AUDIO_NOTES = {
   ultimateFusion: "Analytic tones over an industrial thud.",
 };
 
-ReactDOM.createRoot(document.getElementById("root")).render(<LabApp />);
+// (Once the player's language is in: no English first, chassis/i18n.js.)
+languageReady().then(() => ReactDOM.createRoot(document.getElementById("root")).render(<LabApp />));

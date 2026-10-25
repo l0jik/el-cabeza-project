@@ -18,6 +18,10 @@
    PIECE_ORIENTATIONS), copied here rather than imported: futuris.js
    imports this module's importer. */
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
+// (Words in the player's language: chassis/i18n.js.)
+import { t as inWords, tr } from "../chassis/i18n.js";
 import * as THREE from "three";
 import { makeRoundedBox, makePolycubeGeometry, makePolycubeSmooth } from "../engine/geometry.js";
 import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constants.js";
@@ -211,7 +215,7 @@ const FUTURIS_SKIN = {
 };
 export function PieceViewer({ type, name, detail, fromRect, closing, onClose, onClosed, model = buildModel, stage = makeStage, makeGl = makeRenderer, keepMaterials = false, skin = null, vars = null }) {
   const sk = skin || FUTURIS_SKIN;
-  const h = React.createElement;
+  const h = createElement;
   const canvasRef = React.useRef(null);
   const [open, setOpen] = React.useState(false);
   const size = Math.round(Math.min(window.innerWidth * 0.82, window.innerHeight * 0.56, 460));
@@ -305,7 +309,7 @@ export function PieceViewer({ type, name, detail, fromRect, closing, onClose, on
       "data-piece": type,
       "data-state": closing ? "closing" : shown ? "open" : "opening",
       role: "dialog",
-      "aria-label": `${name} in 3D`,
+      "aria-label": inWords("{piece} in 3D", { piece: name }),
       onPointerDown: (e) => { e.stopPropagation(); if (e.target === e.currentTarget) onClose && onClose(); },
       onClick: (e) => e.stopPropagation(),
       style: {

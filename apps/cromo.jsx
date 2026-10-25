@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { languageReady } from "../chassis/i18n.js";
 import ElCabeza3D from "../chassis/ElCabeza3D.jsx";
 import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js";
 import * as cromoTheme from "../themes/cromo.js";
@@ -12,6 +13,7 @@ const theme = { ...cromoTheme, realityGate: { world: "cromo" }, cornerAction: re
 applyBootstrapBoardSize();
 applyBootstrapLaws();
 
-ReactDOM.createRoot(document.getElementById("root")).render(
+// (Once the player's language is in: no English first, chassis/i18n.js.)
+languageReady().then(() => ReactDOM.createRoot(document.getElementById("root")).render(
   <ElCabeza3D theme={theme} />
-);
+));

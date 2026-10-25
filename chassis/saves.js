@@ -14,6 +14,7 @@
      a link with ?restore=CODE restores it on any page (takeRestoreParam
      reads the word off the address, once). */
 import { savesBaseUrl, relayReady } from "./online-config.js";
+import { t } from "./i18n.js";
 
 export const SAVE_PREFIXES = ["el-cabeza:", "elcabeza.", "ec:"];
 // (not carried: the relay's address override, this browser's own)
@@ -108,7 +109,7 @@ async function request(method, url, body, headers = {}) {
   } catch (e) { throw new Error("The server can't be reached."); }
   let data = null;
   try { data = await res.json(); } catch (e) { /* no body */ }
-  if (!res.ok) throw new Error((data && data.error) || `The server said ${res.status}.`);
+  if (!res.ok) throw new Error((data && data.error) || t("The server said {status}.", { status: res.status }));
   return data;
 }
 
@@ -175,10 +176,10 @@ export function restoreFromLink() {
   if (!code) return false;
   cloudFetch(code).then(({ save }) => {
     const n = applySave(save);
-    try { window.sessionStorage.setItem(RESTORE_NOTE_KEY, `Restored ${n} thing${n === 1 ? "" : "s"} from ${code}.`); } catch (e) { /* none */ }
+    try { window.sessionStorage.setItem(RESTORE_NOTE_KEY, t(n === 1 ? "Restored {n} thing from {code}." : "Restored {n} things from {code}.", { n, code })); } catch (e) { /* none */ }
     window.location.reload();
   }).catch((e) => {
-    try { window.sessionStorage.setItem(RESTORE_NOTE_KEY, `Couldn't restore ${code}: ${e.message}`); } catch (err) { /* none */ }
+    try { window.sessionStorage.setItem(RESTORE_NOTE_KEY, t("Couldn't restore {code}: {why}", { code, why: e.message })); } catch (err) { /* none */ }
   });
   return true;
 }

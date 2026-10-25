@@ -25,6 +25,10 @@
 import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
 import { facesIn, facesReady, loadFaces } from "./faces.js";
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
+// (Words in the player's language: chassis/i18n.js.)
+import { t as inWords, tr, language } from "../chassis/i18n.js";
 import {
   PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, BIG_ARMY, BIG_ARMY_NOTE, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
   defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
@@ -68,7 +72,7 @@ function storeSelections(sel) {
   return n;
 }
 
-const h = React.createElement;
+const h = createElement;
 const INK = "#2E2118", RED = "#A33F33", PAPER = "#EFE6CD";
 const FRANKLIN = "'Libre Franklin', 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif";
 const COURIER = "'Courier Prime', 'Courier New', Courier, monospace";
@@ -1365,7 +1369,7 @@ function PieceCatalog({ audio, onClose, onPurchase, specialOpen = false, onSpeci
     const photo = hasWoodShowcase(key)
       ? h("button", {
           type: "button", className: "td-photo-btn", "data-testid": `tienda-view-${key}`, "data-type": key,
-          "aria-label": `Take up the ${name} and turn it over in 3-D`,
+          "aria-label": inWords("Take up the {piece} and turn it over in 3-D", { piece: name }),
           onClick: (e) => { if (viewer) return; click(); setViewer({ key, type: key, name, detail: note, cat, price, rect: e.currentTarget.getBoundingClientRect(), closing: false }); },
         },
         woodPhoto(key) ? h("img", { src: woodPhoto(key), alt: "" }) : h("span", { className: "td-photo-wait" }),
@@ -1586,7 +1590,7 @@ function ClerkScene({ audio, onStay, onGoHome }) {
             const reached = fi <= frameOfSeen;
             return h("button", {
               key: fi, type: "button", className: "td-clerk-page", "data-on": fi === s.frame ? "true" : "false", disabled: !reached,
-              "aria-label": `Panel ${fi + 1}`, "data-testid": `tienda-clerk-page-${fi + 1}`,
+              "aria-label": inWords("Panel {n}", { n: fi + 1 }), "data-testid": `tienda-clerk-page-${fi + 1}`,
               onClick: (e) => { e.stopPropagation(); if (reached) go(fi === s.frame ? step : first); },
             });
           })),
@@ -1644,7 +1648,7 @@ function BoardDiagram({ sel }) {
   // is: row 0 at the bottom, column 0 on the right).
   const mark = (c, ch, i) => h("i", { key: `${ch}${i}`, className: "td-diagram-mark", style: { left: (cols - 1 - c.col) * cell, top: (rows - 1 - c.row) * cell, width: cell, height: cell, fontSize: Math.max(7, cell * 0.9) } },
     ch === "O" ? h("b", { className: "td-diagram-hole", "data-set": Math.floor(i / 2) + 1 }) : ch);
-  return h("figure", { className: "td-diagram", "data-testid": "tienda-board-diagram", "data-rows": rows, "data-cols": cols, "aria-label": `The board: ${cols} squares wide, ${rows} long` },
+  return h("figure", { className: "td-diagram", "data-testid": "tienda-board-diagram", "data-rows": rows, "data-cols": cols, "aria-label": inWords("The board: {cols} squares wide, {rows} long", { cols, rows }) },
     h("div", { className: "td-diagram-board", style: { width: cell * cols, height: cell * rows, backgroundSize: `${cell * 2}px ${cell * 2}px` } },
       h("i", { className: "td-home td-home-far", style: { height: cell * 2 } }),
       h("i", { className: "td-home td-home-near", style: { height: cell * 2 } }),
@@ -1714,7 +1718,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
     const photo = hasWoodShowcase(type)
       ? h("button", {
           type: "button", className: "td-photo-btn", "data-testid": `tienda-view-${p.key}`, "data-viewing": viewing ? "true" : "false", "data-type": type,
-          "aria-label": `Take up the ${name} and turn it over in 3-D`,
+          "aria-label": inWords("Take up the {piece} and turn it over in 3-D", { piece: name }),
           onClick: (e) => {
             if (viewer) return;
             click();
@@ -1730,9 +1734,9 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
       h("span", { className: "td-desc" }, name, h("span", null, note)),
       h("span", { className: "td-price" }, price),
       h("span", { className: "td-qty" },
-        h("button", { type: "button", "aria-label": `Fewer ${p.name}`, "data-testid": `tienda-piece-${p.key}-dec`, disabled: n <= p.min, onClick: () => set(n - 1) }, "−"),
+        h("button", { type: "button", "aria-label": inWords("Fewer {piece}", { piece: p.name }), "data-testid": `tienda-piece-${p.key}-dec`, disabled: n <= p.min, onClick: () => set(n - 1) }, "−"),
         h("output", { "aria-live": "polite", "aria-label": `${n} ${p.name}` }, String(n)),
-        h("button", { type: "button", "aria-label": `More ${p.name}`, "data-testid": `tienda-piece-${p.key}-inc`, disabled: n >= p.max, onClick: () => set(n + 1) }, "+"),
+        h("button", { type: "button", "aria-label": inWords("More {piece}", { piece: p.name }), "data-testid": `tienda-piece-${p.key}-inc`, disabled: n >= p.max, onClick: () => set(n + 1) }, "+"),
       ),
     );
     return row;
@@ -1747,7 +1751,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
     key: w.testid, className: "td-warn", role: "status", "data-testid": w.testid,
     ...(w.key === "cantileverPivot" ? { onClick: showPivots, style: { cursor: "pointer" }, title: "Show me" } : {}),
   }, h("span", { className: "td-warn-hand", "aria-hidden": "true" }, "☞"), h("span", null, w.text)));
-  const spotsLine = (list, mark) => (list.length ? list.map((p) => `${mark} row ${p.row + 1}, col ${p.col + 1}${p.random ? " (random)" : ""}`).join(" · ") : "none yet");
+  const spotsLine = (list, mark) => (list.length ? list.map((p) => `${mark} ${inWords(p.random ? "row {row}, col {col} (random)" : "row {row}, col {col}", { row: p.row + 1, col: p.col + 1 })}`).join(" · ") : "none yet");
 
   const lawRows = RULE_LAWS.flatMap((l) => {
     const on = !!sel.laws[l.key];
@@ -1803,25 +1807,25 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   const dimRow = (k, label, note) => h("div", { className: "td-dim", "data-testid": `tienda-${k}` },
     h("span", { className: "td-desc" }, label, h("span", null, note)),
     h("span", { className: "td-qty" },
-      h("button", { type: "button", "aria-label": `${label}: one square less`, "data-testid": `tienda-${k}-dec`, disabled: sel[k] <= MIN_BOARD_DIM, onClick: () => setDim(k, sel[k] - 1) }, "−"),
-      h("output", { "aria-live": "polite", "data-testid": `tienda-${k}-value`, "aria-label": `${label}: ${sel[k]} squares` }, String(sel[k])),
-      h("button", { type: "button", "aria-label": `${label}: one square more`, "data-testid": `tienda-${k}-inc`, disabled: sel[k] >= MAX_BOARD_DIM, onClick: () => setDim(k, sel[k] + 1) }, "+"),
+      h("button", { type: "button", "aria-label": inWords("{dim}: one square less", { dim: label }), "data-testid": `tienda-${k}-dec`, disabled: sel[k] <= MIN_BOARD_DIM, onClick: () => setDim(k, sel[k] - 1) }, "−"),
+      h("output", { "aria-live": "polite", "data-testid": `tienda-${k}-value`, "aria-label": inWords("{dim}: {n} squares", { dim: label, n: sel[k] }) }, String(sel[k])),
+      h("button", { type: "button", "aria-label": inWords("{dim}: one square more", { dim: label }), "data-testid": `tienda-${k}-inc`, disabled: sel[k] >= MAX_BOARD_DIM, onClick: () => setDim(k, sel[k] + 1) }, "+"),
     ),
   );
   const boardRows = h("div", { className: "td-board" },
     h(BoardDiagram, { sel }),
     h("div", null,
-      dimRow("cols", "Width", `squares across a home row (${MIN_BOARD_DIM}–${MAX_BOARD_DIM})`),
-      dimRow("rows", "Length", `squares from your home row to the far one (${MIN_BOARD_DIM}–${MAX_BOARD_DIM})`),
+      dimRow("cols", "Width", inWords("squares across a home row ({min}–{max})", { min: MIN_BOARD_DIM, max: MAX_BOARD_DIM })),
+      dimRow("rows", "Length", inWords("squares from your home row to the far one ({min}–{max})", { min: MIN_BOARD_DIM, max: MAX_BOARD_DIM })),
     ),
   );
   const sizeRow = h("div", { className: "td-sizes", role: "group", "aria-label": "Square boards" },
     QUICK_SIZES.map((n) => h("button", { key: n, type: "button", className: "td-size", "aria-pressed": sel.rows === n && sel.cols === n ? "true" : "false", "data-testid": `tienda-size-${n}`, onClick: () => { click(); change((s) => { s.rows = n; s.cols = n; refreshSpots(s); }); } }, `${n} × ${n}`)));
   const fitNote = !fits && h("div", { className: "td-fit", role: "alert", "data-testid": "tienda-fit-warning" },
     h("span", null, need
-      ? `These pieces won't fit in two home rows ${sel.cols} squares wide${bandHasMarks(sel) ? " round the squares marked there" : ""}. They need a board at least ${need} wide.`
-      : `These pieces won't fit in two home rows, even ${MAX_BOARD_DIM} squares wide. Take some out.`),
-    need && need !== sel.cols && h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-fit-fix", onClick: () => setDim("cols", need) }, `Make it ${need} wide`));
+      ? inWords(bandHasMarks(sel) ? "These pieces won't fit in two home rows {cols} squares wide round the squares marked there. They need a board at least {need} wide." : "These pieces won't fit in two home rows {cols} squares wide. They need a board at least {need} wide.", { cols: sel.cols, need })
+      : inWords("These pieces won't fit in two home rows, even {max} squares wide. Take some out.", { max: MAX_BOARD_DIM })),
+    need && need !== sel.cols && h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-fit-fix", onClick: () => setDim("cols", need) }, inWords("Make it {n} wide", { n: need })));
   const missingRows = sel.missing && h("div", { key: "missing", className: "td-sub", "data-testid": "tienda-missing-settings" },
     h("div", { className: "td-sub-row" },
       h("span", { className: "td-sub-h" }, "Pairs"),
@@ -1923,8 +1927,14 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   const standard = () => { click(); replace(standardSelections()); };
   const lawsOn = RULE_LAWS.filter((l) => sel.laws[l.key]).length;
   const summary = classic
-    ? `${total} pieces a side · ${boardLabel(sel)} board`
-    : `${total} pieces a side · ${lawsOn} ${lawsOn === 1 ? "rule" : "rules"} · ${boardLabel(sel)} board${sel.missing ? ` · ${sel.missingCount} cut ${sel.missingCount === 1 ? "pair" : "pairs"}` : ""}${sel.laws.blackHoleSquares ? (holeSetsOf(sel) === 2 ? " · 2 sets of singularities" : " · singularities") : ""}`;
+    ? `${inWords("{n} pieces a side", { n: total })} · ${inWords("{board} board", { board: boardLabel(sel) })}`
+    : [
+      inWords("{n} pieces a side", { n: total }),
+      inWords(lawsOn === 1 ? "{n} rule" : "{n} rules", { n: lawsOn }),
+      inWords("{board} board", { board: boardLabel(sel) }),
+      sel.missing ? inWords(sel.missingCount === 1 ? "{n} cut pair" : "{n} cut pairs", { n: sel.missingCount }) : null,
+      sel.laws.blackHoleSquares ? tr(holeSetsOf(sel) === 2 ? "2 sets of singularities" : "singularities") : null,
+    ].filter(Boolean).join(" · ");
   // The form's sections, numbered as they come (the classic page has no Rules).
   let secNo = 0;
   const sec = (title, note, ...body) => h("div", { className: "td-sec" },
@@ -1946,7 +1956,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
         // Every rule at once, first on the form (user: "a switch ... at the
         // top of all custom setting menus to turn all laws on").
         !classic && h("div", { className: "td-all" },
-          check("all-laws", allLawsOn(sel), "All rules", `Mark this box for every rule in section 2; clear it for none.${allLawsOn(sel) && warnings.some((w) => w.key === "cantileverPivot") ? " Cantilever pivot needs a Codo, Hombro, Cruce, Rayo or Zeta: order one in section 1." : ""}`,
+          check("all-laws", allLawsOn(sel), "All rules", "Mark this box for every rule in section 2; clear it for none." + (allLawsOn(sel) && warnings.some((w) => w.key === "cantileverPivot") ? " Cantilever pivot needs a Codo, Hombro, Cruce, Rayo or Zeta: order one in section 1." : ""),
             () => { pivotHush.hush(); change((s) => setAllLaws(s, !allLawsOn(s))); })),
         sec("Pieces", "quantity for each side — the other side gets the same",
           pieceRows,

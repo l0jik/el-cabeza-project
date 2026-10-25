@@ -237,7 +237,7 @@ function playTurn(pieces, player, steps) {
       if (!may) return { error: "a second piece moved in the same turn", step: i };
     }
     const move = legalMovesFor(board, piece, maxStepsFor(piece.type) - used)[dir];
-    if (!move) return { error: `${PIECE_META[piece.type].name} can't make that move (${dir})`, step: i };
+    if (!move) return { error: `${PIECE_META[piece.type].name} can't make that move (${dir})`, say: ["{piece} can't make that move ({dir})", { piece: PIECE_META[piece.type].name, dir }], step: i };
     let next = board.map((p) => (p.id === piece.id ? move.candidate : p));
     if (move.shoves) { next = applyShoves(next, move.shoves); shoved = true; }
     const usedAfter = used + moveCost(move);
@@ -368,11 +368,11 @@ export function parseLogText(text, names, { rows = 10, cols = 10 } = {}) {
   const used = [...new Set(lines.map((l) => l.name))];
   if (used.length > 2) return { error: "The move lines name more than two sides." };
   const pair = names.find((n) => used.every((u) => u === n.dark || u === n.light));
-  if (!pair) return { error: `The sides in it (${used.join(", ")}) aren't ones the game knows.` };
+  if (!pair) return { error: `The sides in it (${used.join(", ")}) aren't ones the game knows.`, say: ["The sides in it ({names}) aren't ones the game knows.", { names: used.join(", ") }] };
   const sideOf = (name) => (name === pair.dark ? "dark" : "light");
   const turns = lines.map((l) => ({ side: sideOf(l.name), groups: l.groups }));
   for (let i = 1; i < turns.length; i++) {
-    if (turns[i].side === turns[i - 1].side) return { error: `Line ${Math.floor(i / 2) + 1} has the same side moving twice in a row.` };
+    if (turns[i].side === turns[i - 1].side) return { error: `Line ${Math.floor(i / 2) + 1} has the same side moving twice in a row.`, say: ["Line {n} has the same side moving twice in a row.", { n: Math.floor(i / 2) + 1 }] };
   }
   const base = lawsSeen(turns);
   const start = initialPiecesFor(rows, cols);
@@ -398,7 +398,7 @@ function resolve(rec, turns) {
     const { side: player, groups } = turns[t];
     const options = groups.map((g) => board.filter((p) => p.owner === player && PIECE_META[p.type].label === g.label));
     if (options.some((o) => !o.length)) {
-      return { error: `Turn ${t + 1} moves a piece this game doesn't start with (${groups.map((g) => g.label).join(", ")}).`, valid: t, turns: out };
+      return { error: `Turn ${t + 1} moves a piece this game doesn't start with (${groups.map((g) => g.label).join(", ")}).`, say: ["Turn {n} moves a piece this game doesn't start with ({pieces}).", { n: t + 1, pieces: groups.map((g) => g.label).join(", ") }], valid: t, turns: out };
     }
     // (A piece can come back after another has moved, as in "C · Ch ·
     // C", but never twice running: its steps would be one group.)
@@ -414,7 +414,7 @@ function resolve(rec, turns) {
       for (const p of options[k]) if (chosen[k - 1] !== p) pick(k + 1, [...chosen, p]);
     };
     pick(0, []);
-    if (!found) return { error: `Turn ${t + 1} doesn't fit the rules from the standard start.`, valid: t, turns: out };
+    if (!found) return { error: `Turn ${t + 1} doesn't fit the rules from the standard start.`, say: ["Turn {n} doesn't fit the rules from the standard start.", { n: t + 1 }], valid: t, turns: out };
     out.push(found.steps);
     board = found.r.board;
     if (found.r.winner && t < turns.length - 1) return { error: "The log goes on after the game was won.", valid: t + 1, turns: out };

@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import VolumeFader from "./VolumeFader.jsx";
 import NowPlaying from "./NowPlaying.jsx";
+import { t } from "./i18n.js";
 import { sideNamesOf, sideDotStyle } from "../themes/side-names.js";
 
 /* The phone layout (a page opts in with ElCabeza3D's mobileShell prop;
@@ -428,7 +429,7 @@ function OnlineBlock({ ctl, t }) {
     body = (
       <>
         <p data-testid="shell-online-status" style={line}>
-          {o.status === "connecting" ? `Joining ${o.code}…` : o.status === "gone" ? "The other player left." : o.status === "playing" ? `In play with ${o.code}.` : `Joined ${o.code}. Waiting for the host to begin…`}
+          {o.status === "connecting" ? t("Joining {code}…", { code: o.code }) : o.status === "gone" ? "The other player left." : o.status === "playing" ? t("In play with {code}.", { code: o.code }) : t("Joined {code}. Waiting for the host to begin…", { code: o.code })}
           {o.status !== "connecting" && <>{" "}You play {name(o.mySide)}; they play {name(o.theirSide)}.</>}
         </p>
         {o.link === "down" && <p data-testid="shell-online-link" style={{ ...line, color: "#e5392d" }}>Your connection dropped; trying again…</p>}
@@ -692,7 +693,7 @@ function PlayPanel({ ctl, t }) {
           <span
             data-testid="shell-points"
             data-left={ctl.points.left}
-            aria-label={`${ctl.points.left} of ${ctl.points.budget} actions left`}
+            aria-label={t("{n} of {total} actions left", { n: ctl.points.left, total: ctl.points.budget })}
             key={ctl.pointsPulse}
             style={{ display: "flex", gap: 8, flexShrink: 0, animation: ctl.pointsPulse ? "ec-shell-points 0.6s ease-out" : "none", ["--ec-ember"]: ctl.points.glow || accent || t.ink }}
           >
@@ -727,7 +728,7 @@ function PlayPanel({ ctl, t }) {
             data-testid="piece-card"
             data-piece={info.type}
             onClick={() => ctl.onOpenRules("moves", info.tile)}
-            aria-label={`${info.name}: ${info.text} How it moves`}
+            aria-label={`${t(info.name)}: ${t(info.text)} ${t("How it moves")}`}
             style={{
               flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6, textAlign: "left",
               background: "transparent", border: "none", padding: 0, cursor: "pointer",

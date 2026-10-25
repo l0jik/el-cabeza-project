@@ -75,10 +75,12 @@ export function shoveChosen(saved) {
 
 // For a summary: "slides and rolls", "slides only", "slides and rolls,
 // only opponents", "slides only, only opponents", and ", whole lines" when
-// pieces behind are pushed too.
-export function shoveSummary(saved) {
+// pieces behind are pushed too. `say` puts each part in the player's
+// language (chassis/i18n.js tr; this file is the engine's too, so it
+// doesn't bring the tables in itself).
+export function shoveSummary(saved, say = (w) => w) {
   const s = shoveOf(saved);
-  return `${s.onRolls ? "slides and rolls" : "slides only"}${s.own ? "" : ", only opponents"}${s.chain ? ", whole lines" : ""}`;
+  return `${say(s.onRolls ? "slides and rolls" : "slides only")}${s.own ? "" : say(", only opponents")}${s.chain ? say(", whole lines") : ""}`;
 }
 
 // The sentence for "Only opponents", wherever a setting's described
@@ -102,13 +104,15 @@ export const LINE_PUSHED = "Pieces behind the ones pushed are pushed along too, 
 export function shoveNow(saved, laws = {}) {
   const s = shoveOf(saved);
   // (And never on a diagonal, user: said while Diagonal slide is on.)
-  const diag = laws.diagonalSlide ? " Diagonal slides never shove." : "";
-  const own = `${s.own ? "" : ` ${OWN_BLOCKS}`}${s.chain ? ` ${LINE_PUSHED}` : ""}`;
+  // (Sentences, as the language tables have them: chassis/i18n.js.)
+  const diag = laws.diagonalSlide ? "Diagonal slides never shove." : "";
+  const own = [s.own ? "" : OWN_BLOCKS, s.chain ? LINE_PUSHED : ""];
+  const say = (...xs) => xs.flat().filter(Boolean).join(" ");
   if (!s.onRolls)
-    return `Only slides can shove.${diag} A roll into a piece is just blocked.${own}`;
+    return say("Only slides can shove.", diag, "A roll into a piece is just blocked.", own);
   if (!laws.slide)
     return laws.diagonalSlide
-      ? `Only rolls can shove: Orthogonal slide is off, and diagonal slides never shove.${own}`
-      : `Only rolls can shove: Orthogonal slide is off, so there are no slides to shove with.${own}`;
-  return `Slides and rolls can both shove.${diag}${own}`;
+      ? say("Only rolls can shove: Orthogonal slide is off, and diagonal slides never shove.", own)
+      : say("Only rolls can shove: Orthogonal slide is off, so there are no slides to shove with.", own);
+  return say("Slides and rolls can both shove.", diag, own);
 }

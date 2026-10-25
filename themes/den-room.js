@@ -38,6 +38,7 @@
 import * as THREE from "three";
 import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { SLAB_THICKNESS } from "../engine/constants.js";
+import { tr } from "../chassis/i18n.js";
 import { makeRoundedBox } from "../engine/geometry.js";
 import { quality } from "./tienda-quality.js";
 import { canvasTexture, repaint, lidPainter, rng } from "./tienda-textures.js";
@@ -1726,9 +1727,9 @@ function buildCoffeeTable(TW, boardSpan) {
         g.fillStyle = "#A8321F"; g.fillRect(0, 0, W, H * 0.07);
         g.fillStyle = "#28231F"; g.textAlign = "center";
         g.font = `700 ${Math.round(H * 0.07)}px 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif`;
-        g.fillText("BIG GLUTTS \u00b7 GAMES & HOBBY", W / 2, H * 0.17);
+        g.fillText(tr("BIG GLUTTS \u00b7 GAMES & HOBBY"), W / 2, H * 0.17);
         g.fillStyle = "#A8321F"; g.font = `900 ${Math.round(H * 0.12)}px 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif`;
-        g.fillText("SPECIAL ORDERS", W / 2, H * 0.31);
+        g.fillText(tr("SPECIAL ORDERS"), W / 2, H * 0.31);
         g.fillStyle = "rgba(40,35,31,0.6)";
         for (let l = 0; l < 7; l++) {
           const y = H * (0.42 + l * 0.075);

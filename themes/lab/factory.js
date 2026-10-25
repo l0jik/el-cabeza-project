@@ -16,6 +16,8 @@
      nine visual systems */
 
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../../chassis/i18n-jsx/jsx-runtime.js";
 import * as THREE from "three";
 import { createScene } from "./scene.js";
 import { createAmbient } from "./ambient.js";
@@ -128,7 +130,7 @@ export function makeLabTheme(spec) {
     },
     renderExtraOverlays(x) {
       if (!x) return null;
-      return React.createElement(LabHud, { key: `hud-${spec.id}`, spec, x });
+      return createElement(LabHud, { key: `hud-${spec.id}`, spec, x });
     },
   };
 }

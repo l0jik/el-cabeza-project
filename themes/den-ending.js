@@ -33,6 +33,7 @@
 import * as THREE from "three";
 import { createRealitiesMenu } from "./realities.js";
 import { fetchSoundBytes, decodeBytes, loadSound, soundElement } from "../chassis/sound-files.js";
+import { tr } from "../chassis/i18n.js";
 
 // The user's words, as written (*x* in italics, **x** in bold).
 export const REVELATION = [
@@ -878,14 +879,15 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     style();
     root = doc.createElement("div"); root.className = "den-ending"; root.setAttribute("data-testid", "den-ending");
     canvas = doc.createElement("canvas"); root.appendChild(canvas);
-    REVELATION.forEach((line, i) => { const w = doc.createElement("div"); w.className = "word"; w.setAttribute("data-testid", `den-ending-line-${i + 1}`); w.setAttribute("role", "status"); w.innerHTML = reveal(line); root.appendChild(w); words.push(w); });
+    REVELATION.forEach((line, i) => { const w = doc.createElement("div"); w.className = "word"; w.setAttribute("data-testid", `den-ending-line-${i + 1}`); w.setAttribute("role", "status"); w.setAttribute("data-said", ""); w.innerHTML = reveal(tr(line)); root.appendChild(w); words.push(w); });
     dark = doc.createElement("div"); dark.className = "dark"; root.appendChild(dark);
     crawl = doc.createElement("div"); crawl.className = "crawl"; crawl.setAttribute("data-testid", "den-ending-crawl"); crawl.setAttribute("aria-live", "polite");
     crawlText = doc.createElement("div"); crawlText.className = "text";
-    crawlText.innerHTML = CRAWL_TEXT.map((t, i) => `<p${i === CRAWL_TEXT.length - 1 ? ' class="last"' : ""}>${md(t)}</p>`).join("");
+    crawlText.setAttribute("data-said", "");
+    crawlText.innerHTML = CRAWL_TEXT.map((t, i) => `<p${i === CRAWL_TEXT.length - 1 ? ' class="last"' : ""}>${md(tr(t))}</p>`).join("");
     const plane = doc.createElement("div"); plane.className = "plane"; plane.appendChild(crawlText); crawl.appendChild(plane); root.appendChild(crawl);
     crawlLast = crawlText.querySelector("p.last");
-    const mistWrap = doc.createElement("div"); mistWrap.className = "mist-wrap"; mistWrap.setAttribute("aria-hidden", "true");
+    const mistWrap = doc.createElement("div"); mistWrap.className = "mist-wrap"; mistWrap.setAttribute("aria-hidden", "true"); mistWrap.setAttribute("data-said", "");
     const mist = doc.createElement("div"); mist.className = "mist"; mist.innerHTML = crawlText.innerHTML; mistWrap.appendChild(mist);
     const mn = mistNoise(doc); if (mn) mistWrap.style.setProperty("--mist", `url(${mn})`);
     crawlText.appendChild(mistWrap);

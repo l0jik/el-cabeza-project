@@ -22,13 +22,17 @@
 
 import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
+// (Words in the player's language: chassis/i18n.js.)
+import { t as inWords, tr } from "../chassis/i18n.js";
 import { PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, SIZES, BIG_ARMY, BIG_ARMY_NOTE, piecesFit, minColsFor, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, holeSetsOf, setHoleSets, holeSetsText, HOLE_ANY_EXIT } from "./rules-selections.js";
 import { SHOVE_SETTINGS, shoveOf } from "../chassis/shove-settings.js";
 import { LLUVIA } from "./lluvia-city.js";
 import { bus } from "./lluvia-bus.js";
 import { storyOver, openRealityGate, piecePicture, piecePicturesReady, usePieceInspect } from "./reality-gate.js";
 
-const h = React.createElement;
+const h = createElement;
 const PINK = "#ff3dbb", CYAN = "#23e6ff", AMBER = "#ffb347";
 const TUBE = (c) => `0 0 4px rgba(255,255,255,0.8), 0 0 10px ${c}, 0 0 22px ${c}, 0 0 40px ${c}`;
 const TERM = { fontFamily: "'VT323', monospace", color: "#ffcf8a" };
@@ -92,18 +96,18 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = 
         const set = (v) => { sound("key"); change((s) => { s.counts[k] = Math.max(min, Math.min(max, v)); }); };
         const pic = piecePicture("lluvia", k);
         return h("div", { key: k, "data-testid": `lluvia-matter-${k}`, style: { display: "grid", gridTemplateColumns: "58px minmax(0, 1fr) 44px 30px 44px", alignItems: "center", gap: 6, minHeight: 50, borderBottom: "1px solid rgba(255,179,71,0.12)", color: n ? "#ffe2b0" : "#8a6a3e" } },
-          h("button", { type: "button", "data-testid": `lluvia-inspect-${k}`, "aria-label": `${name} in 3D`, title: `See the ${name} in 3D`, disabled: !pic, onClick: (e) => { sound("key"); inspect.open(k, name, null, e); }, style: { position: "relative", width: 58, height: 44, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, border: 0, background: "transparent", color: "inherit", cursor: pic ? "zoom-in" : "default" } },
+          h("button", { type: "button", "data-testid": `lluvia-inspect-${k}`, "aria-label": inWords("{piece} in 3D", { piece: name }), title: inWords("See the {piece} in 3D", { piece: name }), disabled: !pic, onClick: (e) => { sound("key"); inspect.open(k, name, null, e); }, style: { position: "relative", width: 58, height: 44, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, border: 0, background: "transparent", color: "inherit", cursor: pic ? "zoom-in" : "default" } },
             pic ? h("img", { src: pic, alt: "", "data-testid": `lluvia-pic-${k}`, style: { width: 58, height: 44, objectFit: "contain", filter: n ? "none" : "saturate(0.6) brightness(0.8)" } }) : null,
             h("span", { style: { position: pic ? "absolute" : "static", right: -2, bottom: -2, fontFamily: JP, fontSize: pic ? 12 : 17, color: CYAN, textShadow: "0 0 4px #000" } }, sign)),
           h("span", { style: { fontSize: 22 } }, name),
-          h("button", { type: "button", "aria-label": `Fewer ${name}`, "data-testid": `lluvia-matter-${k}-dec`, onClick: () => set(n - 1), style: termButton() }, "−"),
+          h("button", { type: "button", "aria-label": inWords("Fewer {piece}", { piece: name }), "data-testid": `lluvia-matter-${k}-dec`, onClick: () => set(n - 1), style: termButton() }, "−"),
           h("span", { style: { textAlign: "center", fontSize: 24, color: "#fff27a" } }, String(n)),
-          h("button", { type: "button", "aria-label": `More ${name}`, "data-testid": `lluvia-matter-${k}-inc`, onClick: () => set(n + 1), style: termButton() }, "+"));
+          h("button", { type: "button", "aria-label": inWords("More {piece}", { piece: name }), "data-testid": `lluvia-matter-${k}-inc`, onClick: () => set(n + 1), style: termButton() }, "+"));
       }),
       // As many as fit in two home rows (the board's width is in
       // TOPOLOGIES), and the note once it's a big army.
       !piecesFit(sel) && h("div", { key: "fit", "data-testid": "lluvia-fit", style: { padding: "10px 0 2px", fontSize: 18, lineHeight: 1.25, color: "#ff5a5a" } },
-        minColsFor(sel) ? `WON'T FIT IN TWO HOME ROWS ${sel.cols} WIDE. NEEDS ${minColsFor(sel)}: WIDEN IT IN TOPOLOGIES.` : "WON'T FIT ON ANY BOARD. TAKE SOME OUT."),
+        minColsFor(sel) ? inWords("WON'T FIT IN TWO HOME ROWS {cols} WIDE. NEEDS {need}: WIDEN IT IN TOPOLOGIES.", { cols: sel.cols, need: minColsFor(sel) }) : "WON'T FIT ON ANY BOARD. TAKE SOME OUT."),
       total > BIG_ARMY && h("div", { key: "big", "data-testid": "lluvia-big-army", style: { padding: "10px 0 2px", fontSize: 17, lineHeight: 1.25, color: "#a8783a" } }, BIG_ARMY_NOTE),
     ];
   } else if (panel === "laws") {
@@ -324,7 +328,7 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose,
         signButton("laws", "LAWS", `${lawsOn} ${lawsOn === 1 ? "law" : "laws"}`, "rgba(255,61,187,0.7)", "rgba(255,61,187,0.07)", "#ffd0ef", "#ef8fcf"),
         signButton("topologies", "TOPOLOGIES", `${sel.cols}×${sel.rows}`, "rgba(255,179,71,0.7)", "rgba(255,179,71,0.07)", "#ffe2b0", "#d9a45e")),
       h("button", { type: "button", "data-testid": "lluvia-opponent", onClick: cycleOpponent, style: { height: 40, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", background: "rgba(5,4,10,0.6)", border: "1px solid rgba(185,178,200,0.35)", borderRadius: 3, color: "#d9d2e6", font: `600 14px ${SAIRA}`, letterSpacing: "0.1em", cursor: "pointer" } },
-        h("span", { style: { color: "#8d86a0" } }, "OPPONENT"), h("span", null, vsAi ? `CPU · ${diff.toUpperCase()}` : "HUMAN · PASS AND PLAY")),
+        h("span", { style: { color: "#8d86a0" } }, "OPPONENT"), h("span", null, vsAi ? inWords("CPU · {level}", { level: tr(diff).toUpperCase() }) : "HUMAN · PASS AND PLAY")),
       h("button", { type: "button", "data-testid": "lluvia-begin", disabled: wontFit, onClick: begin, style: { height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", border: `2px solid ${AMBER}`, borderRadius: 4, background: "rgba(255,179,71,0.12)", color: AMBER, cursor: wontFit ? "not-allowed" : "pointer", opacity: wontFit ? 0.5 : 1, boxShadow: "0 0 22px rgba(255,179,71,0.35)" } },
         h("span", { style: { fontFamily: SAIRA_X, fontWeight: 800, fontSize: 26, letterSpacing: "0.12em" } }, wontFit ? "PIECES WON'T FIT" : "BEGIN THE GAME"), ICON.arrow)),
     panel && h("div", { style: { position: "absolute", inset: 0, pointerEvents: "auto" }, onPointerDown: closePanel },

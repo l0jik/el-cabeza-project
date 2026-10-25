@@ -11,6 +11,8 @@
 import * as THREE from "three";
 import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE } from "../../engine/constants.js";
 import { sideNamesFor } from "../side-names.js";
+// (Words in the player's language: chassis/i18n.js.)
+import { t as inWords, tr } from "../../chassis/i18n.js";
 
 export function rng(seed) {
   let s = seed >>> 0 || 1;
@@ -234,8 +236,8 @@ const PAINTERS = {
     g.font = `800 ${Math.round(pad * 0.42)}px 'JetBrains Mono', monospace`;
     g.fillStyle = "rgba(24,22,20,0.55)";
     const names = sideNamesFor(spec.id);
-    g.fillText(`GOAL / ${names.light.toUpperCase()}`, pad, pad * 0.3);
-    g.textBaseline = "bottom"; g.fillText(`GOAL / ${names.dark.toUpperCase()}`, pad, H - pad * 0.26);
+    g.fillText(inWords("GOAL / {side}", { side: tr(names.light).toUpperCase() }), pad, pad * 0.3);
+    g.textBaseline = "bottom"; g.fillText(inWords("GOAL / {side}", { side: tr(names.dark).toUpperCase() }), pad, H - pad * 0.26);
   },
 
   parchment(spec, b) {

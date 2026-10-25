@@ -75,6 +75,8 @@ const E2E = [
   ["e2e-device-fit.mjs"],
   // Nova's title screen: the Horizon splash, held on the logo, its menu by the story's place.
   ["e2e-title.mjs"],
+  // The languages: the device's guessed, the title's EN · ES · VI line, the dock's badge.
+  ["e2e-language.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

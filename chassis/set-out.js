@@ -15,6 +15,7 @@ import * as THREE from "three";
 import { SQUARE_SIZE, OFF_X, OFF_Z, SLAB_X, SLAB_Z, PIECE_META } from "../engine/constants.js";
 import { zoneRows, targets } from "../engine/placement.js";
 import { piecesClash } from "../engine/shapes.js";
+import { tr } from "./i18n.js";
 
 /* ---- kept between games ------------------------------------------------ */
 // Standard, or Manual: the setup's Starting position. Standard unless chosen.
@@ -200,7 +201,7 @@ export function buildSetOutMarks(group, view) {
     // Its name, at your corner of it.
     const near = view.side === "dark" ? z0 : z1;
     const words = (view.words && view.words.rows) || (view.half ? "Your half" : "Your rows");
-    group.add(label(words.toUpperCase(), view.side, view.side === "dark" ? x1 - 1.0 : x0 + 1.0, near + (view.side === "dark" ? 0.32 : -0.32), 0.24));
+    group.add(label(tr(words).toUpperCase(), view.side, view.side === "dark" ? x1 - 1.0 : x0 + 1.0, near + (view.side === "dark" ? 0.32 : -0.32), 0.24));
   }
   // The bench: a dark tray past the board's edge, a dashed rim, its name.
   {
@@ -213,8 +214,8 @@ export function buildSetOutMarks(group, view) {
     group.add(tray);
     rect(group, x0, Math.min(zIn, zOut), x1, Math.max(zIn, zOut), { color: SET_OUT_ACCENT, dash: 0.3, gap: 0.18, opacity: 0.8, y: 0.004, kind: "set-out-bench-edge" });
     const words = (view.words && view.words.bench) || "Bench";
-    if (!view.bench.length) group.add(label(words.toUpperCase(), view.side, 0, (zIn + zOut) / 2, 0.42));
-    else group.add(label(words.toUpperCase(), view.side, x1 - 0.95, sign * (hz + BENCH_GAP + 0.05), 0.24));
+    if (!view.bench.length) group.add(label(tr(words).toUpperCase(), view.side, 0, (zIn + zOut) / 2, 0.42));
+    else group.add(label(tr(words).toUpperCase(), view.side, x1 - 0.95, sign * (hz + BENCH_GAP + 0.05), 0.24));
   }
   // The chosen piece: a solid edge round it, where it stands.
   if (view.chosen) {

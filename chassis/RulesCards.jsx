@@ -13,6 +13,7 @@
    exactly as the engine plays them (engine/constants.js, engine/rules.js). */
 import React, { useEffect, useRef } from "react";
 import { LINE_PUSHED } from "./shove-settings.js";
+import { t, rich } from "./i18n.js";
 
 export const OPEN_RULES_EVENT = "el-cabeza:open-rules";
 // Sent when the player asks for the original game (ABOUT's link): the
@@ -48,14 +49,12 @@ export const LAW_TEXT = {
 // other half (ACTIVE_LAWS.holeAnyExit off) or anywhere (on). `holes`: how
 // many there are on the board, 2 or 4 (0: say it all).
 export function blackHoleText(laws = {}, holes = 0) {
-  const start = "A piece standing on one square that enters a singularity comes out";
-  const end = "one square past it on the same side it went in, and the turn ends";
-  if (holes === 2) return `Two linked singularities. ${start} of the other, ${end}.`;
+  if (holes === 2) return "Two linked singularities. A piece standing on one square that enters a singularity comes out of the other, one square past it on the same side it went in, and the turn ends.";
   if (holes === 4) {
     // (The player picks the singularity, not where it lands: user.)
     return laws.holeAnyExit
-      ? `Two sets of linked singularities. ${start} of the singularity the player picks, any of the other three, ${end}; a piece pushed in comes out of that singularity's own partner.`
-      : `Two sets of linked singularities. ${start} of the singularity the player picks, either one in the other half of the board, ${end}; a piece pushed in comes out of that singularity's own partner.`;
+      ? "Two sets of linked singularities. A piece standing on one square that enters a singularity comes out of the singularity the player picks, any of the other three, one square past it on the same side it went in, and the turn ends; a piece pushed in comes out of that singularity's own partner."
+      : "Two sets of linked singularities. A piece standing on one square that enters a singularity comes out of the singularity the player picks, either one in the other half of the board, one square past it on the same side it went in, and the turn ends; a piece pushed in comes out of that singularity's own partner.";
   }
   return LAW_TEXT.blackHoleSquares.text;
 }
@@ -67,11 +66,13 @@ export function blackHoleText(laws = {}, holes = 0) {
 // and whether pieces behind block it or are pushed along too, the whole
 // line (ACTIVE_LAWS.shoveChain, off unless set to push them).
 export function shovingText(laws = {}) {
-  const own = laws.shoveOwn === false ? " A shove pushes only the opponent's pieces: one of your own pieces in the way blocks the move." : "";
-  const behind = laws.shoveChain ? ` ${LINE_PUSHED}` : " Nothing may be behind them.";
+  // (A sentence at a time, as the tables have them: chassis/i18n.js.)
+  const own = laws.shoveOwn === false ? "A shove pushes only the opponent's pieces: one of your own pieces in the way blocks the move." : "";
+  const behind = laws.shoveChain ? LINE_PUSHED : "Nothing may be behind them.";
+  const say = (...xs) => xs.filter(Boolean).join(" ");
   if (laws.shoveOnRolls === false)
-    return `Slides only: a piece sliding into pieces with fewer cubes than it, all together, pushes them one square along, for 1 extra action (a shoving slide costs 3), never diagonally. A roll into a piece is blocked.${behind}${own}`;
-  return `${LAW_TEXT.shoving.text.replace(/ Nothing may be behind them\.$/, "")}${behind}${own}`;
+    return say("Slides only: a piece sliding into pieces with fewer cubes than it, all together, pushes them one square along, for 1 extra action (a shoving slide costs 3), never diagonally.", "A roll into a piece is blocked.", behind, own);
+  return say(LAW_TEXT.shoving.text.replace(/ Nothing may be behind them\.$/, ""), behind, own);
 }
 
 const mono = "'IBM Plex Mono', monospace";
@@ -104,13 +105,15 @@ const Label = ({ children, C }) => (
 /* ---------------------------------------------------------------- A */
 function QuickCard({ C, budget }) {
   const rows = [
-    ["Win", <>Get your <b>Cabeza</b> to the far row, or crush the enemy Cabeza by landing a block on it.</>],
-    ["Must", <><b>Move at least 1 piece, 1 time.</b> Skipping your turn is not allowed.</>],
-    ["Turn", <>Spend up to <b>{budget} actions</b> <Dots n={budget} C={C} /> on one piece. You can stop after one move: hold the piece you moved, or press End turn.</>],
-    ["Blocks", <>Every piece but the Cabeza. Tip over an edge: north, south, east or west. <b>1 action</b> a roll.</>],
+    // (Each line whole, its bold words marked, for the language tables:
+    // chassis/i18n.js rich.)
+    ["Win", rich("Get your <b>Cabeza</b> to the far row, or crush the enemy Cabeza by landing a block on it.")],
+    ["Must", rich("<b>Move at least 1 piece, 1 time.</b> Skipping your turn is not allowed.")],
+    ["Turn", <>{rich("Spend up to <b>{n} actions</b>", { n: budget })} <Dots n={budget} C={C} /> on one piece. You can stop after one move: hold the piece you moved, or press End turn.</>],
+    ["Blocks", rich("Every piece but the Cabeza. Tip over an edge: north, south, east or west. <b>1 action</b> a roll.")],
     // The Opa is a block with its own cost, so it sits indented under Blocks.
-    ["Opa", <>The big cube's move costs <b>2 actions</b>, and it moves once per turn.</>, true],
-    ["Cabeza", <>Steps one square in any of 8 directions. <b>1 action</b>. It can't crush.</>],
+    ["Opa", rich("The big cube's move costs <b>2 actions</b>, and it moves once per turn."), true],
+    ["Cabeza", rich("Steps one square in any of 8 directions. <b>1 action</b>. It can't crush.")],
     ["Free", <>Moving back to where you already were this turn costs nothing.</>],
   ];
   return (
@@ -173,8 +176,8 @@ function GameCard({ C, game, onFocus, classic, reality }) {
   // (Three pieces says it all: not two-piece Split Movement beside it.)
   const on = classic ? [] : Object.keys(LAW_TEXT).filter((k) => game.laws[k] && !(k === "splitMovement" && game.laws.splitThree));
   const extras = [];
-  if (game.rows !== 10 || game.cols !== 10) extras.push(`${game.rows} × ${game.cols} board`);
-  if (game.missing && !classic) extras.push(`${game.missing} missing squares`);
+  if (game.rows !== 10 || game.cols !== 10) extras.push(t("{rows} × {cols} board", { rows: game.rows, cols: game.cols }));
+  if (game.missing && !classic) extras.push(t("{n} missing squares", { n: game.missing }));
   if (game.newTypes.length && !classic) extras.push(...game.newTypes);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -704,8 +707,8 @@ function MovesCard({ C, focus, classic }) {
 /* ---------------------------------------------------------------- E */
 function TurnCard({ C, budget, classic }) {
   const steps = [
-    <><b>You must move at least 1 piece, 1 time.</b> Skipping your turn is not allowed.</>,
-    classic ? <>Pick <b>one piece</b>.</> : <>Pick <b>one piece</b>. (With Split Movement, 2 Pieces, up to two.)</>,
+    rich("<b>You must move at least 1 piece, 1 time.</b> Skipping your turn is not allowed."),
+    rich(classic ? "Pick <b>one piece</b>." : "Pick <b>one piece</b>. (With Split Movement, 2 Pieces, up to two.)"),
     classic
       ? <>Spend your actions <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, an Opa move is 2.</>
       : <>Spend your actions <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, a slide or any Opa move is 2, a pivot 1, a shove 1 more.</>,
@@ -816,18 +819,18 @@ export function pieceCardInfo(piece, laws = {}, name = piece.type) {
 function lawExtras(piece, laws = {}) {
   const extra = [];
   if ((laws.slide || laws.diagonalSlide) && piece.type !== "cabeza") {
-    const way = laws.slide ? (laws.diagonalSlide ? " one square, diagonals too," : " one square") : " one square corner to corner";
+    const way = laws.slide ? (laws.diagonalSlide ? "both" : "straight") : "diagonal";
     extra.push(piece.type === "opa"
-      ? `It can also slide${way}, still 2 actions.`
-      : `Or slide${way} without tipping, 2 actions.`);
+      ? { both: "It can also slide one square, diagonals too, still 2 actions.", straight: "It can also slide one square, still 2 actions.", diagonal: "It can also slide one square corner to corner, still 2 actions." }[way]
+      : { both: "Or slide one square, diagonals too, without tipping, 2 actions.", straight: "Or slide one square without tipping, 2 actions.", diagonal: "Or slide one square corner to corner without tipping, 2 actions." }[way]);
   }
   if (laws.cantileverPivot && PIVOTERS.includes(piece.type)) extra.push("Or pivot a quarter turn on one cube, 1 action.");
   if (laws.shoving && piece.type !== "cabeza") {
     // (Set to the opponent's pieces only: "the opponent's lighter pieces".)
-    const whose = laws.shoveOwn === false ? "the opponent's lighter pieces" : "lighter pieces";
+    const theirs = laws.shoveOwn === false;
     extra.push(laws.shoveOnRolls === false
-      ? (laws.slide ? `Sliding into ${whose} (fewer cubes, all together) shoves them one square, 1 action more.` : "")
-      : `Rolling or sliding into ${whose} (fewer cubes, all together) shoves them along, 1 action more.`);
+      ? (laws.slide ? (theirs ? "Sliding into the opponent's lighter pieces (fewer cubes, all together) shoves them one square, 1 action more." : "Sliding into lighter pieces (fewer cubes, all together) shoves them one square, 1 action more.") : "")
+      : theirs ? "Rolling or sliding into the opponent's lighter pieces (fewer cubes, all together) shoves them along, 1 action more." : "Rolling or sliding into lighter pieces (fewer cubes, all together) shoves them along, 1 action more.");
   }
   return extra.filter(Boolean);
 }
@@ -844,20 +847,20 @@ function lawExtras(piece, laws = {}) {
    extra }, any of them but the name possibly empty. */
 const TIMES = ["", "once", "twice", "three times", "four times"];
 export function pieceLesson(piece, laws = {}, name = piece.type, budget = 2, foe = "the other side") {
-  const t = piece.type;
-  const cost = t === "opa" ? 2 : 1;
+  const type = piece.type;
+  const cost = type === "opa" ? 2 : 1;
   const n = Math.max(1, Math.floor(budget / cost));
-  const times = TIMES[n] || `${n} times`;
-  const crush = `Roll it onto ${foe}'s Cabeza to crush it.`;
-  const rolls = `One action a roll: it can roll ${times} a turn.`;
+  const times = TIMES[n] || t("{n} times", { n });
+  const crush = t("Roll it onto {side}'s Cabeza to crush it.", { side: foe });
+  const rolls = t("One action a roll: it can roll {times} a turn.", { times });
   const LESSON = {
-    cabeza: ["Your Cabeza", "The disc: the piece you win with.", "One square any way, corners too.", `One action a step: it can step ${times} a turn.`, `Reach ${foe}'s back row to win. It can't crush, so keep it out from under their blocks.`],
+    cabeza: ["Your Cabeza", "The disc: the piece you win with.", "One square any way, corners too.", t("One action a step: it can step {times} a turn.", { times }), t("Reach {side}'s back row to win. It can't crush, so keep it out from under their blocks.", { side: foe })],
     turrito: ["The Turrito", "The small cube.", "It rolls over an edge into the next square, never corner to corner.", rolls, crush],
-    opa: ["The Opa", "The big cube.", "It rolls two squares at once, over an edge.", budget > cost ? `Its move takes ${cost} of your ${budget} actions, so it moves once a turn.` : "Its move takes both your actions, so it moves once a turn.", crush],
+    opa: ["The Opa", "The big cube.", "It rolls two squares at once, over an edge.", budget > cost ? t("Its move takes {n} of your {total} actions, so it moves once a turn.", { n: cost, total: budget }) : "Its move takes both your actions, so it moves once a turn.", crush],
     chato: ["The Chato", "The flat block.", "It tips over an edge into the next squares; how far depends on how it's lying.", rolls, crush],
     flaco: ["The Flaco", "The long block.", piece.z > 1 ? "Standing, it tips over to lie across the next two squares." : "Lying down, it rolls one square to the side; rolled along its length, it stands up.", rolls, crush],
   };
-  const own = LESSON[t];
+  const own = LESSON[type];
   if (own) return { name: own[0], what: own[1], moves: own[2], turn: own[3], aim: own[4], extra: lawExtras(piece, laws) };
-  return { name: `The ${name}`, what: "", moves: PIECE_TEXT[t] ? PIECE_TEXT[t][0] : `Rolls over one edge, 1 action a roll. ${CRUSH}`, turn: rolls, aim: "", extra: lawExtras(piece, laws) };
+  return { name: t("The {piece}", { piece: name }), what: "", moves: PIECE_TEXT[type] ? PIECE_TEXT[type][0] : "Rolls over one edge, 1 action a roll. " + CRUSH, turn: rolls, aim: "", extra: lawExtras(piece, laws) };
 }

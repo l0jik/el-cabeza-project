@@ -23,6 +23,10 @@
    prefiltered render target) works in both. */
 
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
+// (Words in the player's language: chassis/i18n.js.)
+import { t as inWords, tr } from "../chassis/i18n.js";
 import * as THREE from "three";
 import {
   BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, SLAB_THICKNESS, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z,
@@ -451,7 +455,7 @@ export function useSetupExtras({ audio }) {
 /* Begin Game shares its row with the stone switch: a small swatch of the
    chosen stone and its name. */
 export function renderSetupExtras({ beginGameButton, stone: key, toggleStone }) {
-  const h = React.createElement;
+  const h = createElement;
   const st = STONES[key] || STONES.tungsten;
   const swatch = key === "shungite"
     ? "radial-gradient(circle at 35% 30%, #5a5c62, #111113 62%)"
@@ -466,7 +470,7 @@ export function renderSetupExtras({ beginGameButton, stone: key, toggleStone }) 
         type: "button",
         className: "ec-btn ec-btn-invert",
         "data-testid": "cromo-stone",
-        "aria-label": `Board stone: ${st.label}. Switch stone`,
+        "aria-label": inWords("Board stone: {stone}. Switch stone", { stone: st.label }),
         title: "Switch the monolith between tungsten and shungite",
         onClick: toggleStone,
         style: {

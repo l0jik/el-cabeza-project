@@ -13,6 +13,8 @@
    bloom pass). */
 
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
 import * as THREE from "three";
 import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, GRID_EXTENT_X, GRID_EXTENT_Z, GOAL_ROW, PIECE_SCALE, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
 import { opponentOf, cabezaInDanger } from "../engine/ai.js";
@@ -3181,11 +3183,11 @@ export const styleSheet = `
    be expressed as pure CSS. Rendered once, globally, since every
    profile that references url(#ec-warp-a) etc. needs it available
    regardless of which element is currently glitching. */
-/* React.createElement, not JSX — this file stays plain ES modules
+/* createElement, not JSX — this file stays plain ES modules
    (loadable directly by Node for the smoke tests in tests/) rather
    than requiring a JSX transform outside the build step. */
 export function renderGlobalDefs() {
-  const h = React.createElement;
+  const h = createElement;
   return h(
     "svg",
     { width: 0, height: 0, style: { position: "absolute" }, "aria-hidden": "true" },
@@ -3408,7 +3410,7 @@ export function useSetupExtras({
    both. Takes over the whole row/column rather than just appending
    after Begin Game, since Anomaly has to sit BEFORE it. */
 export function renderSetupExtras({ beginGameButton, handleAnomaly, revealSingularity }) {
-  const h = React.createElement;
+  const h = createElement;
   return h(
     "div",
     {
@@ -3512,7 +3514,7 @@ export function shellSetupActions({ handleAnomaly, revealSingularity }) {
 export function renderSingularityInvite({ singularityRevealed, singularityPhase, commitSingularity, singularityBtnRef }) {
   // Only while revealed and before the cinematic has taken over.
   if (!singularityRevealed || (singularityPhase && singularityPhase !== "idle")) return null;
-  const h = React.createElement;
+  const h = createElement;
   return h(
     "div",
     { className: "ec-singularity-invite-backdrop", key: "singularity-invite" },
@@ -3539,7 +3541,7 @@ export function renderSingularityInvite({ singularityRevealed, singularityPhase,
    this is a rare, heavy, mostly one-way takeover rather than a
    frequently-toggled panel. */
 export function renderExtraOverlays(setupExtras) {
-  return React.createElement(
+  return createElement(
     React.Fragment,
     null,
     renderSingularityInvite(setupExtras),

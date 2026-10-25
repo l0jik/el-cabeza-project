@@ -56,6 +56,27 @@
   // the screen"); the video plays on.
   const MENU_AT = 6.9;
   const WORLD_NAMES = __WORLD_NAMES__;
+  /* Its words in the player's language (user: "For the language picker,
+     go with 2 and 4": the device's language guessed, and a small
+     EN · ES · VI line under Begin to change it). The game's own choice
+     (chassis/i18n.js: ?lang=, else the one chosen, kept, else the
+     device's), the words from its tables (build/build.js: each say("...")
+     here, and the worlds' names). */
+  const WORDS = __TITLE_WORDS__;
+  const LANGS = { en: "English", es: "Español", vi: "Tiếng Việt" };
+  let lang = "en";
+  try {
+    const asked = new URLSearchParams(W.location.search).get("lang");
+    let kept = null;
+    try { kept = W.localStorage.getItem("el-cabeza:language"); } catch (e) { /* nothing kept */ }
+    const device = [...(navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""])]
+      .map((l) => String(l).toLowerCase().split(/[-_]/)[0]).find((c) => LANGS[c]);
+    lang = LANGS[asked] ? asked : LANGS[kept] ? kept : device || "en";
+  } catch (e) { /* English */ }
+  const say = (s, vars) => {
+    const v = (WORDS[lang] && WORDS[lang][s]) || s;
+    return vars ? v.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? say(vars[k]) : m)) : v;
+  };
 
   let forced = false;
   try {
@@ -80,8 +101,8 @@
   const ended = !!(rec && rec.ended), owned = !!(rec && rec.owned);
   if (!WORLD_NAMES[last]) last = null;
   const first = ended
-    ? { action: "continue", word: "Continue", sub: `in ${WORLD_NAMES[last || "den"]}`, world: last || "den" }
-    : owned ? { action: "continue", word: "Continue", sub: "where you left off" } : { action: "begin", word: "Begin", sub: "" };
+    ? { action: "continue", word: () => say("Continue"), sub: () => say("in {world}", { world: WORLD_NAMES[last || "den"] }), world: last || "den" }
+    : owned ? { action: "continue", word: () => say("Continue"), sub: () => say("where you left off") } : { action: "begin", word: () => say("Begin"), sub: null };
 
   const CSS = `
 html.ec-splash-on { background: #120C08; }
@@ -111,6 +132,7 @@ html.ec-splash-on { background: #120C08; }
 .ec-splash.menu-on .ec-splash-menu > * { opacity: 1; transform: none; }
 .ec-splash.menu-on .ec-splash-menu > :nth-child(2) { transition-delay: 0.15s; }
 .ec-splash.menu-on .ec-splash-menu > :nth-child(3) { transition-delay: 0.3s; }
+.ec-splash.menu-on .ec-splash-menu > :nth-child(4) { transition-delay: 0.45s; }
 .ec-splash.leaving .ec-splash-menu > * { opacity: 0; transition-delay: 0s; transition-duration: 0.35s; }
 :where(.ec-splash button) { all: unset; box-sizing: border-box; cursor: pointer; text-align: center; touch-action: manipulation; }
 .ec-splash button:focus-visible { outline: 1px solid rgba(235, 203, 147, 0.8); outline-offset: 5px; border-radius: 2px; }
@@ -127,6 +149,13 @@ html.ec-splash-on { background: #120C08; }
   text-decoration: underline; text-decoration-color: rgba(235, 203, 147, 0.25); text-underline-offset: 4px; transition: color 0.3s ease; }
 .ec-splash-restart:hover { color: rgba(235, 203, 147, 0.8); }
 .ec-splash-restart.sure { color: #F4C9B0; text-decoration-color: rgba(244, 201, 176, 0.6); }
+/* The languages, a quiet line under Begin, the one in use lit and ruled. */
+.ec-splash-langs { display: flex; align-items: center; gap: 2px; margin-top: -6px; font-weight: 300; font-size: 13px; letter-spacing: 0.28em;
+  color: rgba(235, 203, 147, 0.5); }
+.ec-splash-langs button { min-height: 36px; padding: 8px 7px 6px calc(7px + 0.28em); border-bottom: 1px solid transparent; transition: color 0.3s ease; }
+.ec-splash-langs button:hover { color: rgba(242, 217, 164, 0.85); }
+.ec-splash-langs button.on { color: #F2D9A4; border-bottom-color: #C29A5C; }
+.ec-splash-langs i { font-style: normal; opacity: 0.6; letter-spacing: 0; }
 /* The way out: the choice squeezed to a line and gone, its rules drawn out
    along it, as the splash plays back to the board over the held logo (the
    stage settling back as it came). */
@@ -274,24 +303,47 @@ html.ec-splash-on { background: #120C08; }
   const menu = el("div", "ec-splash-menu");
   const primary = el("button", "ec-splash-primary", { type: "button", "data-testid": "title-primary", "data-action": first.action });
   const word = el("span", "w");
-  word.textContent = first.word;
   primary.appendChild(word);
-  if (first.sub) { const s = el("span", "s"); s.textContent = first.sub; primary.appendChild(s); }
+  const sub = first.sub ? el("span", "s") : null;
+  if (sub) primary.appendChild(sub);
   menu.appendChild(primary);
-  let second = null, restart = null;
+  // EN · ES · VI, each named in its own language.
+  const langs = el("div", "ec-splash-langs", { "data-testid": "title-languages", role: "group" });
+  Object.keys(LANGS).forEach((c, i) => {
+    if (i) { const dot = el("i", "", { "aria-hidden": "true" }); dot.textContent = "\u00b7"; langs.appendChild(dot); }
+    const b = el("button", "", { type: "button", "data-lang": c, lang: c, "aria-label": LANGS[c] });
+    b.textContent = c.toUpperCase();
+    langs.appendChild(b);
+  });
+  menu.appendChild(langs);
+  let second = null, restart = null, sure = false;
   if (ended) {
     second = el("button", "ec-splash-second", { type: "button", "data-testid": "title-realities" });
-    second.textContent = "Other realities";
     menu.appendChild(second);
   }
   if (ended || owned) {
     restart = el("button", "ec-splash-restart", { type: "button", "data-testid": "title-restart" });
-    restart.textContent = "Restart the story";
     menu.appendChild(restart);
   }
+  // Every word on it, in the language now chosen.
+  const label = () => {
+    word.textContent = first.word();
+    if (sub) sub.textContent = first.sub();
+    if (second) second.textContent = say("Other realities");
+    if (restart) restart.textContent = sure ? say("Tap again to restart the story") : say("Restart the story");
+    langs.setAttribute("aria-label", say("Language"));
+    for (const b of langs.querySelectorAll("button")) {
+      const on = b.getAttribute("data-lang") === lang;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    root.setAttribute("data-lang", lang);
+    try { D.documentElement.lang = lang === "es" ? "es-AR" : lang; } catch (e) { /* as it is */ }
+  };
   stage.insertBefore(back, video);
   root.append(stage, menu);
   D.body.appendChild(root);
+  label();
 
   let resolveChoice;
   title.chosen = new Promise((r) => { resolveChoice = r; });
@@ -512,11 +564,12 @@ html.ec-splash-on { background: #120C08; }
   let sureTimer = 0;
   function choose(action) {
     if (state !== "held") return;
-    if (action === "restart" && restart && !restart.classList.contains("sure")) {
+    if (action === "restart" && restart && !sure) {
+      sure = true;
       restart.classList.add("sure");
-      restart.textContent = "Tap again to restart the story";
+      label();
       clearTimeout(sureTimer);
-      sureTimer = W.setTimeout(() => { restart.classList.remove("sure"); restart.textContent = "Restart the story"; }, 4000);
+      sureTimer = W.setTimeout(() => { sure = false; restart.classList.remove("sure"); label(); }, 4000);
       return;
     }
     setState("leaving");
@@ -617,6 +670,17 @@ html.ec-splash-on { background: #120C08; }
     }, 760);
   }
 
+  /* A language from the line: the title's words in it at once, kept for
+     the game (and told to it, if it's up already: chassis/i18n.js). */
+  function pickLanguage(c) {
+    if (!LANGS[c] || c === lang) return;
+    lang = c;
+    try { W.localStorage.setItem("el-cabeza:language", c); } catch (e) { /* this visit only */ }
+    try { W.dispatchEvent(new CustomEvent("el-cabeza:language", { detail: c })); } catch (e) { /* it reads the kept one */ }
+    label();
+    fit();
+  }
+
   /* The buttons alone (a tap anywhere else is nothing). A finger's tap on
      one counts as it lifts (user: "as soon as BEGIN is on screen ... you
      should immediately be able to click on it"): the first tap asks for
@@ -633,6 +697,7 @@ html.ec-splash-on { background: #120C08; }
     const f = fingerOn;
     fingerOn = null;
     if (!f || state !== "held" || Math.hypot(e.clientX - f.x, e.clientY - f.y) > 14) return;
+    if (f.b.hasAttribute("data-lang")) { tappedAt = W.performance.now(); pickLanguage(f.b.getAttribute("data-lang")); return; }
     const a = which(f.b);
     if (!a) return;
     tappedAt = W.performance.now();
@@ -642,6 +707,7 @@ html.ec-splash-on { background: #120C08; }
     // (The click a finger's tap makes after it, already counted.)
     if (state !== "held" || W.performance.now() - tappedAt < 800) return;
     const b = e.target && e.target.closest ? e.target.closest(".ec-splash button") : null;
+    if (b && b.hasAttribute("data-lang")) { pickLanguage(b.getAttribute("data-lang")); return; }
     const a = b && which(b);
     if (a) choose(a);
   });

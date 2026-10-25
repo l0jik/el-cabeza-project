@@ -17,6 +17,7 @@
 import { ACTIVE_LAWS, BOARD_ROWS, BOARD_COLS } from "../engine/constants.js";
 import { PIECE_OPTIONS } from "../themes/rules-selections.js";
 import { shoveFromLaws, shoveChosen } from "./shove-settings.js";
+import { t } from "./i18n.js";
 
 /* ------------------------------------------------------------ the data */
 
@@ -68,13 +69,17 @@ export function gameRules(pieces = [], missing = [], holes = []) {
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
 const word = (n) => WORDS[n] || String(n);
-const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+// ("{n} law", "{n} laws": each a line in the language tables.)
+const plural = (n, one, many = `${one}s`) => t(n === 1 ? `{n} ${one}` : `{n} ${many}`, { n });
 const two = (n) => String(n).padStart(2, "0");
+// A line a word to a span (Luna's tab breaks between them), in the
+// player's language and so left be by the page's (data-said).
+const words = (s) => s.split(" ").map((w) => `<span class="w">${esc(w)}</span>`).join(" ");
 
 // The line on the tab, in each look's way of putting it.
 const sums = {
-  plain: (r) => (r.standard ? `Standard game · ${r.board.label}` : `${r.laws.length ? plural(r.laws.length, "law") : "No laws"} · ${plural(r.perSide, "piece")} · ${r.board.label}`),
-  short: (r) => (r.standard ? `Standard · ${r.board.cols}×${r.board.rows}` : `${r.laws.length ? plural(r.laws.length, "law") : "No laws"} · ${r.board.cols}×${r.board.rows}`),
+  plain: (r) => (r.standard ? t("Standard game · {board}", { board: r.board.label }) : `${r.laws.length ? plural(r.laws.length, "law") : t("No laws")} · ${plural(r.perSide, "piece")} · ${r.board.label}`),
+  short: (r) => (r.standard ? t("Standard · {board}", { board: `${r.board.cols}×${r.board.rows}` }) : `${r.laws.length ? plural(r.laws.length, "law") : t("No laws")} · ${r.board.cols}×${r.board.rows}`),
 };
 
 // The card's insides, the same everywhere (each look's own labels and marks).
@@ -102,7 +107,7 @@ function plan(r) {
   const M = new Set(r.board.missing.map(key)), H = new Set(r.board.holes.map(key));
   let cells = "";
   for (let i = 0; i < R; i++) for (let j = 0; j < C; j++) { const k = `${i},${j}`; cells += `<i class="${M.has(k) ? "x" : H.has(k) ? "o" : ""}"></i>`; }
-  const legend = [`${C} across`, `${R} rows`, ...(M.size ? ["✕ missing"] : []), ...(H.size ? ["◯ singularity"] : [])].join(" · ");
+  const legend = [t("{n} across", { n: C }), t("{n} rows", { n: R }), ...(M.size ? [t("✕ missing")] : []), ...(H.size ? [t("◯ singularity")] : [])].join(" · ");
   return `<div class="mini" aria-hidden="true" style="grid-template-columns: repeat(${C}, 9px)">${cells}</div><span class="dim">${legend}</span>`;
 }
 
@@ -184,10 +189,10 @@ export const LOOKS = {
      scan, the numbers in mono. */
   futuris: {
     fonts: "family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600",
-    tab: (r) => `<span class="dia"></span><span class="tt"><span class="t">Ruleset</span><span class="s">${r.standard ? `STANDARD · ${r.board.cols}×${r.board.rows}` : `${r.laws.length} LAWS · ${r.perSide} PCS · ${r.board.cols}×${r.board.rows}`}</span></span>`,
+    tab: (r) => `<span class="dia"></span><span class="tt"><span class="t">Ruleset</span><span class="s">${r.standard ? t("STANDARD · {board}", { board: `${r.board.cols}×${r.board.rows}` }) : t("{laws} LAWS · {n} PCS · {board}", { laws: r.laws.length, n: r.perSide, board: `${r.board.cols}×${r.board.rows}` })}</span></span>`,
     L: {
       head: `<div class="hd"><span class="kick">// active parameters</span><h3>RULESET</h3><span class="rule"></span></div>`,
-      laws: (r) => `LAWS <b>${two(r.laws.length)}</b>`, pieces: (r) => `PIECES <small>per side</small> <b>${two(r.perSide)}</b>`, board: () => "BOARD",
+      laws: (r) => `${t("LAWS")} <b>${two(r.laws.length)}</b>`, pieces: (r) => `${t("PIECES")} <small>${t("per side")}</small> <b>${two(r.perSide)}</b>`, board: () => t("BOARD"),
       noLaws: "NONE · STANDARD RULES",
       count: (c) => two(c),
       foot: () => `<div class="ft"><span>Δ = not standard</span>${rulesLink("OPEN RULES ▸")}</div>`,
@@ -222,7 +227,7 @@ export const LOOKS = {
      unfolds into. */
   store: {
     fonts: "family=Caprasimo&family=Libre+Franklin:wght@700;800;900&family=Courier+Prime:wght@400;700",
-    tab: (r) => `<span class="hole"></span><span class="t">Your order</span><span class="s">${r.standard ? "standard" : `${r.laws.length ? plural(r.laws.length, "law") : "no laws"}, ${plural(r.perSide, "piece")}`}</span>`,
+    tab: (r) => `<span class="hole"></span><span class="t">Your order</span><span class="s">${r.standard ? t("standard") : `${r.laws.length ? plural(r.laws.length, "law") : t("no laws")}, ${plural(r.perSide, "piece")}`}</span>`,
     L: {
       head: `<div class="hd"><b>Big Glutts</b><span>Games &amp; Hobby · Aisle 9</span><span class="no">SALES SLIP &nbsp;No. 0475</span></div>`,
       laws: () => "LAWS", pieces: () => "PIECES <small>(each side)</small>", board: () => "BOARD",
@@ -260,13 +265,14 @@ export const LOOKS = {
     `,
   },
   /* Lluvia: a neon sign in the rain (its Vietnamese over the English, as
-     the street's own signs are). */
+     the street's own signs are; the English half, .en, in the player's
+     language, and gone in Vietnamese, where it would say it twice). */
   lluvia: {
     fonts: "family=Saira+Condensed:wght@500;600;700&family=Saira+Extra+Condensed:wght@800",
-    tab: (r) => `<span class="neon">LUẬT</span><span class="tt"><span class="t">Rules</span><span class="s">${esc(sums.short(r))}</span></span>`,
+    tab: (r) => `<span class="neon">LUẬT</span><span class="tt"><span class="t en">Rules</span><span class="s">${esc(sums.short(r))}</span></span>`,
     L: {
-      head: `<div class="hd"><span class="kick">Nueva Ciudad · 2091</span><h3>LUẬT CHƠI</h3><span class="sub">the rules of the game</span></div>`,
-      laws: () => "<em>Luật</em> Laws", pieces: () => "<em>Quân cờ</em> Pieces · each side", board: () => "<em>Bàn cờ</em> Board",
+      head: `<div class="hd"><span class="kick">Nueva Ciudad · 2091</span><h3>LUẬT CHƠI</h3><span class="sub en">the rules of the game</span></div>`,
+      laws: () => '<em>Luật</em><span class="en"> Laws</span>', pieces: () => '<em>Quân cờ</em><span class="en"> Pieces</span> · <span>each side</span>', board: () => '<em>Bàn cờ</em><span class="en"> Board</span>',
       noLaws: "Standard rules",
       foot: () => `<div class="ft"><span>pink = not standard</span>${rulesLink("RULES ›")}</div>`,
     },
@@ -291,6 +297,7 @@ export const LOOKS = {
     .cm-lluvia .cm-pc.changed .c, .cm-lluvia .cm-pc.changed .n { color:#FF9ADB; text-shadow:0 0 8px rgba(255,61,187,.7); }
     .cm-lluvia .ft { display:flex; justify-content:space-between; gap:10px; margin-top:12px; font:600 12px/1 'Saira Condensed', sans-serif; letter-spacing:.06em; color:var(--mut); }
     .cm-lluvia .ft .go, .cm-lluvia .cm-extra { color:var(--p); letter-spacing:.16em; font:600 12px/1 'Saira Condensed', sans-serif; }
+    html[lang="vi"] .cm-lluvia .en { display:none; }
     `,
   },
   /* Cromo: a brushed steel plate, engraved, screwed on. */
@@ -331,7 +338,7 @@ export const LOOKS = {
      standard set marked with a revision triangle; a plan of the board. */
   plano: {
     fonts: "family=Architects+Daughter&family=IBM+Plex+Mono:wght@400;500;600",
-    tab: (r) => `<span class="cell a"><span class="t">GAME SPEC</span><span class="s">${r.standard ? `standard · ${r.board.cols}×${r.board.rows}` : `${r.laws.length ? plural(r.laws.length, "law") : "no laws"} · ${r.perSide} pcs · ${r.board.cols}×${r.board.rows}`}</span></span><span class="cell b">A-1</span>`,
+    tab: (r) => `<span class="cell a"><span class="t">GAME SPEC</span><span class="s">${r.standard ? t("standard · {board}", { board: `${r.board.cols}×${r.board.rows}` }) : `${r.laws.length ? plural(r.laws.length, "law") : t("no laws")} · ${t("{n} pcs", { n: r.perSide })} · ${r.board.cols}×${r.board.rows}`}</span></span><span class="cell b">A-1</span>`,
     L: {
       head: `<div class="hd"><span class="t">SCHEDULE OF RULES</span><span class="sh">SHEET A-1</span></div>`,
       laws: () => "LAWS", pieces: () => "PIECE SCHEDULE <small>each side</small>", board: () => "BOARD",
@@ -380,7 +387,7 @@ export const LOOKS = {
     // (user: the tab "too long" on a phone: Rules under Mission, the board
     // under the rest of the summary, everything a size smaller; the
     // separator stays in the text, hidden, so the words read as before)
-    tab: (r) => { const sum = sums.plain(r), at = sum.lastIndexOf(" · "); const top = at < 0 ? sum : sum.slice(0, at), bottom = at < 0 ? "" : sum.slice(at + 3); return `<span class="patch"><i class="moon"></i><i class="earth"></i></span><span class="tt"><span class="t"><span class="w">Mission</span> <span class="w">rules</span></span><span class="s"><span class="w">${esc(top)}</span>${bottom ? `<span class="sep"> · </span><span class="w">${esc(bottom)}</span>` : ""}</span></span>`; },
+    tab: (r) => { const sum = sums.plain(r), at = sum.lastIndexOf(" · "); const top = at < 0 ? sum : sum.slice(0, at), bottom = at < 0 ? "" : sum.slice(at + 3); return `<span class="patch"><i class="moon"></i><i class="earth"></i></span><span class="tt"><span class="t" data-said>${words(t("Mission rules"))}</span><span class="s"><span class="w">${esc(top)}</span>${bottom ? `<span class="sep"> · </span><span class="w">${esc(bottom)}</span>` : ""}</span></span>`; },
     L: {
       head: `<div class="hd"><span class="kick">MISSION PARAMETERS</span><h3>Base rules</h3></div>`,
       laws: () => "Laws", pieces: () => "Pieces · each side", board: () => "Board",
@@ -419,7 +426,7 @@ export const LOOKS = {
      red is the HOTEL sign's. */
   noir: {
     fonts: "family=Bebas+Neue&family=Courier+Prime:wght@400;700",
-    tab: (r) => `<span class="t">RULES</span><span class="s">${r.standard ? `standard · ${r.board.label}` : `${r.laws.length ? plural(r.laws.length, "law") : "no laws"} · ${r.board.label}`}</span><span class="red"></span>`,
+    tab: (r) => `<span class="t">RULES</span><span class="s">${r.standard ? t("standard · {board}", { board: r.board.label }) : `${r.laws.length ? plural(r.laws.length, "law") : t("no laws")} · ${r.board.label}`}</span><span class="red"></span>`,
     L: {
       head: `<div class="hd"><span class="kick">— THIS GAME —</span><h3>THE RULES<br>OF THE GAME</h3></div>`,
       laws: () => "THE LAWS", pieces: () => "THE PIECES <small>(each side)</small>", board: () => "THE BOARD",
@@ -491,7 +498,7 @@ export const LOOKS = {
   /* Tá muid beo: a painted cartouche, cream and cobalt, ruled in gold. */
   "parrish-orinoco": {
     fonts: "family=Cinzel:wght@600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600",
-    tab: (r) => `<span class="t">The Rules</span><span class="s">${r.standard ? `the standard game · ${word(r.board.cols)} by ${word(r.board.rows)}` : `${r.laws.length ? `${word(r.laws.length)} ${r.laws.length === 1 ? "law" : "laws"}` : "no laws"} · ${word(r.board.cols)} by ${word(r.board.rows)}`}</span>`,
+    tab: (r) => `<span class="t">The Rules</span><span class="s">${r.standard ? t("the standard game · {cols} by {rows}", { cols: word(r.board.cols), rows: word(r.board.rows) }) : `${r.laws.length ? t(r.laws.length === 1 ? "{n} law" : "{n} laws", { n: word(r.laws.length) }) : t("no laws")} · ${t("{cols} by {rows}", { cols: word(r.board.cols), rows: word(r.board.rows) })}`}</span>`,
     L: {
       head: (title) => `<div class="hd"><span class="kick">${title}</span><h3>The Rules of Play</h3><span class="orn">— ◆ —</span></div>`,
       laws: () => "THE LAWS", pieces: () => "THE PIECES · EACH SIDE", board: () => "THE BOARD",

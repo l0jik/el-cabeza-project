@@ -40,23 +40,35 @@ on "does this theme have audio." Both Standard and Futuris currently have
   synchronously resuming/building an `AudioContext` within the original
   user-gesture call stack (the Info overlay's choir stab broke this way
   once).
-- **Every sound file is MP3** (56 in dist/, 38.5 MB; the videos carry no
-  sound). Measured 2026-10-25 by encoding them all (scratchpad
-  opus-size/measure.py; sizes as an app's zip stores them): Opus at half
-  each MP3's bitrate (at least 24 kbps mono, 48 stereo) 20.7 MB, 17.1 MB
-  smaller; Opus at two thirds (32/64) 27.5 MB, 10.3 smaller; AAC at three
-  quarters (32/64) 28.7 MB, 9.1 smaller. Both test browsers play Opus
-  (only CI's plays AAC: 02-build-and-verification.md). Apple: Ogg Opus
-  only from Safari 18.4 (iOS/iPadOS 18.4, macOS Sequoia 15.4; Apple's
-  release notes, March 2025); before that WebM Opus works through
-  `<audio>` on a Mac but unreliably on iPhones and iPads, and Opus only
-  in Apple's CAF container from iOS 11. The game plays sound both ways
-  (`decodeAudioData` in most places, `<audio>` through
-  `createMediaElementSource` in the den), so Opus alone would silence
-  iPhones older than iOS 18.4: keep MP3 (or AAC) beside it for them, or
-  set an iOS app's minimum to 18.4. A switch would also need the loops,
-  the slices and the den spot's sync checked again (Opus decodes at
-  48 kHz) and the files' names changed in the code and build.js.
+- **Every recording ships as Opus beside its MP3** (user, 2026-10-25:
+  "Let's go with Opus, a safer quality"). tools/opus_twins.py writes
+  `<source>.opus` beside each assets/ MP3 that dist/ uses (matched by
+  content; two thirds of the MP3's bitrate, at least 32 kbps mono or 64
+  stereo, VBR, the MP3's channels, no tags) and build/build.js copies each
+  one beside its MP3 under the same name. **After changing or adding a
+  recording, run it again** (`npm run build && FFMPEG=<ffmpeg>
+  python3 tools/opus_twins.py`; a twin older than its source is rewritten,
+  `--force` rewrites all), or the old twin is what plays.
+  chassis/sound-files.js is the one place that picks: `PLAYS_OPUS`
+  (canPlayType `audio/ogg; codecs="opus"`); `loadSound(ctx, url)` (fetch
+  and decode, the MP3 if the Opus fails either way); `fetchSoundBytes` +
+  `decodeBytes` for callers that keep the bytes; `soundElement(url, el?)`
+  for an `<audio>` (over to the MP3 on its error event). The code names
+  every recording by its MP3: a new sound goes through these, never a bare
+  fetch or `new Audio(url)`. apps/title-screen.js isn't a module, so it
+  has the same choice written out. Checked (decoded in the browser at
+  48 kHz, scratchpad opus-check/twins.mjs): every twin's length equals its
+  MP3's to the sample and the two line up (0.00-0.06 ms), so the loops,
+  the stabs' slices and the den spot's sync are unchanged. Sizes: 38.5 MB
+  as MP3, 27.6 MB as Opus; a browser downloads only the one it plays.
+  Measured before choosing (opus-size/measure.py, zipped): Opus at half
+  the bitrate 20.7 MB, at two thirds 27.5, AAC at three quarters 28.7.
+  Both test browsers play Opus (only CI's plays AAC:
+  02-build-and-verification.md). Apple plays Ogg Opus only from Safari
+  18.4 (iOS/iPadOS 18.4, macOS Sequoia 15.4; Apple's release notes, March
+  2025): older ones get the MP3. Apps (tools/app_size.mjs): Android ships
+  the Opus alone (35.1 MB zipped, was 45.4), iOS the MP3 alone (60.6)
+  unless the app requires iOS 18.4.
 - **The Parrish stutter report (2026-10-25, user: the music "very
   glitchy ... like it's trying to cache").** Not reproduced on the
   server. Ruled out: the network (every song, the evening and the

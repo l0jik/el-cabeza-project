@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import ReactDOM from "react-dom/client";
+import { languageReady, useLanguage } from "../chassis/i18n.js";
 import ElCabeza3D from "../chassis/ElCabeza3D.jsx";
 import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js";
 import * as standardTheme from "../themes/standard.js";
@@ -342,6 +343,8 @@ const {
 } = HOLD_DEGRADE_TUNING;
 
 function UnifiedApp() {
+  // Drawn again in the player's language when it changes (chassis/i18n.js).
+  useLanguage();
   // A first visit opens in the store; once the game is bought, at home.
   const [themeName, setThemeName] = useState(() => (SUMMONS_PARAM ? "futuris" : (WORLD_PARAM && THEMES[WORLD_PARAM] ? WORLD_PARAM : null) || (TITLE_PLACE && THEMES[TITLE_PLACE] ? TITLE_PLACE : null) || (SCENE_PARAM || readOwned() ? "standard" : "tienda")));
   useEffect(() => { try { document.title = WORLD_TITLES[themeName] || "El Cabeza Nova"; } catch (e) { /* no document */ } }, [themeName]);
@@ -934,7 +937,9 @@ function fromTitle(c, boot) {
 // A world of the site's asked for by the address (?world=ciudad): fetched
 // first, then the page opens there (or in the den, if it can't be had).
 if (!FRESH) {
-  const boot = () => ReactDOM.createRoot(document.getElementById("root")).render(<UnifiedApp />);
+  // (Once the player's language is in, the title's line's choice too:
+  // no English first, chassis/i18n.js.)
+  const boot = () => languageReady().then(() => ReactDOM.createRoot(document.getElementById("root")).render(<UnifiedApp />));
   if (TITLE) TITLE.chosen.then((c) => fromTitle(c, boot));
   else if (WORLD_PARAM && LAZY[WORLD_PARAM]) ensureWorld(WORLD_PARAM).then(boot, boot);
   else boot();

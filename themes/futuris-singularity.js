@@ -28,6 +28,9 @@
    downstream state this feeds. */
 
 import React from "react";
+// (React's, each element's words in the player's language: chassis/i18n.js.)
+import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
+import { t as say, tr, onLanguage } from "../chassis/i18n.js";
 import * as THREE from "three";
 import {
   SLAB_X, SLAB_Z, MIN_BOARD_DIM, MAX_BOARD_DIM, setActiveLaws, getBoardDimensions, ARCO_SIZES,
@@ -579,7 +582,7 @@ const LAWS_ITEMS = [
 const shovesOnRolls = (selections) => shoveOf(selections.shove).onRolls;
 // "Shoving (slides only)" etc. for the summary / variants.
 function lawLabel(item, selections) {
-  return item.key === "shoving" ? `Shoving (${shoveSummary(selections.shove)})` : item.label;
+  return item.key === "shoving" ? say("Shoving ({how})", { how: shoveSummary(selections.shove, tr) }) : item.label;
 }
 // What setActiveLaws gets: the law checkboxes plus Shoving's settings and,
 // with two sets of black holes, where they let out.
@@ -680,7 +683,7 @@ function matterMinCols(sel) {
 }
 const matterFitText = (sel) => {
   const need = matterMinCols(sel);
-  return need ? `These pieces won't fit in two home rows ${sel.topologies.cols} squares wide: they need a board at least ${need} wide (TOPOLOGY).` : "These pieces won't fit on any board. Take some out.";
+  return need ? say("These pieces won't fit in two home rows {cols} squares wide: they need a board at least {need} wide (TOPOLOGY).", { cols: sel.topologies.cols, need }) : "These pieces won't fit on any board. Take some out.";
 };
 
 // The roster's names for the summary / variants.
@@ -745,7 +748,7 @@ function isCategoryActive(key, selections) {
 function summarizeCategory(key, selections) {
   if (key === "laws") {
     const n = Object.values(selections.laws).filter(Boolean).length;
-    return n ? `${n} LAW${n > 1 ? "S" : ""} ACTIVE` : "TAP TO CONFIGURE";
+    return n ? say(n > 1 ? "{n} LAWS ACTIVE" : "{n} LAW ACTIVE", { n }) : "TAP TO CONFIGURE";
   }
   if (key === "matter") {
     return isCategoryActive("matter", selections) ? "ROSTER CUSTOMIZED" : "TAP TO CONFIGURE";
@@ -755,9 +758,9 @@ function summarizeCategory(key, selections) {
     const { rows, cols, missingSquares } = selections.topologies;
     const sized = rows !== DEFAULT_BOARD_DIM || cols !== DEFAULT_BOARD_DIM;
     const n = selections.missingSquare.count;
-    const missingText = n > 1 ? `MISSING SQUARES ×${n}` : "MISSING SQUARES";
+    const missingText = n > 1 ? say("MISSING SQUARES ×{n}", { n }) : tr("MISSING SQUARES");
     if (sized && missingSquares) return `${rows} × ${cols} · ${missingText}`;
-    if (sized) return `${rows} × ${cols} BOARD`;
+    if (sized) return say("{rows} × {cols} BOARD", { rows, cols });
     return missingText;
   }
   return "";
@@ -765,7 +768,7 @@ function summarizeCategory(key, selections) {
 
 // "Missing squares (3 pairs)" — each pair is a spot plus its mirror.
 function missingSquaresLabel(count) {
-  return `Missing squares (${count} pair${count === 1 ? "" : "s"})`;
+  return say(count === 1 ? "Missing squares ({n} pair)" : "Missing squares ({n} pairs)", { n: count });
 }
 
 /* The specials this game actually started with (the chassis's
@@ -792,10 +795,10 @@ function buildVariantsSnapshot(selections) {
 
   const { rows, cols, missingSquares } = selections.topologies;
   const topoItems = [];
-  if (rows !== DEFAULT_BOARD_DIM || cols !== DEFAULT_BOARD_DIM) topoItems.push(`${rows} × ${cols} board`);
+  if (rows !== DEFAULT_BOARD_DIM || cols !== DEFAULT_BOARD_DIM) topoItems.push(say("{rows} × {cols} board", { rows, cols }));
   if (missingSquares) topoItems.push(missingSquaresLabel(selections.missingSquare.count));
   // (Set with the board; two sets say so, as the other menus' summaries do.)
-  if (selections.laws.blackHoleSquares) topoItems.push(selections.blackHole.sets === 2 ? `Singularity Squares (2 sets${holeAnyExitOf(selections) ? ", exit from any other singularity" : ""})` : "Singularity Squares");
+  if (selections.laws.blackHoleSquares) topoItems.push(selections.blackHole.sets === 2 ? (holeAnyExitOf(selections) ? "Singularity Squares (2 sets, exit from any other singularity)" : "Singularity Squares (2 sets)") : "Singularity Squares");
   if (topoItems.length) groups.push({ key: "topologies", label: "TOPOLOGY", items: topoItems });
   return groups;
 }
@@ -934,11 +937,11 @@ function drawRootLabels(canvas, ctx, selections, rootLabels) {
       ctx.shadowBlur = 0;
       ctx.fillStyle = "rgba(142,243,255,0.5)";
     }
-    ctx.fillText(entry.label, x, y - 20);
+    ctx.fillText(tr(entry.label), x, y - 20);
     ctx.shadowBlur = 0;
     ctx.font = subFont;
     ctx.fillStyle = active ? "rgba(223,250,255,0.75)" : "rgba(142,243,255,0.4)";
-    ctx.fillText(summarizeCategory(entry.key, selections), x, y + 34);
+    ctx.fillText(tr(summarizeCategory(entry.key, selections)), x, y + 34);
   }
 }
 
@@ -1070,11 +1073,11 @@ function drawConfigLabel(ctx, canvas, count) {
   ctx.shadowColor = "rgba(142,243,255,0.9)";
   ctx.shadowBlur = active ? 36 : 0;
   ctx.fillStyle = active ? "#dffaff" : "rgba(142,243,255,0.55)";
-  ctx.fillText("CONFIGURATIONS", canvas.width / 2, canvas.height * 0.42);
+  ctx.fillText(tr("CONFIGURATIONS"), canvas.width / 2, canvas.height * 0.42);
   ctx.shadowBlur = 0;
   ctx.font = "400 32px 'IBM Plex Mono', monospace";
   ctx.fillStyle = active ? "rgba(223,250,255,0.75)" : "rgba(142,243,255,0.4)";
-  ctx.fillText(count ? `${count} SAVED` : "TAP TO SAVE ONE", canvas.width / 2, canvas.height * 0.78);
+  ctx.fillText(count ? say("{n} SAVED", { n: count }) : tr("TAP TO SAVE ONE"), canvas.width / 2, canvas.height * 0.78);
 }
 function buildConfigLabel() {
   const canvas = document.createElement("canvas");
@@ -1207,6 +1210,8 @@ function ensureSingularityObjects(t) {
   s.debris = buildDebris();
   t.scene.add(s.debris.group);
   s.sphere = buildSphere(() => { s.labelsDirty = true; });
+  // (Its painted labels again, in the language the player changes to.)
+  onLanguage(() => { s.labelsDirty = true; });
   // A parent frame turned (on arrival, see faceSphereNorthPole) so the
   // camera always sits on its +Z side — the sphere's own tilt/spin (and
   // the drag that drives them) then read the same whichever side of the
@@ -1960,7 +1965,7 @@ function isoTilePath(cx, cy) {
 function renderPieceIcon(footprintKey, size) {
   const cells = PIECE_FOOTPRINTS[footprintKey];
   if (!cells) return null;
-  const h = React.createElement;
+  const h = createElement;
   const cols = cells.map((c) => c[0]);
   const rows = cells.map((c) => c[1]);
   const midCol = (Math.min(...cols) + Math.max(...cols)) / 2;
@@ -1995,7 +2000,7 @@ function renderPieceIcon(footprintKey, size) {
    gesture reliably is much harder than clicking a button a known
    number of times). */
 function DrumRoller({ id, label, value, min, max, onChange, compact, icon, inline, ariaLabel }) {
-  const h = React.createElement;
+  const h = createElement;
   const dragRef = React.useRef(null);
   // inline: the small roller at the right of a MATTER row — no icon or
   // label of its own (the row has them), same drag and +/- behaviour.
@@ -2096,7 +2101,7 @@ function DrumRoller({ id, label, value, min, max, onChange, compact, icon, inlin
 }
 
 function renderCheckboxRow(item, checked, onToggle, testId, onInfo = null) {
-  const h = React.createElement;
+  const h = createElement;
   return h(
     "div",
     {
@@ -2137,7 +2142,7 @@ function renderCheckboxRow(item, checked, onToggle, testId, onInfo = null) {
         {
           type: "button",
           "data-testid": `${testId}-info`,
-          "aria-label": `How ${item.label} works`,
+          "aria-label": say("How {name} works", { name: item.label }),
           onClick: (e) => { e.stopPropagation(); onInfo(); },
           style: {
             marginLeft: "auto", flexShrink: 0, width: 20, height: 20, marginTop: 3, padding: 0, borderRadius: "50%", cursor: "pointer",
@@ -2366,7 +2371,7 @@ function lawWarning(key, sel) {
    a two-way segmented control, and a note on what a shove costs. */
 function renderShoveSettingsRow(t) {
   const s = t.singularity;
-  const h = React.createElement;
+  const h = createElement;
   const sel = s.selections;
   if (!sel.shove || sel.shove.own === undefined || sel.shove.chain === undefined) sel.shove = shoveOf(sel.shove);
   const mono = { fontFamily: "'IBM Plex Mono', monospace" };
@@ -2444,7 +2449,7 @@ function showPivotPieces(s) {
 }
 
 function renderLawWarning(w) {
-  return React.createElement(
+  return createElement(
     "div",
     {
       key: w.testid,
@@ -2460,7 +2465,7 @@ function renderLawWarning(w) {
 function renderPairedSquarePlacementRow(t, kind) {
   const k = PAIRED_SQUARE_KINDS[kind];
   const s = t.singularity;
-  const h = React.createElement;
+  const h = createElement;
   const sel = s.selections;
   const spots = pairedSpots(sel, kind);
   const count = pairedCount(sel, kind);
@@ -2487,15 +2492,15 @@ function renderPairedSquarePlacementRow(t, kind) {
     border: "1px solid rgba(102,217,255,0.4)", background: "rgba(102,217,255,0.1)", color: "#dffaff",
     ...extra,
   });
-  const where = (p) => `row ${p.row + 1}, column ${p.col + 1}${multi && p.random ? " (random)" : ""}`;
+  const where = (p) => say(multi && p.random ? "row {row}, column {col} (random)" : "row {row}, column {col}", { row: p.row + 1, col: p.col + 1 });
   let text;
   if (!spots.length) {
     text = "No free spot could be found — press Select to pick one on your side of the board, or to try Random there.";
   } else if (!multi) {
-    text = `${spots[0].random ? "Placed at random" : "Placed"} on your side at ${where(spots[0])}. Its mirror on the far side is the paired ${k.pairedNoun}.`;
+    text = say(spots[0].random ? "Placed at random on your side at {where}. Its mirror on the far side is the paired {noun}." : "Placed on your side at {where}. Its mirror on the far side is the paired {noun}.", { where: where(spots[0]), noun: k.pairedNoun });
   } else {
-    text = `Placed on your side at ${spots.map(where).join(" · ")}. Each one's mirror on the far side is its pair.`;
-    if (spots.length < count) text += kind === "blackHole" ? ` Only ${spots.length} of ${count} found room.` : ` Only ${spots.length} of ${count} fit without walling off part of the board.`;
+    text = say("Placed on your side at {where}. Each one's mirror on the far side is its pair.", { where: spots.map(where).join(" · ") });
+    if (spots.length < count) text += " " + say(kind === "blackHole" ? "Only {n} of {total} found room." : "Only {n} of {total} fit without walling off part of the board.", { n: spots.length, total: count });
   }
   // One set of black holes or two (user: "add the option to increase the
   // number of black hole sets to 2").
@@ -2536,7 +2541,7 @@ function renderPairedSquarePlacementRow(t, kind) {
         h(
           "div",
           { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "rgba(207,216,220,0.8)", lineHeight: 1.45 } },
-          `${count} on your side, mirrored on the far side — ${count * 2} missing squares in all.`
+          say("{n} on your side, mirrored on the far side — {total} missing squares in all.", { n: count, total: count * 2 })
         )
       )
     : null;
@@ -2602,7 +2607,7 @@ function renderPairedSquarePicker(t, kind) {
   const k = PAIRED_SQUARE_KINDS[kind];
   const s = t.singularity;
   if (!s || !s[k.pickerFlag]) return null;
-  const h = React.createElement;
+  const h = createElement;
   // The TOPOLOGIES-chosen size, not the live engine size: the resize is
   // only applied at Begin Game, so during setup the grid must reflect the
   // board the game WILL play on (which finalizeSingularityBegin then makes
@@ -2918,12 +2923,12 @@ function renderPairedSquarePicker(t, kind) {
               color: aim === i + 1 ? "#04121a" : "rgba(207,216,220,0.75)",
               fontWeight: aim === i + 1 ? 700 : 400,
             },
-          }, h("i", { style: { display: "inline-block", width: 14, height: 14, borderRadius: "50%", background: holeDisc(HOLE_RING[i]), boxShadow: `0 0 6px ${HOLE_GLOW[i]}` } }), `Set ${i + 1}`)))
+          }, h("i", { style: { display: "inline-block", width: 14, height: 14, borderRadius: "50%", background: holeDisc(HOLE_RING[i]), boxShadow: `0 0 6px ${HOLE_GLOW[i]}` } }), say("Set {n}", { n: i + 1 }))))
         : null,
       holeSets
         ? h("div", { "data-testid": `${k.pickerTestid}-status`, "data-set": aim, style: { display: "flex", alignItems: "center", justifyContent: "center", gap: 8, textAlign: "center", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, fontSize: 12.5, color: "#dffaff" } },
           h("i", { style: { display: "inline-block", width: 14, height: 14, flex: "none", borderRadius: "50%", background: holeDisc(HOLE_RING[aim - 1]), boxShadow: `0 0 6px ${HOLE_GLOW[aim - 1]}` } }),
-          `Now placing Set ${aim} (${aim === 1 ? "amber" : "blue"}): tap a square on your side for its singularity.`)
+          say(aim === 1 ? "Now placing Set {n} (amber): tap a square on your side for its singularity." : "Now placing Set {n} (blue): tap a square on your side for its singularity.", { n: aim }))
         : null,
       label("Mirror · far side", "rgba(174,182,194,0.55)"),
       h(
@@ -2939,7 +2944,7 @@ function renderPairedSquarePicker(t, kind) {
         ...cells
       ),
       label(
-        holeSets ? "Your side · pick a set, tap a square, then Done" : multi ? `Your side · ${handCount} of ${count} selected` : "Your side · tap a square, then Done",
+        holeSets ? "Your side · pick a set, tap a square, then Done" : multi ? say("Your side · {n} of {total} selected", { n: handCount, total: count }) : "Your side · tap a square, then Done",
         confirm ? "rgba(142,243,255,0.5)" : "#8ef3ff"
       ),
       multi
@@ -2958,8 +2963,8 @@ function renderPairedSquarePicker(t, kind) {
             holeSets
               ? "Choose a set, then tap a square on your side: that set's singularity moves there, its mirror on the far side with it. Tap a singularity to choose its set. A singularity and its partner share a colour; red-dashed squares are beside the other set's singularities."
               : handCount >= count
-                ? `All ${count} are selected — tap one to remove it first, or press Random.`
-                : `Tap up to ${count}; tap one again to remove it. Any left open are placed at random when you press Done. Dashed squares were placed at random — tap one to keep it.`
+                ? say("All {n} are selected — tap one to remove it first, or press Random.", { n: count })
+                : say("Tap up to {n}; tap one again to remove it. Any left open are placed at random when you press Done. Dashed squares were placed at random — tap one to keep it.", { n: count })
           )
         : null,
       backRowsBanned
@@ -3061,9 +3066,9 @@ function renderPairedSquarePicker(t, kind) {
    selections and jumps straight to the BEGIN GAME summary for review. */
 function renderConfigurationsBody(t) {
   const s = t.singularity;
-  const h = React.createElement;
+  const h = createElement;
   const configs = loadConfigurations();
-  const suggested = `Configuration ${configs.length + 1}`;
+  const suggested = say("Configuration {n}", { n: configs.length + 1 });
   const mono = { fontFamily: "'IBM Plex Mono', monospace" };
   const btn = (extra) => ({
     ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
@@ -3086,7 +3091,7 @@ function renderConfigurationsBody(t) {
     if (input) input.value = "";
     if (s.audio && s.audio.playSelect) s.audio.playSelect();
     s.labelsDirty = true;
-    notice(replaced ? `Replaced “${name}”.` : `Saved “${name}”.`);
+    notice(say(replaced ? "Replaced “{name}”." : "Saved “{name}”.", { name }));
   };
   const load = (c) => {
     s.selections = normalizeSelections(JSON.parse(JSON.stringify(c.selections)));
@@ -3105,7 +3110,7 @@ function renderConfigurationsBody(t) {
     saveConfigurations(list);
     s.configPendingDelete = null;
     s.labelsDirty = true;
-    notice(`Deleted “${c.name}”.`);
+    notice(say("Deleted “{name}”.", { name: c.name }));
   };
 
   return h(
@@ -3168,7 +3173,7 @@ function renderConfigurationsBody(t) {
                     "div",
                     { style: { display: "flex", gap: 8 } },
                     h("button", { type: "button", "data-testid": "config-load", onClick: () => load(c), style: btn() }, "Load"),
-                    h("button", { type: "button", "data-testid": "config-delete", "aria-label": `Delete ${c.name}`, onClick: () => { s.configPendingDelete = key; s.bump(); }, style: btn(ghost) }, "Delete")
+                    h("button", { type: "button", "data-testid": "config-delete", "aria-label": say("Delete {name}", { name: c.name }), onClick: () => { s.configPendingDelete = key; s.bump(); }, style: btn(ghost) }, "Delete")
                   )
             );
           })
@@ -3180,7 +3185,7 @@ function renderConfigurationsBody(t) {
 function renderCategoryOverlay(t) {
   const s = t.singularity;
   if (!s || s.sphereMenuStage !== "overlay" || !s.activeCategory) return null;
-  const h = React.createElement;
+  const h = createElement;
   const sel = s.selections;
   const category = s.activeCategory;
   const close = () => {
@@ -3214,7 +3219,7 @@ function renderCategoryOverlay(t) {
     // (It keeps you here: no trip to MATTER for Pivot, its note says it.)
     const all = allLawsOn(sel);
     const allRow = renderCheckboxRow(
-      { key: "allLaws", label: "All Laws", blurb: `Every law below, on or off at once.${all && lawWarning("cantileverPivot", sel) ? " Cantilever Pivot needs a Codo, Hombro, Cruce, Rayo or Zeta: add one in MATTER." : ""}` },
+      { key: "allLaws", label: "All Laws", blurb: "Every law below, on or off at once." + (all && lawWarning("cantileverPivot", sel) ? " Cantilever Pivot needs a Codo, Hombro, Cruce, Rayo or Zeta: add one in MATTER." : "") },
       all,
       () => { setAllLaws(sel, !all, (_, key) => flip(key)); s.labelsDirty = true; s.bump(); },
       "law-all"
@@ -3421,7 +3426,7 @@ function noteOverlayMore(s, el) {
   if (more !== !!s.overlayMore) { s.overlayMore = more; s.bump(); }
 }
 function renderMoreBelow(more) {
-  const h = React.createElement;
+  const h = createElement;
   return h(
     "div",
     {
@@ -3446,7 +3451,7 @@ function renderMoreBelow(more) {
    shows this piece its still is emptied and ringed, so the socket the
    model left (and returns to) is plain to see. */
 function renderRosterRow(t, p, viewType) {
-  const h = React.createElement;
+  const h = createElement;
   const s = t.singularity;
   const sel = s.selections;
   const n = sel.matter.roster[p.key];
@@ -3468,7 +3473,7 @@ function renderRosterRow(t, p, viewType) {
         type: "button",
         "data-testid": `matter-view-${p.key}`,
         "data-viewing": viewing ? "true" : "false",
-        "aria-label": `See the ${label} in 3D`,
+        "aria-label": say("See the {piece} in 3D", { piece: label }),
         onClick: (e) => {
           e.stopPropagation();
           if (s.pieceViewer) return;
@@ -3512,7 +3517,7 @@ function renderRosterRow(t, p, viewType) {
 function renderOpponentAiPicker(setupExtras) {
   const { aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking } = setupExtras;
   if (!selectOpponent || !AI_DIFFICULTY) return null;
-  const h = React.createElement;
+  const h = createElement;
   const locked = busy || aiThinking;
   const pillStyle = (active) => ({
     fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
@@ -3533,8 +3538,8 @@ function renderOpponentAiPicker(setupExtras) {
       // (no boolean-attribute coercion the way it handles e.g. disabled),
       // so a bare boolean here gets silently dropped instead of stringified.
       h("button", { type: "button", "data-testid": "opponent-human", "aria-pressed": String(aiPlayer === null), disabled: locked, onClick: () => selectOpponent(null), style: pillStyle(aiPlayer === null) }, "Human"),
-      h("button", { type: "button", "data-testid": "opponent-ai-dark", "aria-pressed": String(aiPlayer === "dark"), disabled: locked, onClick: () => selectOpponent("dark"), style: pillStyle(aiPlayer === "dark") }, h("span", { "aria-hidden": "true", style: sideDotStyle(SIDE, "dark", 9) }), `AI · ${sideLabel(SIDE, "dark")}`),
-      h("button", { type: "button", "data-testid": "opponent-ai-light", "aria-pressed": String(aiPlayer === "light"), disabled: locked, onClick: () => selectOpponent("light"), style: pillStyle(aiPlayer === "light") }, h("span", { "aria-hidden": "true", style: sideDotStyle(SIDE, "light", 9) }), `AI · ${sideLabel(SIDE, "light")}`)
+      h("button", { type: "button", "data-testid": "opponent-ai-dark", "aria-pressed": String(aiPlayer === "dark"), disabled: locked, onClick: () => selectOpponent("dark"), style: pillStyle(aiPlayer === "dark") }, h("span", { "aria-hidden": "true", style: sideDotStyle(SIDE, "dark", 9) }), say("AI · {side}", { side: sideLabel(SIDE, "dark") })),
+      h("button", { type: "button", "data-testid": "opponent-ai-light", "aria-pressed": String(aiPlayer === "light"), disabled: locked, onClick: () => selectOpponent("light"), style: pillStyle(aiPlayer === "light") }, h("span", { "aria-hidden": "true", style: sideDotStyle(SIDE, "light", 9) }), say("AI · {side}", { side: sideLabel(SIDE, "light") }))
     ),
     aiPlayer !== null &&
       h(
@@ -3565,7 +3570,7 @@ function renderSummaryPanel(setupExtras) {
   const t = three && three.current;
   if (!t || !t.singularity || t.singularity.sphereMenuStage !== "summary") return null;
   const sel = t.singularity.selections;
-  const h = React.createElement;
+  const h = createElement;
 
   const lawsOn = LAWS_ITEMS.filter((i) => !i.board && sel.laws[i.key]);
   const piecesChanged = MATTER_ROSTER.some((p) => sel.matter.roster[p.key] !== p.default);
@@ -3576,7 +3581,11 @@ function renderSummaryPanel(setupExtras) {
     .filter((p) => p.default > 0 || sel.matter.roster[p.key] > 0)
     .map((p) => `${sel.matter.roster[p.key]} ${rosterItemLabel(p, sel)}`)
     .join(" · ");
-  const boardLine = `${sel.topologies.rows} × ${sel.topologies.cols}${sel.topologies.missingSquares ? `, ${missingSquaresLabel(sel.missingSquare.count)}` : ""}${sel.laws.blackHoleSquares ? (sel.blackHole.sets === 2 ? `, Singularity Squares (2 sets${holeAnyExitOf(sel) ? ", exit from any other singularity" : ""})` : ", Singularity Squares") : ""}`;
+  const boardLine = [
+    `${sel.topologies.rows} × ${sel.topologies.cols}`,
+    sel.topologies.missingSquares ? missingSquaresLabel(sel.missingSquare.count) : null,
+    sel.laws.blackHoleSquares ? tr(sel.blackHole.sets === 2 ? (holeAnyExitOf(sel) ? "Singularity Squares (2 sets, exit from any other singularity)" : "Singularity Squares (2 sets)") : "Singularity Squares") : null,
+  ].filter(Boolean).join(", ");
   const lineStyle = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: "rgba(207,216,220,0.85)", lineHeight: 1.7 };
   const tagStyle = { color: "#66d9ff", letterSpacing: "0.08em" };
 
@@ -3665,7 +3674,7 @@ function renderSummaryPanel(setupExtras) {
 const LABELS_HINT_TEXT =
   "The sphere opens with its north pole toward you — drag upward to bring the glowing categories round. Tap one to configure it. Saved CONFIGURATIONS sit at the south pole — keep dragging upward to reach them. Triple-tap open space on the sphere to finish.";
 function LabelsHint() {
-  const h = React.createElement;
+  const h = createElement;
   const [hover, setHover] = React.useState(false);
   const [pinned, setPinned] = React.useState(false);
   const open = hover || pinned;
@@ -3749,7 +3758,7 @@ function LabelsHint() {
 // own Back button, just no longer tied to that card's layout.
 // Ghosted until hovered, focused or pressed, with a quick fade either way.
 function BackButton({ onExit }) {
-  const h = React.createElement;
+  const h = createElement;
   const [lit, setLit] = React.useState(false);
   return h(
     "button",
@@ -3875,7 +3884,7 @@ const LOST_CSS = `
 const GLITCH = "\u2588\u2593\u2592\u2591#%&@<>/\\|=+*\u00a7\u00a4";
 
 function LostNudge({ stage, onExit, sing }) {
-  const h = React.createElement;
+  const h = createElement;
   const [lost, setLost] = React.useState(false);
   const [card, setCard] = React.useState(false);
   const shown = React.useRef(false);
@@ -4121,7 +4130,7 @@ function LostNudge({ stage, onExit, sing }) {
 }
 
 function renderBackButton(exitSingularity) {
-  return React.createElement(BackButton, { key: "singularity-back", onExit: exitSingularity });
+  return createElement(BackButton, { key: "singularity-back", onExit: exitSingularity });
 }
 
 /* Missing Squares first, then Black Hole Squares avoiding them — both
@@ -4718,7 +4727,7 @@ export function renderSingularityOverlay(setupExtras) {
     three,
   } = setupExtras;
   if (!phase || phase === PHASES.IDLE) return null;
-  const h = React.createElement;
+  const h = createElement;
   const t = three && three.current;
   const stage = t && t.singularity ? t.singularity.sphereMenuStage : "labels";
 

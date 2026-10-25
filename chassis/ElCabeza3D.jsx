@@ -56,6 +56,8 @@ import { sideAt, sideAsItGoes } from "./turn-where.js";
 import { collectSave, applySave, downloadSave, readSaveFile, cloudSave, cloudFetch, cloudRecord, restoreLink, restoreFromLink, takeRestoreNote, normalizeCode } from "./saves.js";
 import { relayReady, relayUrl } from "./online-config.js";
 import { soundElement } from "./sound-files.js";
+import { useLanguage, t, tr, trIn, rich, listOf } from "./i18n.js";
+import LanguageBadge from "./LanguageBadge.jsx";
 import { createRelayClient, takeJoinParam, joinLink, keepOnlineSession, savedOnlineSession, otherSide } from "./online.js";
 // ?join=CODE (the link a host copies, chassis/online.js): the code, read
 // once off the address, taken by the first chassis to mount.
@@ -491,6 +493,9 @@ function glowShows(glow, ground) {
 }
 
 export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTilt = false, titleInfo = true }) {
+  // Drawn again, every word in it, when the player changes the language
+  // (chassis/i18n.js; the game itself goes on as it was).
+  useLanguage();
   // Up and down the other way for a mouse (a page's choice: Big Glutts,
   // user; a finger always goes Futuris's way, grabLatch).
   const invertTiltRef = useRef(invertTilt);
@@ -707,7 +712,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               </>)}
               <p data-testid="online-status" style={line}>
                 {o.status === "gone" ? "The other player left." : o.status === "playing" ? "In play." : o.peer ? "The other player is here: Begin Game when ready." : "Waiting for the other player…"}
-                {" "}You play {sideName(o.mySide)}, first; they play {sideName(o.theirSide)}.
+                {" "}{t("You play {mine}, first; they play {theirs}.", { mine: sideName(o.mySide), theirs: sideName(o.theirSide) })}
                 {awaitingBegin && o.status !== "gone" && (
                   <>
                     {" "}
@@ -727,14 +732,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       body = joined ? (
         <>
           <p data-testid="online-status" style={line}>
-            {o.status === "gone" ? "The other player left." : o.status === "playing" ? `In play with ${o.code}.` : `Joined ${o.code}. Waiting for the host to begin…`}
-            {" "}You play {sideName(o.mySide)}; they play {sideName(o.theirSide)}{o.status === "waiting" ? ", first" : ""}.
+            {o.status === "gone" ? "The other player left." : o.status === "playing" ? t("In play with {code}.", { code: o.code }) : t("Joined {code}. Waiting for the host to begin…", { code: o.code })}
+            {" "}{t(o.status === "waiting" ? "You play {mine}; they play {theirs}, first." : "You play {mine}; they play {theirs}.", { mine: sideName(o.mySide), theirs: sideName(o.theirSide) })}
           </p>
           {o.link === "down" && <p data-testid="online-link" style={{ ...line, color: "#b3261e" }}>Your connection dropped; trying again…</p>}
           <button type="button" className="ec-btn" data-testid="online-leave" onClick={leaveOnline} style={{ ...dockLinkStyle(), alignSelf: "flex-start" }}>Leave</button>
         </>
       ) : o.status === "connecting" ? (
-        <p data-testid="online-status" style={line}>Joining {o.code}…</p>
+        <p data-testid="online-status" style={line}>{t("Joining {code}…", { code: o.code })}</p>
       ) : null;
     }
     // (the join view before any code's been sent)
@@ -1752,7 +1757,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   useEffect(() => {
     if (dockView !== "panel") return;
     const onPointerDown = (ev) => {
-      if (ev.target && ev.target.closest && ev.target.closest('[data-testid="sound-menu"], [data-testid="tour-card"]')) return;
+      // (The language list is the dock's own badge's, put on the page
+      // itself: a language chosen from it leaves the panel open.)
+      if (ev.target && ev.target.closest && ev.target.closest('[data-testid="sound-menu"], [data-testid="tour-card"], [data-testid="language-list"]')) return;
       if (cardRef.current && !cardRef.current.contains(ev.target)) {
         setDockView(awaitingBegin ? "piece" : "corner");
       }
@@ -3233,7 +3240,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      one beaten or as the winner itself; two humans, an online game or a
      replay say nothing. */
   const winFoeNote = status === "finished" && winner && aiPlayer && !replaying
-    ? `${winner === aiPlayer ? "The" : "Against the"} ${(AI_DIFFICULTY[aiDifficulty] || {}).label || "chosen"} AI`
+    ? t(winner === aiPlayer ? "The {level} AI" : "Against the {level} AI", { level: (AI_DIFFICULTY[aiDifficulty] || {}).label || "chosen" })
     : null;
   // Placing pieces manually: its two choices (see "Place pieces manually" below), here so
   // the theme's own menus can be handed them.
@@ -4451,6 +4458,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // The phone layout on its side (short and wide): the bar runs down the
   // right edge.
   const shellLandscape = shell && viewportW > viewportH && viewportH <= SHELL_SIDE_MAX_H;
+  // The language badge (LanguageBadge): one of the dock's foot icons on a
+  // computer; on a phone, whose foot row is full, at the end of the turn line.
+  const langInFoot = !shell && viewportW >= 600;
   const dockPanelW = awaitingBegin ? Math.min(480, viewportW * 0.92) : declutter ? Math.min(560, viewportW * 0.92) : Math.min(880, viewportW * 0.96);
   /* A theme whose rules lie in the room (theme.rulesInRoom: the den's
      leaflet on the coffee table, a tap opens them) has no How to play
@@ -4630,8 +4640,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   let tourStatus = null;
   if (tourYours) {
     // (How to end it then: the button and the hold, always both.)
-    if (turnLocked) tourStatus = tourLeft > 0 ? `${tourLeft === 1 ? "One action" : `${tourLeft} actions`} left: move it again, or press End turn, or hold the piece until its ring closes.` : null;
-    else tourStatus = shadowEntries.length ? `The arrows show every square it can reach: ${isCoarsePointer() ? "tap" : "click"} one to move it there.` : "It can't move from where it is just now: try another piece.";
+    if (turnLocked) tourStatus = tourLeft > 0 ? (tourLeft === 1 ? t("One action left: move it again, or press End turn, or hold the piece until its ring closes.") : t("{n} actions left: move it again, or press End turn, or hold the piece until its ring closes.", { n: tourLeft })) : null;
+    else tourStatus = shadowEntries.length ? (isCoarsePointer() ? t("The arrows show every square it can reach: tap one to move it there.") : t("The arrows show every square it can reach: click one to move it there.")) : "It can't move from where it is just now: try another piece.";
   }
   /* What it lights up as it speaks (user: "Highlight the pieces as
      they're explained. Arrows to indicate stuff will be helpful"): on the
@@ -4726,8 +4736,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (tourStep === "welcome") {
       mineP.forEach((p) => ring(p, "mine", { pulse: true }));
       foeP.forEach((p) => ring(p, "foe"));
-      tag("mine", { pieces: mineP.map((p) => p.id) }, `${sideName(tourMine)} · you`, "mine");
-      tag("foe", { pieces: foeP.map((p) => p.id) }, `${sideName(tourFoe)} · the computer`, "foe");
+      tag("mine", { pieces: mineP.map((p) => p.id) }, t("{side} · you", { side: sideName(tourMine) }), "mine");
+      tag("foe", { pieces: foeP.map((p) => p.id) }, t("{side} · the computer", { side: sideName(tourFoe) }), "foe");
     } else if (tourStep === "ways") {
       // Both, before each in turn: the row your Cabeza wins on, and theirs to crush.
       t3.band = { row: goalRow, tone: "goal" };
@@ -4757,7 +4767,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         ring(tourCrushSite.cab, "foe", { pulse: true });
         // (Set off to either side, so the block's label, following it as it rolls, never swaps sides.)
         tag("crush-cabeza", { box: tourCrushSite.cab }, "Opponent's Cabeza", "foe", "right");
-        tag("crush-block", { crush: "block", box: tourCrushSite.from }, `Your ${tourCrushSite.blockName}`, "mine", "left");
+        tag("crush-block", { crush: "block", box: tourCrushSite.from }, t("Your {piece}", { piece: tourCrushSite.blockName }), "mine", "left");
       } else {
         if (foeCab) { ring(foeCab, "foe", { pulse: true }); tag("foe-cabeza", { piece: foeCab.id }, "Opponent's Cabeza · crush it", "foe"); }
         if (myCab) { ring(myCab, "mine"); tag("cabeza", { piece: myCab.id }, "Yours · keep it safe", "mine"); }
@@ -4767,7 +4777,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     } else if (tourStep === "turn") {
       const sel = shell ? '[data-testid="shell-points"]' : '[data-testid="points-counter"]';
       t2.boxes.push({ key: "actions", sel, tone: "mine" });
-      tag("actions", { el: sel }, `${ACTIVE_LAWS.threeActions ? 3 : 2} actions a turn`, "mine", "above");
+      tag("actions", { el: sel }, t("{n} actions a turn", { n: ACTIVE_LAWS.threeActions ? 3 : 2 }), "mine", "above");
     } else if (tourStep === "board") {
       t2.orbit = { tone: "mine", mouse: !isCoarsePointer() };
       tag("orbit", { orbit: true }, isCoarsePointer() ? "Drag to turn · pinch to zoom" : "Drag to turn · scroll to zoom", "mine");
@@ -4784,8 +4794,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         mineP.forEach((p) => {
           const go = !!tourCanGo && tourCanGo.has(p.id);
           ring(p, go ? "mine" : "dim", { pulse: go });
-          tag(p.id, { piece: p.id }, go ? nameOf(p) : `${nameOf(p)} · boxed in`, go ? "mine" : "dim");
-          if (!go) tourBoxed.push(p.type === "cabeza" ? "your Cabeza" : `the ${nameOf(p)}`);
+          tag(p.id, { piece: p.id }, go ? nameOf(p) : t("{piece} · boxed in", { piece: nameOf(p) }), go ? "mine" : "dim");
+          if (!go) tourBoxed.push(p.type === "cabeza" ? { mine: true } : { name: nameOf(p) });
         });
       }
     } else if (tourStep === "foe" && currentPlayer === tourMine && tourFoeBeforeRef.current) {
@@ -4796,14 +4806,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         ring(b, "foe", { faint: true });
         ring(now, "foe", { pulse: true });
         t2.arrows.push({ key: `moved-${now.id}`, from: { box: at(b) }, to: { piece: now.id }, tone: "foe", bend: 0.18, trimEnd: true });
-        tag(now.id, { piece: now.id }, `Opponent's ${nameOf(now)}`, "foe");
+        tag(now.id, { piece: now.id }, t("Opponent's {piece}", { piece: nameOf(now) }), "foe");
       });
     } else if (tourStep === "menu") {
       // The piece in the corner: its box runs past the screen's edges with
       // the piece in its middle, so the ring and the label go round the
       // piece (inset).
       t2.boxes.push({ key: "dock", sel: "[data-dock-piece]", inset: 26, tone: "mine" });
-      tag("dock", { el: "[data-dock-piece]", inset: 26 }, `${isCoarsePointer() ? "Tap" : "Click"} to open your menu`, "mine", "above");
+      tag("dock", { el: "[data-dock-piece]", inset: 26 }, isCoarsePointer() ? t("Tap to open your menu") : t("Click to open your menu"), "mine", "above");
     } else if (tourStep === "panel") {
       // What's in it, each ringed in turn as its card lights its line.
       tourMenuRows.forEach(([key, sel], i) => t2.boxes.push({ key, sel: `[data-testid="dock-panel"] ${sel}`, tone: "mine", turn: i, of: tourMenuRows.length }));
@@ -7957,9 +7967,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           piece.type === "opa" && !splitOn
             ? "an Opa moves only once per turn"
             : splitOn && movedAfter.length >= maxPiecesPerTurn()
-              ? `only ${maxPiecesPerTurn() === 3 ? "three" : "two"} pieces can move per turn`
+              ? maxPiecesPerTurn() === 3 ? "only three pieces can move per turn" : "only two pieces can move per turn"
               : "no move fits the actions left";
-        setUnusedNote({ key: Date.now(), text: `${left} action${left > 1 ? "s" : ""} unused: ${why}` });
+        setUnusedNote({ key: Date.now(), text: t(left > 1 ? "{n} actions unused: {why}" : "{n} action unused: {why}", { n: left, why }) });
       }
       // The check alert's last word (checkHold): your turn against the
       // computer ending with your Cabeza in its reach waits, the alert up,
@@ -10772,12 +10782,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     });
     const summary =
       status === "finished" && winner
-        ? `Result: ${sideName(winner)} wins${winReason ? " \u2014 " + winReason : ""}${winFoeNote ? ", " + winFoeNote[0].toLowerCase() + winFoeNote.slice(1) : ""}`
+        ? t("Result: {side} wins", { side: sideName(winner) }) + (winReason ? " \u2014 " + tr(winReason) : "") + (winFoeNote ? ", " + winFoeNote[0].toLowerCase() + winFoeNote.slice(1) : "")
         : status === "ended"
-        ? "Game ended manually, no winner"
+        ? t("Game ended manually, no winner")
         : "";
     const code = encodeReplay(gameRecord({ turnHistory, pieces: turnSnapshot || pieces, currentPlayer, status, winner }));
-    const text = [summary, "", ...lines, "", `Replay code (paste the whole log into Replay a game): ${code}`].join("\n");
+    const text = [summary, "", ...lines, "", `${t("Replay code (paste the whole log into Replay a game):")} ${code}`].join("\n");
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_COPIED__ = text; // tests: what was copied
 
     function announce(ok) {
@@ -10874,7 +10884,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   function savesDownload() {
     try {
       const name = downloadSave(collectSave({ version: savesVersion }));
-      setSavesNote({ text: `Saved as ${name}.`, kind: "ok" });
+      setSavesNote({ text: t("Saved as {name}.", { name }), kind: "ok" });
     } catch (e) { setSavesNote({ text: e.message, kind: "err" }); }
   }
   function savesPickFile() { if (savesFileRef.current) { savesFileRef.current.value = ""; savesFileRef.current.click(); } }
@@ -10882,7 +10892,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     setSavesNote({ text: "Reading\u2026", kind: "busy" });
     readSaveFile(file).then((save) => {
       const n = applySave(save);
-      setSavesNote({ text: `Loaded ${n} thing${n === 1 ? "" : "s"}. Starting over on it\u2026`, kind: "ok" });
+      setSavesNote({ text: t(n === 1 ? "Loaded {n} thing. Starting over on it…" : "Loaded {n} things. Starting over on it…", { n }), kind: "ok" });
       setTimeout(() => window.location.reload(), 600);
     }).catch((e) => setSavesNote({ text: e.message, kind: "err" }));
   }
@@ -10896,16 +10906,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   function savesCloudRestore() {
     const code = normalizeCode(savesCodeText);
     if (!code) { setSavesNote({ text: "A code is eight letters, like ABCD-EFGH.", kind: "err" }); return; }
-    setSavesNote({ text: `Fetching ${code}\u2026`, kind: "busy" });
+    setSavesNote({ text: t("Fetching {code}…", { code }), kind: "busy" });
     cloudFetch(code).then(({ save }) => {
       const n = applySave(save);
-      setSavesNote({ text: `Restored ${n} thing${n === 1 ? "" : "s"} from ${code}. Starting over on it\u2026`, kind: "ok" });
+      setSavesNote({ text: t(n === 1 ? "Restored {n} thing from {code}. Starting over on it…" : "Restored {n} things from {code}. Starting over on it…", { n, code }), kind: "ok" });
       setTimeout(() => window.location.reload(), 600);
     }).catch((e) => setSavesNote({ text: e.message, kind: "err" }));
   }
   function savesCopy(text, what) {
     const done = () => setSavesNote({ text: `${what} copied.`, kind: "ok" });
-    const fail = () => setSavesNote({ text: `Couldn't copy; it's ${text}`, kind: "err" });
+    const fail = () => setSavesNote({ text: t("Couldn't copy; it's {code}", { code: text }), kind: "err" });
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fail);
       else fail();
@@ -10929,7 +10939,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const res = checkReplay(rec);
     const total = res.ok ? res.turns : res.valid;
     const problem = !res.ok
-      ? `Turn ${res.bad + 1} doesn't fit the rules (${res.error}).`
+      ? t("Turn {n} doesn't fit the rules ({why}).", { n: res.bad + 1, why: res.say ? t(...res.say) : res.error })
       : rec.error
         ? rec.error
         : null;
@@ -10943,10 +10953,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const laws = RULE_LAWS.filter((l) => rec.laws[l.key]).map((l) => l.name);
     if (laws.length) groups.push({ key: "laws", label: "LAWS", items: laws, keys: RULE_LAWS.filter((l) => rec.laws[l.key]).map((l) => l.key) });
     const topo = [];
-    if (rec.rows !== bootBoardRef.current.rows || rec.cols !== bootBoardRef.current.cols) topo.push(`${rec.cols} × ${rec.rows} board`);
-    if (rec.missing.length) topo.push(`Missing squares (${rec.missing.length / 2} ${rec.missing.length === 2 ? "pair" : "pairs"})`);
+    if (rec.rows !== bootBoardRef.current.rows || rec.cols !== bootBoardRef.current.cols) topo.push(t("{cols} × {rows} board", { cols: rec.cols, rows: rec.rows }));
+    if (rec.missing.length) topo.push(t(rec.missing.length === 2 ? "Missing squares ({n} pair)" : "Missing squares ({n} pairs)", { n: rec.missing.length / 2 }));
     // (With the board, as the menus set it; two sets say so.)
-    if (rec.laws.blackHoleSquares) topo.push((rec.holes || []).length > 2 ? `${HOLES_LAW.name} (2 sets${rec.laws.holeAnyExit ? ", exit from any other singularity" : ""})` : HOLES_LAW.name);
+    if (rec.laws.blackHoleSquares) topo.push((rec.holes || []).length > 2 ? t(rec.laws.holeAnyExit ? "{law} (2 sets, exit from any other singularity)" : "{law} (2 sets)", { law: HOLES_LAW.name }) : HOLES_LAW.name);
     if (topo.length) groups.push({ key: "topologies", label: "TOPOLOGY", items: topo });
     return groups.length ? groups : null;
   }
@@ -10954,7 +10964,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   function replaySummary(r) {
     const turns = `${r.total} turn${r.total === 1 ? "" : "s"}`;
     const won = r.final && r.final.won;
-    const result = won ? `${sideName(won.winner)} wins (${won.why.toLowerCase()})` : "not finished";
+    const result = won ? t("{side} wins ({why})", { side: sideName(won.winner), why: tr(won.why).toLowerCase() }) : t("not finished");
     const rules = replayVariants(r.rec);
     const ruleText = rules ? rules.map((g) => g.items.join(", ")).join(" · ") : "standard rules";
     return `${turns} · ${result} · ${ruleText}`;
@@ -11040,7 +11050,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // (Points left: the turn's so far, whichever piece spent them, as a
     // Split Movement hand-over carries them to the next piece.)
     if (!piece || piece.owner !== currentPlayer || !legalMovesFor(pieces, piece, maxStepsFor(piece.type) - stepsUsed)[step.dir]) {
-      setReplay({ ...r, phase: "done", playing: false, untilTurn: null, error: `Turn ${turn + 1} couldn't be played here.` });
+      setReplay({ ...r, phase: "done", playing: false, untilTurn: null, error: t("Turn {n} couldn't be played here.", { n: turn + 1 }) });
       return undefined;
     }
     if (selectedId !== piece.id) {
@@ -11153,20 +11163,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }
 
   const statusText = status === "finished"
-    ? `${sideName(winner)} wins \u00b7 ${winReason}`
+    ? t("{side} wins · {why}", { side: sideName(winner), why: winReason })
     : status === "ended"
-    ? "Game ended"
+    ? t("Game ended")
     : aiThinking
-    ? `${sideName(currentPlayer)} (AI) thinking\u2026`
+    ? t("{side} (AI) thinking…", { side: sideName(currentPlayer) })
     : online && isPlaying && online.status !== "gone" && !online.peer
-    ? "The other player is reconnecting\u2026"
+    ? t("The other player is reconnecting…")
     : online && isPlaying && currentPlayer === online.theirSide
-    ? `${sideName(currentPlayer)} (online) to move\u2026`
+    ? t("{side} (online) to move…", { side: sideName(currentPlayer) })
     : activePiece && activePiece.owner === currentPlayer
-    ? `${PIECE_META[activePiece.type].name} \u00b7 ${stepsRemaining} ${
-        activePiece.type === "cabeza" ? "step" : "roll"
-      }${stepsRemaining === 1 ? "" : "s"} left`
-    : `${sideName(currentPlayer)} to move`;
+    ? t(activePiece.type === "cabeza"
+        ? stepsRemaining === 1 ? "{piece} · {n} step left" : "{piece} · {n} steps left"
+        : stepsRemaining === 1 ? "{piece} · {n} roll left" : "{piece} · {n} rolls left", { piece: PIECE_META[activePiece.type].name, n: stepsRemaining })
+    : t("{side} to move", { side: sideName(currentPlayer) });
 
   // One consistent property set across all three dockView values (no
   // switching between left/right or adding/removing properties) is
@@ -11664,7 +11674,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
           <div
             data-testid="points-counter"
             data-left={left}
-            aria-label={`${left} of ${budget} actions left`}
+            aria-label={t("{n} of {total} actions left", { n: left, total: budget })}
             style={{
               position: "fixed",
               left: "50%",
@@ -11772,9 +11782,9 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             }}
           >
             <div style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.3, marginBottom: 6 }}>
-              You still have {endTurnAsk.left} action{endTurnAsk.left > 1 ? "s" : ""} left.
+              {t(endTurnAsk.left > 1 ? "You still have {n} actions left." : "You still have {n} action left.", { n: endTurnAsk.left })}
             </div>
-            <div style={{ fontSize: 14.5, lineHeight: 1.45, opacity: 0.85, marginBottom: 16 }}>Are you sure you don't want to use {endTurnAsk.left > 1 ? "them" : "it"}?</div>
+            <div style={{ fontSize: 14.5, lineHeight: 1.45, opacity: 0.85, marginBottom: 16 }}>{endTurnAsk.left > 1 ? "Are you sure you don't want to use them?" : "Are you sure you don't want to use it?"}</div>
             <div style={{ display: "flex", gap: 10 }}>
               <button type="button" className="ec-btn" data-testid="end-turn-ask-keep" onClick={() => setEndTurnAsk(null)} style={{ ...ghostButtonStyle(), flex: 1 }}>
                 Keep playing
@@ -11963,7 +11973,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             }}
           >
             <style>{"@keyframes ecHoldHint{0%{opacity:0;transform:translate(-50%,6px)}8%{opacity:1;transform:translate(-50%,0)}82%{opacity:1}100%{opacity:0}}"}</style>
-            A tap keeps your turn going ({left} action{left === 1 ? "" : "s"} left). <b>Hold</b> the piece to end it.
+            {rich(left === 1 ? "A tap keeps your turn going ({n} action left). <b>Hold</b> the piece to end it." : "A tap keeps your turn going ({n} actions left). <b>Hold</b> the piece to end it.", { n: left })}
           </div>
         );
       })()}
@@ -12010,8 +12020,8 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
         const label = replay.phase === "setup"
           ? "Replay · setting up"
           : done
-            ? replay.error || `Replay · end · ${turnHistory.length} of ${replay.total}`
-            : `Replay · turn ${Math.max(1, turnNow)} of ${replay.total}`;
+            ? replay.error || t("Replay · end · {n} of {total}", { n: turnHistory.length, total: replay.total })
+            : t("Replay · turn {n} of {total}", { n: Math.max(1, turnNow), total: replay.total });
         const still = !busy && !anim.current;
         const icon = (d, label2, onClick, testid, disabled = false) => (
           <button
@@ -12071,7 +12081,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             {icon(<path d="M6 5h2.4v14H6zM20 5v14L9.5 12z" />, "A turn back", replayBack, "replay-back", !still || replayMidTurn || turnHistory.length === 0 || replay.phase === "setup")}
             {!done && icon(
               replay.playing ? <path d="M6.5 5h4v14h-4zM13.5 5h4v14h-4z" /> : <path d="M7 4.5v15L19.5 12z" />,
-              replay.playing ? "Pause" : "Play",
+              replay.playing ? "Pause" : trIn("Play", "music"),
               replayTogglePlay,
               "replay-play",
               replay.phase !== "play"
@@ -12082,7 +12092,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
                 type="button"
                 className="ec-btn"
                 data-testid="replay-speed"
-                aria-label={`Speed: ${replay.speed} times`}
+                aria-label={t("Speed: {n} times", { n: replay.speed })}
                 aria-haspopup="menu"
                 aria-expanded={replaySpeedMenu}
                 title="Speed"
@@ -12153,7 +12163,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
         const compact = shell || viewportW < 600;
         const chosen = setOutFind(s, s.chosen);
         const named = (id) => setOutPieceName(setOutFind(s, id) || (s.before || []).find((q) => q.id === id));
-        const and = (xs) => (xs.length < 2 ? xs[0] || "" : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+        const and = listOf;
         const mirrorer = aiPlayer ? "The computer" : sideName(setOutOther(mine));
         const n = s.note;
         let title, hint, tone = "plain";
@@ -12162,27 +12172,27 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
           hint = "Ringed in red: the Cabeza and what can reach it. Move one of them, then Begin.";
           tone = "danger";
         } else if (n && n.kind === "bench") {
-          title = `Your ${named(s.chosen)} is still on the bench`;
+          title = t("Your {piece} is still on the bench", { piece: named(s.chosen) });
           hint = "Begin waits until every piece is on the board: tap a dot to set it there, or drag it on.";
           tone = "warn";
         } else if (chosen && setOutOnBench(s, chosen.id)) {
-          title = `Place your ${setOutPieceName(chosen)}`;
+          title = t("Place your {piece}", { piece: setOutPieceName(chosen) });
           hint = "Tap a dot to set it there, or drag it onto the board.";
         } else if (chosen) {
-          title = n && n.kind === "turned" ? `Your ${setOutPieceName(chosen)}, turned` : `Your ${setOutPieceName(chosen)}: where to?`;
-          hint = `Tap a dot to move it there, or another of yours to set it there.${turnsOf(chosen) ? ` Tap the ${setOutPieceName(chosen)} again to turn it.` : ""}`;
+          title = t(n && n.kind === "turned" ? "Your {piece}, turned" : "Your {piece}: where to?", { piece: setOutPieceName(chosen) });
+          hint = t("Tap a dot to move it there, or another of yours to set it there.") + (turnsOf(chosen) ? " " + t("Tap the {piece} again to turn it.", { piece: setOutPieceName(chosen) }) : "");
         } else if (n && n.kind === "benched") {
-          title = `Your ${and(n.ids.map(named))} to the bench`;
+          title = t("Your {pieces} to the bench", { pieces: and(n.ids.map(named)) });
           hint = "Drag it back onto the board, or tap it, then a dot.";
         } else if (n && n.kind === "swapped") {
-          title = `Your ${named(n.id)} and ${and(n.ids.map(named))} swapped places`;
-          hint = `${mirrorer} swapped its pair too.`;
+          title = t("Your {piece} and {pieces} swapped places", { piece: named(n.id), pieces: and(n.ids.map(named)) });
+          hint = t("{who} swapped its pair too.", { who: mirrorer });
         } else if (s.so.bench.length) {
-          title = `Place your ${setOutPieceName(s.so.bench[0])}`;
+          title = t("Place your {piece}", { piece: setOutPieceName(s.so.bench[0]) });
           hint = "Drag it from the bench, or tap it, then a dot.";
         } else {
           title = "Drag a piece where you want it";
-          hint = `Or tap it, then a dot. Whatever it lands on waits on the bench until you place it. ${mirrorer} mirrors every move.`;
+          hint = t("Or tap it, then a dot. Whatever it lands on waits on the bench until you place it. {who} mirrors every move.", { who: mirrorer });
         }
         const edge = tone === "danger" ? "#e5392d" : tone === "warn" ? "#e8862a" : `#${SET_OUT_ACCENT.toString(16).padStart(6, "0")}`;
         const label = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase" };
@@ -12194,7 +12204,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
           <>
             <button type="button" data-testid="set-out-undo" disabled={!s.hist.length} onClick={setOutUndo} title="Take back the last change" style={btn(!!s.hist.length)}>Undo</button>
             {s.so.bench.length > 0 && <button type="button" data-testid="set-out-put-back" disabled={!backable} onClick={setOutPutItBack} title="Put the piece from the bench back where it stood, if those squares are free" style={btn(backable)}>Put it back</button>}
-            {canTurn && <button type="button" data-testid="set-out-turn" onClick={setOutTurnChosen} title="Turn it to its next way round (R)" style={btn()}>Turn</button>}
+            {canTurn && <button type="button" data-testid="set-out-turn" onClick={setOutTurnChosen} title="Turn it to its next way round (R)" style={btn()}>{trIn("Turn", "rotate")}</button>}
             <button type="button" data-testid="set-out-standard" disabled={atStart} onClick={setOutStandard} title="Every piece back where it began" style={btn(!atStart)}>Standard</button>
             {setOutLastOk && <button type="button" data-testid="set-out-same" onClick={setOutSameAsLast} title="Place them as your last game began" style={btn()}>Same as last time</button>}
             {halfSwitch("set-out-half", s.so.half, setOutToggleHalf, compact)}
@@ -12353,9 +12363,9 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
               Check
             </div>
             <div data-testid="check-alert-text" style={{ marginTop: 7 }}>
-              {named.length === 1 ? <>The <b>{named[0]}</b> can {verb} {yours} on the computer's next turn.</>
-                : named.length === 2 ? <>The <b>{named[0]}</b> and the <b>{named[1]}</b> can {verb} {yours} on the computer's next turn.</>
-                  : <>Its pieces can crush {yours} on the computer's next turn.</>}
+              {named.length === 1 ? rich("The <b>{a}</b> can {verb} {yours} on the computer's next turn.", { a: named[0], verb, yours })
+                : named.length === 2 ? rich("The <b>{a}</b> and the <b>{b}</b> can {verb} {yours} on the computer's next turn.", { a: named[0], b: named[1], verb, yours })
+                  : t("Its pieces can crush {yours} on the computer's next turn.", { yours })}
             </div>
             <div data-testid="check-alert-advice" style={{ marginTop: 3, opacity: 0.75 }}>{advice}</div>
             <div style={{ display: "flex", alignItems: "stretch", gap: 10, marginTop: 11 }}>
@@ -12554,7 +12564,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
           data-dim={focusMode ? "true" : "false"}
           disabled={!!roomLock}
           onClick={roomView}
-          aria-label={roomLock ? `Zoom out: the Room view. ${roomLock}` : "Zoom out: the Room view"}
+          aria-label={roomLock ? t("Zoom out: the Room view. {why}", { why: roomLock }) : "Zoom out: the Room view"}
           title={roomLock || "Zoom out: up over the whole room"}
           style={{
             position: "fixed", ...cornerStyle("room"), zIndex: cornerControlsZ, width: 38, height: 38,
@@ -12584,7 +12594,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             data-testid="action-corner"
             data-armed={actionArmed ? "true" : "false"}
             onClick={pressCornerAction}
-            aria-label={actionArmed ? `${isCoarsePointer() ? "Tap" : "Click"} again: ${cornerAction.label}` : cornerAction.label}
+            aria-label={actionArmed ? t(isCoarsePointer() ? "Tap again: {what}" : "Click again: {what}", { what: cornerAction.label }) : cornerAction.label}
             title={cornerAction.label}
             style={{
               position: "absolute", inset: 0, width: 38, height: 38,
@@ -12618,7 +12628,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
                   boxShadow: "0 4px 12px rgba(0,0,0,0.3)", animation: "ecArmIn 0.2s ease both",
                 }}
               >
-                {isCoarsePointer() ? "Tap" : "Click"} again: {cornerAction.label}
+                {t(isCoarsePointer() ? "Tap again: {what}" : "Click again: {what}", { what: cornerAction.label })}
               </span>
             </>
           )}
@@ -12703,7 +12713,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
               type="button"
               data-testid="music-chip-toggle"
               aria-label={folded ? "Now playing: pause or turn it down" : musicPaused ? "Play the music" : "Pause the music"}
-              title={folded ? "Music" : musicPaused ? "Play" : "Pause"}
+              title={folded ? "Music" : musicPaused ? trIn("Play", "music") : "Pause"}
               onClick={() => { if (folded) setMusicChipOpen(true); else pauseTrack(!musicPaused); }}
               style={{ flex: "none", width: 26, height: 26, borderRadius: 999, border: "none", background: "transparent", color: "inherit", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
             >
@@ -13103,6 +13113,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
                 ? 104
                 : 0,
               justifyContent: "flex-end",
+              marginLeft: "auto",
             }}
           >
             {isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && shadowEntries.length > 0 && (
@@ -13131,6 +13142,17 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
               </button>
             )}
           </div>
+          {/* The language on a phone, at the line's end (langInFoot: on a
+             computer it's among the foot icons). Its list opens upward. */}
+          {!langInFoot && (
+            <LanguageBadge
+              ink={COLORS.charcoal}
+              muted={COLORS.slate}
+              surface={modalSurface}
+              hair={COLORS.slateSoft}
+              style={{ marginLeft: -6, marginRight: -8 }}
+            />
+          )}
         </div>
 
         {/* By the moment (user: the old panel was a relic, cluttered).
@@ -13190,7 +13212,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
                 onClick={() => setNextOpen((v) => !v)}
                 style={dockLinkStyle()}
               >
-                {dockWords.nextGame}: {aiPlayer ? `You vs ${AI_DIFFICULTY[aiDifficulty].label} AI` : "Human"} {nextOpen ? "\u25B4" : "\u25BE"}
+                {dockWords.nextGame}: {aiPlayer ? t("You vs {level} AI", { level: AI_DIFFICULTY[aiDifficulty].label }) : "Human"} {nextOpen ? "\u25B4" : "\u25BE"}
               </button>
             </div>
           </div>
@@ -13202,7 +13224,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
                 {[
                   { key: "player", label: dockWords.views[0], title: "Current player's view", on: recenterView, testid: "view-player" },
                   { key: "top", label: dockWords.views[1], title: "Top-down view", on: () => topDownView(), testid: "view-top" },
-                  ...(theme.freeCamera && theme.freeCamera.dollhouse ? [{ key: "room", label: dockWords.views[2], title: roomLock ? `Room view: ${roomLock}` : "Room view: the whole room, the roof off", on: roomView, testid: "room-view", off: !!roomLock }] : []),
+                  ...(theme.freeCamera && theme.freeCamera.dollhouse ? [{ key: "room", label: dockWords.views[2], title: roomLock ? t("Room view: {why}", { why: roomLock }) : "Room view: the whole room, the roof off", on: roomView, testid: "room-view", off: !!roomLock }] : []),
                 ].map((v, i) => (
                   <button
                     key={v.key}
@@ -13595,7 +13617,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
               position: "absolute",
               left: 16,
               bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
-              maxWidth: `calc(100% - ${(theme.hasAudio ? 76 : 44) + 32 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0) + 20}px)`,
+              maxWidth: `calc(100% - ${(theme.hasAudio ? 76 : 44) + 32 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0) + (langInFoot ? 32 : 0) + 20}px)`,
               display: "flex",
               alignItems: "baseline",
               gap: 10,
@@ -13619,7 +13641,9 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
                 padding: "7px 2px",
               }}
             >
-              {dockWords.replay}
+              {/* (Its short form where a language's runs long: es.js has
+                 "Replay a game [link]".) */}
+              {trIn(dockWords.replay, "link")}
             </button>
             {/* ...and beside it, everything this browser keeps, carried
                (chassis/saves.js: a file, or the cloud). */}
@@ -13657,7 +13681,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             style={{
               position: "absolute",
               left: 20,
-              right: (theme.hasAudio ? 76 : 44) + 32 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0),
+              right: (theme.hasAudio ? 76 : 44) + 32 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0) + (langInFoot ? 32 : 0),
               // (With the corner switches, into the strip at the end of the
               // panel's content when it scrolls: --ec-dock-overflow.)
               bottom: "calc(7px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
@@ -13675,7 +13699,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
           >
             {["dark", "light"].map((side) => (
               <div key={side} data-side={side} style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {`${sideName(side)}: ${aiPlayer === side ? `AI \u00b7 ${AI_DIFFICULTY[aiDifficulty].label}` : aiPlayer ? "You" : "Human"}`}
+                {t("{side}: {who}", { side: sideName(side), who: aiPlayer === side ? t("AI · {level}", { level: AI_DIFFICULTY[aiDifficulty].label }) : aiPlayer ? "You" : "Human" })}
               </div>
             ))}
           </div>
@@ -13805,6 +13829,22 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             {!showGuide && <line x1="3" y1="21" x2="21" y2="3" />}
           </svg>
         </button>
+        {/* The language, left of the piece guide (on a phone it's in the
+           turn line instead). Pressable at a first look too: a new player
+           may need it before anything else. */}
+        {langInFoot && (
+          <LanguageBadge
+            ink={COLORS.charcoal}
+            muted={COLORS.slate}
+            surface={modalSurface}
+            hair={COLORS.slateSoft}
+            style={{
+              position: "absolute",
+              right: (theme.hasAudio ? 40 : 8) + 64 + (theme.moveCostToggle ? 32 : 0),
+              bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
+            }}
+          />
+        )}
         {/* Nova's other layout (the control bar), offered on a desktop:
            the same quiet corner-icon treatment, left of the others. The
            glyph is the bar itself: a panel with a strip along its foot. */}
@@ -13821,7 +13861,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             title="Use the control bar layout"
             style={{
               position: "absolute",
-              right: (theme.hasAudio ? 40 : 8) + 64 + (theme.moveCostToggle ? 32 : 0),
+              right: (theme.hasAudio ? 40 : 8) + 64 + (theme.moveCostToggle ? 32 : 0) + (langInFoot ? 32 : 0),
               bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
               width: 30,
               height: 30,
@@ -14442,18 +14482,18 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             {!replayReading ? (
               <span style={{ color: COLORS.slate }}>Nothing pasted yet.</span>
             ) : replayReading.error ? (
-              <span data-replay-ok="no">{replayReading.error}</span>
+              <span data-replay-ok="no">{replayReading.say ? t(...replayReading.say) : replayReading.error}</span>
             ) : (
               <>
                 <span data-replay-ok="yes">{replaySummary(replayReading)}</span>
                 {replayReading.legacy && (
                   <span style={{ display: "block", color: COLORS.slate }}>
-                    {replayReading.codeDamaged ? "Its replay code is damaged or cut short" : "No replay code in it"}, so it's read from its moves, from the standard start.
+                    {replayReading.codeDamaged ? "Its replay code is damaged or cut short, so it's read from its moves, from the standard start." : "No replay code in it, so it's read from its moves, from the standard start."}
                   </span>
                 )}
                 {replayReading.problem && (
                   <span style={{ display: "block", color: COLORS.slate }}>
-                    {replayReading.problem} The {replayReading.total} turn{replayReading.total === 1 ? "" : "s"} before it can be replayed.
+                    {replayReading.problem}{" "}{t(replayReading.total === 1 ? "The {n} turn before it can be replayed." : "The {n} turns before it can be replayed.", { n: replayReading.total })}
                   </span>
                 )}
               </>
@@ -14498,7 +14538,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
                 opacity: !replayReading || replayReading.error ? 0.4 : 1,
               }}
             >
-              {replayReading && !replayReading.error && replayReading.problem ? `Replay ${replayReading.total} turns` : "Replay"}
+              {replayReading && !replayReading.error && replayReading.problem ? t("Replay {n} turns", { n: replayReading.total }) : "Replay"}
             </button>
           </div>
         </div>
