@@ -30,6 +30,8 @@
    for a crush, a low jazz chord to win. The dock is a venetian blind going
    up and coming down; the projector starts the picture and runs it down. */
 
+import { loadSound } from "../chassis/sound-files.js";
+
 export const hasAudio = true;
 
 // The recordings beside the page (tools/noir_sounds.py). A loop's file
@@ -112,7 +114,7 @@ export function createAudio() {
   // (Not from disk: a browser won't fetch a file beside a page opened from disk.)
   const fetchable = () => typeof fetch === "function" && !(typeof location !== "undefined" && location.protocol === "file:");
   function fetchBuffer(url) {
-    return fetch(url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((ab) => ctx.decodeAudioData(ab));
+    return loadSound(ctx, url);
   }
   // A loop: from its first sound + LOOP_PAD to its last - LOOP_PAD (an
   // encoder's padding left out; the pads are the loop's own, so the

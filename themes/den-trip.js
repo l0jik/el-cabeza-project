@@ -20,6 +20,8 @@
    ear: straight to the master), while the den's own sounds step out
    (awayFromDen). */
 
+import { loadSound } from "../chassis/sound-files.js";
+
 const DAY_URL = "el-cabeza-trip-day.jpg";
 const DUSK_URL = "el-cabeza-trip-dusk.jpg";
 // The car, the user's recordings: leaving (tightened and faded right
@@ -132,7 +134,7 @@ export function createTrip({ audio, onReturn }) {
       }
       const o = out();
       if (!o || typeof fetch === "undefined") { c.loading = false; return; }
-      fetch(CAR_URLS[k]).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => o.ctx.decodeAudioData(b)).then((buf) => { c.buf = buf; }).catch(() => { /* the made one, then */ });
+      loadSound(o.ctx, CAR_URLS[k]).then((buf) => { c.buf = buf; }).catch(() => { /* the made one, then */ });
     });
   }
   const carReady = (k) => !!(cars[k].buf || (cars[k].el && cars[k].el.readyState >= 2));

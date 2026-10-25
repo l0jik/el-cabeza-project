@@ -12,6 +12,7 @@
    createUnease(audio) -> { set(level 0..1), level(), stop(fadeS) } */
 
 import { lightReverbsFor } from "./futuris-summon-audio.js";
+import { loadSound } from "../chassis/sound-files.js";
 
 export function createUnease(audio) {
   const out = audio && audio.summonOutput ? audio.summonOutput() : null;
@@ -163,7 +164,7 @@ export function createDrone(audio) {
     src.start(at, DRONE_FROM);
   };
   if (!(typeof location !== "undefined" && location.protocol === "file:")) {
-    fetch(DRONE_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((b) => { buf = b; play(); }).catch(() => { /* none, then */ });
+    loadSound(ctx, DRONE_URL).then((b) => { buf = b; play(); }).catch(() => { /* none, then */ });
   }
   return {
     // In `delayS` seconds, fading up over `fadeS` (or as soon as it's here).

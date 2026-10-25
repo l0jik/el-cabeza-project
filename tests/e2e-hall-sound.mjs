@@ -35,7 +35,7 @@ import { fileURLToPath } from "node:url";
 import { openDockPanel } from "./dock-helpers.mjs";
 
 const DIST = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
-const TYPES = { ".html": "text/html; charset=utf-8", ".mp3": "audio/mpeg", ".mp4": "video/mp4", ".webm": "video/webm", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".mp3": "audio/mpeg", ".opus": "audio/ogg", ".mp4": "video/mp4", ".webm": "video/webm", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
 const server = http.createServer((req, res) => {
   const f = path.join(DIST, decodeURIComponent(req.url.split("?")[0]));
   if (!f.startsWith(DIST) || !fs.existsSync(f) || !fs.statSync(f).isFile()) { res.writeHead(404); res.end(); return; }
@@ -74,7 +74,7 @@ async function home(url, flares = 0) {
   const page = await ctx.newPage();
   const errs = [], fetched = {};
   page.on("pageerror", (e) => errs.push(e.message));
-  page.on("response", (r) => { const m = /el-cabeza-hall-([a-z-]+)\.mp3/.exec(r.url()); if (m) fetched[m[1]] = r.status(); });
+  page.on("response", (r) => { const m = /el-cabeza-hall-([a-z-]+)\.(?:mp3|opus)/.exec(r.url()); if (m) fetched[m[1]] = r.status(); });
   await page.goto(url);
   await poll(() => page.evaluate(() => !!window.__DEN_TV__), 30000);
   await page.waitForTimeout(1500);
@@ -194,7 +194,7 @@ async function home(url, flares = 0) {
   const page = await ctx.newPage();
   const errs = [], fetched = {};
   page.on("pageerror", (e) => errs.push(e.message));
-  page.on("response", (r) => { const m = /el-cabeza-hall-([a-z-]+)\.mp3/.exec(r.url()); if (m) fetched[m[1]] = r.status(); });
+  page.on("response", (r) => { const m = /el-cabeza-hall-([a-z-]+)\.(?:mp3|opus)/.exec(r.url()); if (m) fetched[m[1]] = r.status(); });
   await page.goto(URL_HTTP + "?scene=hall");
   const begin = page.locator('[data-testid="den-hall-preview"]');
   check("\"The hallway / Tap to begin\"", !!(await poll(async () => (await begin.count()) > 0, 30000)));

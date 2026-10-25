@@ -7,15 +7,22 @@
    iOS the VP9 one (.webm; Safari plays the H.264 .mp4), for Android
    (--android) the H.264 one, the VP9 copy being the smaller and Android's
    WebView playing it (den-commercial.js lists both; a missing one is
-   passed over). The app's own wrapper (a few MB) isn't counted.
+   passed over). Each recording too: for Android its Opus twin (WebView
+   plays Opus), for iOS its MP3 (Safari before 18.4 can't play the Opus;
+   an app needing iOS 18.4 could ship the Opus instead), the other one
+   missing being passed over (chassis/sound-files.js). The app's own
+   wrapper (a few MB) isn't counted.
      npm run build && node tools/app_size.mjs [--android] */
 import { readdirSync, statSync, readFileSync } from "fs";
 import { deflateRawSync, constants } from "zlib";
 
 const DIST = new URL("../dist/", import.meta.url).pathname;
 const android = process.argv.includes("--android");
-const webOnly = (f) => f.startsWith("front") || ["el-cabeza-unified.html", "el-cabeza-neon.html", "index.html", "robots.txt"].includes(f) || f.endsWith(android ? ".mp4" : ".webm");
-const files = readdirSync(DIST).filter((f) => statSync(DIST + f).isFile() && !webOnly(f));
+const all = readdirSync(DIST).filter((f) => statSync(DIST + f).isFile());
+const twinned = (f) => all.includes(f.replace(/\.mp3$/, ".opus"));
+const webOnly = (f) => f.startsWith("front") || ["el-cabeza-unified.html", "el-cabeza-neon.html", "index.html", "robots.txt"].includes(f) || f.endsWith(android ? ".mp4" : ".webm")
+  || (android ? f.endsWith(".mp3") && twinned(f) : f.endsWith(".opus"));
+const files = all.filter((f) => !webOnly(f));
 const kinds = {};
 let raw = 0, zipped = 0;
 for (const f of files) {

@@ -34,6 +34,8 @@
    bright chord and a cheer to win. The dock a lift's doors and its
    chime; the rules a page turned. */
 
+import { loadSound } from "../chassis/sound-files.js";
+
 export const hasAudio = true;
 
 // The city's recordings: one loop an hour, beside the page (build.js).
@@ -142,7 +144,7 @@ export function createAudio() {
   // (Not from disk: a browser won't fetch a file beside a page opened from disk.)
   const fetchable = () => typeof fetch === "function" && !(typeof location !== "undefined" && location.protocol === "file:");
   function fetchBuffer(url) {
-    return fetch(url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((ab) => ctx.decodeAudioData(ab));
+    return loadSound(ctx, url);
   }
   // A loop: from its first sound + LOOP_PAD to its last - LOOP_PAD (an
   // encoder's padding left out), as Noir's.

@@ -26,7 +26,7 @@ const DIST = path.join(ROOT, "dist");
 const OUT = path.resolve(process.argv[2] || "el-cabeza-commercial-tv.mp4");
 const FF = process.env.FFMPEG || "ffmpeg";
 const FRAMES = 720, FPS = 24;
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mp3": "audio/mpeg", ".mp4": "video/mp4", ".webm": "video/webm", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".json": "application/json" };
+const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mp3": "audio/mpeg", ".opus": "audio/ogg", ".mp4": "video/mp4", ".webm": "video/webm", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".json": "application/json" };
 // (With byte ranges, as a real server answers a video's requests.)
 const server = http.createServer((req, res) => {
   const f = path.join(DIST, decodeURIComponent(req.url.split("?")[0]));

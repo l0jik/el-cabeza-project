@@ -55,6 +55,7 @@ import { fpsWanted, createFpsReadout } from "./fps-readout.js";
 import { sideAt, sideAsItGoes } from "./turn-where.js";
 import { collectSave, applySave, downloadSave, readSaveFile, cloudSave, cloudFetch, cloudRecord, restoreLink, restoreFromLink, takeRestoreNote, normalizeCode } from "./saves.js";
 import { relayReady, relayUrl } from "./online-config.js";
+import { soundElement } from "./sound-files.js";
 import { createRelayClient, takeJoinParam, joinLink, keepOnlineSession, savedOnlineSession, otherSide } from "./online.js";
 // ?join=CODE (the link a host copies, chassis/online.js): the code, read
 // once off the address, taken by the first chassis to mount.
@@ -1360,7 +1361,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const originalCueRef = useRef(null);
   useEffect(() => {
     if (!showInfoOverlay || originalCueRef.current || typeof Audio === "undefined") return;
-    try { const a = new Audio(); a.preload = "auto"; a.src = ORIGINAL_CUE_URL; originalCueRef.current = a; } catch (e) { /* made when pressed, then */ }
+    try { const a = new Audio(); a.preload = "auto"; soundElement(ORIGINAL_CUE_URL, a); originalCueRef.current = a; } catch (e) { /* made when pressed, then */ }
   }, [showInfoOverlay]);
   /* The INFO overlay's tab: "about" (the game's history) or one of the
      rules cards (chassis/RulesCards.jsx). rulesFocus names a MOVES tile
@@ -10537,7 +10538,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // replaced mid-cue when the theme switches back to Standard.
     if (!audioMuted && document.visibilityState === "visible") {
       try {
-        const cue = originalCueRef.current || new Audio(ORIGINAL_CUE_URL);
+        const cue = originalCueRef.current || soundElement(ORIGINAL_CUE_URL);
         originalCueRef.current = null;
         cue.volume = 0.75;
         window.__EC_LAST_ORIGINAL_CUE__ = cue; // tests read this

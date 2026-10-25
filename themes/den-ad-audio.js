@@ -12,13 +12,13 @@
    at once. */
 
 import { COMMERCIAL_MS, prepareCommercialPicture, spotSound } from "./den-commercial.js";
+import { loadSound, soundElement } from "../chassis/sound-files.js";
 
 const TRACK_URL = "el-cabeza-den-spot.mp3";
 // (The recording is mastered to -16 LUFS; the drawn one's ran at -20.)
 const LEVEL = 0.6;
 const rendered = { buffer: null, promise: null };
 const fromDisk = () => typeof location !== "undefined" && location.protocol === "file:";
-const decode = (c, ab) => new Promise((res, rej) => { const p = c.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); });
 // The audio clock's time of the sound reaching the ears now: its output
 // timestamp carried on to now, or the clock less its reported latencies;
 // less the master compressor's 6 ms look-ahead (den-audio.js).
@@ -36,10 +36,8 @@ export function prepareCommercial({ picture = true } = {}) {
   if (rendered.buffer || rendered.promise) return rendered.promise;
   if (typeof OfflineAudioContext === "undefined" || typeof fetch === "undefined" || fromDisk()) return null;
   rendered.promise = (async () => {
-    const r = await fetch(TRACK_URL);
-    if (!r.ok) throw new Error(String(r.status));
     // (Decoded on a context of its own: a buffer plays on any.)
-    rendered.buffer = await decode(new OfflineAudioContext(2, 1, 44100), await r.arrayBuffer());
+    rendered.buffer = await loadSound(new OfflineAudioContext(2, 1, 44100), TRACK_URL);
     return rendered.buffer;
   })().catch(() => { rendered.promise = null; return null; });
   return rendered.promise;
@@ -75,7 +73,7 @@ export function playCommercial(ctx, dest, { delay = 0 } = {}) {
     // (From disk, or if it couldn't be had: an <audio> element, from
     // where it should be.)
     if (typeof Audio === "undefined") return;
-    el = new Audio(TRACK_URL); el.volume = LEVEL;
+    el = soundElement(TRACK_URL); el.volume = LEVEL;
     const start = () => {
       if (stopped || !el) return;
       const off = ctx.currentTime - T;

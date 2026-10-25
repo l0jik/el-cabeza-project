@@ -39,6 +39,7 @@
    __DEN_CALL_NOW__() skips the waits. */
 
 import { dealCard } from "./den-cards.js";
+import { loadSound, soundElement } from "../chassis/sound-files.js";
 
 const INK = "#2E2118", RED = "#A8321F", PAPER = "#EFE6CD";
 const FRANKLIN = "'Libre Franklin', 'Franklin Gothic Medium', 'Helvetica Neue', Arial, sans-serif";
@@ -157,7 +158,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     // sent through the same way, seeking to each ring's slot.)
     if (typeof location !== "undefined" && location.protocol === "file:") {
       if (typeof Audio === "undefined") return;
-      const el = new Audio(RING_URL); el.preload = "auto";
+      const el = soundElement(RING_URL); el.preload = "auto";
       el.addEventListener("canplay", () => {
         if (ringEl) return;
         try { ringElGain = o.ctx.createGain(); ringElGain.gain.value = RING_LEVEL; o.ctx.createMediaElementSource(el).connect(ringElGain).connect(o.ring); ringEl = el; } catch (e) { /* the synthesized bell */ }
@@ -166,7 +167,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
       return;
     }
     if (typeof fetch === "undefined") return;
-    fetch(RING_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => o.ctx.decodeAudioData(b)).then((buf) => { ringBuf = buf; }).catch(() => { /* the synthesized bell, then */ });
+    loadSound(o.ctx, RING_URL).then((buf) => { ringBuf = buf; }).catch(() => { /* the synthesized bell, then */ });
   }
   function ring(t) {
     const o = output();
@@ -268,7 +269,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     voiceLoading = true;
     if (typeof location !== "undefined" && location.protocol === "file:") {
       if (typeof Audio === "undefined") return;
-      const el = new Audio(VOICE_URL); el.preload = "auto";
+      const el = soundElement(VOICE_URL); el.preload = "auto";
       el.addEventListener("canplay", () => {
         if (voiceEl) return;
         try { voiceElGain = o.ctx.createGain(); voiceElGain.gain.value = VOICE_LEVEL; o.ctx.createMediaElementSource(el).connect(voiceElGain).connect(L.input); voiceEl = el; } catch (e) { /* the synthesized voice */ }
@@ -277,7 +278,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
       return;
     }
     if (typeof fetch === "undefined") return;
-    fetch(VOICE_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => o.ctx.decodeAudioData(b)).then((buf) => { voiceBuf = buf; }).catch(() => { /* the synthesized voice, then */ });
+    loadSound(o.ctx, VOICE_URL).then((buf) => { voiceBuf = buf; }).catch(() => { /* the synthesized voice, then */ });
   }
   // Line k of the caller's at audio time t; how long it is, or null.
   function voice(k, t) {

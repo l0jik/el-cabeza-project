@@ -29,7 +29,7 @@ import { fileURLToPath } from "node:url";
 import { openDockPanel } from "./dock-helpers.mjs";
 
 const DIST = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
-const TYPES = { ".html": "text/html; charset=utf-8", ".mp3": "audio/mpeg", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".mp3": "audio/mpeg", ".opus": "audio/ogg", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
 const server = http.createServer((req, res) => {
   const f = path.join(DIST, decodeURIComponent(req.url.split("?")[0]));
   if (!f.startsWith(DIST) || !fs.existsSync(f) || !fs.statSync(f).isFile()) { res.writeHead(404); res.end(); return; }
@@ -49,7 +49,7 @@ async function visit(url, label) {
   const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
   const errs = [], fetched = {};
   page.on("pageerror", (e) => errs.push(e.message));
-  page.on("response", (r) => { const m = /el-cabeza-noir-([a-z0-9-]+)\.mp3/.exec(r.url()); if (m) fetched[m[1]] = r.status(); });
+  page.on("response", (r) => { const m = /el-cabeza-noir-([a-z0-9-]+)\.(?:mp3|opus)/.exec(r.url()); if (m) fetched[m[1]] = r.status(); });
   await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
   await page.goto(url);
   await poll(() => page.evaluate(() => !!window.__EC_TEST_CAM__), 30000);

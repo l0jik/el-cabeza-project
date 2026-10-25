@@ -35,6 +35,7 @@
 
 import * as THREE from "three";
 import { FLOOR, CEIL, RZ, HALL } from "./den-room.js";
+import { loadSound } from "../chassis/sound-files.js";
 
 const FIRST_AFTER = 4;   // moves after coming home (user: at least four)
 const CHOICE_HOLD_MS = 1500; // the choice takes no tap till then (wild taps; user)
@@ -512,7 +513,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     ["scream", "field", "pre", kind].forEach((k) => {
       if (k in rec) return;
       rec[k] = null;
-      fetch(PULL_FILES[k]).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => o.ctx.decodeAudioData(b))
+      loadSound(o.ctx, PULL_FILES[k])
         .then((buf) => { rec[k] = buf; }).catch(() => { /* the made sounds, then */ });
     });
   }

@@ -32,6 +32,7 @@
 
 import * as THREE from "three";
 import { createRealitiesMenu } from "./realities.js";
+import { fetchSoundBytes, decodeBytes, loadSound, soundElement } from "../chassis/sound-files.js";
 
 // The user's words, as written (*x* in italics, **x** in bold).
 export const REVELATION = [
@@ -723,13 +724,14 @@ const DRONE_RATE = 0.7492;
 const fromDisk = () => typeof location !== "undefined" && location.protocol === "file:";
 const bytes = {};
 function fetchBytes(url) {
-  if (!bytes[url]) bytes[url] = !fromDisk() && typeof fetch !== "undefined" ? fetch(url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))) : Promise.reject(new Error("no fetch"));
+  if (!bytes[url]) bytes[url] = !fromDisk() && typeof fetch !== "undefined" ? fetchSoundBytes(url) : Promise.reject(new Error("no fetch"));
   return bytes[url];
 }
 const decoded = new WeakMap();
 function audioBuffer(ctx, url) {
   let m = decoded.get(ctx); if (!m) decoded.set(ctx, (m = {}));
-  if (!m[url]) m[url] = fetchBytes(url).then((b) => ctx.decodeAudioData(b.slice(0)));
+  // (The MP3, fetched and decoded afresh, if the Opus won't decode here.)
+  if (!m[url]) m[url] = fetchBytes(url).then((b) => decodeBytes(ctx, b.slice(0))).catch((e) => (fromDisk() ? Promise.reject(e) : loadSound(ctx, url)));
   return m[url];
 }
 export function prefetchVoidMusic() { [MUSIC_URL, DRONE_URL].forEach((u) => fetchBytes(u).catch(() => {})); }
@@ -783,7 +785,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     if (on && !snd) {
       if (fromDisk()) {
         // (From disk: plain <audio>, no fetching there.)
-        const el = typeof Audio !== "undefined" ? new Audio(MUSIC_URL) : null;
+        const el = soundElement(MUSIC_URL);
         snd = { els: { music: el, drone: null }, all: [] };
         if (el) { el.volume = 0.8; const p = el.play(); if (p && p.catch) p.catch(() => {}); }
         return;
@@ -846,7 +848,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     const c = snd;
     if (!c) return;
     if (c.els) {
-      if (on && !c.els.drone && typeof Audio !== "undefined") { const el = (c.els.drone = new Audio(DRONE_URL)); el.loop = true; el.volume = 0.2; el.preservesPitch = false; el.mozPreservesPitch = false; el.webkitPreservesPitch = false; el.playbackRate = DRONE_RATE; const p = el.play(); if (p && p.catch) p.catch(() => {}); }
+      if (on && !c.els.drone && typeof Audio !== "undefined") { const el = (c.els.drone = soundElement(DRONE_URL)); el.loop = true; el.volume = 0.2; el.preservesPitch = false; el.mozPreservesPitch = false; el.webkitPreservesPitch = false; el.playbackRate = DRONE_RATE; const p = el.play(); if (p && p.catch) p.catch(() => {}); }
       else if (!on && c.els.drone) { try { c.els.drone.pause(); } catch (e) { /* fine */ } c.els.drone = null; }
       return;
     }

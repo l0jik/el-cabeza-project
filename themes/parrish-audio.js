@@ -59,6 +59,7 @@
 import { createWoodSfx, landingSize } from "./wood-sfx.js";
 import { REALITIES_OPEN_EVENT, REALITIES_STAY_EVENT } from "./realities.js";
 import { lookName } from "./parrish-looks.js";
+import { loadSound } from "../chassis/sound-files.js";
 
 export const hasAudio = true;
 
@@ -259,7 +260,7 @@ export function createAudio() {
       loadStabs();
       // The close, fetched now, so it starts the moment it's asked for
       // (leaving: the switcher waits for its music, parrish-closing.js).
-      if (OUTRO_URL) fetch(OUTRO_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => { if (!outroBuf) outroBuf = buf; }).catch(() => { /* fetched again when needed */ });
+      if (OUTRO_URL) loadSound(ctx, OUTRO_URL).then((buf) => { if (!outroBuf) outroBuf = buf; }).catch(() => { /* fetched again when needed */ });
     } catch (e) {
       ctx = null;
     }
@@ -422,7 +423,7 @@ export function createAudio() {
     if (evening) return;
     evening = { stopped: false };
     const ev = evening;
-    fetch(EVENING_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
+    loadSound(ctx, EVENING_URL).then((buf) => {
       if (ev.stopped || disposed) return;
       const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true;
       s.loopStart = EVENING_LOOP[0]; s.loopEnd = Math.min(EVENING_LOOP[1], buf.duration);
@@ -454,7 +455,7 @@ export function createAudio() {
   function loadStabs() {
     if (stabsAsked || !ctx) return;
     stabsAsked = true;
-    fetch(STABS_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
+    loadSound(ctx, STABS_URL).then((buf) => {
       if (disposed) return;
       // Each slice's first sound, found in the decoded file itself (so an
       // encoder's delay at the head can't put the cuts off their attacks).
@@ -533,7 +534,7 @@ export function createAudio() {
     intro = { stopped: false };
     const it = intro;
     if (ctx.state === "suspended") ctx.resume();
-    fetch(INTRO_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
+    loadSound(ctx, INTRO_URL).then((buf) => {
       if (it.stopped || disposed) return;
       const s = ctx.createBufferSource(); s.buffer = buf;
       const g = ctx.createGain(); g.gain.value = 0.6;
@@ -576,7 +577,7 @@ export function createAudio() {
       s.onended = () => { o.done = true; if (!windingDown && natureBus && outro === o) natureBus.gain.setTargetAtTime(natureOn ? 1 : 0, now(), 1.5); };
     };
     if (outroBuf) { go(outroBuf); return; }
-    fetch(OUTRO_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => { outroBuf = buf; go(buf); }).catch(() => { /* no close, then */ });
+    loadSound(ctx, OUTRO_URL).then((buf) => { outroBuf = buf; go(buf); }).catch(() => { /* no close, then */ });
   }
   const onRealities = () => playOutro();
   // Closing (themes/parrish-closing.js): the close starts at the tap; the
@@ -601,7 +602,7 @@ export function createAudio() {
     if (!MUSIC_URL || !ctx || music) return;
     music = { stopped: false };
     const m = music;
-    fetch(MUSIC_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
+    loadSound(ctx, MUSIC_URL).then((buf) => {
       if (m.stopped || disposed) return;
       const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true;
       const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, now()); g.gain.setTargetAtTime(0.55, now(), 2);
@@ -620,7 +621,7 @@ export function createAudio() {
   // out, so the seam a looped file was made with stays seamless).
   function loadSong(h, k) {
     if (h.songs[k]) return h.songs[k];
-    const p = fetch(SOUNDTRACK[k].url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
+    const p = loadSound(ctx, SOUNDTRACK[k].url).then((buf) => {
       const d = buf.getChannelData(0), lim = Math.min(d.length, Math.floor(buf.sampleRate * 0.2));
       let a = 0, z = d.length - 1;
       while (a < lim && Math.abs(d[a]) < 1e-4) a++;

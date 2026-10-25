@@ -14,6 +14,7 @@
 // "tape tear", RGB channel separation) while the actual theme swap
 // happens underneath, hidden inside the transition.
 import React, { useRef, useEffect, useCallback } from "react";
+import { fetchSoundBytes, decodeBytes, loadSound } from "../chassis/sound-files.js";
 
 export const HOLD_MS = 4000;
 export const RELEASE_EASE_MS = 450;
@@ -920,14 +921,15 @@ export function createSwitcherSfx() {
     if (typeof location !== "undefined" && location.protocol === "file:") return;
     Object.entries(RECEIPT_URLS).forEach(([k, u]) => {
       if (receiptBytes[k]) return;
-      receiptBytes[k] = fetch(u).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).catch(() => null);
+      receiptBytes[k] = fetchSoundBytes(u).catch(() => null);
     });
   };
   const decodeReceipt = (c) => {
     prefetchReceipt();
     Object.keys(RECEIPT_URLS).forEach((k) => {
       if (receiptBuf[k] || !receiptBytes[k]) return;
-      receiptBytes[k].then((b) => (b ? c.decodeAudioData(b.slice(0)) : null)).then((buf) => { if (buf) receiptBuf[k] = buf; }).catch(() => {});
+      // (The MP3, fetched and decoded afresh, if the Opus won't decode here.)
+      receiptBytes[k].then((b) => (b ? decodeBytes(c, b.slice(0)).catch(() => loadSound(c, RECEIPT_URLS[k])) : null)).then((buf) => { if (buf) receiptBuf[k] = buf; }).catch(() => {});
     });
   };
   const playReceipt = (c, k, at) => {

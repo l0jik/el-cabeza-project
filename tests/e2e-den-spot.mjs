@@ -16,7 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const DIST = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "dist");
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mp3": "audio/mpeg", ".mp4": "video/mp4", ".webm": "video/webm", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".json": "application/json", ".woff2": "font/woff2" };
+const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mp3": "audio/mpeg", ".opus": "audio/ogg", ".mp4": "video/mp4", ".webm": "video/webm", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".json": "application/json", ".woff2": "font/woff2" };
 // (With byte ranges, as a real server answers a video's requests.)
 const asked = [];
 const server = http.createServer((req, res) => {

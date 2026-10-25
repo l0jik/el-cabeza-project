@@ -202,7 +202,7 @@ const aimCheck = (label, samples) => {
   // Over http (as GitHub Pages serves it): his shout with its preverb, and
   // the den's sound ringing on after it's gone.
   const DIST = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
-  const TYPES = { ".html": "text/html; charset=utf-8", ".mp3": "audio/mpeg", ".mp4": "video/mp4", ".webm": "video/webm", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
+  const TYPES = { ".html": "text/html; charset=utf-8", ".mp3": "audio/mpeg", ".opus": "audio/ogg", ".mp4": "video/mp4", ".webm": "video/webm", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
   const server = http.createServer((req, res) => {
     const f = path.join(DIST, decodeURIComponent(req.url.split("?")[0]));
     if (!f.startsWith(DIST) || !fs.existsSync(f) || !fs.statSync(f).isFile()) { res.writeHead(404); res.end(); return; }

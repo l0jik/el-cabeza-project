@@ -22,7 +22,7 @@ import path from "node:path";
 import { openDockPanel } from "./dock-helpers.mjs";
 
 const DIST = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../dist");
-const TYPES = { ".html": "text/html", ".mp3": "audio/mpeg", ".jpg": "image/jpeg", ".js": "text/javascript", ".webp": "image/webp", ".png": "image/png" };
+const TYPES = { ".html": "text/html", ".mp3": "audio/mpeg", ".opus": "audio/ogg", ".jpg": "image/jpeg", ".js": "text/javascript", ".webp": "image/webp", ".png": "image/png" };
 const server = http.createServer((req, res) => {
   const f = path.join(DIST, decodeURIComponent(req.url.split("?")[0]));
   if (!f.startsWith(DIST) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); res.end(); return; }

@@ -26,6 +26,7 @@
    comes back with the next. */
 
 import { quality } from "./tienda-quality.js";
+import { fetchSoundBytes, loadSound } from "../chassis/sound-files.js";
 import { createWoodSfx } from "./wood-sfx.js";
 
 export const hasAudio = true;
@@ -667,7 +668,7 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
   let tapeIn = null, tapeRate = null, tapeSrc = null;
   let tapeOffset = 0, tapeStartedAt = 0, tapeEndsAt = 0, tapeGap = 5, tapeWaitUntil = 0;
   function tapeBytes(url) {
-    if (!/^data:/.test(url)) return fetch(url).then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); });
+    if (!/^data:/.test(url)) return fetchSoundBytes(url);
     const bin = atob(url.slice(url.indexOf(",") + 1)), out = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return Promise.resolve(out.buffer);
@@ -682,6 +683,8 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
     r.loading = true;
     fetchReel(r)
       .then((bytes) => new Promise((res, rej) => ctx.decodeAudioData(bytes.slice(0), res, rej)))
+      // (The MP3, fetched and decoded afresh, if the Opus won't decode here.)
+      .catch((e) => (/^data:/.test(r.url) ? Promise.reject(e) : loadSound(ctx, r.url)))
       .then((buffer) => { r.buffer = buffer; })
       .catch(() => { r.failed = true; r.bytes = null; })
       .then(() => { r.loading = false; });

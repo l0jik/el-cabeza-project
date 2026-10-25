@@ -43,7 +43,7 @@ const SHOTS = process.env.TIENDA_SHOTS || null;
 // file beside the page) loads.
 const DIST = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
 // (.js as JavaScript: the page's script is modules beside it, build/build.js.)
-const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mp3": "audio/mpeg", ".jpg": "image/jpeg", ".webp": "image/webp", ".mp4": "video/mp4", ".webm": "video/webm" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mp3": "audio/mpeg", ".opus": "audio/ogg", ".jpg": "image/jpeg", ".webp": "image/webp", ".mp4": "video/mp4", ".webm": "video/webm" };
 const server = http.createServer((req, res) => {
   const f = path.join(DIST, decodeURIComponent(req.url.split("?")[0]));
   if (!f.startsWith(DIST) || !fs.existsSync(f) || !fs.statSync(f).isFile()) { res.writeHead(404); return res.end(); }

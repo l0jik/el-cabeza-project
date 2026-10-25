@@ -25,6 +25,7 @@
 
 import { createWoodSfx } from "./wood-sfx.js";
 import { playCommercial, prepareCommercial } from "./den-ad-audio.js";
+import { loadSound, soundElement } from "../chassis/sound-files.js";
 
 export const hasAudio = true;
 
@@ -175,14 +176,14 @@ export function createAudio() {
     // page opened from disk), an <audio> element, looping, stands in.
     const fromElement = () => {
       if (disposed || typeof Audio === "undefined") return;
-      const el = new Audio(FIRE_URL); el.loop = true;
+      const el = soundElement(FIRE_URL); el.loop = true;
       el.addEventListener("canplay", () => { if (disposed || firePlaying) return; try { begin(ctx.createMediaElementSource(el)); } catch (e) { return; } const p = el.play(); if (p && p.catch) p.catch(() => {}); }, { once: true });
       fireEl = el;
     };
     // (A page opened from disk can't fetch at all, and says so in the
     // console: straight to the element there.)
     if (typeof location !== "undefined" && location.protocol === "file:") { fromElement(); return; }
-    fetch(FIRE_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
+    loadSound(ctx, FIRE_URL).then((buf) => {
       if (disposed || !ctx) return;
       const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true;
       [s.loopStart, s.loopEnd] = [FIRE_LOOP[0], Math.min(FIRE_LOOP[1], buf.duration)];
@@ -448,7 +449,7 @@ export function createAudio() {
     handOverHold();
     stopMusic();
     const el = new Audio();
-    el.src = track.url; el.loop = !!track.loop; el.preload = "auto";
+    soundElement(track.url, el); el.loop = !!track.loop; el.preload = "auto";
     const src = ctx.createMediaElementSource(el);
     const tone = ctx.createBiquadFilter(); tone.type = "lowpass"; tone.frequency.value = track.medium === "8track" ? 9000 : 13000;
     // (Then the set's pull: a warping delay, its duck, its dropouts.)
@@ -649,7 +650,7 @@ export function createAudio() {
     if (glitchAsked || !ctx) return;
     glitchAsked = true;
     if (typeof location !== "undefined" && location.protocol === "file:") return;
-    fetch(GLITCH_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => { if (!disposed) glitchBuf = buf; }).catch(() => { /* the made sounds, then */ });
+    loadSound(ctx, GLITCH_URL).then((buf) => { if (!disposed) glitchBuf = buf; }).catch(() => { /* the made sounds, then */ });
   }
   // A slice of it: `dur` long from anywhere in it, faded in over `attack`
   // and out at its end; `rate` to bend it (from, to); `swell` to grow

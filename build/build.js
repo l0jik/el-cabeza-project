@@ -264,7 +264,13 @@ const BODY_START = { title: `<script>${titleJs}</script>` };
     // reads its textContent and turns it into a real Worker via a Blob URL.
     const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="${t.viewport || "width=device-width,initial-scale=1"}">${t.head || ""}<meta name="robots" content="noindex, nofollow"><title>${t.title}</title>${preload}</head><body style="margin:0">${t.bodyStart ? BODY_START[t.bodyStart] : ""}<div id="root"></div><script type="application/x-ai-worker" id="ai-worker-src">${workerJsEscaped}</script><script type="module" src="${entry}"></script></body></html>`;
     writeFileSync(`dist/el-cabeza-${t.name}.html`, html);
-    Object.entries({ ...COMMON_FILES, ...(t.files || {}) }).forEach(([to, from]) => copyFileSync(from, `dist/${to}`));
+    // (A recording's Opus twin, tools/opus_twins.py, goes beside its MP3:
+    // chassis/sound-files.js plays it where the browser can.)
+    Object.entries({ ...COMMON_FILES, ...(t.files || {}) }).forEach(([to, from]) => {
+      copyFileSync(from, `dist/${to}`);
+      const twin = from.replace(/\.mp3$/, ".opus");
+      if (twin !== from && existsSync(twin)) copyFileSync(twin, `dist/${to.replace(/\.mp3$/, ".opus")}`);
+    });
     const own = bytes(entry), shared = chunks.reduce((s, c) => s + bytes(c), 0);
     console.log(`built dist/el-cabeza-${t.name}.html (${kb(own + shared)} JS: its own ${kb(own)}, ${chunks.length} shared chunk(s) ${kb(shared)}; ${kb(workerJs.length)} worker)`);
   }

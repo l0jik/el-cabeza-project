@@ -209,13 +209,20 @@ html.ec-splash-on { background: #120C08; }
      wide splash: the board's the same, played back on the same clock.) */
   const sound = (() => {
     const AC = W.AudioContext || W.webkitAudioContext, BEGIN = "el-cabeza-title-begin.mp3", LAND = "el-cabeza-title-landings.mp3";
+    // (Each one's Opus twin where the browser plays Opus, the MP3 if that
+    // can't be had or decoded: chassis/sound-files.js's choice, written
+    // out here, where nothing can be imported.)
+    const OPUS = (() => { try { const a = D.createElement("audio"); return !!(a.canPlayType && a.canPlayType('audio/ogg; codecs="opus"')); } catch (e) { return false; } })();
+    const twin = (u) => (OPUS ? u.replace(/\.mp3$/, ".opus") : u);
     let ctx = null, out = null, landing = null, closeAt = 0;
     const bytes = {}, bufs = {}, played = (title.sounds = []);
-    const get = (u) => bytes[u] || (bytes[u] = W.fetch(u).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null));
-    const buf = (u) => bufs[u] || (bufs[u] = get(u).then((b) => new Promise((res) => {
+    const load = (u) => W.fetch(u).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+    const get = (u) => bytes[u] || (bytes[u] = load(twin(u)).then((b) => (b || twin(u) === u ? b : load(u))));
+    const decode = (b) => new Promise((res) => {
       if (!b || !ctx) return res(null);
       try { const q = ctx.decodeAudioData(b.slice(0), res, () => res(null)); if (q && q.catch) q.catch(() => res(null)); } catch (e) { res(null); }
-    })));
+    });
+    const buf = (u) => bufs[u] || (bufs[u] = get(u).then(decode).then((d) => d || (ctx && twin(u) !== u ? load(u).then(decode) : null)));
     const quiet = (p) => { if (p && p.catch) p.catch(() => {}); };
     const wake = () => { try { if (ctx && ctx.state === "suspended") quiet(ctx.resume()); } catch (e) { /* no sound */ } };
     // (Let go once it's all rung out: the game's own sound is up by then.)

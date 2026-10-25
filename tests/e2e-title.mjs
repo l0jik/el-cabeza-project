@@ -366,7 +366,7 @@ console.log("\nits sounds: a knock at Begin, the pieces' landings with the playb
 {
   const http = await import("node:http"), fs = await import("node:fs"), path = await import("node:path");
   const dist = "/home/user/el-cabeza-project/dist";
-  const types = { ".html": "text/html", ".js": "text/javascript", ".mp4": "video/mp4", ".webm": "video/webm", ".mp3": "audio/mpeg", ".jpg": "image/jpeg", ".png": "image/png", ".json": "application/json", ".webmanifest": "application/manifest+json", ".css": "text/css" };
+  const types = { ".html": "text/html", ".js": "text/javascript", ".mp4": "video/mp4", ".webm": "video/webm", ".mp3": "audio/mpeg", ".opus": "audio/ogg", ".jpg": "image/jpeg", ".png": "image/png", ".json": "application/json", ".webmanifest": "application/manifest+json", ".css": "text/css" };
   const server = http.createServer((req, res) => {
     const f = path.join(dist, decodeURIComponent(req.url.split("?")[0]));
     if (!f.startsWith(dist) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); }

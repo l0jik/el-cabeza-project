@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 import { openDockPanel } from "./dock-helpers.mjs";
 
 const DIST = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
-const TYPES = { ".html": "text/html; charset=utf-8", ".mp3": "audio/mpeg", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".mp3": "audio/mpeg", ".opus": "audio/ogg", ".js": "text/javascript", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
 const server = http.createServer((req, res) => {
   const f = path.join(DIST, decodeURIComponent(req.url.split("?")[0]));
   if (!f.startsWith(DIST) || !fs.existsSync(f) || !fs.statSync(f).isFile()) { res.writeHead(404); res.end(); return; }
@@ -40,7 +40,7 @@ async function visit(url, label) {
   const errs = [], fetched = {};
   page.on("pageerror", (e) => errs.push(e.message));
   let honks = null;
-  page.on("response", (r) => { const m = /el-cabeza-ciudad-city-([a-z]+)\.mp3/.exec(r.url()); if (m) fetched[m[1]] = r.status(); if (/el-cabeza-ciudad-honks\.mp3/.test(r.url())) honks = r.status(); });
+  page.on("response", (r) => { const m = /el-cabeza-ciudad-city-([a-z]+)\.(?:mp3|opus)/.exec(r.url()); if (m) fetched[m[1]] = r.status(); if (/el-cabeza-ciudad-honks\.(?:mp3|opus)/.test(r.url())) honks = r.status(); });
   await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
   await page.goto(url);
   await poll(() => page.evaluate(() => !!window.__EC_TEST_CAM__), 30000);

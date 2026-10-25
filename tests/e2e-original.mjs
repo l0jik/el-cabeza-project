@@ -54,8 +54,9 @@ const theme = (page) => page.evaluate(() => {
     return a ? { src: a.src.split("/").pop(), playing: !a.paused, duration: a.duration } : null;
   });
   // (The cue is a file beside the page now, no longer inlined in it:
-  // build.js COMMON_FILES, the efficiency round.)
-  check("...and plays the muzak cue (about 5.5 s)", !!cue && cue.src === "el-cabeza-original-cue.mp3" && cue.playing && cue.duration > 5 && cue.duration < 6, JSON.stringify(cue));
+  // build.js COMMON_FILES, the efficiency round. Its Opus twin, where the
+  // browser plays Opus, as both test browsers do: chassis/sound-files.js.)
+  check("...and plays the muzak cue (about 5.5 s), as Opus", !!cue && cue.src === "el-cabeza-original-cue.opus" && cue.playing && cue.duration > 5 && cue.duration < 6, JSON.stringify(cue));
   check("...and the game now has no laws", (await lawsInPlay(page)) === 0);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();

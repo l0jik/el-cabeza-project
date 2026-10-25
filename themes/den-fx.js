@@ -49,6 +49,7 @@ import { createTrip } from "./den-trip.js";
 import { createHall, echoRoom, SHOUT_TIMES } from "./den-hall.js";
 import { createEnding, prewarmFigure, prefetchVoidMusic } from "./den-ending.js";
 import { WORLDS } from "./realities.js";
+import { loadSound } from "../chassis/sound-files.js";
 
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
 
@@ -1323,7 +1324,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       const o = audio && audio.phoneOutput ? audio.phoneOutput() : null;
       if (!o || !o.ctx) return;
       yellAsked = true;
-      const get = (url) => fetch(url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => o.ctx.decodeAudioData(b));
+      const get = (url) => loadSound(o.ctx, url);
       get("el-cabeza-hall-scream.mp3").then((buf) => { yellBuf = buf; }).catch(() => { /* the set's own sound, then */ });
       get("el-cabeza-hall-pre.mp3").then((buf) => { preBuf = buf; }).catch(() => { /* the shout alone, then */ });
     }

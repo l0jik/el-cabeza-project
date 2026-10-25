@@ -20,6 +20,7 @@
    controller: start() (call from a tap: it starts the sound too),
      skip(), setMuted(bool), select(key|null), cue(name), destroy(). */
 import * as THREE from "three";
+import { loadSound } from "../chassis/sound-files.js";
 
   var TAU = Math.PI * 2;
   var DESCENT_S = 24;
@@ -707,8 +708,7 @@ import * as THREE from "three";
     // (Not from disk: a browser won't fetch a file beside a page opened
     // from disk; the stand-in plays there.)
     if (typeof fetch === "function" && !(typeof location !== "undefined" && location.protocol === "file:")) {
-      fetch(RAIN_URL).then(function (r) { return r.ok ? r.arrayBuffer() : Promise.reject(r.status); })
-        .then(function (b) { return ctx.decodeAudioData(b); })
+      loadSound(ctx, RAIN_URL)
         .then(function (buf) {
           if (ctx.state === "closed") return;
           // The loop from its first sound to its last (an encoder's padding left out).
