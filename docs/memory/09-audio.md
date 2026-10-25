@@ -40,6 +40,23 @@ on "does this theme have audio." Both Standard and Futuris currently have
   synchronously resuming/building an `AudioContext` within the original
   user-gesture call stack (the Info overlay's choir stab broke this way
   once).
+- **Every sound file is MP3** (56 in dist/, 38.5 MB; the videos carry no
+  sound). Measured 2026-10-25 by encoding them all (scratchpad
+  opus-size/measure.py; sizes as an app's zip stores them): Opus at half
+  each MP3's bitrate (at least 24 kbps mono, 48 stereo) 20.7 MB, 17.1 MB
+  smaller; Opus at two thirds (32/64) 27.5 MB, 10.3 smaller; AAC at three
+  quarters (32/64) 28.7 MB, 9.1 smaller. Both test browsers play Opus
+  (only CI's plays AAC: 02-build-and-verification.md). Apple: Ogg Opus
+  only from Safari 18.4 (iOS/iPadOS 18.4, macOS Sequoia 15.4; Apple's
+  release notes, March 2025); before that WebM Opus works through
+  `<audio>` on a Mac but unreliably on iPhones and iPads, and Opus only
+  in Apple's CAF container from iOS 11. The game plays sound both ways
+  (`decodeAudioData` in most places, `<audio>` through
+  `createMediaElementSource` in the den), so Opus alone would silence
+  iPhones older than iOS 18.4: keep MP3 (or AAC) beside it for them, or
+  set an iOS app's minimum to 18.4. A switch would also need the loops,
+  the slices and the den spot's sync checked again (Opus decodes at
+  48 kHz) and the files' names changed in the code and build.js.
 
 **Standard's wood-impact percussion — do not re-attempt a resonant-filter
 approach.** Three full rewrites happened before landing on the current
