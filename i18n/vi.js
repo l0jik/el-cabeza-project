@@ -1660,6 +1660,16 @@ export default {
   "{n} piece a side.": "{n} quân mỗi bên.",
   "{n} pieces a side.": "{n} quân mỗi bên.",
   "{board} squares": "{board} ô",
+  "Too many pieces for this board": "Quá nhiều quân cho bàn cờ này",
+  "{n} pieces a side won't fit in two home rows, even {max} squares wide.": "{n} quân mỗi bên không vừa trong hai hàng nhà, kể cả rộng {max} ô.",
+  "{n} pieces a side won't fit in two home rows {cols} squares wide round the squares marked there.": "{n} quân mỗi bên không vừa trong hai hàng nhà rộng {cols} ô quanh các ô đã đánh dấu ở đó.",
+  "{n} pieces a side won't fit in two home rows {cols} squares wide.": "{n} quân mỗi bên không vừa trong hai hàng nhà rộng {cols} ô.",
+  "Move the marked squares, or take some pieces out.": "Hãy dời các ô đã đánh dấu, hoặc bớt vài quân.",
+  "The game can't start until they fit.": "Ván cờ chưa thể bắt đầu cho đến khi các quân vừa.",
+  "Board width now": "Độ rộng hiện tại",
+  "Width they need": "Độ rộng cần có",
+  "Make the board {n} wide": "Mở rộng bàn cờ thành {n} ô",
+  "Take some pieces out": "Bớt vài quân",
 
   // Futuris: the sphere and its menus
   "MATTER": "VẬT CHẤT",

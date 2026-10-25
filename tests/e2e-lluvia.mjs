@@ -65,9 +65,32 @@ for (let i = 0; i < 5; i++) await page.locator('[data-testid="lluvia-matter-turr
 await page.waitForTimeout(150);
 check("...11 pieces: no cap, and a note that big armies weaken the computer",
   (await page.locator('[data-testid="lluvia-matter-total"]').textContent()) === "11" && /^Big armies weaken the computer/.test(await page.locator('[data-testid="lluvia-big-army"]').textContent()));
-for (let i = 0; i < 8; i++) await page.locator('[data-testid="lluvia-matter-opa-inc"]').click();
+// Too many: a pop-up the moment they stop fitting (user: "there needs to be
+// a pop-up ... It needs to be brought to the user's attention what the
+// situation is"); BEGIN greyed but answering; Take some out, to MATTER.
+const fitAlert = page.locator('[data-testid="lluvia-fit-alert"]');
+let opas = 0;
+while (opas < 8 && !(await fitAlert.count())) { await page.locator('[data-testid="lluvia-matter-opa-inc"]').click(); opas++; await page.waitForTimeout(80); }
+check(`...too many to fit (${opas} more Opas): a pop-up at once, saying so`, (await fitAlert.count()) === 1 && /won't fit in two home rows/i.test(await page.locator('[data-testid="lluvia-fit-alert-text"]').textContent()));
+await shot(page, "4-fit-alert");
+await page.locator('[data-testid="lluvia-fit-alert-close"]').click();
+check("...its × puts it away, MATTER still open", (await fitAlert.count()) === 0 && (await page.locator('[data-testid="lluvia-panel-matter"]').count()) === 1);
+while (opas < 8) { await page.locator('[data-testid="lluvia-matter-opa-inc"]').click(); opas++; }
 await page.waitForTimeout(150);
+check("...more still: it doesn't come back for each", (await fitAlert.count()) === 0);
 check("...nine Opas won't fit 10 wide: it says so", /WON'T FIT/.test(await page.locator('[data-testid="lluvia-fit"]').textContent()));
+await page.locator('[data-testid="lluvia-panel-close"]').click();
+await page.waitForTimeout(300);
+{
+  const begin = page.locator('[data-testid="lluvia-begin"]');
+  check("...BEGIN says the pieces won't fit, greyed", /PIECES WON'T FIT/.test(await begin.textContent()) && (await begin.getAttribute("aria-disabled")) === "true");
+  await begin.click({ force: true }); // (aria-disabled, but a press still reaches it: that's the point)
+  await page.waitForTimeout(300);
+  check("...pressed: the pop-up, and no game", (await fitAlert.count()) === 1 && (await page.locator('[data-testid="lluvia-overlay"]').count()) === 1);
+  await page.locator('[data-testid="lluvia-fit-alert-take-out"]').click();
+  await page.waitForTimeout(400);
+  check("...'Take some pieces out': back in MATTER", (await fitAlert.count()) === 0 && (await page.locator('[data-testid="lluvia-panel-matter"]').count()) === 1);
+}
 for (let i = 0; i < 8; i++) await page.locator('[data-testid="lluvia-matter-opa-dec"]').click();
 for (let i = 0; i < 5; i++) await page.locator('[data-testid="lluvia-matter-turrito-dec"]').click();
 await page.waitForTimeout(150);

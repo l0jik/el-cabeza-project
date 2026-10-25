@@ -293,13 +293,24 @@ console.log("\ndesktop: the store, the purchase, home");
   // Too many to fit the board: the button greyed and unlit, and a tap on
   // it shows why (user, here: "the button at the bottom is highlighted,
   // but when you click on it, nothing happens").
-  for (let i = 0; i < 4; i++) await q(page, "tienda-piece-opa-inc").click();
+  // (The moment they stop fitting, a pop-up says so: user, "there needs
+  // to be a pop-up".)
+  const fitAlert = q(page, "tienda-fit-alert");
+  let opas = 0;
+  while (opas < 4 && !(await fitAlert.count())) { await q(page, "tienda-piece-opa-inc").click(); opas++; }
+  check(`too many to fit (${opas} more Opas): a pop-up at once, saying so`, !!(await poll(async () => (await fitAlert.count()) === 1, 3000))
+    && /won't fit in two home rows/.test(await q(page, "tienda-fit-alert-text").innerText()));
+  await page.keyboard.press("Escape");
+  check("...Escape puts it away, the form still up", !!(await poll(async () => (await fitAlert.count()) === 0, 2000)) && (await has(page, "tienda-order")));
+  while (opas < 4) { await q(page, "tienda-piece-opa-inc").click(); opas++; }
   const placeOff = q(page, "tienda-order-place");
   check("pieces that won't fit: the button greyed and unlit", (await placeOff.getAttribute("aria-disabled")) === "true" && /td-off/.test(await placeOff.getAttribute("class")) && !/td-sing-glow/.test(await placeOff.getAttribute("class")), await placeOff.getAttribute("class"));
   await placeOff.scrollIntoViewIfNeeded();
   await placeOff.click({ force: true }); // (aria-disabled, but a tap still reaches it: that's the point)
+  check("...a tap on it brings the pop-up, nothing stamped", !!(await poll(async () => (await fitAlert.count()) === 1, 3000)) && !(await has(page, "tienda-order-stamp")));
+  await q(page, "tienda-fit-alert-take-out").click();
   await page.waitForTimeout(800);
-  check("...a tap on it shows the warning under Pieces, nothing stamped", /td-flash/.test(await q(page, "tienda-fit-warning").getAttribute("class")) && !(await has(page, "tienda-order-stamp")));
+  check("...'Take some pieces out': the warning under Pieces, flashed", (await fitAlert.count()) === 0 && /td-flash/.test(await q(page, "tienda-fit-warning").getAttribute("class")));
   for (let i = 0; i < 4; i++) await q(page, "tienda-piece-opa-dec").click();
   check("...fewer again: the button ready and lit", (await placeOff.getAttribute("aria-disabled")) === null && /td-sing-glow/.test(await placeOff.getAttribute("class")));
   // The first time through, anything on the form can be chosen (user:

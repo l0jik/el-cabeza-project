@@ -228,11 +228,27 @@ for (const size of [SIZES[2], SIZES[7]]) {
     check("...and cleared again", !(await byHand.isChecked()));
   }
 
-  // Pieces that won't fit the width: said plainly, and fixable.
+  // Pieces that won't fit the width: a pop-up the moment they stop fitting
+  // (user: "there needs to be a pop-up ... It needs to be brought to the
+  // user's attention what the situation is"), said plainly, and fixable.
   await press('[data-testid="tienda-piece-opa-inc"]');
   await press('[data-testid="tienda-piece-opa-inc"]');
-  for (let i = 0; i < 8; i++) await press('[data-testid="tienda-cols-dec"]');
+  const fitAlert = page.locator('[data-testid="tienda-fit-alert"]');
+  let narrower = 0;
+  while (narrower < 8 && !(await fitAlert.count())) { await press('[data-testid="tienda-cols-dec"]'); narrower++; await page.waitForTimeout(100); }
+  const fitWidth = +(await page.locator('[data-testid="tienda-cols-value"]').innerText());
+  check(`narrowed till 8 pieces with 3 Opas won't fit (${fitWidth} wide): a pop-up at once`, (await fitAlert.count()) === 1);
+  {
+    const text = await page.locator('[data-testid="tienda-fit-alert-text"]').innerText().catch(() => "");
+    check("...saying how wide it is, how wide they need it, and that the game can't start till they fit",
+      text.includes(`8 pieces a side won't fit in two home rows ${fitWidth} squares wide`) && /can't start until they fit/.test(text)
+        && +(await page.locator('[data-testid="tienda-fit-alert-now"]').innerText()) === fitWidth && +(await page.locator('[data-testid="tienda-fit-alert-need"]').innerText()) > fitWidth, text);
+  }
+  await page.keyboard.press("Escape");
+  check("...Escape puts it away, the form still up", (await fitAlert.count()) === 0 && (await page.locator('[data-testid="tienda-order"]').count()) === 1);
+  while (narrower < 8) { await press('[data-testid="tienda-cols-dec"]'); narrower++; }
   await page.waitForTimeout(300);
+  check("...narrower still: it doesn't come back for each", (await fitAlert.count()) === 0);
   const warn = page.locator('[data-testid="tienda-fit-warning"]');
   const placeBtn = page.locator('[data-testid="tienda-order-place"]');
   check("8 pieces with 3 Opas on a 6-wide board: a warning, and the order button greyed",
@@ -242,15 +258,21 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await placeBtn.scrollIntoViewIfNeeded();
   // (aria-disabled, but a tap still reaches it: that's the point.)
   if (size.touch) await placeBtn.tap({ force: true }); else await placeBtn.click({ force: true });
-  await page.waitForTimeout(700);
-  check("...a tap on it brings the warning into view, flashed, and orders nothing",
-    /td-flash/.test(await warn.getAttribute("class")) && (await page.locator('[data-testid="tienda-order-stamp"]').count()) === 0
+  await page.waitForTimeout(500);
+  check("...a tap on it brings the pop-up back, and orders nothing", (await fitAlert.count()) === 1 && (await page.locator('[data-testid="tienda-order-stamp"]').count()) === 0);
+  await press('[data-testid="tienda-fit-alert-take-out"]');
+  await page.waitForTimeout(800);
+  check("...'Take some pieces out': away, the warning under Pieces in view and flashed",
+    (await fitAlert.count()) === 0 && /td-flash/.test(await warn.getAttribute("class"))
       && (await warn.evaluate((el) => { const r = el.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })));
   check("...and the line by the button says so too", /Won't fit this board/.test(await page.locator('[data-testid="tienda-fit-link"]').innerText()));
-  await press('[data-testid="tienda-fit-fix"]');
+  await press('[data-testid="tienda-fit-link"]');
+  await page.waitForTimeout(300);
+  check("...which brings the pop-up too", (await fitAlert.count()) === 1);
+  await press('[data-testid="tienda-fit-alert-widen"]');
   await page.waitForTimeout(300);
   const width = +(await page.locator('[data-testid="tienda-cols-value"]').innerText());
-  check(`"Make it N wide" widens the board until they fit (${width})`, (await warn.count()) === 0 && width > 6 && !(await page.locator('[data-testid="tienda-order-place"]').isDisabled()) && (await placeBtn.getAttribute("aria-disabled")) === null);
+  check(`"Make the board N wide" widens it until they fit (${width})`, (await fitAlert.count()) === 0 && (await warn.count()) === 0 && width > 6 && (await placeBtn.getAttribute("aria-disabled")) === null);
   await page.locator('[data-testid="tienda-order-place"]').scrollIntoViewIfNeeded();
   await shot("4-order-filled");
   await press('[data-testid="tienda-order-place"]');

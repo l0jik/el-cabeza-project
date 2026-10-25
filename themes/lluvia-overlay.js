@@ -21,6 +21,7 @@
    so the theme stays importable in plain Node for the smoke tests. */
 
 import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
+import { FitAlert, useFitAlert, fitProblemOf } from "./fit-alert.js";
 import React from "react";
 // (React's, each element's words in the player's language: chassis/i18n.js.)
 import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
@@ -243,6 +244,10 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose,
   const [muted, setMuted] = React.useState(false);
   const [leaving, setLeaving] = React.useState(false);
   const [sel, setSel] = React.useState(() => clone(initialSel));
+  // Too many pieces for the board: the pop-up that says so (fit-alert.js;
+  // user: "there needs to be a pop-up").
+  const fitProblem = fitProblemOf(sel);
+  const [fitOpen, openFit, hideFit] = useFitAlert(!fitProblem);
   const soundStarted = React.useRef(start !== "city");
 
   React.useEffect(() => {
@@ -276,7 +281,8 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose,
     setTimeout(() => { then && then(); onClose(); }, 650);
   };
   const begin = () => {
-    if (!piecesFit(sel)) return;
+    // (Too many pieces: the pop-up says so, fit-alert.js.)
+    if (fitProblem) { sound("key"); openFit(); return; }
     sound("begin");
     leave(() => beginCityGame(sel, x, (s) => x.reopenCity && x.reopenCity(s)));
   };
@@ -290,7 +296,7 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose,
     else if (diff === "medium") x.setAiDifficulty && x.setAiDifficulty("hard");
     else { x.setAiDifficulty && x.setAiDifficulty("easy"); x.selectOpponent && x.selectOpponent(null); }
   };
-  const total = totalOf(sel), wontFit = !piecesFit(sel);
+  const total = totalOf(sel), wontFit = !!fitProblem;
   const lawsOn = LAWS.filter(([k]) => sel.laws[k]).length;
 
   const ready = phase === "ready" && h("div", { key: "ready", style: { position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(5,4,10,0.7) 0%, rgba(5,4,10,0.1) 40%, rgba(5,4,10,0.85) 80%)" } },
@@ -329,7 +335,8 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose,
         signButton("topologies", "TOPOLOGIES", `${sel.cols}×${sel.rows}`, "rgba(255,179,71,0.7)", "rgba(255,179,71,0.07)", "#ffe2b0", "#d9a45e")),
       h("button", { type: "button", "data-testid": "lluvia-opponent", onClick: cycleOpponent, style: { height: 40, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", background: "rgba(5,4,10,0.6)", border: "1px solid rgba(185,178,200,0.35)", borderRadius: 3, color: "#d9d2e6", font: `600 14px ${SAIRA}`, letterSpacing: "0.1em", cursor: "pointer" } },
         h("span", { style: { color: "#8d86a0" } }, "OPPONENT"), h("span", null, vsAi ? inWords("CPU · {level}", { level: tr(diff).toUpperCase() }) : "HUMAN · PASS AND PLAY")),
-      h("button", { type: "button", "data-testid": "lluvia-begin", disabled: wontFit, onClick: begin, style: { height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", border: `2px solid ${AMBER}`, borderRadius: 4, background: "rgba(255,179,71,0.12)", color: AMBER, cursor: wontFit ? "not-allowed" : "pointer", opacity: wontFit ? 0.5 : 1, boxShadow: "0 0 22px rgba(255,179,71,0.35)" } },
+      // (Greyed while the pieces won't fit, but it answers: the pop-up.)
+      h("button", { type: "button", "data-testid": "lluvia-begin", "aria-disabled": wontFit ? "true" : undefined, "data-fits": wontFit ? "false" : "true", onClick: begin, style: { height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", border: `2px solid ${AMBER}`, borderRadius: 4, background: "rgba(255,179,71,0.12)", color: AMBER, cursor: "pointer", opacity: wontFit ? 0.5 : 1, boxShadow: "0 0 22px rgba(255,179,71,0.35)" } },
         h("span", { style: { fontFamily: SAIRA_X, fontWeight: 800, fontSize: 26, letterSpacing: "0.12em" } }, wontFit ? "PIECES WON'T FIT" : "BEGIN THE GAME"), ICON.arrow)),
     panel && h("div", { style: { position: "absolute", inset: 0, pointerEvents: "auto" }, onPointerDown: closePanel },
       h(Panel, { panel, sel, change, onClose: closePanel, sound, pieceLook, onGoTo: (k) => { ctlRef.current && ctlRef.current.select(k); setPanel(k); },
@@ -343,5 +350,18 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose,
   },
   h("canvas", { ref: canvasRef, "data-testid": "lluvia-overlay-city", style: { position: "absolute", inset: 0, width: "100%", height: "100%", display: "block", touchAction: "none" } }),
   h("div", { "aria-hidden": "true", style: { position: "absolute", inset: 0, pointerEvents: "none", background: "repeating-linear-gradient(180deg, rgba(0,0,0,0.16) 0 1px, rgba(0,0,0,0) 1px 3px)" } }),
-  ready, flight, city);
+  ready, flight, city,
+  fitOpen && fitProblem && h(FitAlert, {
+    problem: fitProblem, look: LLUVIA_FIT_LOOK, testid: "lluvia-fit-alert", onClose: hideFit,
+    // (The city's sizes are square; the width alone does it.)
+    onWiden: (n) => { sound("key"); change((s) => { s.cols = n; }); },
+    // (To MATTER, where the pieces are.)
+    onTakeOut: () => { hideFit(); if (panel !== "matter") openPanel("matter"); },
+  }));
 }
+// The too-many-pieces pop-up as the city's terminals draw things.
+const LLUVIA_FIT_LOOK = {
+  backdrop: "rgba(3,2,6,0.72)", surface: "rgba(10,7,16,0.97)", ink: "#f3ecff", muted: "#b9b2c8", accent: AMBER, accentInk: "#140a04", warn: "#ff5a5a",
+  line: "rgba(255,179,71,0.5)", lineW: "1.5px", radius: "4px", display: SAIRA_X, displayWeight: 800, body: SAIRA,
+  caps: "uppercase", track: "0.08em", glow: "0 0 10px rgba(255,90,90,0.55)", shadow: "0 0 30px rgba(255,61,187,0.25), 0 20px 50px rgba(0,0,0,0.6)",
+};

@@ -199,9 +199,38 @@ console.log("Cabeza Nova: the one menu");
   check("11 pieces a side: no cap, a note that big armies weaken the computer, Play still on",
     (await p.locator('[data-testid="gate-total"]').innerText()) === "11 pieces a side." && /^Big armies weaken the computer/.test(await p.locator('[data-testid="gate-big-army"]').innerText())
       && !(await p.locator('[data-testid="gate-play"]').isDisabled()), await p.locator('[data-testid="gate-total"]').innerText());
-  for (let i = 0; i < 6; i++) await p.locator('[data-testid="gate-count-flaco-plus"]').click();
-  check("...17 won't fit 10 wide: the board they need, and no Play",
-    /at least 11 wide/.test(await p.locator('[data-testid="gate-fit"]').innerText()) && (await p.locator('[data-testid="gate-play"]').isDisabled()));
+  // Too many: a pop-up the moment they stop fitting (user: "there needs to
+  // be a pop-up ... It needs to be brought to the user's attention what the
+  // situation is"), Play greyed but answering, and the ways out.
+  const fitAlert = p.locator('[data-testid="gate-fit-alert"]');
+  let flacos = 0;
+  while (flacos < 6 && !(await fitAlert.count())) { await p.locator('[data-testid="gate-count-flaco-plus"]').click(); flacos++; }
+  check(`...past what fits (${11 + flacos} a side): a pop-up at once`, !!(await poll(async () => (await fitAlert.count()) === 1, 3000)));
+  check("...saying it's 10 wide, they need 11, and the game can't start till they fit",
+    (await p.locator('[data-testid="gate-fit-alert-now"]').innerText()) === "10" && (await p.locator('[data-testid="gate-fit-alert-need"]').innerText()) === "11"
+      && /won't fit in two home rows 10 squares wide\. The game can't start until they fit\./.test(await p.locator('[data-testid="gate-fit-alert-text"]').innerText()),
+    await p.locator('[data-testid="gate-fit-alert-text"]').innerText().catch(() => "none"));
+  await shot(p, "fit-alert");
+  await p.keyboard.press("Escape");
+  check("...Escape puts it away, the sheet still up", !!(await poll(async () => (await fitAlert.count()) === 0, 2000)) && (await p.locator('[data-testid="gate-sheet"]').count()) === 1);
+  while (flacos < 6) { await p.locator('[data-testid="gate-count-flaco-plus"]').click(); flacos++; }
+  check("...more still: it doesn't come back for each", (await fitAlert.count()) === 0);
+  const play = p.locator('[data-testid="gate-play"]');
+  check("...17 won't fit 10 wide: the board they need under the pieces, Play greyed, and why by it",
+    /at least 11 wide/.test(await p.locator('[data-testid="gate-fit"]').innerText()) && (await play.getAttribute("aria-disabled")) === "true" && (await play.getAttribute("data-fits")) === "false"
+      && /Too many pieces for this board/.test(await p.locator('[data-testid="gate-fit-line"]').innerText()));
+  await play.click({ force: true }); // (aria-disabled, but a press still reaches it: that's the point)
+  check("...Play pressed: the pop-up again, and no game", !!(await poll(async () => (await fitAlert.count()) === 1, 3000)) && (await p.locator('[data-testid="gate-sheet"]').count()) === 1);
+  await p.locator('[data-testid="gate-fit-alert-take-out"]').click();
+  check("...'Take some pieces out': away, and the pieces' count in view", !!(await poll(async () => (await fitAlert.count()) === 0 && (await p.locator('[data-testid="gate-total"]').evaluate((el) => {
+    const r = el.getBoundingClientRect(), b = el.closest(".rg-body").getBoundingClientRect();
+    return r.top >= b.top - 1 && r.bottom <= b.bottom + 1;
+  })), 3000)));
+  await p.locator('[data-testid="gate-fit-line"]').click();
+  check("...the line by Play brings it too", !!(await poll(async () => (await fitAlert.count()) === 1, 3000)));
+  await p.locator('[data-testid="gate-fit-alert-widen"]').click();
+  check("...'Make the board 11 wide': 11 wide, they fit, Play on", !!(await poll(async () => (await fitAlert.count()) === 0 && (await play.getAttribute("aria-disabled")) === null, 3000))
+    && (await p.locator('[data-testid="gate-cols-value"]').innerText()) === "11" && (await p.locator('[data-testid="gate-fit"]').count()) === 0);
   for (let i = 0; i < 6; i++) { await p.locator('[data-testid="gate-count-flaco-minus"]').click(); await p.locator('[data-testid="gate-count-turrito-minus"]').click(); }
   check("...back to five, and no note", (await p.locator('[data-testid="gate-total"]').innerText()) === "5 pieces a side." && (await p.locator('[data-testid="gate-big-army"]').count()) === 0);
   await p.locator('[data-testid="gate-count-codo-plus"]').click();

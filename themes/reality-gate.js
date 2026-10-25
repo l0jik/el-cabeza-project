@@ -22,7 +22,8 @@
    after its descent). React through createElement, as the other overlays,
    so it imports in plain Node. */
 
-import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
+import { usePivotGuide, useGuideHush, flashEl } from "./pivot-guide.js";
+import { FitAlert, useFitAlert, fitProblemOf } from "./fit-alert.js";
 import React from "react";
 // (React's, each element's words in the player's language: chassis/i18n.js.)
 import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
@@ -36,7 +37,7 @@ import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constant
 import { POSES, PieceViewer } from "./piece-showcase.js";
 import {
   PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, SIZES, BIG_ARMY, BIG_ARMY_NOTE, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
-  defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, lawWarnings, piecesFit, minColsFor,
+  defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, lawWarnings,
   beginCustomGame, fillSpots, randomizeSpots, refreshSpots, spotProblem, mirrorCell, missingCellsOf, holeCellsOf, boardLabel, clampDim, pieceTypeOf,
   holeSetsOf, setHoleSets, holeSpotsAfterTap, SPOT_PROBLEMS, holeSetsText, HOLE_ANY_EXIT,
 } from "./rules-selections.js";
@@ -146,6 +147,18 @@ const LOOKS = {
   },
 };
 const lookOf = (world) => LOOKS[world] || (String(world).startsWith("lab-") ? LOOKS.lab : String(world).startsWith("parrish") ? LOOKS.parrish : LOOKS.den);
+// The too-many-pieces pop-up (fit-alert.js) in the same look; its warning
+// in the look's accent, or where that's a grey or a white, a colour that
+// warns and belongs (Noir's HOTEL red, the blueprint's yellow pencil).
+const FIT_WARN = { futuris: "#FFB454", cromo: "#FFB454", plano: "#FFD27A", noir: "#E5392D", ciudad: "#C2412C", parrish: "#A33F33" };
+const fitLookOf = (world) => {
+  const L = lookOf(world);
+  const key = LOOKS[world] ? world : String(world).startsWith("parrish") ? "parrish" : null;
+  return {
+    backdrop: L.backdrop, surface: L.surface, ink: L.ink, muted: L.muted, accent: L.accent, accentInk: L.accentInk, warn: FIT_WARN[key] || L.accent, line: L.line, lineW: L.lineW,
+    radius: L.radius, display: L.display, displayWeight: L.displayWeight, body: L.body, caps: L.case, track: L.track, glow: L.glow, shadow: L.shadow,
+  };
+};
 const varsOf = (L) => ({
   "--rg-backdrop": L.backdrop, "--rg-surface": L.surface, "--rg-ink": L.ink, "--rg-muted": L.muted, "--rg-accent": L.accent, "--rg-accent-ink": L.accentInk,
   "--rg-line": L.line, "--rg-line-w": L.lineW, "--rg-radius": L.radius, "--rg-display": L.display, "--rg-display-weight": L.displayWeight, "--rg-body": L.body,
@@ -248,6 +261,9 @@ button.rg-pic:focus-visible { outline: 2px solid var(--rg-accent); outline-offse
 .rg-btn.plain { border: var(--rg-line-w) solid var(--rg-line); background: transparent; color: var(--rg-ink); }
 .rg-btn.go { border: var(--rg-line-w) solid var(--rg-accent); background: var(--rg-accent); color: var(--rg-accent-ink); }
 .rg-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.rg-btn[aria-disabled="true"] { opacity: 0.45; }
+.rg-fit-line { grid-column: 1 / -1; appearance: none; min-height: 40px; padding: 4px 10px; border: var(--rg-line-w) solid var(--rg-accent); border-radius: var(--rg-radius); background: transparent;
+  color: var(--rg-ink); font: 700 14px/1.25 var(--rg-body); text-align: left; cursor: pointer; }
 .rg-small { appearance: none; min-height: 38px; padding: 0 12px; border: var(--rg-line-w) solid var(--rg-line); border-radius: var(--rg-radius); background: transparent;
   color: var(--rg-ink); font: 600 13.5px/1 var(--rg-body); cursor: pointer; }
 /* The square picker. */
@@ -583,8 +599,11 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
   const [picker, setPicker] = React.useState(null); // null | "missing" | "hole"
   const change = (fn) => setSel((s) => { const n = cloneSelections(s); fn(n); return n; });
   const total = totalPieces(sel), bigArmy = total > BIG_ARMY;
-  const fits = piecesFit(sel);
-  const narrowest = fits ? null : minColsFor(sel);
+  // Too many pieces for the board: why, and the pop-up that says so
+  // (fit-alert.js; user: "there needs to be a pop-up").
+  const fitProblem = fitProblemOf(sel), fits = !fitProblem;
+  const narrowest = fits ? null : fitProblem.need;
+  const [fitOpen, showFit, hideFit] = useFitAlert(fits);
   const warnings = lawWarnings(sel);
   // Pivot on with no Codo, Rayo or Zeta: the warning flashes, then the
   // three flash where they sit (pivot-guide.js).
@@ -711,9 +730,26 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
         h("span", null)),
       h("div", { className: "rg-body" }, allRules, opponent, pieces, rules, board),
       h("div", { className: "rg-foot" },
+        // (Why Play is off, by Play: a tap brings the pop-up.)
+        !fits && h("button", { type: "button", className: "rg-fit-line", "data-testid": "gate-fit-line", onClick: showFit }, "Too many pieces for this board", " \u203a"),
         h("button", { type: "button", className: "rg-btn plain", "data-testid": "gate-reset", onClick: () => setSel(defaultSelections()), "data-stroke": "3" }, "Reset"),
-        h("button", { type: "button", className: "rg-btn go", "data-testid": "gate-play", disabled: !canPlay, onClick: () => { keep(sel); onPlay(sel); }, "data-stroke": "2" }, "Play"))),
+        // (Greyed while the pieces won't fit, but it answers: the pop-up.)
+        h("button", {
+          type: "button", className: "rg-btn go", "data-testid": "gate-play", "data-fits": fits ? "true" : "false", disabled: fits && !canPlay, "aria-disabled": canPlay ? undefined : "true",
+          onClick: () => { if (!fits) { showFit(); return; } if (!canPlay) return; keep(sel); onPlay(sel); }, "data-stroke": "2",
+        }, "Play"))),
     picker && h(SpotPicker, { sel, kind: picker, names, onCancel: () => setPicker(null), onDone: (d) => { setSel(d); setPicker(null); } }),
+    fitOpen && fitProblem && h(FitAlert, {
+      problem: fitProblem, look: fitLookOf(world), testid: "gate-fit-alert", onClose: hideFit,
+      onWiden: (n) => resize(sel.rows, n),
+      // (To the pieces: their count and the line under them, flashed.)
+      onTakeOut: () => {
+        hideFit();
+        const at = document.querySelector('[data-testid="gate-total"]');
+        if (at) at.scrollIntoView({ block: "center", behavior: window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+        setTimeout(() => flashEl(document.querySelector('[data-testid="gate-fit"]'), 2), 350);
+      },
+    }),
     inspect.viewer);
 }
 

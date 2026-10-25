@@ -540,8 +540,20 @@ check("12 a side: no cap, a note that big armies weaken the computer",
   (await page.locator('[data-testid="matter-total"]').getAttribute("data-total")) === "12" && (await page.locator('[data-testid="matter-total"]').innerText()) === "12" &&
     /^Big armies weaken the computer/.test(await page.locator('[data-testid="matter-big-army"]').innerText()) && (await page.locator('[data-testid="matter-fit"]').count()) === 0,
   await page.locator('[data-testid="matter-total"]').innerText());
-for (let i = 0; i < 8; i++) await page.locator('[data-testid="roster-opa-inc"]').click();
+// Too many: a pop-up the moment they stop fitting (user: "there needs to be
+// a pop-up ... It needs to be brought to the user's attention what the
+// situation is").
+const fitAlert = page.locator('[data-testid="singularity-fit-alert"]');
+let opas = 0;
+while (opas < 8 && !(await fitAlert.count())) { await page.locator('[data-testid="roster-opa-inc"]').click(); opas++; await page.waitForTimeout(80); }
+check(`...too many to fit (${opas} more Opas): a pop-up at once, saying so`, (await fitAlert.count()) === 1 && /won't fit in two home rows/i.test(await page.locator('[data-testid="singularity-fit-alert-text"]').textContent()));
+await page.screenshot({ path: "/tmp/futuris-singularity-fit-alert.png" });
+await page.locator('[data-testid="singularity-fit-alert-close"]').click();
 await page.waitForTimeout(150);
+check("...its × puts it away, MATTER still open", (await fitAlert.count()) === 0 && (await sphereState()).activeCategory === "matter");
+while (opas < 8) { await page.locator('[data-testid="roster-opa-inc"]').click(); opas++; }
+await page.waitForTimeout(150);
+check("...more still: it doesn't come back for each", (await fitAlert.count()) === 0);
 check("...nine Opas won't fit 10 wide: it says how wide it must be",
   /won't fit in two home rows \d+ squares wide: they need a board at least \d+ wide|won't fit on any board/.test(await page.locator('[data-testid="matter-fit"]').innerText()), await page.locator('[data-testid="matter-fit"]').innerText().catch(() => "none"));
 for (let i = 0; i < 8; i++) await page.locator('[data-testid="roster-opa-dec"]').click();

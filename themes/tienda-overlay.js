@@ -23,6 +23,7 @@
    44 px tall, and scroll inside the sheet when a short screen needs it. */
 
 import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
+import { FitAlert, useFitAlert, fitProblemOf } from "./fit-alert.js";
 import { facesIn, facesReady, loadFaces } from "./faces.js";
 import React from "react";
 // (React's, each element's words in the player's language: chassis/i18n.js.)
@@ -31,7 +32,7 @@ import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
 import { t as inWords, tr, language } from "../chassis/i18n.js";
 import {
   PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, BIG_ARMY, BIG_ARMY_NOTE, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
-  defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
+  defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, beginCustomGame, boardLabel, clampDim,
   pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf, holeSetsOf, setHoleSets, holeSetsText, HOLE_ANY_EXIT, holeAnyExitOn,
 } from "./rules-selections.js";
 import { SquarePicker, OpponentSection, CarbonCopies, ORDER_PARTS_CSS } from "./tienda-order.js";
@@ -1671,7 +1672,10 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   const replace = (n0) => { const n = classic ? classicSelections(n0) : normalizeSelections(storeSelections(n0)); setSel(n); onChange && onChange(n); };
   const click = () => { audio && audio.playSelect && audio.playSelect(); };
   const total = totalPieces(sel), bigArmy = total > BIG_ARMY;
-  const fits = piecesFit(sel), need = fits ? null : minColsFor(sel);
+  // Too many pieces for the board: why, and the pop-up that says so
+  // (fit-alert.js; user: "there needs to be a pop-up").
+  const fitProblem = fitProblemOf(sel), fits = !fitProblem, need = fits ? null : fitProblem.need;
+  const [fitOpen, openFit, hideFit] = useFitAlert(fits);
   const warnings = lawWarnings(sel);
   // Pivot on with no Codo, Rayo or Zeta: the warning flashes, then the
   // three (together at the end of the pieces) flash (pivot-guide.js).
@@ -1860,7 +1864,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
     if (where !== "guided") return undefined;
     const NO = '[data-testid="tienda-order-cancel"], [data-testid="tienda-order-standard"]';
     // (The rules card a rule's "How it works ›" opens, too, open or closing.)
-    const OK = '[data-testid="tienda-order"], [data-testid="tienda-picker"], [data-testid="tienda-piece-viewer"], [data-testid="info-overlay"][data-open="true"], [data-fullscreen-toggle]';
+    const OK = '[data-testid="tienda-order"], [data-testid="tienda-picker"], [data-testid="tienda-piece-viewer"], [data-testid="info-overlay"][data-open="true"], [data-fullscreen-toggle], [data-testid="tienda-fit-alert"]';
     const throb = () => requestAnimationFrame(() => requestAnimationFrame(() => {
       const el = document.querySelector('[data-testid="tienda-order-place"]');
       if (!el) return;
@@ -1888,7 +1892,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
     // (Drags and the wheel off the form are stopped too: the board stays put.)
     const offForm = (e) => { const el = e.target && e.target.closest ? e.target : null; if (el && !el.closest('[data-testid="tienda-order"]')) { e.stopImmediatePropagation(); e.stopPropagation(); if (e.cancelable && e.type === "wheel") e.preventDefault(); } };
     // (And Escape doesn't put it away.)
-    const onKey = (e) => { if (e.key === "Escape") { e.stopImmediatePropagation(); e.stopPropagation(); if (e.cancelable) e.preventDefault(); } };
+    const onKey = (e) => { if (e.key === "Escape" && !document.querySelector('[data-testid="tienda-fit-alert"]')) { e.stopImmediatePropagation(); e.stopPropagation(); if (e.cancelable) e.preventDefault(); } };
     window.addEventListener("keydown", onKey, true);
     EVENTS.forEach((ev) => window.addEventListener(ev, block, { capture: true, passive: false }));
     ["pointermove", "touchmove", "wheel"].forEach((ev) => window.addEventListener(ev, offForm, { capture: true, passive: false }));
@@ -1914,7 +1918,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   };
   const place = () => {
     if (waiting) { click(); setNudge((n) => n + 1); return; }
-    if (!fits) { click(); showFit(); return; }
+    if (!fits) { click(); openFit(); return; }
     if (filled) return;
     setFilled(true);
     audio && audio.playOrderFilled && audio.playOrderFilled();
@@ -1992,7 +1996,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
         ),
       ),
       h("div", { className: "td-foot" },
-        h("div", { className: "td-foot-total", "data-testid": "tienda-order-summary" }, summary, h("br"), !fits ? h("button", { type: "button", className: "td-fit-link", "data-testid": "tienda-fit-link", onClick: () => { click(); showFit(); } }, "Won't fit this board — see Pieces ›") : h("b", null, where === "guided" ? "Special order: at your Big Glutts, Games Dept." : where === "home" ? "Delivered to your home" : "No charge — in-store demonstration")),
+        h("div", { className: "td-foot-total", "data-testid": "tienda-order-summary" }, summary, h("br"), !fits ? h("button", { type: "button", className: "td-fit-link", "data-testid": "tienda-fit-link", onClick: () => { click(); openFit(); } }, "Won't fit this board — see Pieces ›") : h("b", null, where === "guided" ? "Special order: at your Big Glutts, Games Dept." : where === "home" ? "Delivered to your home" : "No charge — in-store demonstration")),
         h("div", { className: "td-foot-btns" },
           h("button", { type: "button", className: "td-btn td-plain" + (where === "guided" ? " td-locked" : ""), "data-testid": "tienda-order-cancel", onClick: onCancel, disabled: filled, "aria-disabled": where === "guided" ? "true" : undefined }, "Cancel"),
           h("button", { type: "button", className: "td-btn td-plain" + (where === "guided" ? " td-locked" : ""), "data-testid": "tienda-order-standard", onClick: standard, disabled: filled, "aria-disabled": where === "guided" ? "true" : undefined }, "Standard"),
@@ -2020,8 +2024,20 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
       onDone: (d) => { replace(d); setPicker(null); },
       onCancel: () => setPicker(null),
     }),
+    fitOpen && fitProblem && h(FitAlert, {
+      problem: fitProblem, look: STORE_FIT_LOOK, testid: "tienda-fit-alert", onClose: hideFit,
+      onWiden: (n) => setDim("cols", n),
+      // (To the warning under Pieces, in view and flashed.)
+      onTakeOut: () => { hideFit(); setTimeout(showFit, 60); },
+    }),
   );
 }
+// The too-many-pieces pop-up on the form's own paper.
+const STORE_FIT_LOOK = {
+  backdrop: "rgba(26,18,11,0.55)", surface: PAPER, ink: INK, muted: "#6E5D4A", accent: RED, accentInk: "#F7EEDB", warn: RED,
+  line: "rgba(46,33,24,0.45)", lineW: "1.5px", radius: "2px", display: FRANKLIN, displayWeight: 900, body: FRANKLIN,
+  caps: "none", track: "0.01em", glow: "none", shadow: "0 1px 0 #d8ccb0, 0 24px 60px rgba(10,6,3,0.55)",
+};
 
 // Fewer missing pairs: rolled spots go first, then the last placed.
 function trimSpots(spots, count) {

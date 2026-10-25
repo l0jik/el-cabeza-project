@@ -1648,6 +1648,16 @@ export default {
   "{n} piece a side.": "{n} pieza por bando.",
   "{n} pieces a side.": "{n} piezas por bando.",
   "{board} squares": "{board} casillas",
+  "Too many pieces for this board": "Demasiadas piezas para este tablero",
+  "{n} pieces a side won't fit in two home rows, even {max} squares wide.": "{n} piezas por bando no entran en dos filas de inicio, ni siquiera de {max} casillas de ancho.",
+  "{n} pieces a side won't fit in two home rows {cols} squares wide round the squares marked there.": "{n} piezas por bando no entran en dos filas de inicio de {cols} casillas de ancho alrededor de las casillas marcadas ahí.",
+  "{n} pieces a side won't fit in two home rows {cols} squares wide.": "{n} piezas por bando no entran en dos filas de inicio de {cols} casillas de ancho.",
+  "Move the marked squares, or take some pieces out.": "Mové las casillas marcadas o sacá algunas piezas.",
+  "The game can't start until they fit.": "La partida no puede empezar hasta que entren.",
+  "Board width now": "Ancho actual",
+  "Width they need": "Ancho que necesitan",
+  "Make the board {n} wide": "Ensanchar el tablero a {n}",
+  "Take some pieces out": "Sacar algunas piezas",
 
   // Futuris: the sphere and its menus
   "MATTER": "MATERIA",

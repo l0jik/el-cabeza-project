@@ -49,6 +49,7 @@ const lostHandWireUrl = "el-cabeza-lost-hand-wire.webp";
 const lostHandSkinUrl = "el-cabeza-lost-hand-skin.webp";
 import { createUnease, createDrone } from "./futuris-unease.js";
 import { guideToPivots } from "./pivot-guide.js";
+import { FitAlert } from "./fit-alert.js";
 import { shoveNow, allLawsOn, setAllLaws, HOLE_SETS_TEXT, HOLE_ANY_EXIT, BIG_ARMY, BIG_ARMY_NOTE, MAX_OF_A_KIND } from "./rules-selections.js";
 import { packHomeBand } from "../engine/anomaly.js";
 import { SHOVE_SETTINGS, DEFAULT_SHOVE, shoveOf, shoveLaws, shoveSummary } from "../chassis/shove-settings.js";
@@ -681,6 +682,22 @@ function matterMinCols(sel) {
   for (let c = MIN_BOARD_DIM; c <= MAX_BOARD_DIM; c++) if (matterFits(sel, c)) return c;
   return null;
 }
+// What's wrong, for the too-many-pieces pop-up (fit-alert.js), or null.
+function matterProblem(sel) {
+  if (matterFits(sel)) return null;
+  const rows = sel.topologies.rows;
+  return {
+    total: MATTER_ROSTER.reduce((n, p) => n + (sel.matter.roster[p.key] || 0), 0), cols: sel.topologies.cols, need: matterMinCols(sel), max: MAX_BOARD_DIM,
+    marked: !!sel.topologies.missingSquares && sel.missingSquare.spots.some((p) => p.row < 2 || p.row >= rows - 2),
+  };
+}
+// The pop-up as the sphere's panels are drawn.
+const FUTURIS_FIT_LOOK = {
+  backdrop: "rgba(2,6,12,0.66)", surface: "rgba(4,10,18,0.96)", ink: "#dffaff", muted: "rgba(207,216,220,0.75)", accent: "#4de8ff", accentInk: "#04141c", warn: "#ffb454",
+  line: "rgba(102,217,255,0.35)", lineW: "1px", radius: "6px", display: "'Chakra Petch', sans-serif", displayWeight: 700, body: "'IBM Plex Sans', sans-serif",
+  caps: "uppercase", track: "0.1em", glow: "0 0 12px rgba(255,180,84,0.45)", shadow: "0 0 60px rgba(77,232,255,0.18), 0 20px 50px rgba(0,0,0,0.6)",
+};
+
 const matterFitText = (sel) => {
   const need = matterMinCols(sel);
   return need ? say("These pieces won't fit in two home rows {cols} squares wide: they need a board at least {need} wide (TOPOLOGY).", { cols: sel.topologies.cols, need }) : "These pieces won't fit on any board. Take some out.";
@@ -3623,14 +3640,15 @@ function renderSummaryPanel(setupExtras) {
       {
         type: "button",
         "data-testid": "singularity-begin-game",
-        disabled: !fits,
-        onClick: finalizeSingularityBegin,
+        // (Greyed while the pieces won't fit, but it answers: the pop-up.)
+        "aria-disabled": fits ? undefined : "true", "data-fits": fits ? "true" : "false",
+        onClick: fits ? finalizeSingularityBegin : () => { t.singularity.fitAlert = true; t.singularity.bump(); },
         style: {
           marginTop: 18, width: "100%",
           fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 14,
           letterSpacing: "0.12em", textTransform: "uppercase",
           color: "#04141c", background: "linear-gradient(135deg,#8ef3ff,#4de8ff)",
-          border: "none", borderRadius: 4, padding: "13px 0", cursor: fits ? "pointer" : "not-allowed", opacity: fits ? 1 : 0.45,
+          border: "none", borderRadius: 4, padding: "13px 0", cursor: "pointer", opacity: fits ? 1 : 0.45,
           boxShadow: "0 0 24px rgba(77,232,255,0.45)",
         },
       },
@@ -4096,6 +4114,8 @@ function LostNudge({ stage, onExit, sing }) {
     const onKey = (e) => {
       if (e.key !== "Escape") return;
       if (document.querySelector('[data-testid="piece-viewer"]') || document.querySelector('[data-testid="info-overlay"][data-open="true"]')) return;
+      // (The too-many-pieces pop-up takes it, to put itself away.)
+      if (document.querySelector('[data-testid="singularity-fit-alert"]')) return;
       e.stopImmediatePropagation(); e.stopPropagation();
     };
     window.addEventListener("keydown", onKey, true);
@@ -4730,6 +4750,16 @@ export function renderSingularityOverlay(setupExtras) {
   const h = createElement;
   const t = three && three.current;
   const stage = t && t.singularity ? t.singularity.sphereMenuStage : "labels";
+  // Too many pieces for the board (user: "there needs to be a pop-up"):
+  // up when a change stops them fitting (not on the way in), away when
+  // they fit; Begin Game brings it too (fit-alert.js).
+  const sing = phase === PHASES.SPHERE && t && t.singularity && t.singularity.selections ? t.singularity : null;
+  const fitProblem = sing ? matterProblem(sing.selections) : null;
+  if (sing) {
+    if (fitProblem && sing.fitWas === true) sing.fitAlert = true;
+    if (!fitProblem) sing.fitAlert = false;
+    sing.fitWas = !fitProblem;
+  }
 
   return h(
     "div",
@@ -4805,6 +4835,13 @@ export function renderSingularityOverlay(setupExtras) {
     phase === PHASES.SPHERE && stage === "overlay" && t && renderCategoryOverlay(t),
     phase === PHASES.SPHERE && stage === "overlay" && t && renderPairedSquarePicker(t, "blackHole"),
     phase === PHASES.SPHERE && stage === "overlay" && t && renderPairedSquarePicker(t, "missingSquare"),
-    phase === PHASES.SPHERE && stage === "summary" && renderSummaryPanel(setupExtras)
+    phase === PHASES.SPHERE && stage === "summary" && renderSummaryPanel(setupExtras),
+    sing && sing.fitAlert && fitProblem && h(FitAlert, {
+      key: "fit", problem: fitProblem, look: FUTURIS_FIT_LOOK, testid: "singularity-fit-alert",
+      onClose: () => { sing.fitAlert = false; sing.bump(); },
+      onWiden: (n) => { sing.selections.topologies.cols = n; rerollRandomPairedSquares(sing); sing.labelsDirty = true; sing.fitAlert = false; sing.bump(); },
+      // (To MATTER, where the pieces are.)
+      onTakeOut: () => { sing.fitAlert = false; sing.activeCategory = "matter"; sing.sphereMenuStage = "overlay"; sing.labelsDirty = true; sing.bump(); },
+    })
   );
 }
