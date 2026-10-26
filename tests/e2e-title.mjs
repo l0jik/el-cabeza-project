@@ -392,7 +392,9 @@ console.log("\nits sounds: a knock at Begin, the pieces' landings with the playb
   check("Begin: the knock at once, its sound running", !!begin && begin.from === 0 && begin.state === "running", JSON.stringify(await S()));
   const land = await poll(async () => (await S()).find((x) => x.name === "landings"), 8000, 25);
   const rewT = await page.evaluate(() => document.querySelector('[data-testid="title-rewind"]').currentTime);
-  check(`...the pieces' landings with the playback, from where it is (${land ? land.from : "?"} s in)`, !!land && land.from >= 0 && land.from < 1 && rewT >= land.from, JSON.stringify({ land, rewT }));
+  // (`from` is kept to the millisecond, rounded: on a slow CI machine the
+  // playback hadn't moved on from 0.059683 s, kept as 0.06.)
+  check(`...the pieces' landings with the playback, from where it is (${land ? land.from : "?"} s in)`, !!land && land.from >= 0 && land.from < 1 && rewT + 0.0005 >= land.from, JSON.stringify({ land, rewT }));
   check("no errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
   server.close();
