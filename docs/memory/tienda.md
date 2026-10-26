@@ -303,7 +303,7 @@ box art and an ad standee (assets/tienda/*.jpg).
   motion. Any square of the back row wins (engine: candidate.row ===
   GOAL_ROW). The head's path carries data-head (tests).
   tests/e2e-first-game-tour.mjs (sweepLog, sweepFor) reads the tip every
-  frame against __EC_TEST_SQUARE_POS__ (card 2: no arrow at all); card 3's held at first straight up from the Cabeza, then reaching
+  frame against __EC_TEST_SQUARE_POS__ (card 2: no arrow at all, its back row still lit, user: "Keep the green row on card 2"); card 3's held at first straight up from the Cabeza, then reaching
   both end squares and turning back twice in 7.2 s, on the row's line
   throughout; with reduced motion (desktop) held still.
 - **No label over what it names** (2026-10-21; user, a phone screenshot
