@@ -293,7 +293,7 @@ box art and an ad standee (assets/tienda/*.jpg).
   the back to indicate that anywhere on the back row is valid. I mean,
   even though it's all highlighted green, having the arrow point at that
   one specific point might be a little bit misleading."): the arrow from
-  your Cabeza (cards 2 and 3, key "path") carries sweep { lo: 0, hi:
+  your Cabeza (card 3 only, key "path"; card 2 had it too until the user: "do not put the green arrow that runs across, that points to the back row. That should only be on the following slide, 3 of 8. 2 of 8 is not necessary.") carries sweep { lo: 0, hi:
   BOARD_COLS - 1 }; TourMarks (FirstGameTour.jsx SWEEP, sweepCol) holds
   its head 0.7 s on the square straight up from the Cabeza (where it
   always pointed), then glides it to the row's farther end and on between
@@ -303,8 +303,7 @@ box art and an ad standee (assets/tienda/*.jpg).
   motion. Any square of the back row wins (engine: candidate.row ===
   GOAL_ROW). The head's path carries data-head (tests).
   tests/e2e-first-game-tour.mjs (sweepLog, sweepFor) reads the tip every
-  frame against __EC_TEST_SQUARE_POS__: card 2's head moving along the
-  row; card 3's held at first straight up from the Cabeza, then reaching
+  frame against __EC_TEST_SQUARE_POS__ (card 2: no arrow at all); card 3's held at first straight up from the Cabeza, then reaching
   both end squares and turning back twice in 7.2 s, on the row's line
   throughout; with reduced motion (desktop) held still.
 - **No label over what it names** (2026-10-21; user, a phone screenshot

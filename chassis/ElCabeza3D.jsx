@@ -4753,11 +4753,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       tag("mine", { pieces: mineP.map((p) => p.id) }, t("{side} · you", { side: sideName(tourMine) }), "mine");
       tag("foe", { pieces: foeP.map((p) => p.id) }, t("{side} · the computer", { side: sideName(tourFoe) }), "foe");
     } else if (tourStep === "ways") {
-      // Both, before each in turn: the row your Cabeza wins on, and theirs to crush.
+      // Both, before each in turn: the row your Cabeza wins on, and theirs
+      // to crush. (No arrow to the row here: it's the next card's, user:
+      // "That should only be on the following slide, 3 of 8. 2 of 8 is
+      // not necessary.")
       t3.band = { row: goalRow, tone: "goal" };
       if (myCab) {
         ring(myCab, "mine", { pulse: true });
-        t2.arrows.push({ key: "path", from: { piece: myCab.id }, to: { box: { type: "square", row: goalRow, col: myCab.col, w: 1, h: 1, z: 0 } }, sweep: { lo: 0, hi: BOARD_COLS - 1 }, tone: "goal", bend: 0.08 });
         tag("way-1", { piece: myCab.id }, "1 · Your Cabeza across", "mine");
       }
       // (User: it "should read, 'Crush opponent's Cabeza'".)

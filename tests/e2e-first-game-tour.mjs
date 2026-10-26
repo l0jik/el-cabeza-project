@@ -180,10 +180,9 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await cover("ways");
   check("...both Cabezas ringed and pulsing, the row you'd win on lit", r.length === 2 && r.some((x) => x.id === "light-cabeza" && x.tone === "mine" && x.pulse) && r.some((x) => x.id === "dark-cabeza" && x.tone === "foe" && x.pulse) && (await band(page)) === 0, JSON.stringify({ r, band: await band(page) }));
   check("...each numbered, on the screen and clear of the card", !!way1 && /1 · Your Cabeza across/i.test(way1.text) && !!way2 && /2 · Crush opponent's Cabeza/i.test(way2.text) && [way1, way2].every((b) => inView(b, W, H) && !overlap(b, cardBox)) && !overlap(way1, way2), JSON.stringify({ way1, way2, cardBox }));
-  check("...an arrow from your Cabeza up to the row", ((await arrowD(page, "arrow-path")) || "").length > 10);
-  await sweepLog(page);
-  const ways = await sweepFor(page, 2600);
-  check(`...its head sliding along the row, not held on one square (across ${spread(ways).toFixed(2)} of it)`, ways.length >= 5 && ways.every((s) => s.off < 0.35) && spread(ways) > 0.4, JSON.stringify(ways.slice(0, 4)));
+  // (The arrow to the row is the next card's alone, user: "That should
+  // only be on the following slide, 3 of 8. 2 of 8 is not necessary.")
+  check("...and no arrow to the row yet", (await arrowD(page, "arrow-path")) === null);
 
   // The first: your Cabeza, the row lit green, an arrow there. Shown big
   // first, then brought down into its place (user: "start it with an
