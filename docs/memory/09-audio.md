@@ -90,6 +90,19 @@ on "does this theme have audio." Both Standard and Futuris currently have
   own AudioContext with a deep buffer (latencyHint about 0.1), the
   pieces' sounds left on the quick one; and, optionally, the songs
   streamed (an `<audio>` element) rather than held decoded.
+  Streaming alone (user, 2026-10-26: "Would streaming the songs fix the
+  issue? Question mark."): not if the streamed songs still go through the
+  one AudioContext (createMediaElementSource): they'd be made on the same
+  10 ms schedule as now. Played outside it they'd get the media player's
+  own deep buffer, but lose the shared compressor, the fades and the
+  music slider (rebuilt on the element), the evening, opening and close
+  would still need the deep output, and a slow connection could stall a
+  song mid-way (fetched whole today, that can't happen). What it would
+  help: memory (about 80 MB a song) and the whole-song decodeAudioData
+  bursts (at the start, and SONG_PREFETCH_S, 25 s, before each next
+  song). The user's answer to "from the opening, near song changes, or
+  all through" decides it: bunched at the start and the changes, the
+  decodes; all through, the steady load.
 
 **Standard's wood-impact percussion — do not re-attempt a resonant-filter
 approach.** Three full rewrites happened before landing on the current

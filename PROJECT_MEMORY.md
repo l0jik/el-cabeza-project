@@ -72,25 +72,43 @@ rim, the front-page mock-ups of NOVA as a neon sign.
   mock-ups (front/) and the old root copies (el_cabeza_3d.jsx,
   el-cabeza-futuris-3d.html) still have the old order.
 
-## Backlog (as given to the user, 2026-10-18: "what's in the backlog.")
+## Backlog (as given to the user, 2026-10-26: "What's on backlog besides Parrish audio issue?"; first 2026-10-18: "what's in the backlog.")
 
 Keep this list current: add what's offered and not started, strike what's
 built or dropped.
 
-- Waiting on the user: Cabeza Nova's standard rules (above); a pick among
-  the front page's 50 versions (front/front-review.html, on the site as front-review.html); the online play
-  and cloud saves server on the user's own free Cloudflare account
-  (server/README.md, then its address in chassis/online-config.js
-  RELAY_URL; until then online games and cloud codes don't work, a save
-  file does); and a question: in the store, should a mouse drag turn the
-  board the way a finger does (a mouse keeps the store's own way now)?
-- Reminder: the Trusted Web Activity (above).
+- Waiting on the user's pick or go-ahead (nothing changed for any):
+  - the Parrish music fix (docs/memory/09-audio.md: the long recordings on
+    their own deep-buffered output; streaming the songs optional);
+  - Cabeza Nova as a game system (Recent rounds): the About rewrite,
+    "laws" to "rules" in the game itself, the rules cards in two parts (A
+    tagged, recommended), the rest of the ten (3, 2 and 1 recommended);
+  - the sphere's triple tap replaced (six ways; 1, a live "Your game"
+    strip, recommended);
+  - the Room view button's icon (six; Rise up or Bird's-eye recommended);
+  - the store's PA: seventeen recordings to pick from
+    (docs/memory/tienda.md, Recorded PA candidates);
+  - a pick among the front page's 50 versions (front/front-review.html,
+    on the site as front-review.html);
+  - the creators' names in front/ and the old root copies, still
+    Poniachik first: change them too?
+  - whether the Singularity's sound now plays on the user's Chromebook
+    (the light reverbs since 2026-10-23).
+- The user's own step: the online play and cloud saves server on their
+  free Cloudflare account (server/README.md, then its address in
+  chassis/online-config.js RELAY_URL; until then online games and cloud
+  codes don't work, a save file does).
+- Reminders: the standard rules before any public launch; the Trusted Web
+  Activity (both above).
 - Offered, not started: on the weakest devices, each world's own extras
   thinned once the governor is at its floor (rain, traffic, people, the
   store's TV; device-fit.js would tell the theme); every other world in place on Nova's page, as The
   City is; a walk-home warning (the check alert's kind, for "the
   computer's Cabeza can reach your back row next turn"); the computer
   faster and stronger with big armies.
+- Settled: the store's mouse drag (asked 2026-10-18 whether it should turn
+  the board the way a finger does): since the turn "where you touch"
+  (2026-10-22), any pointer, everywhere (docs/memory/05-camera-input.md).
 - Dropped (user, 2026-10-18: "remove this from the backlog. : Two other
   ways to place singularities: pick one up and tap where it goes, or one
   pair per row, each with its own Place button."): those two ways of
@@ -281,3 +299,4 @@ built or dropped.
 - A shuffled start in the store (user, asked whether to take Anywhere in your half out of the store, since an order there never shuffled: "Store order. No, the only time that there can be no shuffle start is the very first game when somebody's learning how to play. Once they go to the store and everything's available, then yeah, shuffle start's available. So I guess you could say this is no longer just for Futuris. Let me know if you have any further questions before you make any changes."; asked whether the shuffle should also be on the classic page before the Singularity: "Wait for Singularity (Recommended)"). Supersedes "a shuffled start is Futuris's alone" (history 01). themes/tienda-overlay.js: the order form's Shuffled start box is back (`tienda-random`, "The pieces set out in a random order.", above Anywhere in your half), on the full page only (after the Singularity); orders and carbon copies keep a shuffle (no more storeSelections stripping it); the classic page (classicSelections) still has none, and the store's first game, walked through, is the classic game. Tests: e2e-tienda (the box, ticked, kept on a carbon copy), e2e-story (the special order's form has it). Details: docs/memory/tienda-singularity.md, fit-alert.md.
 - CI shard 1 on 57e5c25, e2e-tv-pull: "the records and the newspaper gone in too, before the rush" found the floor's sleeve still flying at 9414 ms. Not the test: the pull's flying things went by frames, the drag wave launched at the frame that noticed it was due and each thing took off at the frame that noticed its delay, so on a slow machine the lateness added up (reproduced at 6x CPU throttling: the floor's sleeve, due in at 9200, never in before the rush). den-fx.js now launches each wave from when it was due (tug.t0 + TUG.tug2 / TUG.drag) and den-tug.js takes each thing off at its due time: at 6x it's in at 9219, unthrottled within a frame of due (scratchpad tug-slow.mjs). docs/memory/nova-story.md.
 - Tour card 2 without the arrow (user, a phone screenshot of "IN-STORE DEMONSTRATION · 2 OF 8", the green arrow from YOUR CABEZA ACROSS up to the lit back row: "On the in-store demonstration, page 2 of 8, do not put the green arrow that runs across, that points to the back row. That should only be on the following slide, 3 of 8. 2 of 8 is not necessary."). chassis/ElCabeza3D.jsx, the "ways" step: no "path" arrow; the back row still lit (asked whether it should wait for card 3 too: "Keep the green row on card 2"), both Cabezas ringed and numbered. Card 3 keeps its arrow (held, then sweeping the row). Test: e2e-first-game-tour (card 2: no arrow; the reduced-motion check, which read the still arrow on card 2, now goes on to card 3 for it). docs/memory/tienda.md.
+- The Parrish fix, explained, and streaming (user: "What is this referring to?: "Go ahead with the Parrish audio fix"" and "Would streaming the songs fix the issue? Question mark."): the fix as offered above (the songs, the evening, the opening and the close on their own output about a tenth of a second deep, the pieces' sounds left quick). Streaming, not on its own: the songs share one AudioContext with everything (master, a compressor over the whole mix), made 10 ms at a time, and streamed into it they'd be made the same way; played outside it (an `<audio>` element) they'd be deep-buffered, but the fades and the music slider would have to be rebuilt, the evening, opening and close would still need the fix, and a slow connection could stall a song mid-way (today each is fetched whole first). Where it would help: memory (about 80 MB a song held decoded) and the whole-song decodes (at the start, and SONG_PREFETCH_S, 25 s, before each next song) that could crowd the music out on a slow device; if the glitches bunch at the start and the song changes, that's the likely cause. Recommended the deep output first, streaming if the device is short of memory or the glitches bunch at song changes. docs/memory/09-audio.md. Then (user: "What's on backlog besides Parrish audio issue?"): the Backlog above, brought up to date (the store's mouse question settled by the turn).
