@@ -3366,6 +3366,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   useLayoutEffect(() => {
     const el = cardRef.current;
     if (!el || dockView !== "panel") return;
+    /* Measured with the strip where it rests. Lowered by an earlier
+       overflow (the taller setup's, before Begin), it reached past the
+       panel's end itself, counted as overflow, and stayed that much too
+       low, the sides' names on the panel's edge (user's screenshot, the
+       store on a phone: "Boundary / border margin issue"). */
+    if (el.style.getPropertyValue("--ec-dock-overflow") !== "0px") el.style.setProperty("--ec-dock-overflow", "0px");
     const over = Math.max(0, el.scrollHeight - el.clientHeight);
     const v = `${over}px`;
     if (el.style.getPropertyValue("--ec-dock-overflow") !== v) el.style.setProperty("--ec-dock-overflow", v);

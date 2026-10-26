@@ -14,9 +14,12 @@
       desktop dock (only Nova opts in).
    5. A phone opens Nova with the floating piece (the user asked for it
       back); the dock's layout icon switches to the bar, and the choice is
-      remembered. Sections 1-3 open with the bar chosen. */
+      remembered. Sections 1-3 open with the bar chosen.
+   6. On a short phone, the dock's foot (the sides' names, the corner
+      switches) back at rest in the game's panel after the setup's scrolled. */
 import { chromium } from "playwright";
 import { SIDE_NAMES } from "../themes/side-names.js";
+import { waitForDockCorner, reopenDockPanelFromCorner } from "./dock-helpers.mjs";
 
 const DARK_NAMES = `\\b(${[...new Set(["Dark", ...Object.values(SIDE_NAMES).map((n) => n.dark)])].join("|")})\\b`;
 
@@ -344,6 +347,39 @@ async function waitFor(fn, ms = 8000) {
   await q(p.page, "shell-menu-button").tap();
   await p.page.waitForTimeout(300);
   check("the phone's menu offers the classic dock", (await q(p.page, "shell-menu-layout").count()) === 1);
+  check(`no page errors (${p.errs.length})`, p.errs.length === 0, p.errs.join(" | "));
+  await p.ctx.close();
+}
+
+// ---- 6. the dock's foot after Begin, on a short phone ----
+// (User's screenshot, the store: "Boundary / border margin issue", the
+// sides' names on the panel's edge. The setup's panel scrolls there and
+// lowers its corner switches to the end of its rows; the game's panel
+// doesn't scroll, and they must come back to rest.)
+{
+  console.log("the dock's foot after Begin");
+  const p = await open(NOVA, { width: 360, height: 560 });
+  const dockBox = await q(p.page, "dock-piece-canvas").boundingBox();
+  await p.page.touchscreen.tap(dockBox.x + dockBox.width / 2, dockBox.y + dockBox.height / 2);
+  await waitFor(async () => (await q(p.page, "dock-panel").getAttribute("data-open")) === "true");
+  await p.page.waitForTimeout(800);
+  const foot = () => p.page.evaluate(() => {
+    const el = document.querySelector('[data-testid="dock-panel"]');
+    const r = el.getBoundingClientRect();
+    return {
+      scrolls: el.scrollHeight - el.clientHeight,
+      // How far above the panel's edge each thing in the strip ends.
+      strip: [...el.querySelectorAll('[data-testid="dock-players"], [data-dock-foot], [data-testid="sound-button"], [data-testid="points-toggle"]')]
+        .map((x) => ({ id: x.dataset.testid, above: Math.round(r.bottom - x.getBoundingClientRect().bottom) })),
+    };
+  });
+  check("the setup's panel scrolls on this phone (what lowers the strip)", (await foot()).scrolls > 14);
+  await p.page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game/ }).first().tap();
+  const corner = await waitForDockCorner(p.page, { timeoutMs: 10000 });
+  await reopenDockPanelFromCorner(p.page, corner);
+  await p.page.waitForTimeout(1200);
+  const inPlay = await foot();
+  check("in play: the names and the corner switches inside the panel, clear of its edge", inPlay.scrolls === 0 && inPlay.strip.some((s) => s.id === "dock-players") && inPlay.strip.every((s) => s.above >= 6), JSON.stringify(inPlay));
   check(`no page errors (${p.errs.length})`, p.errs.length === 0, p.errs.join(" | "));
   await p.ctx.close();
 }
