@@ -82,9 +82,11 @@ game, "1 & 2").
   far row), and placing by hand now waits on the same (`readiness` reason
   "walk": "A Cabeza could reach the far row on the first move", the
   Cabezas ringed in red). Shuffles through the half take under 20 ms.
-- The store: the half start is a shuffle, where an order otherwise never
-  is (the user's earlier rule: a shuffled start is Futuris's alone); the
-  user was told and can have it taken out of the store.
+- The store: the half start is a shuffle, and the store keeps it (user,
+  asked: "the only time that there can be no shuffle start is the very
+  first game when somebody's learning how to play ... this is no longer
+  just for Futuris"): its order form has Shuffled start too now, above
+  Anywhere in your half, once the Singularity's been seen.
 
 ## Where, and in whose look
 

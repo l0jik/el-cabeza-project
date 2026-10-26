@@ -567,14 +567,24 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await page.waitForTimeout(300);
   await press('[data-testid="tienda-skill-hard"]');
   check("the demonstrator can take Light, playing hard", (await attr('[data-testid="tienda-opponent-light"]', "aria-pressed")) === "true" && (await attr('[data-testid="tienda-skill-hard"]', "aria-pressed")) === "true");
+  // A shuffled start, now the store has one too (user: "the only time that
+  // there can be no shuffle start is the very first game when somebody's
+  // learning how to play ... this is no longer just for Futuris").
+  const shuffleBox = page.locator('[data-testid="tienda-random-input"]');
+  check("Shuffled start on the form, just above Anywhere in your half, not ticked at first", (await shuffleBox.count()) === 1 && !(await shuffleBox.isChecked())
+    && await page.evaluate(() => { const r = document.querySelector('[data-testid="tienda-random"]'); return !!r && !!r.nextElementSibling && r.nextElementSibling.getAttribute("data-testid") === "tienda-half-start"; }));
+  await page.locator('[data-testid="tienda-random"]').scrollIntoViewIfNeeded();
+  await press('[data-testid="tienda-random"]');
+  check("...ticked", await shuffleBox.isChecked());
   await page.locator('[data-testid="tienda-copy-name"]').fill("Test order");
   await press('[data-testid="tienda-copy-save"]');
   const copyId = await page.evaluate(() => { const c = document.querySelector('[data-testid^="tienda-copy-c"]'); return c && c.dataset.testid.replace("tienda-copy-", ""); });
-  check("a carbon copy is filed", !!copyId && (await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:tienda-orders") || "[]").length)) === 1);
+  check("a carbon copy is filed, its shuffled start with it", !!copyId && (await page.evaluate(() => { const l = JSON.parse(localStorage.getItem("el-cabeza:tienda-orders") || "[]"); return l.length === 1 && l[0].selections.random === true; })));
   await press('[data-testid="tienda-piece-block1x3-dec"]');
+  await press('[data-testid="tienda-random"]');
   await press(`[data-testid="tienda-copy-use-${copyId}"]`);
   await page.waitForTimeout(300);
-  check("...and using it brings the order back", (await txt('[data-testid="tienda-piece-block1x3"] output')) === "1");
+  check("...and using it brings the order back, shuffled start and all", (await txt('[data-testid="tienda-piece-block1x3"] output')) === "1" && (await shuffleBox.isChecked()));
   await press('[data-testid="tienda-copy-name"]');
   await page.locator('[data-testid="tienda-copy-name"]').fill("Spare");
   await press('[data-testid="tienda-copy-save"]');

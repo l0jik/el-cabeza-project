@@ -277,7 +277,10 @@ console.log("\ndesktop: the store, the purchase, home");
   await page.waitForFunction(() => { const n = document.querySelector(".td-special-note"); return n && performance.now() - Number(n.dataset.since) > 2600; }, null, { timeout: 8000 }); // (held a moment against wild taps)
   await q(page, "tienda-special-note").click();
   check("the note is the whole order form", await poll(() => has(page, "tienda-order"), 8000));
-  check("...with the board's size now, and still no shuffled start (Futuris's alone)", (await has(page, "tienda-cols")) && !/Shuffled start/.test(await q(page, "tienda-order").innerText()));
+  // (User: "the only time that there can be no shuffle start is the very
+  // first game when somebody's learning how to play ... this is no longer
+  // just for Futuris.")
+  check("...with the board's size now, and a shuffled start too", (await has(page, "tienda-cols")) && (await has(page, "tienda-random")));
   check("the note's gone once the form is open", !(await has(page, "tienda-special-note")));
   // Nothing ordered yet: the button waits, glowing, and says so if tapped.
   const place0 = q(page, "tienda-order-place");

@@ -7,6 +7,7 @@ lives now:
 | Singularity (Futuris) | Tienda |
 |---|---|
 | MATTER: 11 pieces, counts 0–4 (Cabeza 1–2), Arco Chico/Alto/Ancho, 3-D models | Order form 1 · Pieces: same 11 with catalog numbers/prices, Arco size row (`tienda-arco-*`), wood photographs + 3-D viewer (the size's model) |
+| MATTER: Randomized start, Anywhere In Your Half | 1 · Pieces: Shuffled start (`tienda-random`) and Anywhere in your half (`tienda-half-start`), kept on carbon copies. Not on the classic page (user: no shuffle only in "the very first game when somebody's learning how to play ... this is no longer just for Futuris"; before 2026-10-26 a store order never shuffled) |
 | LAWS + warnings + "i" to rules cards | 2 · Rules: every law, "How it works ›" (`tienda-law-KEY-info`, opens the MOVES card over the form), warnings with a ☞ (`shove-opa-needs-three`, `law-warning-cantileverPivot`). Shoving has no settings any more. |
 | TOPOLOGY size, Missing Squares 1–5 pairs, Black Hole place, Select/Random/Done/Cancel pickers, back-row and wall-off rules | 3 · Board: size steppers + diagram (now shows X/O marks), Missing squares with Pairs 1–5 and Where + Select, Black holes' Where + Select; `SquarePicker` = "mark the board" (X / O, partner filled in, dots where pieces start, rolled marks dashed; tap a rolled mark to keep it; back rows hatched; wall-off cells red dash) |
 | Opponent/AI in the summary | 4 · Who's playing: A friend / The demonstrator plays Dark or Light, How well it plays (chassis state via setup extras) |

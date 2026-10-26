@@ -54,24 +54,22 @@ import { singularitySeen, onJourneyChange, isCommercialOn, CLASSIC_PIECE_KEYS, s
 
 /* The classic game's order (engine/journey.js: the extras wait for the
    Singularity's first visit): the five pieces only, no laws, no cut
-   squares or holes, and the one board, 10 x 10 (other boards wait for
-   the Singularity too, user). */
+   squares or holes, the one board, 10 x 10 (other boards wait for the
+   Singularity too, user), and no shuffled start. Once the Singularity's
+   been seen, an order (and its carbon copy) can have one (user: "the only
+   time that there can be no shuffle start is the very first game when
+   somebody's learning how to play ... this is no longer just for
+   Futuris"; the classic page waits for the Singularity with the rest);
+   the store's first game, walked through, is the classic game. */
 function classicSelections(sel) {
-  const n = storeSelections(sel);
+  const n = cloneSelections(sel);
   PIECE_OPTIONS.forEach((p) => { if (!CLASSIC_PIECE_KEYS.includes(p.key)) n.counts[p.key] = 0; });
   Object.keys(n.laws || {}).forEach((k) => { n.laws[k] = false; });
   n.missing = false;
+  n.random = false;
   n.halfStart = false;
   n.rows = n.cols = DEFAULT_BOARD_DIM;
   return normalizeSelections(n);
-}
-/* Any order in the store (and the den): never a shuffled start. That's
-   Futuris's anomaly, and Futuris's alone (user). A carbon copy that had one
-   comes back without it. */
-function storeSelections(sel) {
-  const n = cloneSelections(sel);
-  n.random = false;
-  return n;
 }
 
 const h = createElement;
@@ -1667,10 +1665,10 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   const classic = React.useMemo(() => !singularitySeen(), []);
   const [sel, setSel] = React.useState(() => {
     const s0 = normalizeSelections(cloneSelections(initial || defaultSelections()));
-    return classic ? classicSelections(s0) : normalizeSelections(storeSelections(s0));
+    return classic ? classicSelections(s0) : s0;
   });
   const change = (fn) => setSel((s) => { const n = cloneSelections(s); fn(n); onChange && onChange(n); return n; });
-  const replace = (n0) => { const n = classic ? classicSelections(n0) : normalizeSelections(storeSelections(n0)); setSel(n); onChange && onChange(n); };
+  const replace = (n0) => { const n = classic ? classicSelections(n0) : normalizeSelections(cloneSelections(n0)); setSel(n); onChange && onChange(n); };
   const click = () => { audio && audio.playSelect && audio.playSelect(); };
   const total = totalPieces(sel), bigArmy = total > BIG_ARMY;
   // Too many pieces for the board: why, and the pop-up that says so
@@ -1975,6 +1973,9 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
             h("span", null, String(total))),
           bigArmy && h("div", { className: "td-form-note", "data-testid": "tienda-big-army" }, BIG_ARMY_NOTE),
           fitNote,
+          // A shuffled start, as the other worlds' menus have it (user: "this
+          // is no longer just for Futuris"). Not on the classic page.
+          !classic && check("random", !!sel.random, "Shuffled start", "The pieces set out in a random order.", () => change((s) => { s.random = !s.random; })),
           // Anywhere in your half (user: "an option to allow pieces ... anywhere
           // on your side of the board"): where the game sets them out. Not on
           // the classic page (its one board waits for the Singularity too).
