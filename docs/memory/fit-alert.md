@@ -115,3 +115,11 @@ scrolls to the count, the line by Play, Make the board 11 wide),
 e2e-tienda (both sizes), e2e-story (the guided order), e2e-lluvia
 (MATTER, BEGIN, Take some out back to MATTER), e2e-singularity (MATTER).
 The words are in both tables (b-20, b-21).
+
+Random squares count: a rolled missing square in the home rows takes room
+there like a marked one, so the pop-up can come up when a roll lands
+there. e2e-singularity once clamped TOPOLOGIES to 6 wide and then rolled
+five missing pairs: MATTER's seven fill all but one of a side's twelve
+home-row squares, so about one run in twenty (4.4% of 4000 simulated)
+stopped fitting and the pop-up covered the drums. It widens back to 10
+first (0 in 4000).

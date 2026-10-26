@@ -600,6 +600,12 @@ if (state.activeCategory === "topologies") {
   state = await sphereState();
   check("TOPOLOGIES' cols drum clamps at the engine's own MIN_BOARD_DIM (6)",
     state.selections.topologies.cols === 6, `cols=${state.selections.topologies.cols}`);
+  // (Back to 10 wide for the Missing Squares below: 6 wide, MATTER's seven
+  // fill all but one of a side's home-row squares, so random pairs landing
+  // there stop them fitting about one run in twenty, and the pop-up that
+  // says so covers the drums.)
+  for (let i = 0; i < 4; i++) await page.locator('[data-testid="board-cols-inc"]').click();
+  await page.waitForTimeout(150);
 
   // ---- TOPOLOGIES: Missing Squares manual placement (the same
   // ghost-grid picker Black Hole Squares uses, just targeting a
