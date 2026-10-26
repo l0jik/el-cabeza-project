@@ -634,13 +634,17 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const { ctx, page } = await open(false);
   await begin(page);
   check("Try a Game: the welcome card", (await tourOf(page)).step === "welcome");
-  // With reduced motion, the arrow to the row held still.
+  // With reduced motion, the arrow to the row held still: on the goal card,
+  // 3 of 8, the one it's on (user: "That should only be on the following
+  // slide, 3 of 8."), drawn at once, the Cabeza not shown big first.
   await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.locator('[data-testid="tour-next"]').click();
+  await page.waitForTimeout(600);
   await page.locator('[data-testid="tour-next"]').click();
   await page.waitForTimeout(1000);
   await sweepLog(page);
   const calm = await sweepFor(page, 1500);
-  check(`reduced motion: the arrow's head held still, straight up from your Cabeza (moved ${spread(calm).toFixed(3)} of the row)`, (await tourOf(page)).step === "ways" && calm.length >= 3 && calm.every((s) => s.fromCab < 0.3) && spread(calm) < 0.01, JSON.stringify(calm.slice(0, 3)));
+  check(`reduced motion: the arrow's head held still, straight up from your Cabeza (moved ${spread(calm).toFixed(3)} of the row)`, (await tourOf(page)).step === "goal" && calm.length >= 3 && calm.every((s) => s.fromCab < 0.3) && spread(calm) < 0.01, JSON.stringify(calm.slice(0, 3)));
   await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
   check("Escape skips it, kept as done", (await card(page).count()) === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
