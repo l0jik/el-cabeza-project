@@ -10,7 +10,7 @@
 import { BOARD_ROWS, BOARD_COLS, withFullTurn } from "./constants.js";
 import { createInitialPieces } from "./rules.js";
 import { mirrorVox } from "./shapes.js";
-import { cabezaInDanger } from "./ai.js";
+import { cabezaInDanger, canEndGame } from "./ai.js";
 
 export const PIECE_ORIENTATIONS = {
   flaco: [
@@ -153,8 +153,10 @@ function maxFootprintCells(type) {
    twice, and a cut-off when what's left can't fit in what's free.
    Returns the placements ({ type, index, row, col, w, h, z, vox }) or
    null. The menus use it to say an order won't fit before it's placed;
-   generateAnomalySetup uses it as its last try before giving up. */
-export function packHomeBand(roster, cols, blockedKeys = []) {
+   generateAnomalySetup uses it as its last try before giving up.
+   `depth`: rows from the side's edge, two unless a start reaches further
+   (anywhere in a side's half, or the back three rows placed by hand). */
+export function packHomeBand(roster, cols, blockedKeys = [], depth = 2) {
   const instances = [];
   (roster || []).forEach(({ type, count }) => { for (let i = 0; i < count; i++) instances.push({ type, index: i }); });
   if (instances.some(({ type }) => !PIECE_ORIENTATIONS[type])) return null;
@@ -167,14 +169,15 @@ export function packHomeBand(roster, cols, blockedKeys = []) {
     const seen = new Set();
     poses[type] = PIECE_ORIENTATIONS[type].filter((o) => {
       const k = `${o.w}x${o.h}`;
-      if (o.h > 2 || o.w > cols || seen.has(k)) return false;
+      if (o.h > depth || o.w > cols || seen.has(k)) return false;
       seen.add(k); return true;
     });
   });
   const minArea = (type) => Math.min(...poses[type].map((o) => o.w * o.h));
   if (instances.some(({ type }) => poses[type].length === 0)) return null;
-  const occupied = new Set(blockedKeys);
-  let free = 2 * cols - occupied.size;
+  // (Only what's inside the band takes room from it.)
+  const occupied = new Set(blockedKeys.filter((k) => k >= 0 && k < depth * cols));
+  let free = depth * cols - occupied.size;
   const need = instances.map(({ type }) => minArea(type));
   const needFrom = need.map((_, i) => need.slice(i).reduce((a, b) => a + b, 0));
   if (needFrom[0] > free) return null;
@@ -186,10 +189,10 @@ export function packHomeBand(roster, cols, blockedKeys = []) {
     if (needFrom[i] > free || --budget < 0) return false;
     const { type, index } = instances[i];
     const same = i > 0 && instances[i - 1].type === type;
-    for (let slot = same ? minSlot : 0; slot < 2 * cols; slot++) {
-      const row = slot % 2, col = Math.floor(slot / 2);
+    for (let slot = same ? minSlot : 0; slot < depth * cols; slot++) {
+      const row = slot % depth, col = Math.floor(slot / depth);
       for (const o of poses[type]) {
-        if (row + o.h > 2 || col + o.w > cols) continue;
+        if (row + o.h > depth || col + o.w > cols) continue;
         const cells = cellsOf(o, row, col);
         if (cells.some((k) => occupied.has(k))) continue;
         cells.forEach((k) => occupied.add(k)); free -= cells.length;
@@ -258,7 +261,13 @@ function mirrorPlacements(placed) {
 // `blocked`: {row,col} cells no piece may start on (Black Hole / Missing
 // Square placements). Seeded into `occupied` along with each one's
 // 180-degree mirror, so Light's reflected pieces avoid them too.
-export function generateAnomalySetup(roster, blocked = []) {
+// `depth`: how many rows from its edge a side's pieces may start in, two
+// unless a start reaches further (user, of a side's pieces: "anywhere on
+// your side of the board": Anywhere in your half, or a big army laid out
+// for placing by hand).
+export function generateAnomalySetup(roster, blocked = [], { depth = 2 } = {}) {
+  // (Never past the middle: the two sides' rows mustn't meet.)
+  depth = Math.max(1, Math.min(depth, Math.floor(BOARD_ROWS / 2)));
   const blockedKeys = [];
   blocked.forEach(({ row, col }) => {
     blockedKeys.push(row * BOARD_COLS + col, (BOARD_ROWS - 1 - row) * BOARD_COLS + (BOARD_COLS - 1 - col));
@@ -278,7 +287,11 @@ export function generateAnomalySetup(roster, blocked = []) {
      callers set the laws first. If no shuffle comes out safe, the first
      one that fits is still used. */
   // (Read with a full turn: the second player's first turn is one, and by the mirror its reach is the opener's.)
-  const safe = (pieces) => !pieces.some((p) => p.type === "cabeza" && p.owner === "light") || !withFullTurn(() => cabezaInDanger(pieces, "light"));
+  // Deeper than the home rows a Cabeza can start a turn's walk from the far
+  // row too, or a block within a turn of the other's: no line that ends the
+  // game on the first move at all (ai.js endingLine).
+  const safe = (pieces) => !pieces.some((p) => p.type === "cabeza" && p.owner === "light") ||
+    (!withFullTurn(() => cabezaInDanger(pieces, "light")) && (depth <= 2 || !withFullTurn(() => canEndGame(pieces, "dark"))));
   let fallback = null;
   for (let attempt = 0; attempt < 300; attempt++) {
     const occupied = new Set(blockedKeys);
@@ -288,7 +301,7 @@ export function generateAnomalySetup(roster, blocked = []) {
       const orientations = PIECE_ORIENTATIONS[type];
       const { w, h, z, vox } = orientations[Math.floor(Math.random() * orientations.length)];
       const rowOptions = [];
-      for (let row = 0; row <= 2 - h; row++) rowOptions.push(row);
+      for (let row = 0; row <= depth - h; row++) rowOptions.push(row);
       const colOptions = [];
       for (let col = 0; col <= BOARD_COLS - w; col++) colOptions.push(col);
       const rowOrder = shuffledIndices(rowOptions.length).map((i) => rowOptions[i]);
@@ -325,9 +338,9 @@ export function generateAnomalySetup(roster, blocked = []) {
   // five, same as the original single-roster version's own fallback —
   // better than silently returning nothing. (The menus check first with
   // packHomeBand, so a player's order never gets here.)
-  const packed = packHomeBand(effectiveRoster, BOARD_COLS, blockedKeys);
+  const packed = packHomeBand(effectiveRoster, BOARD_COLS, blockedKeys, depth);
   const packedPieces = packed && mirrorPlacements(packed);
   if (packedPieces && (safe(packedPieces) || !fallback)) return packedPieces;
   if (fallback) return fallback;
-  return roster ? generateAnomalySetup(undefined, blocked) : createInitialPieces();
+  return roster ? generateAnomalySetup(undefined, blocked, { depth }) : createInitialPieces();
 }

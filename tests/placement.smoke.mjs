@@ -106,6 +106,28 @@ console.log("a safe start");
   d = place(d, "dark-opa", 3, 8);
   check("a Cabeza the other side can crush on the first move: Begin waits", !!d && readiness(d).reason === "danger", JSON.stringify(readiness(d || { bench: [], pieces: [] })));
 }
+{
+  // Up to the middle of a short board, a Cabeza a turn's walk from the far
+  // row: with 3 actions it would win on the first move (user: pieces
+  // "anywhere on your side of the board").
+  setBoardDimensions(6, 6);
+  let w = setHalf(startSetOut(initialPiecesFor(6, 6), "dark"), true);
+  const free = (so, r, c) => !so.pieces.some((p) => r >= p.row && r < p.row + p.h && c >= p.col && c < p.col + p.w);
+  // (Its column clear to the far row: the mirror has nothing there.)
+  const col = [0, 1, 2, 3, 4, 5].find((c) => [3, 4, 5].every((r) => free(w, r, c)) && free(w, 2, c));
+  w = col == null ? null : place(w, "dark-cabeza", 2, col);
+  setActiveLaws({ threeActions: true });
+  const r3 = w && readiness(w);
+  check("3 actions: a Cabeza that could walk to the far row on the first move: Begin waits, it ringed", !!r3 && r3.reason === "walk" && r3.ids && r3.ids.length === 1 && /cabeza/.test(r3.ids[0]), JSON.stringify(r3));
+  setActiveLaws({ threeActions: false });
+  const r2 = w && readiness(w);
+  check("...2 actions, three rows away: ready", !!r2 && r2.ok, JSON.stringify(r2));
+  // A layout already past the back three rows opens in the half.
+  const deep = initialPiecesFor(10, 10).map((p) => (p.id === "dark-turrito" ? { ...p, row: 4 } : p.id === "light-turrito" ? { ...p, row: 5 } : p));
+  setBoardDimensions(10, 10);
+  check("pieces laid out past the back three rows open the set-out in the half", startSetOut(deep, "dark", false).half === true && startSetOut(initialPiecesFor(10, 10), "dark", false).half === false);
+  setActiveLaws({ splitMovement: false, splitThree: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false });
+}
 
 console.log("Same as last time");
 const saved = keep(so);

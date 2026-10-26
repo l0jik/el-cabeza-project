@@ -39,7 +39,7 @@ import {
   PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, SIZES, BIG_ARMY, BIG_ARMY_NOTE, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
   defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, lawWarnings,
   beginCustomGame, fillSpots, randomizeSpots, refreshSpots, spotProblem, mirrorCell, missingCellsOf, holeCellsOf, boardLabel, clampDim, pieceTypeOf,
-  holeSetsOf, setHoleSets, holeSpotsAfterTap, SPOT_PROBLEMS, holeSetsText, HOLE_ANY_EXIT,
+  holeSetsOf, setHoleSets, holeSpotsAfterTap, SPOT_PROBLEMS, holeSetsText, HOLE_ANY_EXIT, HALF_START,
 } from "./rules-selections.js";
 import { WORLDS, createRealitiesMenu, goToWorld, REALITIES_VISIT_KEY } from "./realities.js";
 import { shoveOf } from "../chassis/shove-settings.js";
@@ -599,9 +599,11 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
   const [picker, setPicker] = React.useState(null); // null | "missing" | "hole"
   const change = (fn) => setSel((s) => { const n = cloneSelections(s); fn(n); return n; });
   const total = totalPieces(sel), bigArmy = total > BIG_ARMY;
+  const { aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking, startByHand, onStartByHand, ownHalf, onToggleOwnHalf } = api || {};
   // Too many pieces for the board: why, and the pop-up that says so
-  // (fit-alert.js; user: "there needs to be a pop-up").
-  const fitProblem = fitProblemOf(sel), fits = !fitProblem;
+  // (fit-alert.js; user: "there needs to be a pop-up"). Placed by hand,
+  // they need only fit where they may be placed.
+  const fitProblem = fitProblemOf(sel, { byHand: !!startByHand, half: !!ownHalf }), fits = !fitProblem;
   const narrowest = fits ? null : fitProblem.need;
   const [fitOpen, showFit, hideFit] = useFitAlert(fits);
   const warnings = lawWarnings(sel);
@@ -609,7 +611,6 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
   // three flash where they sit (pivot-guide.js).
   const pivotHush = useGuideHush();
   const showPivots = usePivotGuide(warnings.some((w) => w.key === "cantileverPivot"), { warnSel: '[data-testid="gate-law-warning-cantileverPivot"]', rowSel: (k) => `[data-testid="gate-piece-${k}"]`, quiet: pivotHush.quiet });
-  const { aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking, startByHand, onStartByHand, ownHalf, onToggleOwnHalf } = api || {};
   const locked = !!(busy || aiThinking);
   const names = sideNamesFor(world); // what this world calls its two sides
   const resize = (rows, cols) => change((n) => { n.rows = clampDim(rows); n.cols = clampDim(cols); refreshSpots(n); });
@@ -675,6 +676,11 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
     h("div", { className: "rg-row" },
       h("span", { className: "rg-name" }, "Shuffled start", h("span", { className: "rg-note" }, "The pieces set out in a random order.")),
       h(Switch, { on: sel.random, label: "Shuffled start", testid: "gate-random", onClick: () => change((n) => { n.random = !n.random; }) })),
+    // Anywhere in your half (user: "an option to allow pieces ... anywhere
+    // on your side of the board"): where the game sets them out.
+    h("div", { className: "rg-row" },
+      h("span", { className: "rg-name" }, HALF_START.name, h("span", { className: "rg-note" }, HALF_START.note)),
+      h(Switch, { on: !!sel.halfStart, label: HALF_START.name, testid: "gate-half-start", onClick: () => change((n) => { n.halfStart = !n.halfStart; }) })),
     // Place pieces manually (user, here on a phone: "Where in the settings menu
     // do you have the option of placing your pieces by hand? I don't see
     // that anywhere."): the setup's Starting position, the same one the
@@ -742,6 +748,10 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
     fitOpen && fitProblem && h(FitAlert, {
       problem: fitProblem, look: fitLookOf(world), testid: "gate-fit-alert", onClose: hideFit,
       onWiden: (n) => resize(sel.rows, n),
+      // Or anywhere in their half: the game's (placing by hand, they go
+      // where you put them), or yours.
+      onHalfStart: startByHand ? null : () => change((n) => { n.halfStart = true; }),
+      onPlaceInHalf: onStartByHand ? () => { if (!startByHand) onStartByHand(true); if (!ownHalf) onToggleOwnHalf(); } : null,
       // (To the pieces: their count and the line under them, flashed.)
       onTakeOut: () => {
         hideFit();

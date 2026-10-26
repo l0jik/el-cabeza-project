@@ -15,6 +15,7 @@ import {
   holesTouch,
 } from "../engine/rules.js";
 import { generateAnomalySetup, packHomeBand } from "../engine/anomaly.js";
+import { HOME_ROWS as SET_OUT_ROWS } from "../engine/placement.js";
 // (Words in the player's language: chassis/i18n.js.)
 import { t as inWords, tr } from "../chassis/i18n.js";
 
@@ -124,7 +125,10 @@ export const clampDim = (v) => Math.max(MIN_BOARD_DIM, Math.min(MAX_BOARD_DIM, M
      holeSpots: [{row, col, random}]      one hole of each set,
      holeAnyExit: bool,                   two sets: out of any other hole,
                                           not only the far half's two
-     random: bool }                       a shuffled start
+     random: bool,                        a shuffled start
+     halfStart: bool }                    the pieces set out anywhere in a
+                                          side's half (shuffled), not only
+                                          its two home rows
    Each spot's partner is its 180° mirror. A spot marked random was rolled
    by the menu (and re-rolls when the board changes size); the others were
    put there by hand. */
@@ -137,7 +141,7 @@ export function defaultSelections() {
     counts, laws, shove: { ...DEFAULT_SHOVE },
     rows: DEFAULT_BOARD_DIM, cols: DEFAULT_BOARD_DIM,
     missing: false, missingCount: 1, missingSpots: [], holeSets: 1, holeSpots: [], holeAnyExit: false,
-    random: false,
+    random: false, halfStart: false,
   };
 }
 /* The standard game's selections: the five pieces, the 10x10 board and
@@ -191,6 +195,7 @@ export function normalizeSelections(sel) {
   delete out.holeSpot;
   out.holeAnyExit = !!sel.holeAnyExit;
   out.random = !!out.random;
+  out.halfStart = !!out.halfStart;
   return out;
 }
 
@@ -379,31 +384,55 @@ export function refreshSpots(sel) {
 
 /* ------------------------------------------------------------ fitting the pieces */
 
-// Home-band squares (a side's two back rows) the chosen squares take up,
-// as the packer's keys (row * cols + col, Dark's band; Light's is its
-// mirror, so the same keys).
-function bandBlocked(sel, cols = sel.cols) {
+/* How many rows from its own edge a side's pieces start in: its two home
+   rows; with Anywhere in your half (sel.halfStart, the user: "an option
+   to allow pieces ... anywhere on your side of the board"), up to the
+   middle. Placed by hand (`place`, the chassis's Place pieces manually:
+   { byHand, half }), the rows the player may use instead: the back three,
+   or with My half up to the middle (an odd middle row is nobody's). */
+export const HOME_BAND = 2;
+export const halfDepth = (rows) => Math.max(1, Math.floor(rows / 2));
+export function startDepth(sel, place = null) {
+  const half = halfDepth(sel.rows);
+  if (place && place.byHand) return place.half ? half : Math.min(SET_OUT_ROWS, half);
+  return sel.halfStart ? half : Math.min(HOME_BAND, half);
+}
+// The same for a world that keeps its own choices (Futuris's sphere): its
+// board's length and its own Anywhere in your half.
+export const startDepthFor = (rows, halfStart, place = null) => startDepth({ rows, halfStart: !!halfStart }, place);
+// Where the pieces must fit, by those rows: "home" (the two home rows),
+// "back" (the back three, placed by hand) or "half" (up to the middle).
+export const bandOf = (depth, rows) => (depth >= halfDepth(rows) ? "half" : depth > HOME_BAND ? "back" : "home");
+// The switch, named and said once for every menu.
+export const HALF_START = {
+  name: "Anywhere in your half",
+  note: "Each side's pieces start at random anywhere in its own half, up to the middle line, not only in its two home rows.",
+};
+// Squares a side's start rows (`depth` of them) lose to the chosen
+// squares, as the packer's keys (row * cols + col, Dark's rows; Light's
+// are their mirror, so the same keys).
+function bandBlocked(sel, cols = sel.cols, depth = HOME_BAND) {
   const keys = new Set();
   const rows = sel.rows;
   [...missingCellsOf(sel), ...holeCellsOf(sel)].forEach((c) => {
     if (c.col >= cols) return;
-    if (c.row < 2) keys.add(c.row * cols + c.col);
-    if (c.row >= rows - 2) keys.add((rows - 1 - c.row) * cols + (cols - 1 - c.col));
+    if (c.row < depth) keys.add(c.row * cols + c.col);
+    if (c.row >= rows - depth) keys.add((rows - 1 - c.row) * cols + (cols - 1 - c.col));
   });
   return [...keys];
 }
-/* Will the chosen pieces set out in a side's two home rows, on a board
-   `cols` wide (default: the chosen width), round any chosen squares
-   there? The classic five fit any board; anything else is packed for
-   real (engine/anomaly.js). */
-export function piecesFit(sel, cols = sel.cols) {
-  const blocked = cols === sel.cols ? bandBlocked(sel, cols) : [];
+/* Will the chosen pieces set out in a side's start rows (`depth`: the
+   two home rows, or as startDepth says), on a board `cols` wide (default:
+   the chosen width), round any chosen squares there? The classic five
+   fit any board; anything else is packed for real (engine/anomaly.js). */
+export function piecesFit(sel, cols = sel.cols, depth = startDepth(sel)) {
+  const blocked = cols === sel.cols ? bandBlocked(sel, cols, depth) : [];
   if (!isCustomRoster(sel) && !sel.random && !blocked.length) return true;
-  return !!packHomeBand(rosterOf(sel), cols, blocked);
+  return !!packHomeBand(rosterOf(sel), cols, blocked, depth);
 }
 // The narrowest board those pieces fit, or null if none does.
-export function minColsFor(sel) {
-  for (let c = MIN_BOARD_DIM; c <= MAX_BOARD_DIM; c++) if (piecesFit(sel, c)) return c;
+export function minColsFor(sel, depth = startDepth(sel)) {
+  for (let c = MIN_BOARD_DIM; c <= MAX_BOARD_DIM; c++) if (piecesFit(sel, c, depth)) return c;
   return null;
 }
 export const boardLabel = (sel) => `${sel.cols} × ${sel.rows}`;
@@ -513,7 +542,9 @@ export function variantsOf(sel, labels = {}) {
   const lawsOn = RULE_LAWS.filter((l) => sel.laws[l.key]);
   if (lawsOn.length) groups.push({ key: "laws", label: L.laws, items: lawsOn.map((l) => (l.key === "shoving" ? shovingName(sel) : l.name)), keys: lawsOn.map((l) => l.key) });
   const matter = PIECE_OPTIONS.filter((p) => sel.counts[p.key] !== p.def).map((p) => `${sel.counts[p.key]}× ${pieceName(p)}`);
-  if (sel.random) matter.unshift("Randomized start");
+  // (Anywhere in your half is a shuffle too: said once.)
+  if (sel.halfStart) matter.unshift("Start anywhere in each half");
+  else if (sel.random) matter.unshift("Randomized start");
   if (matter.length) groups.push({ key: "matter", label: L.matter, items: matter });
   const topo = [];
   if (sel.rows !== DEFAULT_BOARD_DIM || sel.cols !== DEFAULT_BOARD_DIM) topo.push(`${boardLabel(sel)} board`);
@@ -560,6 +591,26 @@ function placeHoles(sel, rows, cols, pieces, avoid) {
   return pickBlackHoleSets(pieces, rows, cols, holeSetsOf(sel), avoid, out);
 }
 
+/* Where the pieces are placed by hand, if they are: the chassis's Place
+   pieces manually and its My half, as they are now (a New Game replays a
+   game's choices later, when they may have changed: startPlacement reads
+   them then). */
+export const placeOf = (x) => (x && x.startPlacement ? x.startPlacement() : { byHand: !!(x && x.startByHand), half: !!(x && x.ownHalf) });
+
+/* How deep the pieces are laid out, in rows from each side's edge: with
+   Anywhere in your half, through the half (placed by hand, where the
+   player places them instead); otherwise the two home rows when they hold
+   them (the standard way, and where placing by hand starts from), else
+   the fewest rows that do: an army too big for the home rows, to be
+   placed by hand (or, Place pieces manually since switched off, started
+   that deep rather than swapped for another army). */
+export function layoutDepth(sel, place = null) {
+  const half = halfDepth(sel.rows), home = Math.min(HOME_BAND, half);
+  if (sel.halfStart && !(place && place.byHand)) return half;
+  for (let d = home; d <= half; d++) if (piecesFit(sel, sel.cols, d)) return d;
+  return home;
+}
+
 /* Sets the board up as chosen: board size first, then the pieces (set
    out round any chosen squares), the laws, missing squares and black
    holes (the order Futuris's sphere uses). `x` is the theme's setup extras
@@ -570,8 +621,9 @@ export function applySelections(sel, x, opts = {}) {
   const { rows, cols } = getBoardDimensions();
   const chosen = [...(missingOn(sel) ? sel.missingSpots : []), ...(holesOn(sel) ? sel.holeSpots : [])]
     .filter((p) => p.row < rows && p.col < cols).map((p) => ({ row: p.row, col: p.col }));
+  const depth = layoutDepth({ ...sel, rows, cols }, placeOf(x));
   let placed;
-  if (isCustomRoster(sel) || sel.random) placed = generateAnomalySetup(rosterOf(sel), chosen);
+  if (isCustomRoster(sel) || sel.random || depth > HOME_BAND) placed = generateAnomalySetup(rosterOf(sel), chosen, { depth });
   else {
     placed = createInitialPieces();
     const clash = spotCells(chosen, rows, cols).some((c) => occupied(placed, c.row, c.col));

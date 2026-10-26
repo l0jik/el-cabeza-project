@@ -50,7 +50,7 @@ const lostHandSkinUrl = "el-cabeza-lost-hand-skin.webp";
 import { createUnease, createDrone } from "./futuris-unease.js";
 import { guideToPivots } from "./pivot-guide.js";
 import { FitAlert } from "./fit-alert.js";
-import { shoveNow, allLawsOn, setAllLaws, HOLE_SETS_TEXT, HOLE_ANY_EXIT, BIG_ARMY, BIG_ARMY_NOTE, MAX_OF_A_KIND } from "./rules-selections.js";
+import { shoveNow, allLawsOn, setAllLaws, HOLE_SETS_TEXT, HOLE_ANY_EXIT, BIG_ARMY, BIG_ARMY_NOTE, MAX_OF_A_KIND, HALF_START, startDepthFor, halfDepth, bandOf } from "./rules-selections.js";
 import { packHomeBand } from "../engine/anomaly.js";
 import { SHOVE_SETTINGS, DEFAULT_SHOVE, shoveOf, shoveLaws, shoveSummary } from "../chassis/shove-settings.js";
 import { sideNamesFor, sideLabel, sideDotStyle } from "./side-names.js";
@@ -664,31 +664,50 @@ const MATTER_ROSTER = [
 // any missing squares marked there, as the other worlds' menus ask it
 // (rules-selections.js piecesFit). Only a roster of MATTER's own is
 // placed that way (finalizeSingularityBegin); the original five fit any board.
-function matterFits(sel, cols = sel.topologies.cols) {
+// `depth`: the start's rows, deeper with Anywhere In Your Half or placed by
+// hand (matterDepth).
+function matterFits(sel, cols = sel.topologies.cols, depth = matterDepth(sel)) {
   if (!isCategoryActive("matter", sel)) return true;
   const roster = MATTER_ROSTER.map((p) => ({ type: p.key, count: sel.matter.roster[p.key] || 0 })).filter((r) => r.count > 0);
   const rows = sel.topologies.rows, keys = new Set();
   if (sel.topologies.missingSquares) {
     sel.missingSquare.spots.forEach((s) => [[s.row, s.col], [rows - 1 - s.row, sel.topologies.cols - 1 - s.col]].forEach(([r, c]) => {
       if (c < 0 || c >= cols) return;
-      if (r < 2) keys.add(r * cols + c);
-      if (r >= rows - 2) keys.add((rows - 1 - r) * cols + (cols - 1 - c));
+      if (r < depth) keys.add(r * cols + c);
+      if (r >= rows - depth) keys.add((rows - 1 - r) * cols + (cols - 1 - c));
     }));
   }
-  return !!packHomeBand(roster, cols, [...keys]);
+  return !!packHomeBand(roster, cols, [...keys], depth);
+}
+/* How many rows from its edge a side's pieces start in (rules-selections.js
+   startDepth): two; with MATTER's Anywhere In Your Half, up to the middle;
+   placed by hand (`ctl`, the sphere's startCtl), where they may be placed. */
+function matterDepth(sel, ctl = null) {
+  return startDepthFor(sel.topologies.rows, sel.matter.halfStart, ctl && { byHand: !!ctl.byHand, half: !!ctl.half });
+}
+// How deep they're laid out (rules-selections.js layoutDepth): through
+// the half with Anywhere In Your Half (unless placed by hand); else the two
+// home rows if they hold them, or the fewest rows that do.
+function matterLayoutDepth(sel, ctl = null) {
+  const half = halfDepth(sel.topologies.rows), home = Math.min(2, half);
+  if (sel.matter.halfStart && !(ctl && ctl.byHand)) return half;
+  for (let d = home; d <= half; d++) if (matterFits(sel, sel.topologies.cols, d)) return d;
+  return home;
 }
 // The narrowest board MATTER's pieces fit, or null for none.
-function matterMinCols(sel) {
-  for (let c = MIN_BOARD_DIM; c <= MAX_BOARD_DIM; c++) if (matterFits(sel, c)) return c;
+function matterMinCols(sel, depth = matterDepth(sel)) {
+  for (let c = MIN_BOARD_DIM; c <= MAX_BOARD_DIM; c++) if (matterFits(sel, c, depth)) return c;
   return null;
 }
 // What's wrong, for the too-many-pieces pop-up (fit-alert.js), or null.
-function matterProblem(sel) {
-  if (matterFits(sel)) return null;
-  const rows = sel.topologies.rows;
+function matterProblem(sel, ctl = null) {
+  const depth = matterDepth(sel, ctl);
+  if (matterFits(sel, sel.topologies.cols, depth)) return null;
+  const rows = sel.topologies.rows, band = bandOf(depth, rows);
   return {
-    total: MATTER_ROSTER.reduce((n, p) => n + (sel.matter.roster[p.key] || 0), 0), cols: sel.topologies.cols, need: matterMinCols(sel), max: MAX_BOARD_DIM,
-    marked: !!sel.topologies.missingSquares && sel.missingSquare.spots.some((p) => p.row < 2 || p.row >= rows - 2),
+    total: MATTER_ROSTER.reduce((n, p) => n + (sel.matter.roster[p.key] || 0), 0), cols: sel.topologies.cols, need: matterMinCols(sel, depth), max: MAX_BOARD_DIM,
+    marked: !!sel.topologies.missingSquares && sel.missingSquare.spots.some((p) => p.row < depth || p.row >= rows - depth),
+    band, inHalf: band !== "half" && matterFits(sel, sel.topologies.cols, halfDepth(rows)),
   };
 }
 // The pop-up as the sphere's panels are drawn.
@@ -698,9 +717,10 @@ const FUTURIS_FIT_LOOK = {
   caps: "uppercase", track: "0.1em", glow: "0 0 12px rgba(255,180,84,0.45)", shadow: "0 0 60px rgba(77,232,255,0.18), 0 20px 50px rgba(0,0,0,0.6)",
 };
 
-const matterFitText = (sel) => {
-  const need = matterMinCols(sel);
-  return need ? say("These pieces won't fit in two home rows {cols} squares wide: they need a board at least {need} wide (TOPOLOGY).", { cols: sel.topologies.cols, need }) : "These pieces won't fit on any board. Take some out.";
+const matterFitText = (sel, depth = matterDepth(sel)) => {
+  const need = matterMinCols(sel, depth);
+  if (!need) return "These pieces won't fit on any board. Take some out.";
+  return say(depth > 2 ? "These pieces won't fit on a board {cols} squares wide: they need one at least {need} wide (TOPOLOGY)." : "These pieces won't fit in two home rows {cols} squares wide: they need a board at least {need} wide (TOPOLOGY).", { cols: sel.topologies.cols, need });
 };
 
 // The roster's names for the summary / variants.
@@ -716,6 +736,10 @@ function createDefaultSelections() {
       // Opt-in random opening layout (Anomaly-style). Off = the standard
       // fixed formation; on = a fresh randomized placement at Begin Game.
       randomizeStart: false,
+      // Anywhere in your half (user: "an option to allow pieces ...
+      // anywhere on your side of the board"): a randomized placement
+      // through each side's half, up to the middle line.
+      halfStart: false,
     },
     // missingSquares (the enable toggle) lives here, in topologies, not
     // as its own LAW — it changes the board's physical shape/playable
@@ -748,7 +772,7 @@ function isCategoryActive(key, selections) {
   // (Black Hole Squares lights TOPOLOGY, where it's set, not LAWS.)
   if (key === "laws") return LAWS_ITEMS.some((i) => !i.board && selections.laws[i.key]);
   if (key === "matter") {
-    if (selections.matter.randomizeStart) return true;
+    if (selections.matter.randomizeStart || selections.matter.halfStart) return true;
     return MATTER_ROSTER.some((p) => selections.matter.roster[p.key] !== p.default);
   }
   if (key === "topologies") {
@@ -803,7 +827,9 @@ function buildVariantsSnapshot(selections) {
   if (laws.length) groups.push({ key: "laws", label: "LAWS", items: laws, keys: lawItems.map((i) => i.key) });
 
   const matter = [];
-  if (selections.matter.randomizeStart) matter.push("Randomized start");
+  // (Anywhere in your half is randomized too: said once.)
+  if (selections.matter.halfStart) matter.push("Start anywhere in each half");
+  else if (selections.matter.randomizeStart) matter.push("Randomized start");
   MATTER_ROSTER.forEach((p) => {
     const n = selections.matter.roster[p.key];
     if (n !== p.default) matter.push(`${n}× ${rosterItemLabel(p, selections)}`);
@@ -1036,6 +1062,7 @@ function normalizeSelections(saved) {
     matter: {
       roster: migrateRoster(pick(d.matter.roster, matterSrc.roster), matterSrc),
       randomizeStart: typeof matterSrc.randomizeStart === "boolean" ? matterSrc.randomizeStart : d.matter.randomizeStart,
+      halfStart: typeof matterSrc.halfStart === "boolean" ? matterSrc.halfStart : d.matter.halfStart,
     },
     topologies: pick(d.topologies, src.topologies),
     blackHole: {
@@ -3273,7 +3300,8 @@ function renderCategoryOverlay(t) {
     const viewOf = (p) => p.view;
     ensureThumbs(MATTER_ROSTER.map(viewOf));
     const total = MATTER_ROSTER.reduce((n, p) => n + sel.matter.roster[p.key], 0);
-    const fits = matterFits(sel);
+    const depth = matterDepth(sel, s.startCtl);
+    const fits = matterFits(sel, sel.topologies.cols, depth);
     body = h(
       "div",
       { style: { display: "flex", flexDirection: "column" } },
@@ -3284,7 +3312,7 @@ function renderCategoryOverlay(t) {
         h("div", { "data-testid": "matter-total", "data-total": String(total), style: { ...sectionLabelStyle, margin: 0, color: fits ? "rgba(223,250,255,0.85)" : "#ffb454" } }, String(total))
       ),
       // As many as fit (the note once it's a big army).
-      !fits && h("div", { "data-testid": "matter-fit", style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, color: "#ffcf8a", margin: "0 2px 6px" } }, matterFitText(sel)),
+      !fits && h("div", { "data-testid": "matter-fit", style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, color: "#ffcf8a", margin: "0 2px 6px" } }, matterFitText(sel, depth)),
       total > BIG_ARMY && h("div", { "data-testid": "matter-big-army", style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, lineHeight: 1.4, color: "rgba(207,216,220,0.75)", margin: "0 2px 6px" } }, BIG_ARMY_NOTE),
       ...MATTER_ROSTER.map((p) => renderRosterRow(t, p, viewOf(p))),
       h("div", { style: { ...sectionLabelStyle, marginTop: 14 } }, "Setup"),
@@ -3293,6 +3321,14 @@ function renderCategoryOverlay(t) {
         sel.matter.randomizeStart,
         () => { sel.matter.randomizeStart = !sel.matter.randomizeStart; s.labelsDirty = true; s.bump(); },
         "matter-randomize-start"
+      ),
+      // Anywhere in your half (user: "an option to allow pieces ... anywhere
+      // on your side of the board"): where the game sets them out.
+      renderCheckboxRow(
+        { key: "halfStart", label: "Anywhere In Your Half", blurb: HALF_START.note },
+        !!sel.matter.halfStart,
+        () => { sel.matter.halfStart = !sel.matter.halfStart; s.labelsDirty = true; s.bump(); },
+        "matter-half-start"
       ),
       // Place pieces manually (user: "is set out by hand in every relevant menu
       // now?"): the setup's Starting position, the same the dock and the
@@ -3591,7 +3627,9 @@ function renderSummaryPanel(setupExtras) {
 
   const lawsOn = LAWS_ITEMS.filter((i) => !i.board && sel.laws[i.key]);
   const piecesChanged = MATTER_ROSTER.some((p) => sel.matter.roster[p.key] !== p.default);
-  const fits = matterFits(sel);
+  // (Placed by hand, they need only fit where they may be placed.)
+  const depth = matterDepth(sel, t.singularity.startCtl);
+  const fits = matterFits(sel, sel.topologies.cols, depth);
   // An optional piece that's off (a default of 0, still at 0 — the Codo)
   // is left out rather than listed as "0 Codo".
   const rosterLine = MATTER_ROSTER
@@ -3634,7 +3672,7 @@ function renderSummaryPanel(setupExtras) {
     ),
     h("div", { style: { ...lineStyle, textAlign: "center" } }, h("span", { style: tagStyle }, "OPPONENT")),
     renderOpponentAiPicker(setupExtras),
-    !fits && h("div", { "data-testid": "summary-fit", style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, lineHeight: 1.4, color: "#ffcf8a", marginTop: 14 } }, matterFitText(sel)),
+    !fits && h("div", { "data-testid": "summary-fit", style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, lineHeight: 1.4, color: "#ffcf8a", marginTop: 14 } }, matterFitText(sel, depth)),
     h(
       "button",
       {
@@ -4428,7 +4466,7 @@ export function useSingularityPhase({
     // (Only pieces that fit: Begin is off until they do, matterFits.)
     const t0 = three && three.current;
     const sel0 = t0 && t0.singularity && t0.singularity.selections;
-    if (sel0 && !matterFits(sel0)) return;
+    if (sel0 && !matterFits(sel0, sel0.topologies.cols, matterDepth(sel0, t0.singularity.startCtl))) return;
     // Marks the game about to start as Singularity-originated — read by
     // themes/futuris.js's own board-FX tick (applySingularityBoardPalette)
     // for as long as this game is active, and cleared only by the chassis's
@@ -4467,7 +4505,11 @@ export function useSingularityPhase({
       // Before the pieces are set out: a random opening is checked against
       // the laws it will be played under (engine/anomaly.js).
       const laws = setActiveLaws(lawsForEngine(sel));
-      const placedPieces = (applyMatterRoster && applyMatterRoster(sel.matter, matterActive, chosenSpots)) || pieces;
+      // How deep they're laid out: through the half with Anywhere In Your
+      // Half; else the home rows, or as deep as an army to be placed by hand
+      // needs (a New Game reads Place pieces manually as it is then).
+      const depthNow = () => matterLayoutDepth(sel, t.singularity && t.singularity.startCtl);
+      const placedPieces = (applyMatterRoster && applyMatterRoster(sel.matter, matterActive, chosenSpots, depthNow())) || pieces;
       // Missing Squares: resolved BEFORE Black Hole Squares below so the
       // two never land on the same cell — whichever is active second
       // treats the first's placement as reserved too (buildBlackHole-
@@ -4505,7 +4547,7 @@ export function useSingularityPhase({
         // still lands on one (e.g. the fixed formation), they re-resolve.
         const replayLaws = setActiveLaws(lawsForEngine(sel));
         const replayPieces =
-          (applyMatterRoster && applyMatterRoster(sel.matter, matterActive, [...lastSquares.missing, ...lastSquares.holes])) || pieces;
+          (applyMatterRoster && applyMatterRoster(sel.matter, matterActive, [...lastSquares.missing, ...lastSquares.holes], depthNow())) || pieces;
         lastSquares = resolvePairedSquares(sel, replayLaws, replayPieces, lastSquares);
         setActiveMissingSquares(lastSquares.missing);
         if (setMissingSquares) setMissingSquares(lastSquares.missing);
@@ -4754,7 +4796,7 @@ export function renderSingularityOverlay(setupExtras) {
   // up when a change stops them fitting (not on the way in), away when
   // they fit; Begin Game brings it too (fit-alert.js).
   const sing = phase === PHASES.SPHERE && t && t.singularity && t.singularity.selections ? t.singularity : null;
-  const fitProblem = sing ? matterProblem(sing.selections) : null;
+  const fitProblem = sing ? matterProblem(sing.selections, sing.startCtl) : null;
   if (sing) {
     if (fitProblem && sing.fitWas === true) sing.fitAlert = true;
     if (!fitProblem) sing.fitAlert = false;
@@ -4842,6 +4884,10 @@ export function renderSingularityOverlay(setupExtras) {
       onWiden: (n) => { sing.selections.topologies.cols = n; rerollRandomPairedSquares(sing); sing.labelsDirty = true; sing.fitAlert = false; sing.bump(); },
       // (To MATTER, where the pieces are.)
       onTakeOut: () => { sing.fitAlert = false; sing.activeCategory = "matter"; sing.sphereMenuStage = "overlay"; sing.labelsDirty = true; sing.bump(); },
+      // Or anywhere in their half: MATTER's Anywhere In Your Half (placing
+      // by hand, they go where you put them), or placed by you.
+      onHalfStart: sing.startCtl && sing.startCtl.byHand ? null : () => { sing.selections.matter.halfStart = true; sing.labelsDirty = true; sing.fitAlert = false; sing.bump(); },
+      onPlaceInHalf: sing.startCtl ? () => { const c = sing.startCtl; if (!c.byHand) c.set(true); if (!c.half) c.toggleHalf(); sing.fitAlert = false; sing.bump(); } : null,
     })
   );
 }

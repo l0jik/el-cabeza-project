@@ -87,6 +87,25 @@ await page.waitForTimeout(300);
   await begin.click({ force: true }); // (aria-disabled, but a press still reaches it: that's the point)
   await page.waitForTimeout(300);
   check("...pressed: the pop-up, and no game", (await fitAlert.count()) === 1 && (await page.locator('[data-testid="lluvia-overlay"]').count()) === 1);
+  // Or anywhere in a side's half (user: "an option to allow pieces ...
+  // anywhere on your side of the board"; "1 & 2"): the city's way, or yours.
+  check("...they'd fit anywhere in a side's half: both ways offered", (await page.locator('[data-testid="lluvia-fit-alert-half-start"]').count()) === 1 && (await page.locator('[data-testid="lluvia-fit-alert-half-by-hand"]').count()) === 1);
+  await page.locator('[data-testid="lluvia-fit-alert-half-start"]').click();
+  await page.waitForTimeout(400);
+  check("...Start them anywhere in my half: gone, BEGIN THE GAME on", (await fitAlert.count()) === 0 && /BEGIN THE GAME/.test(await begin.textContent()) && (await begin.getAttribute("aria-disabled")) === null);
+  await page.locator('[data-testid="lluvia-open-topologies"]').click();
+  await page.waitForTimeout(300);
+  const halfFlag = page.locator('[data-testid="lluvia-topo-halfStart"]');
+  check("...on in TOPOLOGIES, under Randomized start", (await halfFlag.getAttribute("aria-pressed")) === "true"
+    && await page.evaluate(() => { const r = document.querySelector('[data-testid="lluvia-topo-random"]'); return !!r && r.nextElementSibling === document.querySelector('[data-testid="lluvia-topo-halfStart"]'); }));
+  await halfFlag.click();
+  await page.waitForTimeout(300);
+  check("...off again: they don't fit, and the pop-up's back", (await fitAlert.count()) === 1);
+  await page.locator('[data-testid="lluvia-fit-alert-close"]').click();
+  await page.locator('[data-testid="lluvia-panel-close"]').click();
+  await page.waitForTimeout(300);
+  await begin.click({ force: true });
+  await page.waitForTimeout(300);
   await page.locator('[data-testid="lluvia-fit-alert-take-out"]').click();
   await page.waitForTimeout(400);
   check("...'Take some pieces out': back in MATTER", (await fitAlert.count()) === 0 && (await page.locator('[data-testid="lluvia-panel-matter"]').count()) === 1);

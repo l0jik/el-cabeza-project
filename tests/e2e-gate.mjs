@@ -397,8 +397,8 @@ console.log("Cabeza Nova: Place pieces manually");
   await poll(async () => (await p.locator('[data-testid="gate-sheet"]').count()) > 0, 4000);
   const byHand = p.locator('[data-testid="gate-by-hand"]');
   await byHand.scrollIntoViewIfNeeded();
-  check("Place pieces manually in the menu, under Shuffled start, off at first", (await byHand.getAttribute("aria-checked")) === "false"
-    && await p.evaluate(() => { const r = document.querySelector('[data-testid="gate-random"]').closest(".rg-row"); return !!r.nextElementSibling && !!r.nextElementSibling.querySelector('[data-testid="gate-by-hand"]'); }));
+  check("Place pieces manually in the menu, under Shuffled start and Anywhere in your half, off at first", (await byHand.getAttribute("aria-checked")) === "false"
+    && await p.evaluate(() => { const r = document.querySelector('[data-testid="gate-random"]').closest(".rg-row"), h = r.nextElementSibling; return !!h && !!h.querySelector('[data-testid="gate-half-start"]') && !!h.nextElementSibling && !!h.nextElementSibling.querySelector('[data-testid="gate-by-hand"]'); }));
   check("...no Pieces in while it's off", (await p.locator('[data-testid="gate-by-hand-rows"]').count()) === 0);
   await byHand.click();
   check("on: Pieces in, the back 3 rows chosen", !!(await poll(async () => (await p.locator('[data-testid="gate-by-hand-rows"]').getAttribute("aria-pressed")) === "true", 3000)));
@@ -431,6 +431,47 @@ console.log("Cabeza Nova: Place pieces manually");
     check(`...Turn goes through all 12 ways it can stand, and back round (${new Set(seen).size})`, new Set(seen).size === 12 && seen[12] === seen[0] && seen.some((k) => /^1x4x2/.test(k)), seen.join(" | "));
   }
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
+// (User: "Should there also be an option to allow pieces on any side,
+// anywhere on your side of the board?"; of the two ways, "1 & 2": the
+// game setting them out anywhere in your half, or you placing them there.)
+console.log("Cabeza Nova: anywhere in your half");
+for (const way of ["game", "hand"]) {
+  const { p, ctx, errs } = await open("el-cabeza-cromo.html");
+  await p.addInitScript(() => { try { localStorage.removeItem("el-cabeza:start-position"); localStorage.removeItem("el-cabeza:set-out-half"); } catch (e) { /* none */ } });
+  await p.reload();
+  await gateOn(p);
+  await p.locator('[data-testid="gate-nova"]').click();
+  await poll(async () => (await p.locator('[data-testid="gate-sheet"]').count()) > 0, 4000);
+  await p.locator('[data-testid="gate-opponent-human"]').click();
+  const alert = p.locator('[data-testid="gate-fit-alert"]');
+  let opas = 0;
+  while (opas < 8 && !(await alert.count())) { await p.locator('[data-testid="gate-count-opa-plus"]').click(); opas++; }
+  check(`[${way}] ${opas + 1} Opas won't fit two home rows: the pop-up, with a way into your half`, !!(await poll(async () => (await alert.count()) === 1, 3000))
+    && (await p.locator('[data-testid="gate-fit-alert-half"]').count()) === 1 && (await p.locator('[data-testid="gate-fit-alert-half-start"]').count()) === 1 && (await p.locator('[data-testid="gate-fit-alert-half-by-hand"]').count()) === 1
+    && /anywhere in its half, up to the middle line/.test(await p.locator('[data-testid="gate-fit-alert-half-note"]').innerText()));
+  if (way === "game") {
+    await shot(p, "fit-alert-half");
+    await p.locator('[data-testid="gate-fit-alert-half-start"]').click();
+    const sw = p.locator('[data-testid="gate-half-start"]');
+    check("[game] Start them anywhere in my half: gone, the menu's switch on, Play on", !!(await poll(async () => (await alert.count()) === 0 && (await sw.getAttribute("aria-checked")) === "true" && (await p.locator('[data-testid="gate-play"]').getAttribute("aria-disabled")) === null, 3000)));
+    await p.locator('[data-testid="gate-play"]').click();
+    check("[game] Play: the game begins", !!(await poll(() => p.evaluate(() => window.__EC_TEST_ARMED__ === true), 8000)));
+    const laid = await p.evaluate(() => { const ps = window.__EC_TEST_PIECES__; const d = ps.filter((q) => q.owner === "dark"), l = ps.filter((q) => q.owner === "light"); return { n: d.length, deepest: Math.max(...d.map((q) => q.row + q.h)), lightTop: Math.min(...l.map((q) => q.row)) }; });
+    check(`[game] ...the ${laid.n} a side set out through each half, not over the middle (Dark to row ${laid.deepest}, Light from ${laid.lightTop})`, laid.n === opas + 5 && laid.deepest > 2 && laid.deepest <= 5 && laid.lightTop >= 5, JSON.stringify(laid));
+    check("[game] ...kept for next time", await p.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:nova-setup")).halfStart === true));
+  } else {
+    await p.locator('[data-testid="gate-fit-alert-half-by-hand"]').click();
+    check("[hand] Place them myself in my half: gone, Place pieces manually on, in My half", !!(await poll(async () => (await alert.count()) === 0
+      && (await p.locator('[data-testid="gate-by-hand"]').getAttribute("aria-checked")) === "true" && (await p.locator('[data-testid="gate-by-hand-half"]').getAttribute("aria-pressed")) === "true", 3000))
+      && (await p.locator('[data-testid="gate-half-start"]').getAttribute("aria-checked")) === "false");
+    await p.locator('[data-testid="gate-play"]').click();
+    check("[hand] Play: you set them out, in your half", !!(await poll(async () => (await p.locator('[data-testid="set-out-banner"]').count()) > 0, 20000))
+      && !!(await poll(() => p.evaluate((n) => { const s = window.__EC_TEST_SET_OUT__; return !!s && s.half === true && s.pieces.filter((q) => q.owner === s.side).length === n; }, opas + 5), 8000)), JSON.stringify(await p.evaluate(() => window.__EC_TEST_SET_OUT__ && { half: window.__EC_TEST_SET_OUT__.half, n: window.__EC_TEST_SET_OUT__.pieces.length })));
+  }
+  check(`[${way}] no page errors`, errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }
 

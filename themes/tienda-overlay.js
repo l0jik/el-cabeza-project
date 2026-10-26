@@ -23,7 +23,7 @@
    44 px tall, and scroll inside the sheet when a short screen needs it. */
 
 import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
-import { FitAlert, useFitAlert, fitProblemOf } from "./fit-alert.js";
+import { FitAlert, useFitAlert, fitProblemOf, fitSentence } from "./fit-alert.js";
 import { facesIn, facesReady, loadFaces } from "./faces.js";
 import React from "react";
 // (React's, each element's words in the player's language: chassis/i18n.js.)
@@ -33,7 +33,7 @@ import { t as inWords, tr, language } from "../chassis/i18n.js";
 import {
   PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, BIG_ARMY, BIG_ARMY_NOTE, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
   defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, beginCustomGame, boardLabel, clampDim,
-  pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf, holeSetsOf, setHoleSets, holeSetsText, HOLE_ANY_EXIT, holeAnyExitOn,
+  pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf, holeSetsOf, setHoleSets, holeSetsText, HOLE_ANY_EXIT, holeAnyExitOn, HALF_START,
 } from "./rules-selections.js";
 import { SquarePicker, OpponentSection, CarbonCopies, ORDER_PARTS_CSS } from "./tienda-order.js";
 import { ShopCorner, StorePA, useShoppingVisit } from "./tienda-shopping.js";
@@ -61,6 +61,7 @@ function classicSelections(sel) {
   PIECE_OPTIONS.forEach((p) => { if (!CLASSIC_PIECE_KEYS.includes(p.key)) n.counts[p.key] = 0; });
   Object.keys(n.laws || {}).forEach((k) => { n.laws[k] = false; });
   n.missing = false;
+  n.halfStart = false;
   n.rows = n.cols = DEFAULT_BOARD_DIM;
   return normalizeSelections(n);
 }
@@ -1673,8 +1674,9 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   const click = () => { audio && audio.playSelect && audio.playSelect(); };
   const total = totalPieces(sel), bigArmy = total > BIG_ARMY;
   // Too many pieces for the board: why, and the pop-up that says so
-  // (fit-alert.js; user: "there needs to be a pop-up").
-  const fitProblem = fitProblemOf(sel), fits = !fitProblem, need = fits ? null : fitProblem.need;
+  // (fit-alert.js; user: "there needs to be a pop-up"). Placed by hand,
+  // they need only fit where they may be placed.
+  const fitProblem = fitProblemOf(sel, { byHand: !!(x && x.startByHand), half: !!(x && x.ownHalf) }), fits = !fitProblem, need = fits ? null : fitProblem.need;
   const [fitOpen, openFit, hideFit] = useFitAlert(fits);
   const warnings = lawWarnings(sel);
   // Pivot on with no Codo, Rayo or Zeta: the warning flashes, then the
@@ -1825,8 +1827,11 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   );
   const sizeRow = h("div", { className: "td-sizes", role: "group", "aria-label": "Square boards" },
     QUICK_SIZES.map((n) => h("button", { key: n, type: "button", className: "td-size", "aria-pressed": sel.rows === n && sel.cols === n ? "true" : "false", "data-testid": `tienda-size-${n}`, onClick: () => { click(); change((s) => { s.rows = n; s.cols = n; refreshSpots(s); }); } }, `${n} × ${n}`)));
+  // (In the two home rows, the form's own words; deeper, the pop-up's.)
   const fitNote = !fits && h("div", { className: "td-fit", role: "alert", "data-testid": "tienda-fit-warning" },
-    h("span", null, need
+    h("span", null, fitProblem.band !== "home"
+      ? [fitSentence(fitProblem), " ", need ? inWords("They need a board at least {need} wide.", { need }) : tr("Take some out.")]
+      : need
       ? inWords(bandHasMarks(sel) ? "These pieces won't fit in two home rows {cols} squares wide round the squares marked there. They need a board at least {need} wide." : "These pieces won't fit in two home rows {cols} squares wide. They need a board at least {need} wide.", { cols: sel.cols, need })
       : inWords("These pieces won't fit in two home rows, even {max} squares wide. Take some out.", { max: MAX_BOARD_DIM })),
     need && need !== sel.cols && h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-fit-fix", onClick: () => setDim("cols", need) }, inWords("Make it {n} wide", { n: need })));
@@ -1970,6 +1975,10 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
             h("span", null, String(total))),
           bigArmy && h("div", { className: "td-form-note", "data-testid": "tienda-big-army" }, BIG_ARMY_NOTE),
           fitNote,
+          // Anywhere in your half (user: "an option to allow pieces ... anywhere
+          // on your side of the board"): where the game sets them out. Not on
+          // the classic page (its one board waits for the Singularity too).
+          !classic && check("half-start", !!sel.halfStart, HALF_START.name, HALF_START.note, () => change((s) => { s.halfStart = !s.halfStart; })),
           // Place pieces manually (user: "is set out by hand in every relevant
           // menu now?"): the setup's Starting position, as the dock and the
           // worlds' menus set it; Place order then sets your pieces out first.
@@ -1983,7 +1992,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
         !classic && sec("Rules", "check each one you want", lawRows),
         // The board's size (and cut squares) wait for the Singularity; the
         // classic page has the one 10 x 10 board and no Board section.
-        !classic && sec("Board", "any width and length; each side starts in its two home rows",
+        !classic && sec("Board", sel.halfStart ? "any width and length; each side starts anywhere in its half" : "any width and length; each side starts in its two home rows",
           boardRows,
           sizeRow,
           check("missing", !!sel.missing, "Missing squares", "Pairs of squares cut clean out of the board; nothing can stand on them or pass over them.", () => change((s) => { s.missing = !s.missing; if (s.missing) fillSpots(s, "missing"); })),
@@ -2027,6 +2036,10 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
     fitOpen && fitProblem && h(FitAlert, {
       problem: fitProblem, look: STORE_FIT_LOOK, testid: "tienda-fit-alert", onClose: hideFit,
       onWiden: (n) => setDim("cols", n),
+      // Or anywhere in their half: the game's (not on the classic page, nor
+      // placing by hand, where they go where you put them), or yours.
+      onHalfStart: classic || (x && x.startByHand) ? null : () => change((s) => { s.halfStart = true; }),
+      onPlaceInHalf: x && x.onStartByHand ? () => { click(); if (!x.startByHand) x.onStartByHand(true); if (!x.ownHalf) x.onToggleOwnHalf(); } : null,
       // (To the warning under Pieces, in view and flashed.)
       onTakeOut: () => { hideFit(); setTimeout(showFit, 60); },
     }),

@@ -281,6 +281,56 @@ import("../themes/rules-selections.js").then(async (m) => {
     check("a save from before keeps its one hole's place", old.holeSets === 1 && old.holeSpots.length === 1 && old.holeSpots[0].row === 3 && !("holeSpot" in old));
     check("two sets off with the law: the default selections again", m.isDefaultSelections({ ...m.defaultSelections(), holeSets: 2 }));
   }
+  {
+    // Anywhere in your half (user: "Should there also be an option to
+    // allow pieces on any side, anywhere on your side of the board?";
+    // of the two ways, "1 & 2"): the menus' switch, and placing by hand.
+    setBoardDimensions(10, 10);
+    const big = m.defaultSelections();
+    big.counts.opa = 6; big.counts.chato = 4;
+    check("a big army doesn't fit two home rows 10 wide", !m.piecesFit(big) && m.startDepth(big) === 2 && m.minColsFor(big) > 10);
+    check("...but it would in a side's half", m.piecesFit(big, 10, m.halfDepth(10)));
+    check("placed by hand, it must fit where they may be placed: the back three, or the half", m.startDepth(big, { byHand: true, half: false }) === 3 && m.startDepth(big, { byHand: true, half: true }) === 5);
+    big.halfStart = true;
+    check("Anywhere in your half: up to the middle, and they fit", m.startDepth(big) === 5 && m.piecesFit(big) && m.layoutDepth(big) === 5);
+    check("...placed by hand, where you place them (the back three here, so not)", m.startDepth(big, { byHand: true, half: false }) === 3 && !m.piecesFit(big, 10, 3));
+    check("...in the summary, said once (no Randomized start beside it)", /Start anywhere in each half/.test(JSON.stringify(m.variantsOf({ ...big, random: true }))) && !/Randomized start/.test(JSON.stringify(m.variantsOf({ ...big, random: true }))));
+    check("...kept through a save; an older save has it off", m.normalizeSelections(JSON.parse(JSON.stringify(big))).halfStart === true && m.normalizeSelections({ counts: {} }).halfStart === false && !m.isDefaultSelections({ ...m.defaultSelections(), halfStart: true }));
+    const x = { applyBoardResize: (r, c) => setBoardDimensions(r, c) };
+    let deep = 0, overMiddle = false, all = true;
+    for (let i = 0; i < 12; i++) {
+      const got = m.applySelections(big, x).pieces;
+      const dark = got.filter((p) => p.owner === "dark"), light = got.filter((p) => p.owner === "light");
+      if (dark.length !== 13 || light.length !== 13) all = false;
+      if (dark.some((p) => p.row + p.h > 2)) deep++;
+      if (dark.some((p) => p.row + p.h > 5) || light.some((p) => p.row < 5)) overMiddle = true;
+    }
+    check(`applied: all 13 a side, spread through each half (past the home rows ${deep}/12), never over the middle`, all && deep >= 10 && !overMiddle);
+    // The classic five, anywhere in the half: shuffled through it.
+    const five = { ...m.defaultSelections(), halfStart: true };
+    let fiveDeep = 0;
+    for (let i = 0; i < 12; i++) if (m.applySelections(five, x).pieces.some((p) => p.owner === "dark" && p.row + p.h > 3)) fiveDeep++;
+    check(`the classic five, anywhere in the half: past the standard opening's rows (${fiveDeep}/12)`, fiveDeep >= 6);
+    // Placed by hand in the half (no switch): laid out as deep as they must
+    // be, for the set-out to start from.
+    big.halfStart = false;
+    const byHand = { ...x, startByHand: true, ownHalf: true };
+    const laid = m.applySelections(big, byHand).pieces.filter((p) => p.owner === "dark");
+    check(`placed by hand in the half: the army laid out (${laid.length} a side) within ${m.layoutDepth(big, { byHand: true, half: true })} rows`, laid.length === 13 && laid.every((p) => p.row + p.h <= m.layoutDepth(big, { byHand: true, half: true })) && m.layoutDepth(big, { byHand: true, half: true }) > 2);
+    // (A live read of the chassis's choice wins over the one passed.)
+    check("the chassis's live choice is read first (startPlacement)", m.placeOf({ startByHand: false, startPlacement: () => ({ byHand: true, half: true }) }).byHand === true);
+    // The packer and the shuffle at a depth.
+    check("the packer at a depth: 6 Opas fill a 6-wide band four deep", !!packHomeBand([{ type: "opa", count: 6 }], 6, [], 4) && !packHomeBand([{ type: "opa", count: 6 }], 6, [], 2));
+    check("...and three rows hold what two can't (three 1×3 Blocks in one column)", !!packHomeBand([{ type: "block1x3", count: 3 }], 1, [], 3) && !packHomeBand([{ type: "block1x3", count: 3 }], 1, [], 2));
+    setBoardDimensions(6, 6);
+    const { canEndGame } = await import("../engine/ai.js");
+    const { setActiveLaws: setLaws, withFullTurn } = await import("../engine/constants.js");
+    setLaws({ threeActions: true, slide: true });
+    let ends = 0;
+    for (let i = 0; i < 12; i++) if (withFullTurn(() => canEndGame(generateAnomalySetup([{ type: "cabeza", count: 1 }, { type: "turrito", count: 2 }], [], { depth: 3 }), "dark"))) ends++;
+    check(`a 6-row board, 3 actions, the half: no shuffle lets a side win on its first move (${ends}/12)`, ends === 0);
+    setLaws({});
+  }
   setBoardDimensions(10, 10);
   console.log(failures ? `\n${failures} check(s) failed` : "\nall rules-selections checks passed");
   process.exit(failures ? 1 : 0);

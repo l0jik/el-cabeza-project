@@ -687,6 +687,9 @@ export default {
   "{n} moves": "{n} nước đi",
   "{what} volume": "Âm lượng: {what}",
   "off": "tắt",
+  "A Cabeza could reach the far row on the first move": "Một Cabeza có thể tới hàng cuối bên kia ngay nước đầu",
+  "Ringed in red: the Cabezas that could walk there.": "Khoanh đỏ: những Cabeza có thể đi tới đó.",
+  "Move yours back, or a piece into its way, then Begin.": "Hãy lùi Cabeza của bạn lại, hoặc đặt một quân chắn đường, rồi bấm Bắt đầu.",
 
   // The rules: the laws, the pieces, the cards and the setup menus' words
   "About": "Giới thiệu",
@@ -992,6 +995,9 @@ export default {
   "slides only": "chỉ khi trượt",
   ", only opponents": ", chỉ quân đối thủ",
   ", whole lines": ", cả hàng",
+  "Anywhere in your half": "Bất kỳ đâu trên nửa bàn của bạn",
+  "Each side's pieces start at random anywhere in its own half, up to the middle line, not only in its two home rows.": "Quân của mỗi bên bắt đầu ngẫu nhiên ở bất kỳ đâu trên nửa bàn của mình, tới đường giữa, không chỉ ở hai hàng nhà.",
+  "Start anywhere in each half": "Bắt đầu ở bất kỳ đâu trên mỗi nửa bàn",
 
   // The first game's walkthrough
   "Welcome to your first game of El Cabeza.": "Chào mừng bạn đến với ván El Cabeza đầu tiên.",
@@ -1495,6 +1501,7 @@ export default {
   "singularities": "điểm kỳ dị",
   "{piece}: drag to turn": "{piece}: kéo để xoay",
   "No. 4417 · Made in Argentina · © 1975": "Số 4417 · Sản xuất tại Argentina · © 1975",
+  "any width and length; each side starts anywhere in its half": "rộng dài tùy ý; mỗi bên bắt đầu ở bất kỳ đâu trên nửa bàn của mình",
 
   // The den: the TV, the phone, the thoughts
   "Finally…": "Cuối cùng…",
@@ -1670,6 +1677,15 @@ export default {
   "Width they need": "Độ rộng cần có",
   "Make the board {n} wide": "Mở rộng bàn cờ thành {n} ô",
   "Take some pieces out": "Bớt vài quân",
+  "{n} pieces a side won't fit in the back three rows, even {max} squares wide.": "{n} quân mỗi bên không vừa trong ba hàng cuối, kể cả rộng {max} ô.",
+  "{n} pieces a side won't fit in the back three rows {cols} squares wide round the squares marked there.": "{n} quân mỗi bên không vừa trong ba hàng cuối rộng {cols} ô quanh các ô đã đánh dấu ở đó.",
+  "{n} pieces a side won't fit in the back three rows {cols} squares wide.": "{n} quân mỗi bên không vừa trong ba hàng cuối rộng {cols} ô.",
+  "{n} pieces a side won't fit in half a board, even {max} squares wide.": "{n} quân mỗi bên không vừa trong nửa bàn cờ, kể cả rộng {max} ô.",
+  "{n} pieces a side won't fit in half a board {cols} squares wide round the squares marked there.": "{n} quân mỗi bên không vừa trong nửa bàn cờ rộng {cols} ô quanh các ô đã đánh dấu ở đó.",
+  "{n} pieces a side won't fit in half a board {cols} squares wide.": "{n} quân mỗi bên không vừa trong nửa bàn cờ rộng {cols} ô.",
+  "They'd fit if each side's pieces could start anywhere in its half, up to the middle line.": "Các quân sẽ vừa nếu quân mỗi bên được bắt đầu ở bất kỳ đâu trên nửa bàn của mình, tới đường giữa.",
+  "Start them anywhere in my half": "Cho quân bắt đầu ở bất kỳ đâu trên nửa bàn của tôi",
+  "Place them myself in my half": "Tự đặt quân trên nửa bàn của tôi",
 
   // Futuris: the sphere and its menus
   "MATTER": "VẬT CHẤT",
@@ -1855,6 +1871,8 @@ export default {
   "Custom rules ›": "Luật tùy chỉnh ›",
   "A random, rotationally-symmetric opening layout": "Thế mở đầu ngẫu nhiên có đối xứng xoay",
   "{what} count": "Số lượng: {what}",
+  "Anywhere In Your Half": "Bất kỳ đâu trên nửa bàn của bạn",
+  "These pieces won't fit on a board {cols} squares wide: they need one at least {need} wide (TOPOLOGY).": "Các quân này không vừa bàn cờ rộng {cols} ô: chúng cần bàn cờ rộng ít nhất {need} (TÔPÔ).",
 
   // The other worlds' own words (Lluvia, Luna, Noir, the City, Plano, Cromo, Parrish)
   "Glass pavilion": "Nhà kính",
@@ -2039,6 +2057,7 @@ export default {
   "We'll finish it some other time.": "Để hôm khác chơi tiếp.",
   "That's the game.": "Ván đấu kết thúc.",
   "Good one.": "Hay đấy.",
+  "WON'T FIT {cols} WIDE.": "KHÔNG VỪA RỘNG {cols}.",
 
   // The Theme Lab
   "Theme Lab": "Phòng thí nghiệm giao diện",

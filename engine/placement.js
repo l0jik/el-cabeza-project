@@ -18,7 +18,7 @@
 import { BOARD_ROWS, BOARD_COLS, MISSING_SQUARES, BLACK_HOLES, withFullTurn } from "./constants.js";
 import { piecesClash, groundCellsOf, maskAt, mirrorVox, parseVox, voxKey, allPosesOf, quarterTurnedPose } from "./shapes.js";
 import { PIECE_ORIENTATIONS } from "./anomaly.js";
-import { cabezaInDanger } from "./ai.js";
+import { cabezaInDanger, endingLine } from "./ai.js";
 
 // The back rows a side sets out in (the standard set's Opa stands in the
 // third), or with `half`, up to the middle (an odd middle row is nobody's).
@@ -63,9 +63,12 @@ function mirrored(so, mine) {
 
 // The set-out to start from: the pieces as they stand (the standard
 // opening, or the one a menu set up). The other side is made the setting
-// side's mirror, so it is one from the start.
+// side's mirror, so it is one from the start. Pieces laid out past the
+// back three rows (an army too big for them) open it in the half.
 export function startSetOut(pieces, side, half = false) {
-  return mirrored({ side, half, pieces: [], bench: [] }, pieces.filter((p) => p.owner === side));
+  const mine = pieces.filter((p) => p.owner === side);
+  const deep = !half && mine.some((p) => !fitsZone(p, side, false));
+  return mirrored({ side, half: half || deep, pieces: [], bench: [] }, mine);
 }
 
 // A piece's pose: its size and cubes, without where it stands.
@@ -268,11 +271,21 @@ export function setHalf(so, half) {
 
 /* Ready to begin: nothing waiting on the bench, and neither Cabeza where
    the other side could crush it with its first turn (the test the shuffle
-   uses; the set-out is a mirror, so one side's answer is the other's). */
+   uses; the set-out is a mirror, so one side's answer is the other's), nor
+   one that could walk to the far row in its first turn (set out up the
+   board, a Cabeza can be a turn's walk from it: reason "walk", `ids` the
+   Cabeza; the shuffle's own test for a deeper start, anomaly.js). */
 export function readiness(so) {
   if (so.bench.length) return { ok: false, reason: "bench" };
   for (const side of ["dark", "light"]) {
     if (so.pieces.some((p) => p.type === "cabeza" && p.owner === side) && withFullTurn(() => cabezaInDanger(so.pieces.map(copy), side))) return { ok: false, reason: "danger", side };
+  }
+  for (const side of ["dark", "light"]) {
+    const line = withFullTurn(() => endingLine(so.pieces.map(copy), side));
+    if (!line) continue;
+    const last = line[line.length - 1];
+    const walker = so.pieces.find((p) => p.id === last.id && p.type === "cabeza");
+    return walker ? { ok: false, reason: "walk", side, ids: [walker.id] } : { ok: false, reason: "danger", side };
   }
   return { ok: true, reason: null };
 }

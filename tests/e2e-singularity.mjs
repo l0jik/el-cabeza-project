@@ -548,6 +548,17 @@ let opas = 0;
 while (opas < 8 && !(await fitAlert.count())) { await page.locator('[data-testid="roster-opa-inc"]').click(); opas++; await page.waitForTimeout(80); }
 check(`...too many to fit (${opas} more Opas): a pop-up at once, saying so`, (await fitAlert.count()) === 1 && /won't fit in two home rows/i.test(await page.locator('[data-testid="singularity-fit-alert-text"]').textContent()));
 await page.screenshot({ path: "/tmp/futuris-singularity-fit-alert.png" });
+// Or anywhere in a side's half (user: "an option to allow pieces ...
+// anywhere on your side of the board"; "1 & 2"): MATTER's own, or yours.
+check("...they'd fit anywhere in a side's half: both ways offered", (await page.locator('[data-testid="singularity-fit-alert-half-start"]').count()) === 1 && (await page.locator('[data-testid="singularity-fit-alert-half-by-hand"]').count()) === 1);
+await page.locator('[data-testid="singularity-fit-alert-half-start"]').click();
+await page.waitForTimeout(300);
+const halfRow = page.locator('[data-testid="matter-half-start"]');
+check("...Start them anywhere in my half: gone, MATTER's Anywhere In Your Half checked, no warning", (await fitAlert.count()) === 0 && (await halfRow.getAttribute("data-checked")) === "true" && (await page.locator('[data-testid="matter-fit"]').count()) === 0
+  && (await sphereState()).selections.matter.halfStart === true);
+await halfRow.click();
+await page.waitForTimeout(300);
+check("...unchecked: they don't fit, and the pop-up's back", (await fitAlert.count()) === 1 && (await sphereState()).selections.matter.halfStart === false);
 await page.locator('[data-testid="singularity-fit-alert-close"]').click();
 await page.waitForTimeout(150);
 check("...its × puts it away, MATTER still open", (await fitAlert.count()) === 0 && (await sphereState()).activeCategory === "matter");

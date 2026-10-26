@@ -3250,7 +3250,10 @@ export function useSetupExtras({
   // Returns the placed pieces (React state is async, so callers that go
   // on to place Black Holes / Missing Squares must use this, not a stale
   // `pieces`). `blocked`: cells a randomized opening must leave empty.
-  function applyMatterRoster(matterSelections, randomize, blocked = []) {
+  // `depth`: rows from each side's edge the pieces are laid out in (two;
+  // through the half with MATTER's Anywhere In Your Half, or deeper for an
+  // army to be placed by hand: finalizeSingularityBegin works it out).
+  function applyMatterRoster(matterSelections, randomize, blocked = [], depth = 2) {
     const roster = buildRosterFromSelections(matterSelections);
     // Always (re)place a fresh opening. Only shuffle when actually asked to
     // (see finalizeSingularityBegin): a default roster with Randomized Start
@@ -3260,7 +3263,7 @@ export function useSetupExtras({
     // returning without touching the board — is what lets a persisted New
     // Game reset to a clean opening instead of inheriting the ended game's
     // final piece positions.
-    const placed = roster && randomize ? generateAnomalySetup(roster, blocked) : createInitialPieces();
+    const placed = roster && (randomize || depth > 2) ? generateAnomalySetup(roster, blocked, { depth }) : createInitialPieces();
     setPieces(placed);
     return placed;
   }

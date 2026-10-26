@@ -3248,6 +3248,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [ownHalf, setOwnHalf] = useState(loadOwnHalf);
   const toggleStartByHand = (on) => { setStartByHand(on); saveStartByHand(on); };
   const toggleOwnHalf = () => { const on = !ownHalf; setOwnHalf(on); saveOwnHalf(on); };
+  // Both as they are now, for a world's menus laying out an army to be
+  // placed by hand (rules-selections.js placeOf): a New Game replays a
+  // game's choices later, when these may have changed.
+  const startPlaceRef = useRef(null);
+  startPlaceRef.current = { byHand: startByHand, half: ownHalf };
+  const startPlacement = useCallback(() => startPlaceRef.current, []);
   const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({
     awaitingBegin, pieces, setPieces, audio: audioRef.current, three,
     aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
@@ -3255,7 +3261,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // first; and the choice itself, so those menus offer it too: the
     // store's order form, Lluvia's panels, Futuris's sphere.)
     busy, aiThinking, triggerBeginGame: beginOrSetOut,
-    startByHand, onStartByHand: toggleStartByHand, ownHalf, onToggleOwnHalf: toggleOwnHalf,
+    startByHand, onStartByHand: toggleStartByHand, ownHalf, onToggleOwnHalf: toggleOwnHalf, startPlacement,
     // Back to the setup, a game in play set aside (New Game's own reset;
     // the den's order paper, tienda-overlay.js).
     resetToSetup: () => handleReset(),
@@ -4122,8 +4128,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const r = setOutReadiness(s.so);
     if (!r.ok) {
       setOutCue("playBlocked");
+      // (A Cabeza that could walk to the far row: it, and its mirror.)
       const danger = r.reason === "danger"
         ? [...new Set(["dark", "light"].flatMap((side) => withFullTurn(() => cabezaThreats(s.so.pieces, side)).flatMap((x) => [x.cabeza, x.attacker])))]
+        : r.reason === "walk" ? r.ids.flatMap((id) => [id, id.replace(/^(dark|light)-/, (m, side) => `${side === "dark" ? "light" : "dark"}-`)])
         : null;
       commitSetOut({ ...s, chosen: r.reason === "bench" ? s.so.bench[0].id : null, note: { kind: r.reason }, danger });
       setSetOutAim(null);
@@ -12177,6 +12185,10 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
           title = "A Cabeza could be crushed on the first move";
           hint = "Ringed in red: the Cabeza and what can reach it. Move one of them, then Begin.";
           tone = "danger";
+        } else if (n && n.kind === "walk") {
+          title = "A Cabeza could reach the far row on the first move";
+          hint = "Ringed in red: the Cabezas that could walk there. Move yours back, or a piece into its way, then Begin.";
+          tone = "danger";
         } else if (n && n.kind === "bench") {
           title = t("Your {piece} is still on the bench", { piece: named(s.chosen) });
           hint = "Begin waits until every piece is on the board: tap a dot to set it there, or drag it on.";
@@ -15233,7 +15245,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             // set-out first; the sheet's own switch for it sets the same.)
             three, setPieces, setBlackHoles, setMissingSquares, setCurrentVariants, applyBoardResize, triggerBeginGame: beginOrSetOut,
             aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking,
-            startByHand, onStartByHand: toggleStartByHand, ownHalf, onToggleOwnHalf: toggleOwnHalf,
+            startByHand, onStartByHand: toggleStartByHand, ownHalf, onToggleOwnHalf: toggleOwnHalf, startPlacement,
           }}
         />
       )}

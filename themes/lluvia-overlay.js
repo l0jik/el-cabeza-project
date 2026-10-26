@@ -27,7 +27,7 @@ import React from "react";
 import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
 // (Words in the player's language: chassis/i18n.js.)
 import { t as inWords, tr } from "../chassis/i18n.js";
-import { PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, SIZES, BIG_ARMY, BIG_ARMY_NOTE, piecesFit, minColsFor, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, holeSetsOf, setHoleSets, holeSetsText, HOLE_ANY_EXIT } from "./rules-selections.js";
+import { PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, SIZES, BIG_ARMY, BIG_ARMY_NOTE, piecesFit, minColsFor, startDepth, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, holeSetsOf, setHoleSets, holeSetsText, HOLE_ANY_EXIT, HALF_START } from "./rules-selections.js";
 import { SHOVE_SETTINGS, shoveOf } from "../chassis/shove-settings.js";
 import { LLUVIA } from "./lluvia-city.js";
 import { bus } from "./lluvia-bus.js";
@@ -72,6 +72,8 @@ const termButton = (extra) => ({ height: 38, background: "rgba(255,179,71,0.08)"
 
 function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = null }) {
   const total = totalOf(sel);
+  // Where they must fit: the start's rows (placed by hand, where they may be placed).
+  const depth = startDepth(sel, start && { byHand: start.on, half: start.half });
   // Pivot on with no Codo, Rayo or Zeta: the warning flashes, then over to
   // MATTER, where the three flash (pivot-guide.js).
   const pivotHush = useGuideHush();
@@ -91,7 +93,7 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = 
   if (panel === "matter") {
     body = [
       h("div", { key: "t", style: { display: "flex", justifyContent: "space-between", fontSize: 18, padding: "4px 0 8px", color: "#a8783a" } },
-        h("span", null, "PIECES PER SIDE"), h("span", { "data-testid": "lluvia-matter-total", style: { color: piecesFit(sel) ? "#fff27a" : "#ff5a5a" } }, String(total))),
+        h("span", null, "PIECES PER SIDE"), h("span", { "data-testid": "lluvia-matter-total", style: { color: piecesFit(sel, sel.cols, depth) ? "#fff27a" : "#ff5a5a" } }, String(total))),
       ...PIECES.map(([k, name, sign, min, max]) => {
         const n = sel.counts[k];
         const set = (v) => { sound("key"); change((s) => { s.counts[k] = Math.max(min, Math.min(max, v)); }); };
@@ -106,9 +108,10 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = 
           h("button", { type: "button", "aria-label": inWords("More {piece}", { piece: name }), "data-testid": `lluvia-matter-${k}-inc`, onClick: () => set(n + 1), style: termButton() }, "+"));
       }),
       // As many as fit in two home rows (the board's width is in
-      // TOPOLOGIES), and the note once it's a big army.
-      !piecesFit(sel) && h("div", { key: "fit", "data-testid": "lluvia-fit", style: { padding: "10px 0 2px", fontSize: 18, lineHeight: 1.25, color: "#ff5a5a" } },
-        minColsFor(sel) ? inWords("WON'T FIT IN TWO HOME ROWS {cols} WIDE. NEEDS {need}: WIDEN IT IN TOPOLOGIES.", { cols: sel.cols, need: minColsFor(sel) }) : "WON'T FIT ON ANY BOARD. TAKE SOME OUT."),
+      // TOPOLOGIES; and deeper with Anywhere in your half, or placed by
+      // hand), and the note once it's a big army.
+      !piecesFit(sel, sel.cols, depth) && h("div", { key: "fit", "data-testid": "lluvia-fit", style: { padding: "10px 0 2px", fontSize: 18, lineHeight: 1.25, color: "#ff5a5a" } },
+        minColsFor(sel, depth) ? inWords(depth > 2 ? "WON'T FIT {cols} WIDE. NEEDS {need}: WIDEN IT IN TOPOLOGIES." : "WON'T FIT IN TWO HOME ROWS {cols} WIDE. NEEDS {need}: WIDEN IT IN TOPOLOGIES.", { cols: sel.cols, need: minColsFor(sel, depth) }) : "WON'T FIT ON ANY BOARD. TAKE SOME OUT."),
       total > BIG_ARMY && h("div", { key: "big", "data-testid": "lluvia-big-army", style: { padding: "10px 0 2px", fontSize: 17, lineHeight: 1.25, color: "#a8783a" } }, BIG_ARMY_NOTE),
     ];
   } else if (panel === "laws") {
@@ -194,6 +197,9 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = 
         h("span", { "data-testid": "lluvia-hole-explain", style: { flexBasis: "100%", maxWidth: "62ch", fontSize: 17, lineHeight: 1.2, color: "#c8955a" } }, holeSetsText(sel)))] : []),
       ...(sel.laws.blackHoleSquares && holeSetsOf(sel) === 2 ? [h("div", { key: "holeany", style: { paddingLeft: 14 } }, flag("holeAnyExit", HOLE_ANY_EXIT.name))] : []),
       flag("random", "Randomized start"),
+      // Anywhere in your half (user: "an option to allow pieces ... anywhere
+      // on your side of the board"): where the game sets them out.
+      flag("halfStart", HALF_START.name),
       // Place pieces manually (user: "is set out by hand in every relevant menu
       // now?"): the setup's Starting position, not the order's, so it
       // flips the chassis's own choice, as the dock's Start does.
@@ -245,8 +251,9 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose,
   const [leaving, setLeaving] = React.useState(false);
   const [sel, setSel] = React.useState(() => clone(initialSel));
   // Too many pieces for the board: the pop-up that says so (fit-alert.js;
-  // user: "there needs to be a pop-up").
-  const fitProblem = fitProblemOf(sel);
+  // user: "there needs to be a pop-up"). Placed by hand, they need only
+  // fit where they may be placed.
+  const fitProblem = fitProblemOf(sel, { byHand: !!x.startByHand, half: !!x.ownHalf });
   const [fitOpen, openFit, hideFit] = useFitAlert(!fitProblem);
   const soundStarted = React.useRef(start !== "city");
 
@@ -357,6 +364,10 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose,
     onWiden: (n) => { sound("key"); change((s) => { s.cols = n; }); },
     // (To MATTER, where the pieces are.)
     onTakeOut: () => { hideFit(); if (panel !== "matter") openPanel("matter"); },
+    // Or anywhere in their half: the city's (placing by hand, they go
+    // where you put them), or yours.
+    onHalfStart: x.startByHand ? null : () => { sound("key"); change((s) => { s.halfStart = true; }); },
+    onPlaceInHalf: x.onStartByHand ? () => { sound("key"); if (!x.startByHand) x.onStartByHand(true); if (!x.ownHalf) x.onToggleOwnHalf(); } : null,
   }));
 }
 // The too-many-pieces pop-up as the city's terminals draw things.

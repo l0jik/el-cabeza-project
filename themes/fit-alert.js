@@ -13,29 +13,67 @@
    answers. It says how wide the board is and how wide the pieces need it,
    offers to make it so, or to take some out. Each menu draws it in its own
    look (`look`). It goes on the page itself (a portal): some menus sit in
-   moved or scaled boxes. */
+   moved or scaled boxes.
+
+   When they'd fit if a side's pieces could start anywhere in its half
+   (user: "Should there also be an option to allow pieces on any side,
+   anywhere on your side of the board?"; of the two ways offered, "1 & 2"),
+   it offers that too: the game setting them out there (the menus' Anywhere
+   in your half), or placing them there yourself (Place pieces manually,
+   My half). */
 import React from "react";
 import { createPortal } from "react-dom";
 // (React's, each element's words in the player's language: chassis/i18n.js.)
 import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
 // (Words in the player's language: chassis/i18n.js.)
 import { t as inWords } from "../chassis/i18n.js";
-import { piecesFit, minColsFor, totalPieces, missingCellsOf, holeCellsOf, MAX_BOARD_DIM } from "./rules-selections.js";
+import { piecesFit, minColsFor, totalPieces, missingCellsOf, holeCellsOf, MAX_BOARD_DIM, startDepth, halfDepth, bandOf } from "./rules-selections.js";
 
 const h = createElement;
 
 /* What's wrong with a menu's choices (rules-selections.js's), or null when
    the pieces fit: { total (a side), cols (the board's width now), need
    (the narrowest board they fit, or null: none), max, marked (squares
-   marked in a side's two home rows) }. Futuris's sphere, whose choices
-   are its own, makes the same object itself. */
-export function fitProblemOf(sel) {
-  if (piecesFit(sel)) return null;
+   marked in a side's start rows), band (where they must fit: "home", the
+   two home rows; "back", the back three, placed by hand; "half"), inHalf
+   (they'd fit anywhere in a side's half on this board) }. `place`: the
+   chassis's Place pieces manually, { byHand, half }. Futuris's sphere,
+   whose choices are its own, makes the same object itself. */
+export function fitProblemOf(sel, place = null) {
+  const depth = startDepth(sel, place);
+  if (piecesFit(sel, sel.cols, depth)) return null;
+  const band = bandOf(depth, sel.rows);
   return {
-    total: totalPieces(sel), cols: sel.cols, need: minColsFor(sel), max: MAX_BOARD_DIM,
-    marked: [...missingCellsOf(sel), ...holeCellsOf(sel)].some((c) => c.row < 2 || c.row >= sel.rows - 2),
+    total: totalPieces(sel), cols: sel.cols, need: minColsFor(sel, depth), max: MAX_BOARD_DIM,
+    marked: [...missingCellsOf(sel), ...holeCellsOf(sel)].some((c) => c.row < depth || c.row >= sel.rows - depth),
+    band, inHalf: band !== "half" && piecesFit(sel, sel.cols, halfDepth(sel.rows)),
   };
 }
+
+// What it says, by where the pieces must fit (whole sentences: they're
+// looked up whole in the language tables). fitSentence: the one for a
+// problem, in the player's language (a menu's own line may use it too).
+export const fitSentence = (problem) => {
+  const says = SAYS[problem.band] || SAYS.home;
+  return problem.need == null ? inWords(says.none, { n: problem.total, max: problem.max }) : inWords(problem.marked ? says.marked : says.plain, { n: problem.total, cols: problem.cols });
+};
+const SAYS = {
+  home: {
+    none: "{n} pieces a side won't fit in two home rows, even {max} squares wide.",
+    marked: "{n} pieces a side won't fit in two home rows {cols} squares wide round the squares marked there.",
+    plain: "{n} pieces a side won't fit in two home rows {cols} squares wide.",
+  },
+  back: {
+    none: "{n} pieces a side won't fit in the back three rows, even {max} squares wide.",
+    marked: "{n} pieces a side won't fit in the back three rows {cols} squares wide round the squares marked there.",
+    plain: "{n} pieces a side won't fit in the back three rows {cols} squares wide.",
+  },
+  half: {
+    none: "{n} pieces a side won't fit in half a board, even {max} squares wide.",
+    marked: "{n} pieces a side won't fit in half a board {cols} squares wide round the squares marked there.",
+    plain: "{n} pieces a side won't fit in half a board {cols} squares wide.",
+  },
+};
 
 /* For a React menu: open when a change stops the pieces fitting (not when
    the menu opens with them already not fitting), shut when they fit
@@ -68,6 +106,7 @@ const CSS = `
 .ec-fit-btns { display: flex; flex-direction: column; gap: 8px; }
 .ec-fit-btn { appearance: none; min-height: 48px; padding: 8px 16px; cursor: pointer; font-size: 16px; line-height: 1.15; }
 .ec-fit-btn:focus-visible, .ec-fit-x:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.ec-fit-half { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; }
 @keyframes ecFitIn { from { opacity: 0; } }
 @keyframes ecFitPop { from { opacity: 0; transform: translateY(10px) scale(0.96); } }
 @keyframes ecFitNudge { 0%, 100% { transform: none; } 30% { transform: rotate(-9deg) scale(1.08); } 70% { transform: rotate(9deg) scale(1.08); } }
@@ -90,8 +129,13 @@ const PLAIN = {
 
 /* The pop-up. `problem`: fitProblemOf's. onWiden(n): make the board n wide.
    onTakeOut(): to the pieces (the menu scrolls or opens its panel; the
-   pop-up shuts). onClose(): shut it. */
-export function FitAlert({ problem, look = null, onWiden = null, onTakeOut, onClose, testid = "fit-alert" }) {
+   pop-up shuts). onClose(): shut it. When they'd fit in a side's half:
+   onHalfStart(), the menu's Anywhere in your half on (null where it's not
+   to be had: the store's classic page; placing by hand, which goes where
+   you put them), and onPlaceInHalf(), Place pieces manually on, in My
+   half (null where the menu hasn't it). Either makes them fit, and the
+   pop-up goes. */
+export function FitAlert({ problem, look = null, onWiden = null, onTakeOut, onClose, onHalfStart = null, onPlaceInHalf = null, testid = "fit-alert" }) {
   ensureCss();
   const L = { ...PLAIN, ...(look || {}) };
   const first = React.useRef(null);
@@ -112,9 +156,9 @@ export function FitAlert({ problem, look = null, onWiden = null, onTakeOut, onCl
   if (!problem || typeof document === "undefined") return null;
   const { total, cols, need, max, marked } = problem;
   const widen = !!onWiden && need != null && need > cols;
-  const text = need == null
-    ? inWords("{n} pieces a side won't fit in two home rows, even {max} squares wide.", { n: total, max })
-    : inWords(marked ? "{n} pieces a side won't fit in two home rows {cols} squares wide round the squares marked there." : "{n} pieces a side won't fit in two home rows {cols} squares wide.", { n: total, cols });
+  // (Their half: only where the menu can do it.)
+  const half = !!problem.inHalf && !!(onHalfStart || onPlaceInHalf);
+  const text = fitSentence(problem);
   const display = { fontFamily: L.display, fontWeight: L.displayWeight, textTransform: L.caps, letterSpacing: L.track };
   const btn = (primary) => ({
     ...display, borderRadius: L.radius, border: `${L.lineW} solid ${primary ? L.accent : L.line}`,
@@ -150,7 +194,15 @@ export function FitAlert({ problem, look = null, onWiden = null, onTakeOut, onCl
       h("div", { className: "ec-fit-btns" },
         widen && h("button", { type: "button", ref: first, className: "ec-fit-btn", "data-testid": `${testid}-widen`, style: btn(true), onClick: () => onWiden(need) },
           inWords("Make the board {n} wide", { n: need })),
-        h("button", { type: "button", ref: widen ? null : first, className: "ec-fit-btn", "data-testid": `${testid}-take-out`, style: btn(!widen), onClick: onTakeOut },
-          "Take some pieces out"))),
+        h("button", { type: "button", ref: widen || half ? null : first, className: "ec-fit-btn", "data-testid": `${testid}-take-out`, style: btn(!widen && !half), onClick: onTakeOut },
+          "Take some pieces out")),
+      // Or more room for them: anywhere in a side's half, up to the middle.
+      half && h("div", { className: "ec-fit-half", "data-testid": `${testid}-half`, style: { borderTop: `${L.lineW} dashed ${L.line}` } },
+        h("p", { className: "ec-fit-text", "data-testid": `${testid}-half-note` }, "They'd fit if each side's pieces could start anywhere in its half, up to the middle line."),
+        h("div", { className: "ec-fit-btns" },
+          onHalfStart && h("button", { type: "button", ref: widen ? null : first, className: "ec-fit-btn", "data-testid": `${testid}-half-start`, style: btn(!widen), onClick: onHalfStart },
+            "Start them anywhere in my half"),
+          onPlaceInHalf && h("button", { type: "button", ref: widen || onHalfStart ? null : first, className: "ec-fit-btn", "data-testid": `${testid}-half-by-hand`, style: btn(!widen && !onHalfStart), onClick: onPlaceInHalf },
+            "Place them myself in my half")))),
   ), document.body);
 }

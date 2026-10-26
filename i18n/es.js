@@ -680,6 +680,9 @@ export default {
   "AI ({level})": "IA ({level})",
   "{what} volume": "Volumen: {what}",
   "off": "apagado",
+  "A Cabeza could reach the far row on the first move": "Una Cabeza podría llegar a la última fila en la primera jugada",
+  "Ringed in red: the Cabezas that could walk there.": "Marcadas en rojo: las Cabezas que podrían llegar caminando.",
+  "Move yours back, or a piece into its way, then Begin.": "Mové la tuya hacia atrás, o poné una pieza en su camino, y después tocá Empezar.",
 
   // The rules: the laws, the pieces, the cards and the setup menus' words
   "About": "Acerca de",
@@ -985,6 +988,9 @@ export default {
   "slides only": "solo deslizamientos",
   ", only opponents": ", solo al rival",
   ", whole lines": ", filas enteras",
+  "Anywhere in your half": "En cualquier lugar de tu mitad",
+  "Each side's pieces start at random anywhere in its own half, up to the middle line, not only in its two home rows.": "Las piezas de cada bando empiezan al azar en cualquier lugar de su propia mitad, hasta la línea del medio, no solo en sus dos filas de inicio.",
+  "Start anywhere in each half": "Inicio en cualquier lugar de cada mitad",
 
   // The first game's walkthrough
   "Welcome to your first game of El Cabeza.": "Te damos la bienvenida a tu primera partida de El Cabeza.",
@@ -1484,6 +1490,7 @@ export default {
   "singularities": "singularidades",
   "{piece}: drag to turn": "{piece}: arrastrá para girar",
   "No. 4417 · Made in Argentina · © 1975": "Nro. 4417 · Hecho en la Argentina · © 1975",
+  "any width and length; each side starts anywhere in its half": "cualquier ancho y largo; cada bando empieza en cualquier lugar de su mitad",
 
   // The den: the TV, the phone, the thoughts
   "Finally…": "Por fin…",
@@ -1658,6 +1665,15 @@ export default {
   "Width they need": "Ancho que necesitan",
   "Make the board {n} wide": "Ensanchar el tablero a {n}",
   "Take some pieces out": "Sacar algunas piezas",
+  "{n} pieces a side won't fit in the back three rows, even {max} squares wide.": "{n} piezas por bando no entran en las tres filas del fondo, ni siquiera de {max} casillas de ancho.",
+  "{n} pieces a side won't fit in the back three rows {cols} squares wide round the squares marked there.": "{n} piezas por bando no entran en las tres filas del fondo de {cols} casillas de ancho alrededor de las casillas marcadas ahí.",
+  "{n} pieces a side won't fit in the back three rows {cols} squares wide.": "{n} piezas por bando no entran en las tres filas del fondo de {cols} casillas de ancho.",
+  "{n} pieces a side won't fit in half a board, even {max} squares wide.": "{n} piezas por bando no entran en medio tablero, ni siquiera de {max} casillas de ancho.",
+  "{n} pieces a side won't fit in half a board {cols} squares wide round the squares marked there.": "{n} piezas por bando no entran en medio tablero de {cols} casillas de ancho alrededor de las casillas marcadas ahí.",
+  "{n} pieces a side won't fit in half a board {cols} squares wide.": "{n} piezas por bando no entran en medio tablero de {cols} casillas de ancho.",
+  "They'd fit if each side's pieces could start anywhere in its half, up to the middle line.": "Entrarían si las piezas de cada bando pudieran empezar en cualquier lugar de su mitad, hasta la línea del medio.",
+  "Start them anywhere in my half": "Que empiecen en cualquier lugar de mi mitad",
+  "Place them myself in my half": "Ubicarlas yo en mi mitad",
 
   // Futuris: the sphere and its menus
   "MATTER": "MATERIA",
@@ -1844,6 +1860,8 @@ export default {
   "Custom rules ›": "Reglas a medida ›",
   "A random, rotationally-symmetric opening layout": "Una disposición inicial al azar con simetría rotacional",
   "{what} count": "Cantidad: {what}",
+  "Anywhere In Your Half": "En cualquier lugar de tu mitad",
+  "These pieces won't fit on a board {cols} squares wide: they need one at least {need} wide (TOPOLOGY).": "Estas piezas no entran en un tablero de {cols} casillas de ancho: necesitan uno de al menos {need} de ancho (TOPOLOGÍA).",
 
   // The other worlds' own words (Lluvia, Luna, Noir, the City, Plano, Cromo, Parrish)
   "Glass pavilion": "Pabellón de vidrio",
@@ -2027,6 +2045,7 @@ export default {
   "We'll finish it some other time.": "La terminamos otro día.",
   "That's the game.": "Ahí termina la partida.",
   "Good one.": "Buena esa.",
+  "WON'T FIT {cols} WIDE.": "NO ENTRA CON {cols} DE ANCHO.",
 
   // The Theme Lab
   "Theme Lab": "Laboratorio de temas",

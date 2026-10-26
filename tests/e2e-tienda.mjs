@@ -269,6 +269,17 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await press('[data-testid="tienda-fit-link"]');
   await page.waitForTimeout(300);
   check("...which brings the pop-up too", (await fitAlert.count()) === 1);
+  // Or anywhere in a side's half (user: "an option to allow pieces ...
+  // anywhere on your side of the board"; "1 & 2"): the game's, or yours.
+  check("...they'd fit anywhere in a side's half: both ways offered", (await page.locator('[data-testid="tienda-fit-alert-half-start"]').count()) === 1 && (await page.locator('[data-testid="tienda-fit-alert-half-by-hand"]').count()) === 1);
+  await press('[data-testid="tienda-fit-alert-half-start"]');
+  await page.waitForTimeout(400);
+  const halfBox = page.locator('[data-testid="tienda-half-start-input"]');
+  check("...Start them anywhere in my half: gone, the form's box marked, the order on", (await fitAlert.count()) === 0 && (await halfBox.isChecked()) && (await warn.count()) === 0 && (await placeBtn.getAttribute("aria-disabled")) === null);
+  await page.locator('[data-testid="tienda-half-start"]').scrollIntoViewIfNeeded();
+  await press('[data-testid="tienda-half-start"]');
+  await page.waitForTimeout(400);
+  check("...the box cleared: they don't fit again, and the pop-up's back", !(await halfBox.isChecked()) && (await fitAlert.count()) === 1);
   await press('[data-testid="tienda-fit-alert-widen"]');
   await page.waitForTimeout(300);
   const width = +(await page.locator('[data-testid="tienda-cols-value"]').innerText());
