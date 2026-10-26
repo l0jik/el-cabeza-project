@@ -1563,11 +1563,13 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       const hit = (kind, strength) => { lureEvents++; lastHaunt = kind; if (audio && audio.tvHaunt) audio.tvHaunt(kind, strength); };
       if (!e.tug1 && s >= TUG.tug1) { e.tug1 = true; if (set) set.jolt(now, "thump", 1); hit("tug", 0.7); if (debris) debris.rustle(now); }
       if (!e.think && s >= TUG.think) { e.think = true; if (doc) thinkCard = dealCard(doc, { testid: "den-tug-think", l1: TUG_THINK }); }
-      if (!e.tug2 && s >= TUG.tug2) { e.tug2 = true; if (set) set.jolt(now, "surge", 1, 900); hit("tug", 1); if (debris) { debris.launch(now, "tug2"); debris.rustle(now); } }
+      // (The things in the room go by the tug's own clock, from when each
+      // wave was due, however late the frame that noticed it.)
+      if (!e.tug2 && s >= TUG.tug2) { e.tug2 = true; if (set) set.jolt(now, "surge", 1, 900); hit("tug", 1); if (debris) { debris.launch(tug.t0 + TUG.tug2, "tug2"); debris.rustle(now); } }
       // (The second tug cuts the thought short.)
       if (thinkCard && s >= TUG.tug2 + 350) { thinkCard.remove(500); thinkCard = null; }
       if (!e.uhoh && s >= TUG.uhoh) { e.uhoh = true; if (doc) uhohCard = dealCard(doc, { testid: "den-uhoh", l1: TUG_UHOH }); }
-      if (!e.drag && s >= TUG.drag) { e.drag = true; if (set) set.jolt(now, "surge", 1.2, TUG.rush - TUG.drag + 200); hit("drag", 1); if (debris) debris.launch(now, "drag"); }
+      if (!e.drag && s >= TUG.drag) { e.drag = true; if (set) set.jolt(now, "surge", 1.2, TUG.rush - TUG.drag + 200); hit("drag", 1); if (debris) debris.launch(tug.t0 + TUG.drag, "drag"); }
       // His shout's preverb, swelling up through the end of the drag into
       // the shout as the rush takes hold (cueShout).
       const cueAt = TUG.rush + PULL_YELL_AT - YELL_AHEAD * 1000;

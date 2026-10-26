@@ -425,6 +425,12 @@ in; leaving Singularity, back in the den as the set switches off.
   it out as stereo.sleeve), the newspaper on the pit floor and the
   "Moonlight Lounge" sleeve on the floor by the console go in, the view
   dragged to 42% of the way, catching twice (u 0.36, 0.7), shaking harder
+  (the things go by the tug's clock: each wave from when it was due,
+  tug.t0 + TUG.tug2 / TUG.drag, each thing off when it was due, not when
+  a frame noticed; on a slowed machine the frames' lateness had added up
+  and the floor's sleeve, due in at 9200, was still flying at the rush:
+  CI shard 1 on 57e5c25, reproduced at 6x CPU throttling, in at 9219
+  after)
   (audio "drag": a rising rumble and throb, scrapes; the music dragged
   down, den-audio.js musicGlitch); 9500 startPull(now, { keepHead }), the
   rush taking the camera from there (what's left of the lurch eases off

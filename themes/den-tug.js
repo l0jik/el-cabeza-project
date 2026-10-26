@@ -236,7 +236,12 @@ export function createTugDebris(den) {
         tilt.setFromAxisAngle(it.axis, 0.32 * Math.sin(Math.PI * clamp01(k * 1.3)) * Math.exp(-2 * k));
         it.mesh.quaternion.copy(it.q0).premultiply(tilt);
         if (k >= 1) settle(it);
-      } else if (it.phase === "waiting" && now >= it.t0) takeOff(it, now);
+      } else if (it.phase === "waiting" && now >= it.t0) {
+        // (Off when it was due, not when a frame came: on a slow machine
+        // the frames' lateness added up, and the floor's sleeve was still
+        // flying as the rush began.)
+        takeOff(it, it.t0);
+      }
       if (it.phase !== "flying") return;
       const k = clamp01((now - it.t0) / it.flight), e = Math.pow(k, 1.7), u = 1 - e;
       // (Cubic: from where it lay, up and round, in at the glass.)
