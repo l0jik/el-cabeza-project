@@ -111,7 +111,11 @@ function noteHeld() {
    little shake instead, and its "Let's play" calls once it's free. Until
    then, a tap on it shakes it too, with no flash of the browser's blue
    (user: "I want it to shake no matter where you tap until the play a
-   game is circled at the bottom"). */
+   game is circled at the bottom"); and after, only "Let's play!" in its
+   red pen loop puts it away, a tap anywhere else on it a shake too
+   (user: "After it's circled, a tap on the flyer shouldn't do anything.
+   It should still shake it. They have to actually press where Let's Play
+   is circled."). */
 const TRY_IT_HOLD_MS = 5000;
 const TRY_IT_CSS = `
   /* Printed as the period's Sunday circulars were (user: "what glossy
@@ -132,7 +136,7 @@ const TRY_IT_CSS = `
   /* (On a screen too short for it, the whole sheet a little smaller:
      --fit, from its height.) */
   .td-tryit { position: fixed; left: 50%; top: 50%; z-index: 1260; width: min(92vw, 400px);
-    transform: translate(-50%, -50%) rotate(-1.2deg) scale(var(--fit, 1)); cursor: pointer; text-align: left;
+    transform: translate(-50%, -50%) rotate(-1.2deg) scale(var(--fit, 1)); cursor: default; text-align: left;
     filter: drop-shadow(0 1px 1px rgba(10,6,3,0.4)) drop-shadow(0 9px 14px rgba(10,6,3,0.32));
     animation: tdTryIn 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
   /* (No blue from the browser on a tap, user: "When you tap on the flyer,
@@ -215,6 +219,12 @@ const TRY_IT_CSS = `
     animation: tdTryGo 0.3s ease ${TRY_IT_HOLD_MS}ms both; }
   .td-tryit .go .pen { position: absolute; overflow: visible; pointer-events: none; }
   .td-tryit .go .pen path { fill: none; stroke: #C8281E; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; mix-blend-mode: multiply; }
+  /* The one place a press puts it away, the loop and a little round it
+     (.hit: the loop runs 14-19 px out either side, 9-12.5 above and
+     below; user: "They have to actually press where Let's Play is
+     circled"). */
+  .td-tryit .go { cursor: pointer; }
+  .td-tryit .go .hit { position: absolute; inset: -16px -24px; }
   .td-tryit.off { transition: opacity 0.35s ease, transform 0.35s ease; opacity: 0; transform: translate(-50%, -46%) rotate(-1.2deg) scale(var(--fit, 1)); pointer-events: none; }
   /* Up until it's tapped: a tap beside it lands on the veil (the store
      behind stays put) and the flyer shakes; its "Let's play" calls. */
@@ -344,7 +354,7 @@ const FLYER_HTML = '<span class="sv"></span>'
   + '<p class="fine">Prices good thru Sat., Dec. 13, 1975. Quantities limited. Limit rights reserved. No\u00a0sales\u00a0to\u00a0dealers.</p>'
   + '<div class="policy"><b>Our advertised merchandise policy:</b> we mean to have every advertised item on our shelves. If one sells out, ask for a Rain Check and buy it at the sale price when it arrives.</div>'
   + '<div class="charge">Charge it! Big Glutts Charge • BankAmericorp$\u00a0•\u00a0Disaster\u00a0Charge</div>'
-  + '<span class="go">Let’s play! ›</span>';
+  + '<span class="go">Let’s play! ›<span class="hit"></span></span>';
 const IDLE_NUDGE_MS = 30000;
 const NUDGE_GROW_MS = 90000;
 const NUDGE_CSS = `
@@ -631,15 +641,19 @@ export function useSetupExtras(x) {
       card.dataset.since = String(since); // (tests: when it came up)
       const free = () => performance.now() - since >= TRY_IT_HOLD_MS;
       const shake = (e) => { e.preventDefault(); e.stopPropagation(); sheet.classList.remove("nudge"); void sheet.offsetWidth; sheet.classList.add("nudge"); };
-      // Before its "Let's play!" is circled, a tap on it shakes it, as one
-      // beside it does (user). Decided as the finger comes down: a tap
-      // begun in the hold is a shake, even if it lifts after.
-      let early = false;
-      card.addEventListener("pointerdown", (e) => { e.stopPropagation(); early = !free(); if (early) shake(e); });
+      // Only "Let's play!", once it's circled, puts it away (its loop's
+      // span, .hit); any other tap on it shakes it, as one beside it does
+      // (user). Decided as the finger comes down: a tap begun in the hold
+      // is a shake, even if it lifts after.
+      const play = (e) => free() && !!(e.target && e.target.closest && e.target.closest(".go"));
+      let down = null;
+      card.addEventListener("pointerdown", (e) => { e.stopPropagation(); down = play(e); if (!down) shake(e); });
       card.addEventListener("click", (e) => {
         e.stopPropagation();
-        if (early) { early = false; return; }
-        if (free()) done(); else shake(e);
+        const go = down === null ? play(e) : down;
+        if (down === null && !go) shake(e);
+        down = null;
+        if (go) done();
       });
       // (From the keyboard: Enter, Space or Escape, once it's free; a
       // shake before.)

@@ -577,12 +577,27 @@ box art and an ad standee (assets/tienda/*.jpg).
   before and one beside it still shakes. No tap highlight on the flyer
   or the veil, no text selection, no long-press callout. Read as
   "until it's circled" (the hold), not "only Let's play! itself
-  counts". tests/e2e-try-it.mjs counts the shakes (the sheet's
+  counts" (wrong: superseded by the next entry). tests/e2e-try-it.mjs
+  counts the shakes (the sheet's
   tdTryNudge starting): the early click, a finger on it in the hold, the
   click at four seconds, the tap beside it after; and no blue, no
   selection. Each is waited for (up to 2.5 s): the animation starts on
   the next frame drawn, 200-260 ms after the tap here with the store
   rendered in software, so a fixed 150 ms read found none.
+- **Only the circled "Let's play!" puts the flyer away** (2026-10-27;
+  user: "After it's circled, a tap on the flyer shouldn't do anything.
+  It should still shake it. They have to actually press where Let's
+  Play is circled."). tienda-overlay.js: the card's pointerdown decides
+  (play(): free, and the target inside .go); anything else is a shake,
+  before the hold ends or after, on the flyer or beside it. .go holds an
+  empty .hit span, inset -16px -24px, so the press lands anywhere in the
+  red loop and a little round it (the loop runs 14-19 px out either side,
+  9-12.5 above and below; its svg takes no taps). The flyer's cursor is
+  the default now, a pointer only over "Let's play!". The keyboard is
+  unchanged: Enter, Space or Escape once it's free (the flyer itself is
+  the focus). tests/e2e-try-it.mjs: circled, a tap on the flyer's middle
+  and one 40 px above the line shake it, the press on the line opens the
+  menu (no shake).
 - **In the store, full screen always comes back** (2026-10-23; user, a
   phone screenshot of the tour's "Your menu is in the corner" card:
   "These pages during the tutorial or in Tienda should always

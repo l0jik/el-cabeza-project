@@ -2,12 +2,14 @@
    opened; a tap on the card brings the store's flyer (its demonstration
    game, $7.97; the page the user picked, the store's stripes round it,
    all of it on the screen), deaf to taps for five seconds, then up until
-   it's tapped (a tap beside it doesn't count); a tap on it opens the menu
+   its "Let's play!" is pressed, circled in red pen; that opens the menu
    as the piece's tap opens it, Try a Game lit (tienda-fx.js
-   pickScene/sceneTap, tienda-overlay.js). Every tap that doesn't count
-   shakes it, on it or beside it, with no blue flash (user: "I want it to
-   shake no matter where you tap until the play a game is circled at the
-   bottom"). On a phone, the card's corner in the opening view. */
+   pickScene/sceneTap, tienda-overlay.js). Every other tap shakes it, on
+   it or beside it, with no blue flash (user: "I want it to shake no
+   matter where you tap until the play a game is circled at the bottom",
+   then "After it's circled, a tap on the flyer shouldn't do anything. It
+   should still shake it. They have to actually press where Let's Play is
+   circled."). On a phone, the card's corner in the opening view. */
 import { chromium } from "playwright";
 let failures = 0;
 const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
@@ -106,10 +108,21 @@ await page.touchscreen.tap(195, 800);
 await page.waitForTimeout(400);
 const panelOpen = () => page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.open === "true");
 check("...a tap beside it doesn't put it away, or reach the store: it shakes", (await card.count()) === 1 && !(await panelOpen()) && (await shakesReach(4)) === 4, `${await shakes()} shakes`);
+// Circled, a tap on the flyer anywhere but "Let's play!" still only shakes
+// it (user: "After it's circled, a tap on the flyer shouldn't do
+// anything. It should still shake it. They have to actually press where
+// Let's Play is circled."): its middle, and just above the loop.
 const cb = await card.boundingBox();
-await page.touchscreen.tap(cb.x + cb.width / 2, cb.y + cb.height / 2);
+await page.touchscreen.tap(cb.x + cb.width / 2, cb.y + cb.height * 0.4);
+await page.waitForTimeout(400);
+check("...circled, a tap on the flyer's middle: still up, a shake", (await card.count()) === 1 && !(await panelOpen()) && (await shakesReach(5)) === 5, `${await shakes()} shakes`);
+const gb = await page.locator('[data-testid="tienda-try-it"] .go').boundingBox();
+await page.touchscreen.tap(gb.x + gb.width / 2, gb.y - 40);
+await page.waitForTimeout(400);
+check("...and one just above \"Let's play!\": still up, a shake", (await card.count()) === 1 && !(await panelOpen()) && (await shakesReach(6)) === 6, `${await shakes()} shakes`);
+await page.touchscreen.tap(gb.x + gb.width / 2, gb.y + gb.height / 2);
 await page.waitForTimeout(900);
-check("then a tap on it: the menu, as the piece's tap opens it", (await card.count()) === 0 && (await panelOpen()));
+check("then a press on \"Let's play!\": the menu, as the piece's tap opens it", (await card.count()) === 0 && (await panelOpen()) && (await shakes()) === 6, `${await shakes()} shakes`);
 check("...Try a Game lit", await page.evaluate(() => document.documentElement.classList.contains("td-idle-nudge")) && (await page.locator("button.td-try-game").count()) > 0);
 check("no page errors", errs.length === 0, errs.join(" | "));
 await browser.close();
