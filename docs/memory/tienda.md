@@ -580,7 +580,9 @@ box art and an ad standee (assets/tienda/*.jpg).
   counts". tests/e2e-try-it.mjs counts the shakes (the sheet's
   tdTryNudge starting): the early click, a finger on it in the hold, the
   click at four seconds, the tap beside it after; and no blue, no
-  selection.
+  selection. Each is waited for (up to 2.5 s): the animation starts on
+  the next frame drawn, 200-260 ms after the tap here with the store
+  rendered in software, so a fixed 150 ms read found none.
 - **In the store, full screen always comes back** (2026-10-23; user, a
   phone screenshot of the tour's "Your menu is in the corner" card:
   "These pages during the tutorial or in Tienda should always

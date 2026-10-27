@@ -52,18 +52,21 @@ await page.evaluate(() => {
   if (s) s.addEventListener("animationstart", (e) => { if (e.animationName === "tdTryNudge") window.__SHAKES__++; });
 });
 const shakes = () => page.evaluate(() => window.__SHAKES__);
+// (Counted as each starts, on the next frame drawn: this machine's frames
+// can come 250 ms apart with the store behind, so each is waited for.)
+const shakesReach = async (n) => { const end = Date.now() + 2500; while ((await shakes()) < n && Date.now() < end) await page.waitForTimeout(50); return shakes(); };
 // (Tapped straight away, in the page: the test's own click waits for the
 // card's entrance to settle, which can take past the hold.)
 await page.evaluate(() => document.querySelector('[data-testid="tienda-try-it"]').click());
 await page.waitForTimeout(150);
-check("...held: an early tap doesn't put it away, it shakes it (user: \"shake no matter where you tap until the play a game is circled\")", (await card.count()) === 1 && (await shakes()) === 1, `${await shakes()} shakes`);
+check("...held: an early tap doesn't put it away, it shakes it (user: \"shake no matter where you tap until the play a game is circled\")", (await card.count()) === 1 && (await shakesReach(1)) === 1, `${await shakes()} shakes`);
 // A finger on it in the hold: a shake too, and none of the browser's blue
 // (user: "When you tap on the flyer, it just turns it blue").
 const cb0 = await card.boundingBox();
 await page.touchscreen.tap(cb0.x + cb0.width / 2, cb0.y + cb0.height * 0.3);
 await page.waitForTimeout(150);
 const look = await page.evaluate(() => { const c = getComputedStyle(document.querySelector('[data-testid="tienda-try-it"]')); return { hi: c.getPropertyValue("-webkit-tap-highlight-color"), sel: c.userSelect || c.webkitUserSelect }; });
-check(`...a finger on it in the hold: still up, a shake, no blue (${look.hi}, select ${look.sel})`, (await card.count()) === 1 && (await shakes()) === 2 && /rgba\(0, 0, 0, 0\)|transparent/.test(look.hi) && look.sel === "none", `${await shakes()} shakes, ${JSON.stringify(look)}`);
+check(`...a finger on it in the hold: still up, a shake, no blue (${look.hi}, select ${look.sel})`, (await card.count()) === 1 && (await shakesReach(2)) === 2 && /rgba\(0, 0, 0, 0\)|transparent/.test(look.hi) && look.sel === "none", `${await shakes()} shakes, ${JSON.stringify(look)}`);
 // (And one at four seconds, by the card's own clock: taps are ignored for
 // the first five, user.)
 const tappedAt = await page.evaluate(async () => {
@@ -74,7 +77,7 @@ const tappedAt = await page.evaluate(async () => {
   return performance.now() - since;
 });
 await page.waitForTimeout(150);
-check("...nor one at four seconds: a shake", tappedAt < 5000 && (await card.count()) === 1 && (await shakes()) === 3, `tapped at ${Math.round(tappedAt)} ms, ${await shakes()} shakes`);
+check("...nor one at four seconds: a shake", tappedAt < 5000 && (await card.count()) === 1 && (await shakesReach(3)) === 3, `tapped at ${Math.round(tappedAt)} ms, ${await shakes()} shakes`);
 await page.waitForTimeout(2700);
 check("...and up until it's tapped (user: it doesn't pop down by itself)", (await card.count()) === 1);
 // The page the user picked (its three sale days), with the store's stripes
@@ -102,7 +105,7 @@ check("...and circled again, differently", !!d2);
 await page.touchscreen.tap(195, 800);
 await page.waitForTimeout(400);
 const panelOpen = () => page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.open === "true");
-check("...a tap beside it doesn't put it away, or reach the store: it shakes", (await card.count()) === 1 && !(await panelOpen()) && (await shakes()) === 4, `${await shakes()} shakes`);
+check("...a tap beside it doesn't put it away, or reach the store: it shakes", (await card.count()) === 1 && !(await panelOpen()) && (await shakesReach(4)) === 4, `${await shakes()} shakes`);
 const cb = await card.boundingBox();
 await page.touchscreen.tap(cb.x + cb.width / 2, cb.y + cb.height / 2);
 await page.waitForTimeout(900);
