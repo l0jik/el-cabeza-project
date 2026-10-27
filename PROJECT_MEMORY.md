@@ -103,7 +103,15 @@ built or dropped.
     buttons, Try a Game asks how hard), K all of it in words (named
     chips, grows to fit), L tightened (all of it packed to fit), M round
     buttons around the piece; D recommended, C or F next. And phones
-    only or everywhere.
+    only or everywhere. Then (user: "Give me 10 more variations of M
+    around the piece. I want to explore that."): M1 icons with names on
+    an arc, M2 clock face (full ring, piece raised), M3 pie (wedges), M4
+    orbit (tilted ring, front big, back behind the piece), M5 Big Glutts
+    price tags on strings, M6 two rings (game inside, switches as chips
+    outside), M7 speech bubbles (the piece talks), M8 thumb corner
+    (piece bottom right, quarter circle), M9 speed dial (named pills
+    rise above it), M10 wooden tokens (discs like the game's pieces);
+    suggested M1's arc with M10's wooden discs, or M9 for the clearest.
 - The user's own step: the online play and cloud saves server on their
   free Cloudflare account (server/README.md, then its address in
   chassis/online-config.js RELAY_URL; until then online games and cloud
@@ -319,3 +327,4 @@ built or dropped.
 - New Game with the hall on its way goes straight on (user: "I'm currently in the den, waiting to be dragged into the hallway. While playing, I got the first alert of a problem in the hallway. But then, after that first alert, I finished the game, I lost, and then I hit new game. It set the board back up again, but the 3D floating piece is there, and there's no way to start the game. It should, the 3D floating piece, when you hit new game in this instance, the 3D floating piece should immediately minimize and the game should be active. I selected retain the settings too, so there's an issue here. Look into it."). Replayed here (order form game, first alert, kept playing, lost, Retain; focus on and off): a tap on the big piece did open the panel's Begin Game, but the den's game had begun by the bulb, so nothing said so. Now chassis beginNextRef: Retain Current Game Settings in every world, and any New Game where the world's ambient `newGameBegins()` (den-fx: hall armed or settling), begin the next game a frame after its board's set up, as Begin would (Manual: the set-out; online: unchanged); the dock piece stays in its corner, the title small. Test: e2e-hall-after-game (scenario 2 begins at once; new scenario 3, the user's path, checks every frame). docs/memory/nova-story.md, 06-dock-piece-preview.md.
 - The dock menu on a phone (user, a recording in the story's store, the menu dragged up and down: "Menu needs to be expanded or is there a way to make less complicated?"). Measured at 360 x 800 (the recording's match), 384 x 854 and 412 x 915: pre-game the panel may be calc(42vh - 56px) tall (280 px at 800) and the store's content is 293, so it scrolls 15 px on the user's phone; "Replay a game" and "Save & carry" are cut ("REPLAY …", "SAVE &…") at all three widths; 17 controls in all (language, back, three levels, Check alert, Standard/Manual, See the pieces, Try a Game, the cart, the two links, five icon switches: sound, points, costs, guide, control bar). Options shown as photographs of the real menu changed in place (sheet sent to the user): A bigger, B fewer things, C two pages with "More options ›" (recommended). Waiting on a pick (Backlog); nothing changed.
 - Ten more ways for the phone's dock menu (user: "I need 10 more options."): D tabs, E fold-out, F bottom sheet, G gear, H one line, I tiles, J steps, K all of it in words, L tightened, M round buttons around the piece; each the real store menu at 360 x 800 taken apart and rebuilt in the page, photographed (scratch menuvid/mock2.mjs), on one sheet sent to the user. Waiting on a pick (Backlog); nothing changed in the game.
+- Ten variations of M, around the piece (user: "Give me 10 more variations of M around the piece. I want to explore that."): M1 icons with names, M2 clock face, M3 pie, M4 orbit, M5 price tags, M6 two rings, M7 speech bubbles, M8 thumb corner, M9 speed dial, M10 wooden tokens; the store's real dock piece at 360 x 800 with the buttons laid round it in the page (scratch menuvid/mock3.mjs), one sheet sent. Waiting on a pick (Backlog); nothing changed in the game.
