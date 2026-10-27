@@ -203,13 +203,17 @@ for (const place of PLACES) {
     await page.click('[data-testid="now-playing-toggle"]');
     const p3 = await poll(async () => { const v = await read(); return v && v.paused === "false" && at(v) >= 1 ? v : null; }, 8000, 200);
     check("...played, it goes on from its start", !!p3 && p3.title === NEXT && at(p3) <= 4, JSON.stringify(await read()));
-    // Forward twice at once: round to the same song (two of them), one
-    // sounding (the song asked for first, still on its way, let go).
+    // Forward twice at once, some seconds in: round to the same song (two
+    // of them), from its start, one sounding (the song asked for first,
+    // still on its way, let go). Its time goes back, however late the
+    // strip is read (GitHub's run on b7de9a1 read it first at 0:04, the
+    // song started over: "3 at most" was the slow page, not the song).
+    const d0 = await poll(async () => { const v = await read(); return v && v.title === NEXT && at(v) >= 8 ? v : null; }, 15000, 300);
     await page.evaluate(() => { const b = document.querySelector('[data-testid="now-playing-next"]'); b.click(); b.click(); });
     const d1 = await poll(async () => { const v = await read(); return v && v.title === NEXT && NEXT_LEN.test(v.time) && at(v) >= 1 ? v : null; }, 15000, 200);
     await page.waitForTimeout(1500);
     const s4 = await state();
-    check("forward twice at once: round to the same song, from its start, one sounding", !!d1 && at(d1) <= 3 && s4.hums === "playing" && s4.song === 1 && s4.sounding === 1, JSON.stringify({ d1, s4 }));
+    check(`forward twice at once, ${d0 && d0.time} in: round to the same song, from its start (${d1 && d1.time}), one sounding`, !!d0 && !!d1 && at(d1) < at(d0) && s4.hums === "playing" && s4.song === 1 && s4.sounding === 1, JSON.stringify({ d0, d1, s4 }));
     // Between songs, back: the one just ended, again from its start (on
     // its own it would go on to the first).
     check("near the end of the song", await skip(0.5));
