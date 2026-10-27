@@ -605,6 +605,31 @@ in; leaving Singularity, back in the den as the set switches off.
   0.00 on the way, -0.42 at worst at the ear). Test: e2e-den-phone samples
   the cord end every frame from the tap till it's back on the cradle (245
   frames: highest 0, -0.87 at the ear).
+- **New Game with the hall on its way goes straight on** (2026-10-27;
+  user: "I'm currently in the den, waiting to be dragged into the
+  hallway. While playing, I got the first alert of a problem in the
+  hallway. But then, after that first alert, I finished the game, I
+  lost, and then I hit new game. It set the board back up again, but the
+  3D floating piece is there, and there's no way to start the game. It
+  should, the 3D floating piece, when you hit new game in this instance,
+  the 3D floating piece should immediately minimize and the game should
+  be active. I selected retain the settings too, so there's an issue
+  here. Look into it."). New Game (Retain too) went back to the setup,
+  the dock piece big in the middle, waiting on Begin; the den's
+  game had begun by the bulb (the settle-in), so there was no Begin to
+  remember. (Replayed here, order form game, first alert, kept playing,
+  lost, Retain, with and without the bulb's focus: a tap on the piece
+  did open the panel and its Begin Game.) Now (chassis beginNextRef,
+  06-dock-piece-preview.md): Retain Current Game Settings, in every
+  world, and any New Game where the world's ambient says
+  `newGameBegins()` (den-fx: the hall armed or settling, i.e. on its
+  way) begin the next game a frame after its board's set up, as Begin
+  would; the dock piece stays in its corner and the title small; the
+  hall's count carries on. Tests: e2e-hall-after-game (scenario 2's New
+  Game now begins at once; scenario 3, the user's: from the order form,
+  the first alert, kept playing, the game over, New Game, Retain: under
+  way with no Begin, the dock piece in its corner every frame, the
+  title small, the hall waiting and counting a turn in it).
 - **The title's hold, a press only** (2026-10-23; user, with a desktop
   screenshot of the den after the commercial, the special-order note up
   and CONNECT over it: "Right after the TV commercial plays, I was brought

@@ -11,6 +11,15 @@ the meander; double-tap/click bounces and morphs into the settings panel;
 Begin Game reverses the morph and relocates the piece to a small corner
 watermark for the rest of the game (reopen via hover/hold there).
 
+New Game straight on into the next (2026-10-27, chassis beginNextRef):
+Retain Current Game Settings, in every world, and any New Game a world's
+ambient asks for (`newGameBegins()`: the den with the hall on its way)
+skip the setup: the piece stays in its corner (never the big one in the
+middle), the title stays small, and a frame after the board's set up the
+game begins as Begin would (Manual placement: the set-out first; online:
+the host's Begin as ever). User: "the 3D floating piece should
+immediately minimize and the game should be active".
+
 The pre-game click-to-open hitbox is a **per-piece-type proportional
 fraction** of the frame — not the full canvas, not a fixed size — because
 a square hit target still leaves real slack around an irregular rotating

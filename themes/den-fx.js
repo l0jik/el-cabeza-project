@@ -1896,6 +1896,11 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     const api = {
       armOnBegin() {},
       restart() {},
+      /* New Game with the hall on its way (home from the closed store, the
+         first alert, say, then the game lost): straight on into the next
+         game, the chassis's beginNextRef (user: "the 3D floating piece
+         should immediately minimize and the game should be active"). */
+      newGameBegins: () => !!(hall && ["armed", "settle"].includes(hall.state().state)),
       tick(now) {
         if (!attach()) return;
         opening();

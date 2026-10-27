@@ -1685,8 +1685,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (awaitingBegin) setBoardNearSide(currentPlayer);
   }, [awaitingBegin, currentPlayer]);
 
+  /* New Game straight on into the next game, set up as the last one was
+     (user, in the den with the hall on its way: "...when you hit new game
+     in this instance, the 3D floating piece should immediately minimize
+     and the game should be active. I selected retain the settings too,
+     so there's an issue here"): Retain Current Game Settings, in every
+     world, and any New Game where the world asks for it (its ambient's
+     newGameBegins: the den, the hall coming). Set by handleRetainSettings
+     and handleNewGameClick: the dock stays in its corner and the title
+     where it is, and once the board's set up the game begins as Begin
+     would begin it (Manual placement: setting out first). */
+  const beginNextRef = useRef(false);
   useEffect(() => {
-    if (awaitingBegin) setDockView("piece");
+    if (awaitingBegin) setDockView(beginNextRef.current ? "corner" : "piece");
   }, [awaitingBegin]);
 
   // A fresh session (New Game, or switching opponent type) re-rolls
@@ -1708,7 +1719,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const skipArmedDockRef = useRef(!!(C && C.gameArmed));
   useEffect(() => {
     if (awaitingBegin) return; // handled by the effect above instead
-    // A carried game is already under way: the dock is in its corner.
+    beginNextRef.current = false; // (begun, whichever way)
+    // A carried game is already under way: the dock is in its corner. (So
+    // is one New Game went straight on into: beginNextRef above.)
     if (skipArmedDockRef.current) { skipArmedDockRef.current = false; return; }
     // Begin Game just fired: remorph back to the piece, then — once
     // that's had a moment to actually read as "the panel became the
@@ -2875,13 +2888,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [titleRelocated, setTitleRelocated] = useState(() => !!(C && C.gameArmed));
   useEffect(() => {
     if (awaitingBegin) {
-      setTitleRelocated(false);
+      // (Not for a New Game going straight on: beginNextRef.)
+      if (!beginNextRef.current) setTitleRelocated(false);
       return;
     }
     const t = setTimeout(() => setTitleRelocated(true), 2000);
     return () => clearTimeout(t);
   }, [awaitingBegin]);
-  const mastheadPhase = awaitingBegin ? "setup" : titleRelocated ? "relocated" : "fading";
+  const mastheadPhase = awaitingBegin && !beginNextRef.current ? "setup" : titleRelocated ? "relocated" : "fading";
 
   /* Pre-game framing: while awaiting Begin Game, the camera itself
      (not any DOM clipping — the render layer always stays full
@@ -3906,6 +3920,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // (A game begun some other way, or New Game: no set-out.)
   useEffect(() => {
     if (!awaitingBegin && setOutRef.current) { releaseSetOutDrag(); commitSetOut(null); setSetOutAim(null); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [awaitingBegin]);
+  // New Game going straight on (beginNextRef): the fresh board set up, a
+  // frame on, Begin, as its button would; the dock kept in its corner.
+  useEffect(() => {
+    if (!awaitingBegin || !beginNextRef.current) return undefined;
+    const id = requestAnimationFrame(() => {
+      if (!beginNextRef.current) return;
+      beginNextRef.current = false;
+      if (!awaitingBeginRef.current || setOutRef.current) return;
+      if (!startByHand) skipArmedDockRef.current = true;
+      beginOrSetOut();
+    });
+    return () => cancelAnimationFrame(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [awaitingBegin]);
 
@@ -10749,10 +10777,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       setShowVictoryPlacard(false);
       lastPostGameOverlayRef.current = "choice";
       setShowNewGameChoice(true);
-    } else handleReset();
+    } else {
+      // (Where the world asks for it, straight on into the next game:
+      // beginNextRef. Not online, where the host's Begin starts both.)
+      const amb = ambientRef.current;
+      if (!onlineRef.current && amb && amb.newGameBegins && amb.newGameBegins()) beginNextRef.current = true;
+      handleReset();
+    }
   }
   function handleRetainSettings() {
     setShowNewGameChoice(false);
+    // The same game again: begun at once, not back at the setup
+    // (beginNextRef; online, the host's Begin as ever).
+    if (!onlineRef.current) beginNextRef.current = true;
     handleReset();
   }
   /* Vanilla-resets back to pre-game setup (same path "Reset rules"
