@@ -374,6 +374,20 @@ function loadCheckAlert() {
 function saveCheckAlert(on) {
   try { window.localStorage.setItem(CHECK_ALERT_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
 }
+/* ?menulab: the menu lab's fly-out menus round the dock's piece, in place
+   of its panel before a game (chassis/menu-lab.js, loaded only then). On
+   for the tab once asked for; ?menulab=0 off. */
+const MENU_LAB_KEY = "el-cabeza:menu-lab";
+function menuLabWanted() {
+  try {
+    const v = new URLSearchParams(window.location.search).get("menulab");
+    if (v === "0" || v === "off") window.sessionStorage.removeItem(MENU_LAB_KEY);
+    else if (v !== null) window.sessionStorage.setItem(MENU_LAB_KEY, "1");
+    return window.sessionStorage.getItem(MENU_LAB_KEY) === "1";
+  } catch (e) {
+    return false;
+  }
+}
 /* A move's sounds, the world's (its audio's playRollStart as the piece
    sets off, playLanding as it comes down), every move, the Cabeza's too.
    Where the pieces are wood (theme.woodPieces: the den, the store) a
@@ -1444,6 +1458,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      straight back to "piece" and re-rolls which piece/color represents
      the new session (see the dockSessionSeed effect below). */
   const [dockView, setDockView] = useState(() => (C && C.gameArmed ? "corner" : "piece")); // "piece" | "panel" | "corner"
+  // The menu lab (?menulab, menu-lab.js), once loaded; and where it's moved
+  // the piece while its menu's out ({ x, y, scale }: up to the middle, or
+  // into the corner), or null.
+  const menuLabRef = useRef(null);
+  const [dockShift, setDockShift] = useState(null);
   /* Points-left counter (user-requested, off by default, remembered per
      browser): a row of dots at the bottom centre showing how many of the
      current player's actions this turn has left — filled for
@@ -1804,6 +1823,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       } else {
         state.pieceGroup.scale.set(base, base, base);
         state.bouncing = false;
+        // (Before a game, with ?menulab: the lab's menu out round the
+        // piece instead, or away again.)
+        if (menuLabRef.current && awaitingBeginRef.current && menuLabRef.current.toggle()) return;
         setDockView("panel");
       }
     };
@@ -3892,6 +3914,42 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [setOut, setSetOut] = useState(null);
   const setOutRef = useRef(null);
   setOutRef.current = setOut;
+
+  /* The menu lab (?menulab; user: "Create 10 versions fully functional in
+     a lab outside of the chat"): loaded when asked for, it takes the
+     piece's tap before a game (triggerDockBounce) and presses the panel's
+     own buttons; More opens the panel. Told when it can: before a game,
+     the piece showing, nothing being set out. */
+  const menuLabStateRef = useRef(null);
+  useEffect(() => {
+    if (!menuLabWanted()) return undefined;
+    let gone = false;
+    import("./menu-lab.js").then(({ installMenuLab }) => {
+      if (gone) return;
+      const lab = installMenuLab({
+        panel: () => cardRef.current,
+        piece: () => dockPieceMountRef.current,
+        openPanel: () => setDockView("panel"),
+        shift: setDockShift,
+        sideName: (side) => sideName(side),
+        colors: { paper: COLORS.cream, ink: COLORS.charcoal, line: COLORS.slateSoft },
+        sounds: { open: () => audioRef.current.playDockOpen(), close: () => audioRef.current.playDockClose() },
+      });
+      menuLabRef.current = lab;
+      if (menuLabStateRef.current) lab.update(menuLabStateRef.current);
+    }).catch(() => { /* (no lab: the panel as ever) */ });
+    return () => {
+      gone = true;
+      if (menuLabRef.current) menuLabRef.current.dispose();
+      menuLabRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    const s = { ready: awaitingBegin && dockView === "piece" && !setOut && !shell, shell };
+    menuLabStateRef.current = s;
+    if (menuLabRef.current) menuLabRef.current.update(s);
+  }, [awaitingBegin, dockView, setOut, shell]);
   const commitSetOut = (next) => { setOutRef.current = next; setSetOut(next); };
   // A press on a piece while setting out (its drag, or its tap), and
   // where a drag or the arrow keys would set the chosen piece.
@@ -11278,7 +11336,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // 87px in); the piece itself is centred and still fits.
     width: dockPieceIsCorner ? 120 : "min(260px, calc(100vw - 184px))",
     height: dockPieceIsCorner ? 106 : 220,
-    transform: dockPieceIsCorner ? "translateX(0) scale(1)" : "translateX(-50%) scale(1)",
+    // (Moved by the menu lab while its menu's out: dockShift.)
+    transform: dockPieceIsCorner ? "translateX(0) scale(1)"
+      : dockShift ? `translate(calc(-50% + ${dockShift.x}px), ${dockShift.y}px) scale(${dockShift.scale})`
+      : "translateX(-50%) scale(1)",
     // (theme.dockCornerOpacity: the den's dark room lost it at 0.35, user.
     // At full strength while it calls after a game: dockCall above.)
     opacity: dockView === "panel" ? 0 : dockPieceIsCorner && !dockCall ? (theme.dockCornerOpacity != null ? theme.dockCornerOpacity : 0.35) : 1,

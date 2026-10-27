@@ -77,6 +77,8 @@ const E2E = [
   ["e2e-title.mjs"],
   // The languages: the device's guessed, the title's EN · ES · VI line, the dock's badge.
   ["e2e-language.mjs"],
+  // The menu lab (?menulab): ten fly-out menus round the dock's piece, each one working.
+  ["e2e-menu-lab.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

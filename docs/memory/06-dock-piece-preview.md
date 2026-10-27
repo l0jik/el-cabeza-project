@@ -40,3 +40,24 @@ footprint-based hitbox there once broke small piece types intermittently
 centered hover could land outside the shrunk box for the smallest
 pieces).
 
+
+The menu lab (2026-10-27, chassis/menu-lab.js; user: "Create 10 versions
+fully functional in a lab outside of the chat"): with ?menulab (kept for
+the tab in sessionStorage `el-cabeza:menu-lab`; ?menulab=N picks a
+version, the last one looked at kept in localStorage
+`el-cabeza:menu-lab-version`; ?menulab=0 or the bar's ✕ off) the chassis
+lazy-loads the module, and before a game the piece's tap (the end of
+triggerDockBounce, while awaitingBegin) goes to `lab.toggle()` instead of
+opening the panel. Its menus never copy the game's state: every button
+`.click()`s the panel's own (always mounted, only faded out): Begin
+(`[data-dock-role="begin"]`), `[data-ec-diff]` or the `[data-opponent]`
+picker, the buttons beside Begin (the store's See the pieces), the cart
+(`story-purchase`), Standard/Manual; More is `setDockView("panel")`; the
+panel's names (and languages) and its held-back buttons (disabled,
+`data-first-lock`) read straight off it, again after each press. The
+chassis tells it when it may (`update({ ready, shell })`: before a game,
+dock view "piece", not setting out, not the control bar) and lends it the
+piece's place (`dockShift` in dockPieceStyle: up to the middle for Ring
+and Wedges, into the corner for Thumb). Its layers: a backdrop at z 14
+(under the piece's 15, so the piece still takes a tap and closes it) and
+the buttons at z 16; the bar at the top at 2000.
