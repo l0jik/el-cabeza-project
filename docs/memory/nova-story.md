@@ -588,6 +588,23 @@ in; leaving Singularity, back in the den as the set switches off.
   e2e-den-phone (on the line a click away and Escape: still at the
   phone, the receiver at your ear, no piece card; hung up, back to the
   board; picked up from the Room view: down and over to the phone).
+- **The receiver the right way up** (2026-10-27; user: "When the phone
+  is picked up in the den, make sure that the cord is always on the
+  bottom when it's picked up and brought to the ear. Right now it seems
+  like it's when the phone receiver is being picked up, the cord is on
+  the top, which would be upside down."). The handset (den-room.js) runs
+  along its z, the cord and mouthpiece at +z; den-call.js earPose had
+  that end up at the ear (+0.83 of straight up, measured over every
+  camera angle), and the plain slerp from the cradle swung it over the
+  top on the way. Now the ear pose has a half turn about the handset's
+  own up (mouthpiece low, the caps' open faces still to your head), and
+  the lift and the hang-up go by liftTurn: the earpiece end rising
+  steadily from level to its height at your ear, its heading turned the
+  short way, its roll about its length eased in, so the cord's end is
+  never above the middle (scratch check over 720 camera angles: highest
+  0.00 on the way, -0.42 at worst at the ear). Test: e2e-den-phone samples
+  the cord end every frame from the tap till it's back on the cradle (245
+  frames: highest 0, -0.87 at the ear).
 - **The title's hold, a press only** (2026-10-23; user, with a desktop
   screenshot of the den after the commercial, the special-order note up
   and CONNECT over it: "Right after the TV commercial plays, I was brought

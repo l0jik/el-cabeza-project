@@ -542,9 +542,45 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     outPos.copy(cam.position).addScaledVector(fwd, 8.5).addScaledVector(up, -3.3).addScaledVector(right, 3.1);
     parent.worldToLocal(outPos);
     // Upright beside the face, the mouthpiece low, turned a little in.
-    const wq = cam.quaternion.clone().multiply(new Quaternion().setFromEuler(new Euler(-1.25, 0.5, 0.35)));
+    // (The half turn about its own up: the mouthpiece is the handset's +z
+    // end, the cord's, and without it that end came up top, user: "make
+    // sure that the cord is always on the bottom when it's picked up and
+    // brought to the ear".)
+    const wq = cam.quaternion.clone().multiply(new Quaternion().setFromEuler(new Euler(-1.25, 0.5, 0.35)))
+      .multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI));
     const pq = new Quaternion(); parent.getWorldQuaternion(pq);
     outQuat.copy(pq.invert().multiply(wq));
+  }
+  /* The turn on the way up (and back down), for the handset's turn at e
+     (0 on the cradle, 1 at your ear): not a plain slerp, which from some
+     places swung the cord's end over the top on the way, but the
+     earpiece's end (its -z) rising steadily from level to its height at
+     your ear, its heading turned the short way round, and its roll about
+     its length eased in after, so the cord's end is never above it. All
+     in its parent's frame, `up` the world's up there. */
+  function liftTurn(q0, q1, e, up, out) {
+    const { Vector3, Quaternion } = hsV.ctor;
+    const a0 = new Vector3(0, 0, -1).applyQuaternion(q0), a1 = new Vector3(0, 0, -1).applyQuaternion(q1);
+    const elev = (a) => Math.asin(Math.max(-1, Math.min(1, a.dot(up))));
+    const flat = (a) => { const f = a.clone().addScaledVector(up, -a.dot(up)); return f.lengthSq() > 1e-8 ? f.normalize() : null; };
+    const h0 = flat(a0), h1 = flat(a1);
+    if (!h0 || !h1) { out.copy(q0).slerp(q1, e); return; } // (straight up or down: no heading to turn)
+    const yaw = Math.atan2(new Vector3().crossVectors(h0, h1).dot(up), h0.dot(h1));
+    const el0 = elev(a0), el1 = elev(a1);
+    // Turned by t of the way: its heading first, then tipped up about the
+    // level line across it to its height (up for the earpiece's end).
+    const turned = (t) => {
+      const qYaw = new Quaternion().setFromAxisAngle(up, yaw * t);
+      const side = h0.clone().applyQuaternion(qYaw).cross(up).normalize();
+      return new Quaternion().setFromAxisAngle(side, (el1 - el0) * t).multiply(qYaw).multiply(q0);
+    };
+    // The roll left over at the ear (a turn about its length there).
+    const d = q1.clone().multiply(turned(1).invert());
+    if (d.w < 0) { d.x = -d.x; d.y = -d.y; d.z = -d.z; d.w = -d.w; }
+    const s = Math.hypot(d.x, d.y, d.z);
+    const roll = s < 1e-9 ? 0 : 2 * Math.atan2(s, d.w) * Math.sign(d.x * a1.x + d.y * a1.y + d.z * a1.z);
+    const p = turned(e), a = new Vector3(0, 0, -1).applyQuaternion(p);
+    out.copy(new Quaternion().setFromAxisAngle(a, roll * e).multiply(p));
   }
   /* The handset's own green (its material's colour, kept the first
      time), brightened by k as it comes up out of the credenza's shade.
@@ -588,7 +624,8 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     const k = Math.min(1, (now - hs.t0) / dur), e = ease(hs.mode === "lift" ? k : 1 - k);
     hand.position.copy(rest.position).lerp(hsV.a, e);
     hand.position.y += Math.sin(Math.PI * e) * 1.6; // (up off the cradle first)
-    hand.quaternion.copy(rest.quaternion).slerp(hsV.q, e);
+    const pq = new hsV.ctor.Quaternion(); hand.parent.getWorldQuaternion(pq);
+    liftTurn(rest.quaternion, hsV.q, e, new hsV.ctor.Vector3(0, 1, 0).applyQuaternion(pq.invert()), hand.quaternion);
     light(e);
     if (k >= 1) hs = { mode: hs.mode === "lift" ? "held" : "rest", t0: now };
   }

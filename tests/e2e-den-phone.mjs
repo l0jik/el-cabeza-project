@@ -114,6 +114,24 @@ const awayClick = async (page) => {
   await page.mouse.click(at && at.x > 640 ? 160 : 1120, 300);
 };
 const pieceCard = (page) => page.locator('[data-testid="piece-card"]').count();
+// The receiver's cord end (its +z, the mouthpiece's) against its middle,
+// each frame from the tap till it's back on the cradle (user: "make sure
+// that the cord is always on the bottom when it's picked up and brought
+// to the ear").
+const cordLog = (page) => page.evaluate(() => {
+  const t = window.__DEN_THREE__;
+  let hand = null;
+  t.boardGroup.parent.traverse((o) => { if (!hand && o.userData && o.userData.phone && o.userData.rest) hand = o; });
+  const V = t.camera.position.constructor, log = (window.__CORD__ = []);
+  const tick = () => {
+    if (window.__CORD__ !== log) return;
+    hand.updateMatrixWorld();
+    log.push({ hs: window.__DEN_CALL_HANDSET__(), y: +new V(0, 0, 1).transformDirection(hand.matrixWorld).y.toFixed(3) });
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+});
+const cordRead = (page) => page.evaluate(() => { const l = window.__CORD__ || []; window.__CORD__ = null; return l; });
 const pickUp = async (page) => {
   const at = await page.evaluate(() => window.__DEN_PHONE_AT__());
   await page.mouse.click(at.x, at.y);
@@ -136,6 +154,7 @@ console.log("\ndesktop: the phone rings, and you take it");
   await page.waitForTimeout(1500);
   check("...a click on it does nothing: the camera stays in the room", !(await where(page)).up);
   check("the slip: over to the phone", await toPhone(page));
+  await cordLog(page);
   check("a tap on the phone: picked up, the receiver lifted", await pickUp(page));
   await page.waitForTimeout(600);
   const held = await where(page);
@@ -153,6 +172,9 @@ console.log("\ndesktop: the phone rings, and you take it");
   check(`...the receiver at your ear (${s.handToCam} away, y ${s.handY}), nothing picked on the board`, s.hs === "held" && s.handToCam < 15 && s.handY < 40 && (await pieceCard(page)) === 0, JSON.stringify(s));
   check("they hang up", !!(await poll(page, () => page.evaluate(() => window.__DEN_CALL__().stage === "done"), 60000)));
   check("...and the view's back on the board", !!(await poll(page, async () => (await where(page)).visit < 0.03, 5000)));
+  const cord = await cordRead(page), moving = cord.filter((c) => c.hs !== "rest"), atEar = cord.filter((c) => c.hs === "held");
+  const top = moving.length ? Math.max(...moving.map((c) => c.y)) : null, earTop = atEar.length ? Math.max(...atEar.map((c) => c.y)) : null;
+  check(`the receiver's cord end below its middle all the way, up, at your ear and down again (${moving.length} frames: highest ${top}, at the ear ${earTop})`, moving.length > 10 && cord.some((c) => c.hs === "lift") && cord.some((c) => c.hs === "down") && top <= 0.02 && earTop < -0.3, JSON.stringify(moving.filter((c, i) => i % 15 === 0)));
   s = await where(page);
   check("hung up: the glass and the dock's Room view work again", !!s.glass && !s.glass.off && s.dockRoom === false, JSON.stringify(s));
   await pressGlass(page);
