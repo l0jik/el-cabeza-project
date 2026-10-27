@@ -563,6 +563,24 @@ box art and an ad standee (assets/tienda/*.jpg).
   falling, set down 10% short and lifted with a 12% flick. Reduced
   motion: one loop, still. tests/e2e-try-it.mjs: circled, then circled
   again differently.
+- **A shake at any tap till "Let's play!" is circled** (2026-10-27; user:
+  "When you tap on the flyer, it just turns it blue. I would rather it
+  just be, I want it to shake no matter where you tap until the play a
+  game is circled at the bottom."). The blue was the browser's own tap
+  flash: the flyer and its veil hang off document.body, outside
+  .td-layer's transparent tap highlight, and a tap on it in the five
+  second hold did nothing else. Now in the hold a tap on it shakes it
+  as one beside it does (decided as the finger comes down, so a tap
+  begun in the hold is a shake even if it lifts after; a click with no
+  pointerdown, or Enter, Space or Escape, shakes too); once "Let's
+  play!" is in and its loop starts, a tap on it goes on to the menu as
+  before and one beside it still shakes. No tap highlight on the flyer
+  or the veil, no text selection, no long-press callout. Read as
+  "until it's circled" (the hold), not "only Let's play! itself
+  counts". tests/e2e-try-it.mjs counts the shakes (the sheet's
+  tdTryNudge starting): the early click, a finger on it in the hold, the
+  click at four seconds, the tap beside it after; and no blue, no
+  selection.
 - **In the store, full screen always comes back** (2026-10-23; user, a
   phone screenshot of the tour's "Your menu is in the corner" card:
   "These pages during the tutorial or in Tienda should always

@@ -4,8 +4,10 @@
    all of it on the screen), deaf to taps for five seconds, then up until
    it's tapped (a tap beside it doesn't count); a tap on it opens the menu
    as the piece's tap opens it, Try a Game lit (tienda-fx.js
-   pickScene/sceneTap, tienda-overlay.js). On a phone, the card's corner in
-   the opening view. */
+   pickScene/sceneTap, tienda-overlay.js). Every tap that doesn't count
+   shakes it, on it or beside it, with no blue flash (user: "I want it to
+   shake no matter where you tap until the play a game is circled at the
+   bottom"). On a phone, the card's corner in the opening view. */
 import { chromium } from "playwright";
 let failures = 0;
 const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
@@ -43,11 +45,25 @@ await page.waitForSelector('[data-testid="tienda-try-it"]', { timeout: 3000 }).c
 const card = page.locator('[data-testid="tienda-try-it"]');
 check("a tap on it: the store's flyer (its demonstration game, $7.97)", (await card.count()) === 1 && /demonstration/i.test(await card.innerText()) && /\$?\s*7\s*\.?\s*97/.test(await card.innerText()));
 check("...without \"So you'd like to try it, eh?\" (user)", !/try it, eh/i.test(await card.innerText()));
+// (Each shake counted as it starts: the sheet's tdTryNudge.)
+await page.evaluate(() => {
+  window.__SHAKES__ = 0;
+  const s = document.querySelector('[data-testid="tienda-try-it"] .sheet');
+  if (s) s.addEventListener("animationstart", (e) => { if (e.animationName === "tdTryNudge") window.__SHAKES__++; });
+});
+const shakes = () => page.evaluate(() => window.__SHAKES__);
 // (Tapped straight away, in the page: the test's own click waits for the
 // card's entrance to settle, which can take past the hold.)
 await page.evaluate(() => document.querySelector('[data-testid="tienda-try-it"]').click());
 await page.waitForTimeout(150);
-check("...held: an early tap doesn't put it away", (await card.count()) === 1);
+check("...held: an early tap doesn't put it away, it shakes it (user: \"shake no matter where you tap until the play a game is circled\")", (await card.count()) === 1 && (await shakes()) === 1, `${await shakes()} shakes`);
+// A finger on it in the hold: a shake too, and none of the browser's blue
+// (user: "When you tap on the flyer, it just turns it blue").
+const cb0 = await card.boundingBox();
+await page.touchscreen.tap(cb0.x + cb0.width / 2, cb0.y + cb0.height * 0.3);
+await page.waitForTimeout(150);
+const look = await page.evaluate(() => { const c = getComputedStyle(document.querySelector('[data-testid="tienda-try-it"]')); return { hi: c.getPropertyValue("-webkit-tap-highlight-color"), sel: c.userSelect || c.webkitUserSelect }; });
+check(`...a finger on it in the hold: still up, a shake, no blue (${look.hi}, select ${look.sel})`, (await card.count()) === 1 && (await shakes()) === 2 && /rgba\(0, 0, 0, 0\)|transparent/.test(look.hi) && look.sel === "none", `${await shakes()} shakes, ${JSON.stringify(look)}`);
 // (And one at four seconds, by the card's own clock: taps are ignored for
 // the first five, user.)
 const tappedAt = await page.evaluate(async () => {
@@ -58,7 +74,7 @@ const tappedAt = await page.evaluate(async () => {
   return performance.now() - since;
 });
 await page.waitForTimeout(150);
-check("...nor one at four seconds", tappedAt < 5000 && (await card.count()) === 1, `tapped at ${Math.round(tappedAt)} ms`);
+check("...nor one at four seconds: a shake", tappedAt < 5000 && (await card.count()) === 1 && (await shakes()) === 3, `tapped at ${Math.round(tappedAt)} ms, ${await shakes()} shakes`);
 await page.waitForTimeout(2700);
 check("...and up until it's tapped (user: it doesn't pop down by itself)", (await card.count()) === 1);
 // The page the user picked (its three sale days), with the store's stripes
@@ -86,7 +102,7 @@ check("...and circled again, differently", !!d2);
 await page.touchscreen.tap(195, 800);
 await page.waitForTimeout(400);
 const panelOpen = () => page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.open === "true");
-check("...a tap beside it doesn't put it away, or reach the store", (await card.count()) === 1 && !(await panelOpen()));
+check("...a tap beside it doesn't put it away, or reach the store: it shakes", (await card.count()) === 1 && !(await panelOpen()) && (await shakes()) === 4, `${await shakes()} shakes`);
 const cb = await card.boundingBox();
 await page.touchscreen.tap(cb.x + cb.width / 2, cb.y + cb.height / 2);
 await page.waitForTimeout(900);

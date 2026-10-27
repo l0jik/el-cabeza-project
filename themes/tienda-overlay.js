@@ -108,7 +108,10 @@ function noteHeld() {
    tapped (user: "it doesn't automatically pop down. You have to click on
    it in order to dismiss it"), and the tap goes on to the menu, Try a Game
    lit. A tap beside it doesn't reach the store behind: the flyer gives a
-   little shake instead, and its "Let's play" calls once it's free. */
+   little shake instead, and its "Let's play" calls once it's free. Until
+   then, a tap on it shakes it too, with no flash of the browser's blue
+   (user: "I want it to shake no matter where you tap until the play a
+   game is circled at the bottom"). */
 const TRY_IT_HOLD_MS = 5000;
 const TRY_IT_CSS = `
   /* Printed as the period's Sunday circulars were (user: "what glossy
@@ -132,6 +135,10 @@ const TRY_IT_CSS = `
     transform: translate(-50%, -50%) rotate(-1.2deg) scale(var(--fit, 1)); cursor: pointer; text-align: left;
     filter: drop-shadow(0 1px 1px rgba(10,6,3,0.4)) drop-shadow(0 9px 14px rgba(10,6,3,0.32));
     animation: tdTryIn 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+  /* (No blue from the browser on a tap, user: "When you tap on the flyer,
+     it just turns it blue"; nor a long press selecting its words.) */
+  .td-tryit, .td-tryit *, .td-tryit-veil { -webkit-tap-highlight-color: transparent; }
+  .td-tryit { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   /* The sheet itself, its edges cut (flyerMask: its mask, made at its size). */
   .td-tryit .sheet { --fold: 47%; position: relative; box-sizing: border-box; padding: 54px 13px 12px 53px; color: #2A1D14;
     background: #FFFFFF;
@@ -623,20 +630,29 @@ export function useSetupExtras(x) {
       const since = performance.now();
       card.dataset.since = String(since); // (tests: when it came up)
       const free = () => performance.now() - since >= TRY_IT_HOLD_MS;
-      card.addEventListener("click", (e) => { e.stopPropagation(); if (free()) done(); });
-      card.addEventListener("pointerdown", (e) => e.stopPropagation());
-      // (From the keyboard: Enter, Space or Escape, once it's free.)
+      const shake = (e) => { e.preventDefault(); e.stopPropagation(); sheet.classList.remove("nudge"); void sheet.offsetWidth; sheet.classList.add("nudge"); };
+      // Before its "Let's play!" is circled, a tap on it shakes it, as one
+      // beside it does (user). Decided as the finger comes down: a tap
+      // begun in the hold is a shake, even if it lifts after.
+      let early = false;
+      card.addEventListener("pointerdown", (e) => { e.stopPropagation(); early = !free(); if (early) shake(e); });
+      card.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (early) { early = false; return; }
+        if (free()) done(); else shake(e);
+      });
+      // (From the keyboard: Enter, Space or Escape, once it's free; a
+      // shake before.)
       card.tabIndex = 0;
       card.addEventListener("keydown", (e) => {
         if (e.key !== "Enter" && e.key !== " " && e.key !== "Escape") return;
         e.preventDefault(); e.stopPropagation();
-        if (free()) done();
+        if (free()) done(); else shake(e);
       });
       // A tap beside it: the store behind stays put, the flyer shakes.
       veil = document.createElement("div");
       veil.className = "td-tryit-veil";
       veil.setAttribute("data-testid", "tienda-try-it-veil");
-      const shake = (e) => { e.preventDefault(); e.stopPropagation(); sheet.classList.remove("nudge"); void sheet.offsetWidth; sheet.classList.add("nudge"); };
       veil.addEventListener("pointerdown", shake);
       veil.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); });
       sheet.addEventListener("animationend", (e) => { if (e.target === sheet) sheet.classList.remove("nudge"); });
