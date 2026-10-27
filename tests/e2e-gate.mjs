@@ -518,13 +518,17 @@ console.log("the store's order form: All rules, and its marked boxes");
   const stay = await p.evaluate(() => { const r = document.querySelector('[data-testid="tienda-all-laws"]').getBoundingClientRect(), f = document.querySelector(".td-form-scroll").getBoundingClientRect(); return r.top >= f.top - 1 && r.bottom <= f.bottom + 1; });
   check("...it keeps you there, its note saying what pivoting needs", stay && /Cantilever pivot needs a Codo/.test(await p.locator('[data-testid="tienda-all-laws"]').textContent()));
   // (User, the sheet's knobs: the order form's X was small, brown and in
-  // its box's corner, the notes' style outranking the box's own.)
+  // its box's corner, the notes' style outranking the box's own. Then, of
+  // a phone's form: "Is it me, or are the X's in those checkboxes not
+  // centered correctly? Maybe a little bit too high?": a typed ✕ sat
+  // where the phone's fallback font put it, its line centered here but
+  // its ink not, so it's drawn, and its drawing's box is its ink.)
   const x = await p.evaluate(() => {
     const b = document.querySelector('[data-testid="tienda-law-slide"] .td-box'), cs = getComputedStyle(b), r = b.getBoundingClientRect();
-    const range = document.createRange(); range.selectNodeContents(b); const t = range.getBoundingClientRect();
-    return { text: b.textContent, display: cs.display, size: cs.fontSize, dx: Math.round((t.left + t.width / 2) - (r.left + r.width / 2)), dy: Math.round((t.top + t.height / 2) - (r.top + r.height / 2)) };
+    const s = b.querySelector("svg.td-x"), t = s && s.getBoundingClientRect();
+    return { text: b.textContent, svg: !!s, display: cs.display, color: s ? getComputedStyle(s.querySelector("path")).stroke : null, w: t ? Math.round(t.width) : null, dx: t ? Math.round((t.left + t.width / 2) - (r.left + r.width / 2)) : null, dy: t ? Math.round((t.top + t.height / 2) - (r.top + r.height / 2)) : null };
   });
-  check(`...each marked box's X its own size, in the middle (${JSON.stringify(x)})`, x.text === "✕" && x.display === "flex" && x.size === "26px" && Math.abs(x.dx) <= 1 && Math.abs(x.dy) <= 1);
+  check(`...each marked box's X drawn, its own size and blue, in the middle (${JSON.stringify(x)})`, x.svg && x.text === "" && x.display === "flex" && x.w === 22 && x.color === "rgb(31, 58, 107)" && Math.abs(x.dx) <= 1 && Math.abs(x.dy) <= 1);
   await all.click({ force: true });
   check("...cleared: none", (await p.locator(`${laws}:checked`).count()) === 0 && !(await all.isChecked()));
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));

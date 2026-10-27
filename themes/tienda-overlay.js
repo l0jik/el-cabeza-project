@@ -1111,6 +1111,8 @@ const CSS = `
   /* (Under .td-check: the notes' .td-check span outranked a bare .td-box,
      so the X came out small, brown and in the top-left corner.) */
   .td-check .td-box { width: 30px; height: 30px; border: 2px solid ${INK}; display: flex; align-items: center; justify-content: center; font: 700 26px/1 ${COURIER}; color: #1F3A6B; background: rgba(255,255,255,0.25); }
+  /* (Its X drawn, CHECK_X: in the middle whatever the phone's fonts.) */
+  .td-check .td-box .td-x { display: block; flex: none; }
   .td-check b { display: block; font: 700 clamp(14px, 1.5vw, 16px)/1.25 ${FRANKLIN}; }
   .td-check span { display: block; font: 400 13px/1.35 ${FRANKLIN}; color: #5A4A38; }
   .td-sizes { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 4px; }
@@ -1690,6 +1692,15 @@ function BoardDiagram({ sel }) {
 // Square sizes a tap away (any width and length can be set).
 const QUICK_SIZES = [8, 10, 12, 16, 20];
 
+// A marked box's X, drawn (user, of a phone's form: "Is it me, or are the
+// X's in those checkboxes not centered correctly? Maybe a little bit too
+// high?"). A typed "✕" isn't in Courier: it sat where the phone's own
+// fallback font put it, touching the box's top with 15 px under it (in a
+// 77 px box), however well its line was centered. Drawn, its middle is
+// the box's in every browser; the size and weight of the typed one.
+const CHECK_X = h("svg", { className: "td-x", viewBox: "0 0 22 22", width: 22, height: 22 },
+  h("path", { d: "M2 2L20 20M20 2L2 20", fill: "none", stroke: "currentColor", strokeWidth: 2.6 }));
+
 function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store", x }) {
   // Before the Singularity's first visit, the page of the classic game.
   const classic = React.useMemo(() => !singularitySeen(), []);
@@ -1778,7 +1789,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
 
   const check = (id, on, title, note, onToggle, extra) => h("label", { key: id, className: "td-check", "data-testid": `tienda-${id}` },
     h("input", { type: "checkbox", checked: on, onChange: () => { click(); onToggle(); }, "data-testid": `tienda-${id}-input` }),
-    h("span", { className: "td-box", "aria-hidden": "true" }, on ? "✕" : ""),
+    h("span", { className: "td-box", "aria-hidden": "true" }, on ? CHECK_X : null),
     h("span", null, h("b", null, title), note ? h("span", null, note) : null, extra || null),
   );
   const warnFor = (key) => warnings.filter((w) => w.key === key).map((w) => h("div", {

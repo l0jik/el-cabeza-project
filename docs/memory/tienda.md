@@ -613,3 +613,17 @@ box art and an ad standee (assets/tienda/*.jpg).
   it out, till the next tap. Elsewhere (Standard, the den) the player's
   choice stands. tests/e2e-fullscreen.mjs: Tienda's taps after coming
   out put it back; Nova's store, the corner button then the tour's Next.
+- **The order form's X, drawn and in the middle** (2026-10-27; user, a
+  phone screenshot of the form's rules: "Is it me, or are the X's in those
+  checkboxes not centered correctly? Maybe a little bit too high?").
+  Measured on it (a 1080-wide phone, about 3 px a CSS px): the X 9 px from
+  each side but 1-2 px from the box's top and 15-16 from its bottom. The
+  mark was a typed "✕" (U+2715) in Courier, which hasn't one: the phone's
+  fallback font drew it where its own metrics put it, high, though the
+  line itself was centered (e2e-gate measured the text's line box, never
+  its ink, so it passed). Now CHECK_X (tienda-overlay.js), an svg 22 px
+  square, its two strokes 2 to 20, 2.6 wide, currentColor (#1F3A6B): the
+  old one's size (19.7 px across on the phone, 19.6 drawn) and weight, and
+  in the box's middle in any browser (9 px all round at 2.75 px a CSS px).
+  e2e-gate: the box holds the svg (no text), 22 px, blue, its middle the
+  box's within 1 px.
