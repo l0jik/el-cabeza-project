@@ -135,6 +135,17 @@ export function createCommercial() {
     texture.needsUpdate = true;
   }
   let shown = false, tried = 0, lastDraw = 0, frame = 1 / 60, at = 0, nudging = false;
+  /* (three's VideoTexture puts a frame on the texture only when the video
+     presents a new one (requestVideoFrameCallback), and one held paused on
+     its first frame presents none: the set showed dark glass all through
+     the hold, the picture coming only as it played (user: "The still of
+     the commercial needs to show up on the TV screen 2 seconds earlier,
+     and it can just be a frozen frame until it actually starts to play").
+     So, held, its frame is put up as soon as there is one, and again after
+     a seek.) */
+  let posted = false;
+  const onSeeked = () => { posted = false; };
+  if (v) v.addEventListener("seeked", onSeeked);
   const seekTo = (t) => { try { if (!v.seeking) v.currentTime = t; } catch (e) { /* not yet */ } };
   // (playbackRate only set when it changes, so the decoder isn't
   // re-timed every frame.)
@@ -150,7 +161,7 @@ export function createCommercial() {
     reset() {
       // (A showing's sound is its own: the last one's, played out, is
       // forgotten; this one's, if there's sound, is set just after.)
-      spotSound.heard = null; at = 0; nudging = false;
+      spotSound.heard = null; at = 0; nudging = false; posted = false;
       if (!v) return;
       v.pause(); v.playbackRate = 1;
       if (v.readyState >= 1 && v.currentTime > 0) seekTo(0);
@@ -176,6 +187,7 @@ export function createCommercial() {
         shown = true;
         if (!v.paused) v.pause();
         if (v.readyState >= 1 && v.currentTime > 0.05) seekTo(0);
+        else if (!posted && v.readyState >= 2 && !v.seeking) { texture.needsUpdate = true; posted = true; }
         return;
       }
       if (v.ended || (v.duration && t >= v.duration)) return;
@@ -198,7 +210,9 @@ export function createCommercial() {
     // second after it says so, should the sound have stalled).
     done(s) { return s >= COMMERCIAL_MS + 1000 || (spotSound.heard ? at >= COMMERCIAL_MS / 1000 : s >= COMMERCIAL_MS); },
     pause() { if (v && !v.paused) v.pause(); },
-    dispose() { api.pause(); texture.dispose(); },
+    dispose() { api.pause(); if (v) v.removeEventListener("seeked", onSeeked); texture.dispose(); },
+    // (Test-only: whether the held frame's been put up.)
+    posted: () => posted,
   };
   return api;
 }

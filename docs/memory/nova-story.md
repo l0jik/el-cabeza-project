@@ -658,3 +658,27 @@ in; leaving Singularity, back in the den as the set switches off.
   release's own event times (MastheadHoldZone stamp(): event.timeStamp,
   on performance.now()'s clock): let go after 4 s, it's held, timer or
   not, as a slow Chromebook needs too.
+- **The still up as the set comes on** (2026-10-28; user: "The still of
+  the commercial needs to show up on the TV screen 2 seconds earlier, and
+  it can just be a frozen frame until it actually starts to play."). Back
+  from the Singularity the first time, the set used to switch itself on
+  into 2 s of snow (WAKE_TO_AD, gone), the commercial's first frame then
+  locking in out of the snow and holding 4.2 s before it played. Now the
+  dot opens straight onto that first frame (den-tv.js showCommercial
+  `warm`: the raster opening over TV_TIMES.raster onto the picture, not
+  onto snow) and it holds there, frozen, until it plays when it always
+  has, 6.2 s after the set came on (den-fx.js PUSH_AFTER + HOUSE_HOLD);
+  the push in and "Wait… is that my house?" where they were (PUSH_AFTER,
+  2 s after the set came on, the thought HOUSE_AT after that). A picture
+  slow to come still holds at least HOUSE_HOLD once it's there
+  (showCommercial `hold`); none by AD_WAIT_MS, it plays on in the snow as
+  before. Found on the way: the held frame had never been on the glass.
+  three's VideoTexture (r128) uploads only when the video presents a new
+  frame (requestVideoFrameCallback), and a video paused on its first frame
+  presents none, so the hold was dark glass and the picture came only as
+  it played (docs/memory/10-solved-bugs.md). den-commercial.js now puts
+  the held frame up itself. Test: tests/e2e-den-spot.mjs (the first frame
+  within 700 ms of the set coming on, frozen to the start, the glass read
+  back with gl.readPixels all through the hold: bright and varied, mean
+  84-100 and spread 67-86 where before the fix it was about 50 and 9-24;
+  the start 5.7-7 s after the set came on).

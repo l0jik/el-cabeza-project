@@ -52,3 +52,14 @@
   blurred into a 256 x 208 shown canvas, at most 18 paints a second), the
   app let in once the playback's over. The masks on the videos cost a
   little too (fewer skips without them) but were kept for the look.
+- **A paused video's frame never reaches a VideoTexture** (2026-10-28,
+  the den's commercial held on its first frame). three r128's
+  VideoTexture sets needsUpdate only from requestVideoFrameCallback where
+  the browser has it, which fires only when the video presents a new
+  frame: one paused (or preloaded, never played) presents none, so the
+  texture stays blank (here, the set's dark glass all through the hold)
+  until it plays. Fixed in themes/den-commercial.js: while held, once
+  readyState >= 2 and it isn't seeking, `texture.needsUpdate = true` once,
+  again after each seek ("seeked"). Any other held or paused video on a
+  texture needs the same. Seen only by reading the canvas back
+  (gl.readPixels in a rAF after the app's render, tests/e2e-den-spot.mjs).

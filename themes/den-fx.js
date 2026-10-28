@@ -949,23 +949,27 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        set dark, a relieved thought, then the set waking by itself): home
        first, the camera on the board and the set dark; "Phew… I'm home.
        What just happened?!" (one of the den's cards); then the set
-       switches itself on (the dot opens, snow) while the camera goes over
-       to it, and out of the snow the picture locks into the commercial
-       (den-tv.js showCommercial) on its first frame: a living room like
-       this one (user: "Wait, is that my house?"). It holds there while the
-       camera slowly pushes in on it and the thought comes and goes, then
-       plays (its sound set to start with it, so they're as together as
-       ever). Meanwhile the set's taps wait, and drags do, as while it has
-       the camera. The hold, the push, the sound and the thought all wait
+       switches itself on while the camera goes over to it, the dot opening
+       onto the commercial's first frame (den-tv.js showCommercial, warm;
+       user: "The still of the commercial needs to show up on the TV
+       screen 2 seconds earlier, and it can just be a frozen frame until it
+       actually starts to play": it had come out of the snow 2 s after the
+       set came on): a living room like this one (user: "Wait, is that my
+       house?"). It holds there, frozen, while the camera slowly pushes in
+       on it and the thought comes and goes (where they were, PUSH_AFTER
+       after the set came on), then plays when it always has (its sound set
+       to start with it, so they're as together as ever). Meanwhile the
+       set's taps wait, and drags do, as while it has the camera. The hold,
+       the push, the sound and the thought all wait
        for the picture to be on the set (user: the thought "is popping up
        and nothing's on the TV yet ... what are they reacting to"; a phone
        still loading the spot showed snow): the thought once it has locked
        in and been seen a moment (HOUSE_AT); with no picture after a few
        seconds (den-tv.js AD_WAIT_MS), it plays on in the snow, no thought. */
     const PHEW = "Phew… I'm home. What just happened?!", PHEW_AT = 800, PHEW_MS = 3200;
-    const WAKE_AT = 2800, WAKE_TO_AD = 2000;
+    const WAKE_AT = 2800, PUSH_AFTER = 2000;
     const HOUSE = "Wait… is that my house?", HOUSE_HOLD = 4200, HOUSE_AT = 1300, HOUSE_MS = 2600, HOUSE_CLEAR = 300, PUSH_MS = 3800;
-    let wake = null, phewCard = null, phewEnd = 0, houseAt = 0, houseCard = null, houseEnd = 0, pushAt = 0, adWait = false;
+    let wake = null, phewCard = null, phewEnd = 0, houseAt = 0, houseCard = null, houseEnd = 0, pushAt = 0, adWait = false, adFrom = 0;
     function wakeFrame(now) {
       if (phewCard && now >= phewEnd) { phewCard.remove(700); phewCard = null; }
       if (houseAt && now >= houseAt) {
@@ -977,15 +981,16 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       // plays, whichever's first: counted from the spot too, as slow
       // frames put it up late, and it was still up as it played.)
       if (houseCard && (now >= houseEnd || !den || !den.tv || den.tv.commercialIn(now) <= HOUSE_CLEAR)) { houseCard.remove(700); houseCard = null; }
-      // The picture's on the set (or it's going on without): the hold
-      // from now, the sound with it, the push and the thought.
+      // The picture's on the set (or it's going on without): the sound
+      // set to start with it, the push and the thought PUSH_AFTER after the
+      // set came on, or from the picture if it came later than that.
       if (adWait && den && den.tv && den.tv.commercialShown) {
         const shown = den.tv.commercialShown();
         if (shown) {
           adWait = false;
           if (audio && audio.tvCommercial) audio.tvCommercial(den.tv.commercialIn(now) / 1000);
-          pushAt = now;
-          if (shown === "picture") houseAt = now + HOUSE_AT;
+          pushAt = Math.max(now, adFrom + PUSH_AFTER);
+          if (shown === "picture") houseAt = pushAt + HOUSE_AT;
         }
       }
       if (!wake || !den || !den.tv) return;
@@ -994,19 +999,16 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         const doc = typeof document !== "undefined" ? document : null;
         if (doc) { phewCard = dealCard(doc, { testid: "den-phew", l1: PHEW }); phewEnd = now + PHEW_MS; }
       }
-      if (!wake.woke && now >= wake.wakeAt) {
-        wake.woke = true;
-        wake.adAt = now + WAKE_TO_AD;
+      if (now >= wake.wakeAt) {
+        wake = null;
         if (den.tv.powerOn(now) && audio && audio.tvOn) audio.tvOn();
         tvGoal = 1; tvLeaveAt = 0;
-      }
-      if (wake.woke && now >= wake.adAt) {
-        wake = null;
-        // (Held on its first frame as it locks in, the push and the
-        // thought, then on.)
-        den.tv.showCommercial(now, HOUSE_HOLD);
+        // (Its first frame as the set comes on, frozen through the push
+        // and the thought, then on: HOUSE_HOLD after the push starts, or
+        // after a picture slow to come.)
+        den.tv.showCommercial(now, PUSH_AFTER + HOUSE_HOLD, { warm: true, hold: HOUSE_HOLD });
         setCommercialOn(true);
-        adWait = true;
+        adWait = true; adFrom = now;
       }
     }
     const easeInOutCubic = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
@@ -1856,7 +1858,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     const PORTAL_LOCK_MS = 500;
     if (novaTv && novaTv.register) novaTv.register({ press: pressTv });
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-      window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, waking: wake ? (wake.woke ? "woke" : "dark") : null, lureWaited: lureStart ? performance.now() - lureStart - LURE_WAIT : null, glance: glance ? (glance.fix ? "fix" : "round") : null, glanceAt: glance && glance.seen.length ? glance.seen[glance.seen.length - 1] : null, lock: lockOn, fixed: lureFix, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, adShown: den && den.tv && den.tv.commercialShown ? den.tv.commercialShown() : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0,
+      window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, waking: wake ? "dark" : null, lureWaited: lureStart ? performance.now() - lureStart - LURE_WAIT : null, glance: glance ? (glance.fix ? "fix" : "round") : null, glanceAt: glance && glance.seen.length ? glance.seen[glance.seen.length - 1] : null, lock: lockOn, fixed: lureFix, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, adShown: den && den.tv && den.tv.commercialShown ? den.tv.commercialShown() : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0,
         // (The pull: how far in (ms), his yell, through the glass; else how long till it's due.)
         pull: tvPullIn ? { s: Math.round(performance.now() - tvPullIn.t0), yell: tvPullIn.yell || null, entered: tvPullIn.entered, fov: three.current && three.current.camera ? +three.current.camera.fov.toFixed(1) : null, fov0: tvPullIn.fov0 ? +tvPullIn.fov0.toFixed(1) : null, dark: pullFx && pullFx.dark != null ? +pullFx.dark.toFixed(3) : 0 } : null,
         // (His shout with its preverb, cued: when, on the audio clock, the
@@ -1987,7 +1989,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           if (commercialNext) {
             commercialNext = false;
             // Home first, the set dark; then it wakes (wakeFrame).
-            wake = { phewAt: now + PHEW_AT, wakeAt: now + WAKE_AT, woke: false, adAt: 0 };
+            wake = { phewAt: now + PHEW_AT, wakeAt: now + WAKE_AT };
           } else {
             den.tv.showPattern(now);
             offAt = now + 1800;

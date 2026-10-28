@@ -108,20 +108,63 @@ const first = await poll(() => page.evaluate(() => { const s = window.__DEN_TV__
 check(`back from the Singularity: home first, the set dark, the camera on the board (${JSON.stringify(first)})`, !!first && first.phase === "off" && first.focus < 0.05);
 const phew = await poll(() => page.evaluate(() => { const c = document.querySelector('[data-testid="den-phew"]'); return c && { text: c.innerText.trim(), phase: window.__DEN_TV__().phase }; }), 6000, 100);
 check(`...a thought (${JSON.stringify(phew)})`, !!phew && phew.text === "Phew… I'm home. What just happened?!" && phew.phase === "off");
-const woke = await poll(() => page.evaluate(() => { const s = window.__DEN_TV__(); return s.waking === "woke" && /^(warming|snow)$/.test(s.phase) && { phase: s.phase, goal: s.goal }; }), 8000, 50);
-check(`...then the set switches itself on, the camera going over (${JSON.stringify(woke)})`, !!woke && woke.goal === 1);
-check("...and the commercial locks in on the set", !!(await poll(() => page.evaluate(() => window.__DEN_TV__().phase === "commercial"), 10000)));
-check("...the thought gone by then", await page.evaluate(() => !document.querySelector('[data-testid="den-phew"]') || document.querySelector('[data-testid="den-phew"]').classList.contains("off")));
-// Its first frame's a living room like this one (user: "wait, is that my
-// house?"): held there, the camera slowly pushing in on it, and the
-// thought, before it plays (its sound set to start with it).
-// (The thought once the picture's on the set and has been seen a
-// moment, user: it "is popping up and nothing's on the TV yet ... what
-// are they reacting to".)
-const house = await poll(() => page.evaluate(() => { const c = document.querySelector('[data-testid="den-house"]'); const s = window.__DEN_TV__(); return c && { text: c.innerText.trim(), ad: s.ad, shown: s.adShown, watch: +s.watch.toFixed(2) }; }), 5000, 50);
-check(`...held on its first frame, the camera pushing in, and a thought, once the picture's there (${JSON.stringify(house)})`, !!house && house.text === "Wait… is that my house?" && house.shown === "picture" && house.ad === 0 && house.watch > 0.02 && house.watch < 0.9);
-const plays = await poll(() => page.evaluate(() => { const s = window.__DEN_TV__(); const c = document.querySelector('[data-testid="den-house"]'); return s.ad > 0 && { watch: +s.watch.toFixed(2), card: c ? (c.classList.contains("off") ? "going" : "up") : "gone" }; }), 8000, 50);
-check(`...then it plays, the camera in close, the thought gone or going (${JSON.stringify(plays)})`, !!plays && plays.watch > 0.97 && plays.card !== "up");
+// Then the set switches itself on, the camera going over, and the dot
+// opens onto the spot's first frame (user: "The still of the commercial
+// needs to show up on the TV screen 2 seconds earlier, and it can just be
+// a frozen frame until it actually starts to play"; it had come out of
+// the snow 2 s after the set came on): held there, frozen, the camera
+// slowly pushing in on it, and a thought once the picture's been seen a
+// moment (user: "wait, is that my house?"; it "is popping up and
+// nothing's on the TV yet ... what are they reacting to"), then it plays
+// when it always has, 6.2 s after the set came on (its sound set to start
+// with it). Watched frame by frame, from the set coming on to the start.
+// (And what's on the glass: the screen's middle read from the canvas just
+// after it's drawn, every 400 ms; held, it was dark glass till it played,
+// three's VideoTexture waiting for a frame a paused video never presents.)
+const run = await page.evaluate(() => new Promise((done) => {
+  const out = { on: 0, picture: 0, plays: 0, samples: [], house: null, glass: [] };
+  const t0 = performance.now();
+  const glass = () => {
+    const t = window.__DEN_THREE__, at = window.__DEN_TV_AT__ && window.__DEN_TV_AT__();
+    if (!t || !at) return null;
+    const gl = t.renderer.getContext(), r = t.renderer.domElement.getBoundingClientRect(), k = gl.drawingBufferWidth / r.width;
+    const W = 40, H = 30, px = new Uint8Array(W * H * 4);
+    gl.readPixels(Math.round((at.x - r.left) * k) - W / 2, Math.round(gl.drawingBufferHeight - (at.y - r.top) * k) - H / 2, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    let sum = 0, lo = 255, hi = 0;
+    for (let i = 0; i < W * H; i++) { const l = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]; sum += l; lo = Math.min(lo, l); hi = Math.max(hi, l); }
+    return { mean: Math.round(sum / (W * H)), spread: Math.round(hi - lo) };
+  };
+  const step = () => {
+    const now = performance.now(), s = window.__DEN_TV__(), v = window.__DEN_SPOT__ && window.__DEN_SPOT__();
+    if (!out.on && s.phase !== "off") Object.assign(out, { on: now, phaseOn: s.phase, goal: s.goal });
+    if (out.on && !out.plays && s.ad === 0 && (!out.glass.length || now - out.glass[out.glass.length - 1].at >= 400)) { const g = glass(); if (g) out.glass.push({ at: now, ...g }); }
+    if (out.on && !out.picture && s.adShown === "picture") out.picture = now;
+    if (out.picture && !out.plays) out.samples.push({ at: now, t: v ? v.t : null, paused: v ? v.paused : null, ad: s.ad });
+    const c = document.querySelector('[data-testid="den-house"]');
+    if (c && !out.house) out.house = { at: now, text: c.innerText.trim(), ad: s.ad, shown: s.adShown, watch: +s.watch.toFixed(2) };
+    if (out.on && !out.plays && s.ad > 0) out.plays = now, out.atPlay = { watch: +s.watch.toFixed(2), card: c ? (c.classList.contains("off") ? "going" : "up") : "gone" };
+    if (out.plays || now - t0 > 20000) { done(out); return; }
+    requestAnimationFrame(step);
+  };
+  step();
+}));
+const rel = (x) => (x && run.on ? Math.round(x - run.on) : null);
+check(`...then the set switches itself on, the camera going over, straight onto the commercial (${JSON.stringify({ phase: run.phaseOn, goal: run.goal })})`, run.phaseOn === "commercial" && run.goal === 1);
+check(`...its first frame on the set as the dot opens, not 2 s on out of the snow (${rel(run.picture)} ms after the set came on)`, !!run.picture && rel(run.picture) < 700);
+{
+  // (Frozen: its video still at the top till a moment before it starts,
+  // when it rolls from the top to meet the sound.)
+  const held = run.samples.filter((x) => run.plays && x.at < run.plays - 500);
+  const moved = held.filter((x) => x.t == null || x.t > 0.05 || x.ad > 0);
+  check(`...held there, a frozen frame (${held.length} frames, ${moved.length} moved)`, held.length > 30 && moved.length === 0, JSON.stringify(moved.slice(0, 3)));
+  // (On the glass, once the dot's open: the picture, not dark glass.)
+  const seen = run.glass.filter((g) => g.at - run.on >= 1300 && run.plays && g.at < run.plays - 300);
+  const dark = seen.filter((g) => g.mean < 65 || g.spread < 45);
+  check(`...and that frame on the glass all the while, not dark glass (${seen.length} looks: ${seen.map((g) => `${g.mean}/${g.spread}`).join(" ")})`, seen.length >= 8 && dark.length === 0);
+}
+check(`...the thought once the picture's been there a moment, the camera pushing in (${JSON.stringify(run.house && { ...run.house, at: rel(run.house.at) })})`, !!run.house && run.house.text === "Wait… is that my house?" && run.house.shown === "picture" && run.house.ad === 0 && run.house.watch > 0.02 && run.house.watch < 0.9 && rel(run.house.at) > 2800 && rel(run.house.at) < 4200);
+check(`...then it plays when it always has, the camera in close, the thought gone or going (${rel(run.plays)} ms after the set came on; ${JSON.stringify(run.atPlay)})`, !!run.plays && rel(run.plays) > 5700 && rel(run.plays) < 7000 && run.atPlay.watch > 0.97 && run.atPlay.card !== "up");
+check("...the first thought gone by then", await page.evaluate(() => !document.querySelector('[data-testid="den-phew"]') || document.querySelector('[data-testid="den-phew"]').classList.contains("off")));
 const shots = process.env.EC_SHOTS;
 // Its video on the tube, with the sound as it's heard (user: the voice
 // wasn't with the lips). Every 100 ms or so, against the moment of the

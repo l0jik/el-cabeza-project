@@ -454,7 +454,7 @@ export function buildTelevision(yF, RZ, X = -40) {
   /* ---- the set's life ---- */
   // The commercial (den-commercial.js: the user's spot, a video), made
   // when it's first shown.
-  let commercial = null, adLead = 0, adWaitAt = 0;
+  let commercial = null, adLead = 0, adWaitAt = 0, adStart = 0, adHold = 0, adWarmAt = 0;
   // (How much faster than its own the dive runs: pulled in, den-fx.js.)
   let diveRate = 1;
   // (How long the commercial waits in the snow for its picture before it
@@ -650,15 +650,23 @@ export function buildTelevision(yF, RZ, X = -40) {
     /* On (back out of Singularity the first time, in Nova, it's switched
        itself on: den-fx.js), the commercial comes in out of the snow,
        rolling and locking (held on its first frame for `delay`), and
-       plays: then snow ("aired"), for den-fx.js to switch it off. */
-    showCommercial(now, delay = 0) {
-      knobA = knobGoal = -0.9 + 0.75;
+       plays: then snow ("aired"), for den-fx.js to switch it off. `warm`:
+       the set's only now switching on (powerOn just before), and the dot
+       opens onto the picture, not onto snow. `hold`: a picture slow to
+       come still holds at least this long once it's there (else `delay`
+       counts from now, the start where it would have been). */
+    showCommercial(now, delay = 0, { warm = false, hold = null } = {}) {
+      knobGoal = -0.9 + 0.75;
+      if (!warm) knobA = knobGoal;
       portal = false;
       if (!commercial) { commercial = createCommercial(); disposables.push(commercial); }
       commercial.reset();
       commercial.draw(-delay / 1000);
       u.uTex.value = commercial.texture;
       adLead = delay;
+      adStart = now + delay;
+      adHold = hold == null ? delay : hold;
+      adWarmAt = warm ? now : 0;
       adWaitAt = commercial.canShow ? now : 0;
       set("commercial", now + delay);
     },
@@ -766,15 +774,24 @@ export function buildTelevision(yF, RZ, X = -40) {
         // (Waiting for its picture: the clock held at the hold's start, so
         // it locks in and holds from the moment there is one.)
         // (None by AD_WAIT_MS: it starts now, in the snow.)
+        // (A `hold`: the start stays where it was, but at least that long
+        // after the picture comes.)
         if (adWaitAt) {
-          if (commercial.ready()) adWaitAt = 0;
-          else if (now - adWaitAt >= AD_WAIT_MS) { adWaitAt = 0; t0 = now; }
-          else t0 = now + adLead;
+          if (commercial.ready()) { adWaitAt = 0; adLead = t0 - now; }
+          else if (now - adWaitAt >= AD_WAIT_MS) { adWaitAt = 0; t0 = now; adLead = 0; }
+          else { t0 = Math.max(adStart, now + adHold); adLead = t0 - now; }
         }
         commercial.draw(since(now) / 1000);
         const on = commercial.ready();
         lock = on ? ease(clamp01((since(now) + adLead) / TV_TIMES.resolve)) : 1;
         raster = 1; glow = 1; pat = on ? lock : 0; snow = on ? 1 - lock : 1;
+        // (Switched on with it: the dot opening onto it, as powerOn's
+        // warming opens onto snow.)
+        if (adWarmAt) {
+          const w = clamp01((now - adWarmAt) / TV_TIMES.raster);
+          raster = ease(w); glow = 0.55 + 0.45 * raster;
+          if (w >= 1) adWarmAt = 0;
+        }
         if (commercial.done(since(now))) set("aired", now);
       } else if (phase === "channel") {
         // Another reality on the set (after the story): a clean picture,
