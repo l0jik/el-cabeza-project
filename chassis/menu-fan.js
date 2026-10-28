@@ -48,7 +48,7 @@ function sector(c, r0, r1, a0, a1) {
   const big = a1 - a0 > 180 ? 1 : 0;
   return `M${r1d(A.x)} ${r1d(A.y)}A${r1} ${r1} 0 ${big} 1 ${r1d(B.x)} ${r1d(B.y)}L${r1d(C.x)} ${r1d(C.y)}A${r0} ${r0} 0 ${big} 0 ${r1d(D.x)} ${r1d(D.y)}Z`;
 }
-// A thin arc (the Rail's line, the place-marks).
+// A thin arc (the Rail's line, the place-marks, Rings' line over a kind).
 function arcPath(c, r, a0, a1) {
   const A = polar(c, r, a0), B = polar(c, r, a1);
   return `M${r1d(A.x)} ${r1d(A.y)}A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${r1d(B.x)} ${r1d(B.y)}`;
@@ -371,6 +371,8 @@ export async function prepareDock(host, phase) {
 // The fan's outer edge: as wide as the screen allows, with the read-out's
 // room above it.
 const ringR1 = (vw, c) => clamp(Math.min(176, vw / 2 - 6, c.y - 214), 118, 176);
+// (Rings: how far the lit kind's glow reaches out past the ring, px.)
+const GROUP_GLOW = 16;
 // Where the piece is while the fan's out: before a game where it is; in
 // play and after, brought from its corner to the same place.
 const centred = (scale = 0.84) => (phase, vw, vh, rest, home) => (phase === "setup"
@@ -439,12 +441,14 @@ body.mf-quiet [data-testid="toggle-hint"]{display:none!important}
 .mf-w.mf-armed path{fill:color-mix(in srgb,#b3261e 22%,var(--ml-paper));stroke:#b3261e}
 .mf-w:focus-visible path{stroke:var(--ml-ink);stroke-width:2.2}
 .mf-kind{pointer-events:auto;cursor:pointer;touch-action:none}
-.mf-kind path{fill:color-mix(in srgb,var(--ml-ink) 78%,transparent);stroke:color-mix(in srgb,var(--ml-paper) 30%,transparent);stroke-width:.8;transition:fill .2s ease}
-.mf-kind.mf-on path{fill:var(--ml-ink)}
+.mf-kind path{fill:color-mix(in srgb,var(--ml-ink) 78%,transparent);stroke:color-mix(in srgb,var(--ml-paper) 30%,transparent);stroke-width:.8;transition:fill .2s ease,stroke .2s ease}
+.mf-kind.mf-on path{fill:var(--ml-ink);stroke:#9be9ff;stroke-width:1.6}
 .mf-kind text{fill:var(--ml-paper);font-size:8.5px;letter-spacing:.12em;text-transform:var(--ml-case);font-family:var(--ml-font);text-anchor:middle;dominant-baseline:central;opacity:.72}
 .mf-kind.mf-on text{opacity:1;font-weight:700}
 .mf-track{fill:none;stroke:color-mix(in srgb,var(--ml-paper) 40%,transparent);stroke-width:1.5;stroke-linecap:round}
 .mf-thumb{fill:none;stroke:var(--ml-paper);stroke-width:3;stroke-linecap:round}
+.mf-group{pointer-events:none}
+.mf-group-line{fill:none;stroke:#b4f0ff;stroke-width:3.5;stroke-linecap:round}
 .mf-railline{fill:none;stroke:color-mix(in srgb,var(--ml-paper) 70%,transparent);stroke-width:1.2;stroke-dasharray:2 5;stroke-linecap:round}
 .mf-lab{position:fixed;left:0;top:0;width:var(--w,74px);display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;pointer-events:none;color:var(--ml-ink);font-family:var(--ml-font);font-size:9.5px;line-height:1.12;letter-spacing:.06em;text-transform:var(--ml-case);will-change:transform,opacity}
 .mf-lab .mf-ico{width:17px;height:17px}.mf-lab .mf-ico svg{display:block;width:100%;height:100%}
@@ -537,6 +541,15 @@ export function mountFan(v, env) {
   const defs = svgEl("defs"), clip = svgEl("clipPath", { id: clipId });
   clip.append(svgEl("rect", v.corner ? { x: 0, y: 0, width: c.x + 1, height: c.y + 1 } : { x: 0, y: 0, width: vw, height: c.y + 1 }));
   defs.append(clip);
+  // (Rings: the glow off the lit kind's line, fading out from the ring.)
+  const glowId = `${clipId}-glow`;
+  if (v.kinds) {
+    const R = geo.r1 + GROUP_GLOW;
+    const grad = svgEl("radialGradient", { id: glowId, gradientUnits: "userSpaceOnUse", cx: c.x, cy: c.y, r: R });
+    [[geo.r1, "#66d9ff", 0.62], [geo.r1 + 5, "#66d9ff", 0.3], [geo.r1 + 10, "#8c6eff", 0.12], [R, "#8c6eff", 0]]
+      .forEach(([r, col, a]) => grad.append(svgEl("stop", { offset: (r / R).toFixed(4), "stop-color": col, "stop-opacity": a })));
+    defs.append(grad);
+  }
   svg.append(defs);
   const gRing = svgEl("g", { "clip-path": `url(#${clipId})` });
   const gKinds = svgEl("g");
@@ -646,13 +659,26 @@ export function mountFan(v, env) {
       paintSlot(s);
     }
     // The place-marks: where in the whole round the fan is (the Rail and
-    // Pages say it their own ways).
-    if (!rail && geo.layout !== "pages" && cyclic) {
+    // Pages say it their own ways, Rings by its kinds: below).
+    if (!rail && geo.layout !== "pages" && cyclic && !v.kinds) {
       const rr = geo.r1 + 7;
       gMarks.append(svgEl("path", { class: "mf-track", "data-mf-track": "", d: arcPath(c, rr, geo.win[0] + 2, geo.win[1] - 2) }));
       gMarks.append(svgEl("path", { class: "mf-thumb", "data-mf-thumb": "" }));
     }
     if (rail) gMarks.append(svgEl("path", { class: "mf-railline", d: arcPath(c, geo.R, geo.win[0], geo.win[1]) }));
+    /* Rings: a line along the outside of the lit kind's settings, those
+       and no others (user, of the place-marks' thumb, which ran on over
+       the next kind's: "It needs to only span the specific wedges that
+       pertain to that piece. And maybe it needs to be slightly thicker or
+       glow or something ... maybe give it that blue glow outline"): in the
+       Singularity's blue, a bright line hugging their outer edge and a
+       glow fading out from it (render places it), the lit kind on the
+       inner ring edged in the same blue to say whose they are. */
+    if (v.kinds) {
+      const g = svgEl("g", { class: "mf-group", "data-mf-group": "" });
+      g.append(svgEl("path", { class: "mf-group-glow", fill: `url(#${glowId})` }), svgEl("path", { class: "mf-group-line" }));
+      gMarks.append(g);
+    }
     // Rings: the four kinds round the piece; a kind tapped turns the outer
     // ring to its first setting.
     if (v.kinds) {
@@ -735,6 +761,7 @@ export function mountFan(v, env) {
       // (Opening like a fan: drawn folded toward the top, as far as it's
       // opened; where it's going says what's at the point.)
       const o = opened(a), ad = geo.focus + (a - geo.focus) * o.at, op = vis * o.fade;
+      s.ad = ad; s.op = op; s.o = o;
       if (rail) {
         const p = polar(c, geo.R, ad);
         s.node.style.transform = `translate(${r1d(p.x - 40)}px, ${r1d(p.y - 18)}px)`;
@@ -783,7 +810,38 @@ export function mountFan(v, env) {
     if (v.kinds) {
       const k = focusKey && (slots.find((s) => s.it.key === focusKey) || {}).it;
       gKinds.querySelectorAll(".mf-kind").forEach((g) => g.classList.toggle("mf-on", !!k && g.getAttribute("data-mf-kind") === k.kind));
+      groupLine(k ? k.kind : null);
     }
+  }
+
+  // Rings: the lit kind's line, from the first of its settings in sight to
+  // the last, edge to edge as they're drawn (the window's ends cut it, as
+  // they cut the ring); opening, it opens and grows with them.
+  function groupLine(kind) {
+    const g = gMarks.querySelector("[data-mf-group]");
+    if (!g) return;
+    let lo = Infinity, hi = -Infinity, size = 1, fade = 1;
+    for (const s of slots) {
+      if (!kind || s.it.kind !== kind || !(s.op > 0.02)) continue;
+      lo = Math.min(lo, s.ad - s.span / 2 + 1);
+      hi = Math.max(hi, s.ad + s.span / 2 - 1);
+      size = Math.min(size, s.o.size);
+      fade = Math.min(fade, s.o.fade);
+    }
+    lo = Math.max(lo, geo.win[0]);
+    hi = Math.min(hi, geo.win[1]);
+    const rl = geo.r1 + 2.5, cap = deg(1.75 / rl); // (the round ends' reach, the line 3.5 wide)
+    if (!(hi - lo > 2 * cap + 0.5)) { g.style.display = "none"; g.setAttribute("data-mf-group", ""); return; }
+    g.style.display = "";
+    g.setAttribute("data-mf-group", kind);
+    g.setAttribute("data-a0", r1d(lo));
+    g.setAttribute("data-a1", r1d(hi));
+    const [glow, line] = g.children;
+    glow.setAttribute("d", sector(c, geo.r1, geo.r1 + GROUP_GLOW, lo, hi));
+    line.setAttribute("d", arcPath(c, rl, lo + cap, hi - cap));
+    const tf = grown(size).trim();
+    if (tf) g.setAttribute("transform", tf); else g.removeAttribute("transform");
+    if (fade < 1) g.setAttribute("opacity", fade.toFixed(3)); else g.removeAttribute("opacity");
   }
 
   /* ---- opening like a fan (Rings: the lab's first Fan, "Wedges open

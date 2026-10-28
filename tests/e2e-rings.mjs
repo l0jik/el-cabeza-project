@@ -133,6 +133,30 @@ async function choicesOf(page, key, touch = true) {
   }
   return false;
 }
+// Rings' line over the lit kind: its kind and ends; the lit kind's
+// settings in sight and the others' (as drawn: 30° apart, each 28° wide,
+// the window -180° to 0°); whether it runs edge to edge over the lit
+// kind's and clear of every other's; its blue, the lit kind's edge, and
+// any of the old place-marks left.
+const groupLine = (page) => page.evaluate(() => {
+  const L = document.querySelector('[data-testid="dock-menu"][data-open="true"]');
+  const g = L && L.querySelector("[data-mf-group]");
+  if (!g || g.style.display === "none") return null;
+  const kind = g.getAttribute("data-mf-group"), a0 = +g.getAttribute("data-a0"), a1 = +g.getAttribute("data-a1");
+  const lit = L.querySelector(".mf-kind.mf-on");
+  const ws = [...L.querySelectorAll(".mf-w")]
+    .map((w) => ({ key: w.getAttribute("data-mf-key"), kind: w.getAttribute("data-mf-of"), a: +((w.getAttribute("transform") || "").match(/rotate\((-?[\d.]+)/) || [0, NaN])[1], op: +(w.getAttribute("opacity") || 1) }))
+    .filter((w) => w.op > 0.02 && w.a > -194 && w.a < 14);
+  const lo = (x) => Math.max(-180, x), hi = (x) => Math.min(0, x);
+  const mine = ws.filter((w) => w.kind === kind), others = ws.filter((w) => w.kind !== kind);
+  const exact = mine.length > 0 && Math.abs(a0 - lo(Math.min(...mine.map((w) => w.a - 14)))) < 0.3 && Math.abs(a1 - hi(Math.max(...mine.map((w) => w.a + 14)))) < 0.3;
+  const clear = others.every((w) => hi(w.a + 14) <= a0 + 0.3 || lo(w.a - 14) >= a1 - 0.3);
+  return {
+    kind, a0, a1, lit: lit && lit.getAttribute("data-mf-kind"), mine: mine.map((w) => w.key), exact, clear,
+    stroke: getComputedStyle(g.querySelector(".mf-group-line")).stroke, litStroke: lit ? getComputedStyle(lit.querySelector("path")).stroke : null,
+    marks: L.querySelectorAll("[data-mf-track], [data-mf-thumb]").length,
+  };
+});
 const SETUP = ["first", "opponent", "level", "start", "pieces", "cart", "check", "points", "costs", "guide", "sound", "language", "replay", "saves", "bar"];
 
 console.log("The store, on a phone: Rings is the menu");
@@ -146,6 +170,23 @@ console.log("The store, on a phone: Rings is the menu");
   check("...it opens like a fan: its settings folded at the top, then open out to their places", !!first && first.every((a) => Math.abs(a + 90) < 2) && span(settled) > 170, `${first && first.map(Math.round).join()} → ${settled.map(Math.round).join()}`);
   check("...every setting the panel has before a game", !!r && SETUP.every((k) => r.keys.includes(k)), r && r.keys.join());
   check("...Try a Game over it, the first move at its point, named and said", !!r && /try a game/i.test(r.primary || "") && r.focus === "first" && /First move/i.test(r.read) && /Which side makes the first move/.test(r.read), JSON.stringify(r));
+  // The line over the lit kind's settings (user, of the place-marks, which
+  // ran on over the next kind's: "It needs to only span the specific
+  // wedges that pertain to that piece ... maybe give it that blue glow
+  // outline"): edge to edge over those and clear of the rest, in the
+  // Singularity's blue, the lit kind outlined in it; turned on into
+  // another kind, it goes over that kind's.
+  {
+    let g = await groupLine(page);
+    check(`the lit kind's line: over Game's settings only, edge to edge (${g && `${g.mine.join()} ${g.a0}..${g.a1}`})`, !!g && g.kind === "game" && g.lit === "game" && g.exact && g.clear && g.mine.includes("first") && !g.mine.includes("start"), JSON.stringify(g));
+    check("...in the Singularity's blue, the lit kind outlined in it, no place-marks", !!g && g.stroke === "rgb(180, 240, 255)" && g.litStroke === "rgb(155, 233, 255)" && g.marks === 0, JSON.stringify(g));
+    for (let i = 0; i < 8 && (await rings(page) || {}).focus !== "start"; i++) {
+      await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-next"]').tap();
+      await poll(() => out(page), 3000, 100);
+    }
+    g = await poll(async () => { const x = await groupLine(page); return x && x.kind === "board" ? x : null; }, 3000, 100);
+    check(`...turned to Start: over Board's settings, from Start on, and no others (${g && `${g.mine.join()} ${g.a0}..${g.a1}`})`, !!g && g.lit === "board" && g.exact && g.clear && g.mine[0] === "start" && g.mine.includes("pieces") && !g.mine.includes("level") && !g.mine.includes("check"), JSON.stringify(g));
+  }
   // Level: its choices, Medium.
   check("a tap on Level: turned to it, its choices in the read-out", (await choicesOf(page, "level")) && (await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-ctl"] [data-mf-choice]').count()) === 3);
   const medium = await page.locator('[data-testid="dock-menu"] [data-mf-choice="medium"]').boundingBox();

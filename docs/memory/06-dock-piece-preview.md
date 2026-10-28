@@ -217,3 +217,23 @@ width it had and stays clear of the corner piece and the full-screen
 button (beside it, Spanish City's "Pizarra (gris azulado) · Acciones"
 ran into both on a 360 px phone); the phone bar's side buttons put it
 under the name the same way. Test: e2e-costs (Photon (dark), desktop).
+
+Rings' line over the lit kind (2026-10-28; user, with a phone screenshot
+of Rings in the den before a game, Board lit and the place-marks' thumb
+running from Opponent over Level to Start, circled: "I like what you're doing here, but this line is not exact. It needs to only span the specific wedges that pertain to that piece. And maybe it needs to be slightly thicker or glow or something. I don't know. It's maybe give it that blue glow outline. This just needs to be tightened up a bit, because we need to have, it needs to be clearer as to what is being indicated here."). The thumb
+was a scrollbar (the window's share of the whole round, placed by the
+turn), so it ran across kinds. Rings (v.kinds) has no place-marks now;
+groupLine() in render() draws a line along the outer edge of the lit
+kind's settings in sight, edge to edge as they're drawn (each wedge's
+drawn angle ± (span/2 − 1); the window's ends cut it, as they cut the
+ring; opening, it grows and fades in with them): 3.5 px #b4f0ff, round
+ends pulled in by their own reach, at r1 + 2.5, over a glow band (r1 to
+r1 + GROUP_GLOW 16) filled with a radial gradient on the hub (#66d9ff
+.62 → .3, #8c6eff .12 → 0: the Singularity's blue of tienda-overlay's
+glow), no SVG filter (cheap on phones). The lit kind on the inner ring
+is edged in the same blue (.mf-kind.mf-on path stroke #9be9ff 1.6), so
+which piece the line belongs to reads at once. [data-mf-group] carries
+the kind and data-a0/a1. The lab's other fans keep their place-marks.
+Test: e2e-rings (store, phone: over Game's settings only, edge to edge,
+clear of the rest; the blue, the lit kind's edge, no place-marks; turned
+on to Start, over Board's from Start, no others).
