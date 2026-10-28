@@ -129,8 +129,13 @@ console.log("The store, on a phone: Rings is the menu");
   const on = await page.locator('[data-testid="dock-menu"] [data-mf-choice="online"]').boundingBox();
   await page.touchscreen.tap(on.x + on.width / 2, on.y + on.height / 2);
   check("Opponent, Online: Rings away, the panel open on Online's own page", !!(await poll(async () => (await panelOpen(page)) && !(await rings(page)), 5000, 100)));
-  await page.touchscreen.tap(12, 300);
-  await poll(async () => !(await panelOpen(page)), 4000, 100);
+  // (Put away by a tap outside; again if the tap came before the panel,
+  // just open, was listening for it.)
+  for (let i = 0; i < 3 && (await panelOpen(page)); i++) {
+    await page.waitForTimeout(400);
+    await page.touchscreen.tap(12, 300);
+    await poll(async () => !(await panelOpen(page)), 2000, 100);
+  }
   await page.waitForTimeout(800);
   // Online's page left in the panel: Rings still has who to play, and
   // takes the player back to the computer from there.

@@ -413,7 +413,7 @@ body.mf-quiet [data-testid="toggle-hint"]{display:none!important}
 .mf-lab{position:fixed;left:0;top:0;width:var(--w,74px);display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;pointer-events:none;color:var(--ml-ink);font-family:var(--ml-font);font-size:9.5px;line-height:1.12;letter-spacing:.06em;text-transform:var(--ml-case);will-change:transform,opacity}
 .mf-lab .mf-ico{width:17px;height:17px}.mf-lab .mf-ico svg{display:block;width:100%;height:100%}
 .mf-lab .mf-name{max-width:100%;overflow-wrap:anywhere}
-.mf-lab .mf-val{font-size:8.5px;opacity:.7;letter-spacing:.04em;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mf-lab .mf-val{font-size:8.5px;opacity:.7;letter-spacing:.04em;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 0 2px;margin:-3px 0 -2px}
 .mf-lab .mf-val.mf-yes,.mf-lab .mf-val.mf-no{display:inline-flex;align-items:center;gap:4px;opacity:.85}
 .mf-lab .mf-val.mf-yes::before,.mf-lab .mf-val.mf-no::before{content:"";width:6px;height:6px;border-radius:50%;border:1.2px solid currentColor;box-sizing:border-box}
 .mf-lab .mf-val.mf-yes::before{background:currentColor}
@@ -619,18 +619,41 @@ export function mountFan(v, env) {
     if (v.kinds) {
       const present = KINDS.filter((k) => slots.some((s) => s.it.kind === k.key));
       const span = W / Math.max(1, present.length);
+      // (Its name's room: the chord across its piece of the ring.)
+      const room = 2 * ((geo.inner[0] + geo.inner[1]) / 2) * Math.sin(rad(span / 2)) - 10;
       present.forEach((k, i) => {
         const a0 = geo.win[0] + i * span, a1 = a0 + span;
-        const g = svgEl("g", { class: "mf-kind", role: "button", tabindex: "-1", "data-mf-kind": k.key, "aria-label": t(k.name) });
+        const g = svgEl("g", { class: "mf-kind", role: "button", tabindex: "-1", "data-mf-kind": k.key });
         g.append(svgEl("path", { d: sector(c, geo.inner[0], geo.inner[1], a0 + 1, a1 - 1) }));
         const p = polar(c, (geo.inner[0] + geo.inner[1]) / 2, (a0 + a1) / 2);
-        const txt = svgEl("text", { x: r1d(p.x), y: r1d(p.y) });
-        txt.textContent = t(k.name);
+        const txt = svgEl("text", { x: r1d(p.x), y: r1d(p.y), "data-room": r1d(room) });
         g.append(txt);
         g.addEventListener("pointerdown", (e) => startDrag(e, { kind: k.key }));
         gKinds.append(g);
+        nameKind(g);
       });
     }
+  }
+
+  // A kind's name on the inner ring, in the language now; one longer than
+  // its piece of the ring (CONFIGURACIÓN) closes its letters up, then
+  // shrinks, to fit.
+  function nameKind(g) {
+    const k = KINDS.find((x) => x.key === g.getAttribute("data-mf-kind"));
+    const txt = g.querySelector("text");
+    if (!k || !txt) return;
+    g.setAttribute("aria-label", t(k.name));
+    txt.textContent = t(k.name);
+    txt.style.letterSpacing = "";
+    txt.style.fontSize = "";
+    const room = +txt.getAttribute("data-room");
+    const n = txt.textContent.length;
+    const len = (guess) => { let w = 0; try { w = txt.getComputedTextLength(); } catch (e) { /* not drawn */ } return w || guess; };
+    const w = len(n * 8.5 * 0.62 + (n - 1) * 8.5 * 0.12);
+    if (w <= room) return;
+    txt.style.letterSpacing = ".02em";
+    const w2 = len(n * 8.5 * 0.62 + (n - 1) * 8.5 * 0.02);
+    if (w2 > room) txt.style.fontSize = `${Math.max(6.5, (8.5 * room) / w2).toFixed(2)}px`;
   }
 
   function paintSlot(s) {
@@ -989,6 +1012,7 @@ export function mountFan(v, env) {
     paintTop();
     if (same) {
       slots.forEach((s, i) => { s.it = data.items[i]; paintSlot(s); });
+      gKinds.querySelectorAll(".mf-kind").forEach(nameKind);
     } else {
       const keep = focusKey;
       layout();

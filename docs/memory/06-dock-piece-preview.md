@@ -129,7 +129,11 @@ Online's page in the panel (picked from Rings, then put away): Rings'
 Opponent says Online and its other choices press Back first (twice from
 the join page); with a game hosted or joined they're held, Leave being
 the page's own. The store's idle nudge lights Rings' Try a Game
-(td-try-game) as it lights the panel's. The first game's tour: its menu
+(td-try-game) as it lights the panel's. In other languages: a kind's
+name longer than its piece of the inner ring (Spanish CONFIGURACIÓN)
+closes its letters up, then shrinks, to fit (nameKind, again on a
+language change); the settings' value line (clipped for its ellipsis)
+has room above and below for accents on capitals (FÁCIL, TIẾNG VIỆT). The first game's tour: its menu
 step waits for Rings out (or the panel); "panel" on Rings is "Your menu
 turns." (turn it, read it, change it; rings round the grip, the read-out
 and the setting at the point: TOUR_RINGS_HOW), "foot" is "Four kinds of
