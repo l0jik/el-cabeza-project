@@ -81,6 +81,8 @@ const E2E = [
   ["e2e-menu-lab.mjs"],
   // Rings, the dock's menu everywhere: out from the piece and the corner piece, in each phase.
   ["e2e-rings.mjs"],
+  // Cromo on a phone: the board's surface from Rings, mid-game too; the dark side's dots; the title clear of the corner tab.
+  ["e2e-cromo.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

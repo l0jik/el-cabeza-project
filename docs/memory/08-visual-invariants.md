@@ -60,3 +60,19 @@
   Follow this same pattern for any new move-triggered effect rather than
   inventing a new hook shape.
 
+
+- **The title's badge clears the corner menu's tab** (2026-10-28; user,
+  Cromo on a phone, the PARAMETERS plate over the "EL C": "the overlap on
+  these items circled in red"). In play the title is a faint badge top
+  right (top 14, right 18, clamp(16px, 2.8vw, 52px), no theme scale) and
+  the corner menu's tab sits top left; Cromo's Michroma (very wide) and a
+  long summary ("5 laws · 10 pieces · 13 × 14") made them meet on phones
+  under ~400 px. ElCabeza3D.jsx mastheadDrop: while the badge is
+  relocated it measures the tab and the title (each second, on resize and
+  once the faces are in) and, where the tab's right edge comes within
+  10 px of the title's left, puts the badge 4 px under the tab
+  (its top transition carries it). Every world, every width; the hold
+  zone over the title (unifiedTransition.jsx) tracks the title's live
+  rect, so it follows. Seen here only with Google's fonts routed in
+  (scratchpad cromo/measure.mjs): the stand-in face is ~35% narrower.
+  Test: tests/e2e-cromo.mjs (a 320 px phone: under the tab; 430: beside).

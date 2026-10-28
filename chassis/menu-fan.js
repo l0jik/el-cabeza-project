@@ -108,6 +108,7 @@ const ICON = {
   movelog: '<path d="M9 7h11M9 12h11M9 17h11"/><circle cx="5" cy="7" r="1.2" fill="currentColor" stroke="none"/><circle cx="5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="5" cy="17" r="1.2" fill="currentColor" stroke="none"/>',
   plainrules: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M20 4.5v4.2h-4.2"/>',
   spark: '<path d="M12 3.5v4.5M12 16v4.5M3.5 12H8M16 12h4.5M6 6l3 3M15 15l3 3M18 6l-3 3M9 15l-3 3"/>',
+  surface: '<path d="M3.5 9.5L12 5l8.5 4.5L12 14z"/><path d="M3.5 9.5v4.2L12 18.2l8.5-4.5V9.5"/><path d="M7.8 7.2l8.4 4.6M16.2 7.2l-8.4 4.6"/>',
 };
 const bars = (n) => [[4.5, 13.5, 6], [10, 9.5, 10], [15.5, 5.5, 14]]
   .map(([x, y, h], i) => `<rect x="${x}" y="${y}" width="4" height="${h}" rx="1"${i < n ? ' fill="currentColor"' : ""}/>`).join("");
@@ -286,7 +287,7 @@ export function readDock(host, phase) {
   const half = one('[data-testid="set-out-half-setup"]');
   if (half) add("half", { type: "toggle", value: onOff(lit(half)), on: lit(half), icon: "half", disabled: off(half), press: () => half.click() });
   const begin = one('[data-dock-role="begin"]');
-  const beside = begin && begin.parentElement ? Array.from(begin.parentElement.children).filter((b) => b !== begin && b.tagName === "BUTTON") : [];
+  const beside = begin && begin.parentElement ? Array.from(begin.parentElement.children).filter((b) => b !== begin && b.tagName === "BUTTON" && !b.hasAttribute("data-dock-skip")) : [];
   for (const id of ["nova-again-setup", "nova-again"]) { const b = one(`[data-testid="${id}"]`); if (b) beside.push(b); }
   // (One that changes things where they are, data-dock-stay, keeps the
   // fan out, its word after in the read-out: Futuris's Anomaly, a new
@@ -300,6 +301,13 @@ export function readDock(host, phase) {
       disabled: off(b), press: () => b.click(),
     });
   });
+  /* A world's own settings (theme.dockSettings, through the host),
+     before a game, in play and after alike: Cromo's board surface (user:
+     "I don't know where you select what material you're playing on the
+     playing surface. It's not obvious. So if I want to switch it
+     mid-game, I should be able to do that somehow."). Each as the rest
+     are read: { key, kind, type, name, value, tip, icon, choices }. */
+  for (const it of (host.worldSettings ? host.worldSettings(phase) : []) || []) add(it.key, it);
   const buy = one('[data-testid="story-purchase"], [data-testid="story-go-home-confused"]');
   if (buy) {
     const [what, price] = words(buy).split(" · "), empty = buy.getAttribute("data-cart") === "empty";

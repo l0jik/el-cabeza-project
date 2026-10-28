@@ -255,3 +255,23 @@ Safari doesn't keep on a textPath). Kind g's carry data-a0/a1; the svg
 data-hub. Test: e2e-rings (each name's first and last letter inside its
 piece by angle round the hub and between 62 and 100 px out, bold; in
 English and in Spanish).
+
+A world's own settings in Rings (2026-10-28; user, a Cromo game on a
+phone: "I want to be able to change the board in this on Chromo, because
+I don't know where you select what material you're playing on the
+playing surface. It's not obvious. So if I want to switch it mid-game, I
+should be able to do that somehow."). Cromo's stone (Tungsten, Shungite)
+was only the setup's button beside Begin, read by Rings as a bare
+"Tungsten" action and gone once a game began. Now a theme may export
+dockSettings({ phase, audio }) -> items as readDock makes them (key,
+kind, type, name, value, tip, icon, choices); the host hands them over
+(host.worldSettings) and readDock adds them in every phase. Cromo's:
+Board > Surface (icon "surface", a ruled slab), a choice of the two; a
+pick re-dresses the board where it is (setStone, its scene listener) and
+strikes the stone (audio.playStone), Rings staying out. The setup's own
+button now says "Surface: Tungsten" and follows a change made elsewhere
+(cromo.js stoneWatchers, useSetupExtras subscribed); it carries
+data-dock-skip, which readDock's beside-Begin read passes over, so the
+setting isn't there twice. The phone bar's menu (MobileShell pageItems)
+has each world choice setting as a row, "Surface: Tungsten", "Change to
+Shungite". Test: tests/e2e-cromo.mjs.

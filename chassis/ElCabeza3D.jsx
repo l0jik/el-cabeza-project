@@ -2959,6 +2959,32 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return () => clearTimeout(t);
   }, [awaitingBegin]);
   const mastheadPhase = awaitingBegin && !beginNextRef.current ? "setup" : titleRelocated ? "relocated" : "fading";
+  /* In play the title's badge, top right, clear of the corner menu's tab,
+     top left (user, Cromo on a phone, its PARAMETERS plate over the "EL C":
+     "the overlap on these items circled in red"): where the two would
+     meet, the badge steps down to just under the tab. Measured, not
+     guessed: the tab's width goes with the game (its laws, pieces, board)
+     and the world's face (Cromo's Michroma, very wide), the badge's with
+     the screen. */
+  const [mastheadDrop, setMastheadDrop] = useState(0);
+  useEffect(() => {
+    if (mastheadPhase !== "relocated") { setMastheadDrop(0); return undefined; }
+    const check = () => {
+      const tab = document.querySelector('[data-testid="corner-menu-tab"]'), title = titleRef.current;
+      if (!tab || !title) { setMastheadDrop(0); return; }
+      const a = tab.getBoundingClientRect(), b = title.getBoundingClientRect();
+      // (Side by side they'd meet when the tab reaches the badge's left,
+      // with a little room; the badge's own height at its own place, top 14.)
+      const meet = a.width > 0 && a.right + 10 > b.left && a.top < 14 + b.height;
+      setMastheadDrop(meet ? Math.ceil(a.bottom + 4 - 14) : 0);
+    };
+    check();
+    // (Again as the tab comes, changes, or the screen or the faces do.)
+    const iv = setInterval(check, 1000);
+    window.addEventListener("resize", check);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(check).catch(() => {});
+    return () => { clearInterval(iv); window.removeEventListener("resize", check); };
+  }, [mastheadPhase]);
 
   /* Pre-game framing: while awaiting Begin Game, the camera itself
      (not any DOM clipping — the render layer always stays full
@@ -3983,6 +4009,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     online: () => !!onlineRef.current,
     markSeen: () => setDockCallSeen(true),
     sideName: (side) => sideName(side),
+    // A world's own settings, for Rings in every phase (theme.dockSettings:
+    // Cromo's board surface).
+    worldSettings: (phase) => (theme.dockSettings ? theme.dockSettings({ phase, audio: audioRef.current }) : null),
     colors: { paper: COLORS.cream, ink: COLORS.charcoal, line: COLORS.slateSoft },
     sounds: { open: () => audioRef.current.playDockOpen(), close: () => audioRef.current.playDockClose() },
   });
@@ -11646,7 +11675,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           mastheadPhase === "relocated"
             ? {
                 position: "fixed",
-                top: 14,
+                // (Down under the corner menu's tab where they'd meet: mastheadDrop.)
+                top: 14 + mastheadDrop,
                 right: 18,
                 left: "auto",
                 // Several passes of "too small"/"too big" feedback (0.3
@@ -14426,6 +14456,12 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             onToggleCheckAlert: toggleCheckAlert,
             pageItems: [
               ...((mobileShell && mobileShell.menuItems) || []),
+              // (A world's own settings, as Rings has them (theme.dockSettings:
+              // Cromo's surface), each a row; a tap, the next choice.)
+              ...((theme.dockSettings && theme.dockSettings({ audio: audioRef.current })) || []).filter((it) => it.type === "choice" && it.choices.length > 1).map((it) => {
+                const next = it.choices[(Math.max(0, it.choices.findIndex((c) => c.on)) + 1) % it.choices.length];
+                return { key: `world-${it.key}`, testid: `shell-menu-${it.key}`, label: `${it.name}: ${it.value}`, detail: t("Change to {what}", { what: next.label }), onClick: next.pick };
+              }),
               ...(layoutSwitch ? [{ key: "layout", testid: "shell-menu-layout", label: "Use the classic dock", detail: "The floating piece", onClick: () => layoutSwitch("dock") }] : []),
             ],
             version: APP_VERSION,

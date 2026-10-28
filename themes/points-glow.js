@@ -17,7 +17,10 @@ export const POINTS_GLOW = {
   store: { dark: "#f2b632", light: "#6dffb0" },
   futuris: { dark: "#4de8ff", light: "#ffb454" }, // its own glows
   lluvia: { dark: "#3fe6ff", light: "#ff4fa3" }, // signs in the rain
-  cromo: { dark: "#8fcaff", light: "#f4f8ff" }, // a cold blue pilot light, chrome white
+  // (The dark side in its pieces' own warm gunmetal, lit (user: "Action point indicator
+  // for the dark pieces in chromo ... needs to reflect the color of pieces. I'm not sure
+  // why it's blue"); it had been a cold blue pilot light. The light side, chrome white.)
+  cromo: { dark: "#b7ad9c", light: "#f4f8ff" },
   plano: { dark: "#8ec2ff", light: "#ffffff" }, // the blueprint's line work
   luna: { dark: "#f2c14e", light: "#ff8d3a" }, // the sides' gold and orange, lit
   noir: { dark: "#c8c8c8", light: "#ffffff" }, // a lamp's light, a lit window

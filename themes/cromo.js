@@ -428,12 +428,16 @@ function applyStoneToScene(t, monolith) {
 
 // The live scene's switcher, installed by mountAmbientEffects.
 let stoneListener = null;
+// (And whatever shows the stone, kept in step however it's changed: the
+// setup's switch, the dock's menu.)
+const stoneWatchers = new Set();
 
 export function setStone(key) {
   if (!STONES[key] || key === stoneKey) return;
   stoneKey = key;
   try { window.localStorage.setItem(STONE_KEY, key); } catch (e) { /* storage blocked */ }
   if (stoneListener) stoneListener();
+  stoneWatchers.forEach((fn) => fn(key));
 }
 export function getStone() {
   return stoneKey;
@@ -441,6 +445,12 @@ export function getStone() {
 
 export function useSetupExtras({ audio }) {
   const [key, setKey] = React.useState(stoneKey);
+  // (Changed from the dock's menu, mid-game too: this follows.)
+  React.useEffect(() => {
+    stoneWatchers.add(setKey);
+    setKey(stoneKey);
+    return () => { stoneWatchers.delete(setKey); };
+  }, []);
   return {
     stone: key,
     toggleStone() {
@@ -453,7 +463,11 @@ export function useSetupExtras({ audio }) {
 }
 
 /* Begin Game shares its row with the stone switch: a small swatch of the
-   chosen stone and its name. */
+   chosen stone and what it is, "Surface: Tungsten" (the stone's name alone
+   said nothing of what it was for, user: "I don't know where you select
+   what material you're playing on the playing surface"). Rings has the
+   surface as a setting of its own (dockSettings below), so it reads past
+   this one (data-dock-skip). */
 export function renderSetupExtras({ beginGameButton, stone: key, toggleStone }) {
   const h = createElement;
   const st = STONES[key] || STONES.tungsten;
@@ -470,8 +484,7 @@ export function renderSetupExtras({ beginGameButton, stone: key, toggleStone }) 
         type: "button",
         className: "ec-btn ec-btn-invert",
         "data-testid": "cromo-stone",
-        // (Rings, the dock's menu, stays out for it: the stone changes under it.)
-        "data-dock-stay": "",
+        "data-dock-skip": "",
         "aria-label": inWords("Board stone: {stone}. Switch stone", { stone: st.label }),
         title: "Switch the monolith between tungsten and shungite",
         onClick: toggleStone,
@@ -482,10 +495,34 @@ export function renderSetupExtras({ beginGameButton, stone: key, toggleStone }) 
         },
       },
       h("span", { "aria-hidden": "true", style: { width: 12, height: 12, borderRadius: 2, background: swatch, boxShadow: "0 0 0 1px rgba(255,255,255,0.25)" } }),
-      st.label
+      inWords("Surface: {stone}", { stone: inWords(st.label) })
     ),
     beginGameButton
   );
+}
+
+/* The board's surface, a setting of the dock's menu (Rings: the chassis
+   hands these to chassis/menu-fan.js readDock, and to the bar's menu) before
+   a game, in play and after (user: "I want to be able to change the board
+   in this on Chromo, because I don't know where you select what material
+   you're playing on the playing surface. It's not obvious. So if I want to
+   switch it mid-game, I should be able to do that somehow."): under
+   Board, Surface, Tungsten or Shungite. Chosen, the board changes under
+   the menu (which stays open) and the stone is struck once. */
+export function dockSettings({ audio } = {}) {
+  return [{
+    key: "surface", kind: "board", type: "choice", icon: "surface",
+    name: inWords("Surface"), value: inWords(STONES[stoneKey].label),
+    tip: inWords("What the board is made of. Change it any time, even mid-game."),
+    choices: Object.keys(STONES).map((k) => ({
+      key: k, label: inWords(STONES[k].label), on: k === stoneKey,
+      pick: () => {
+        if (k === stoneKey) return;
+        setStone(k);
+        if (audio && audio.playStone) audio.playStone(k);
+      },
+    })),
+  }];
 }
 
 export function renderGlobalDefs() {
