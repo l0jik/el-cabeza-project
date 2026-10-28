@@ -61,3 +61,42 @@ piece's place (`dockShift` in dockPieceStyle: up to the middle for Ring
 and Wedges, into the corner for Thumb). Its layers: a backdrop at z 14
 (under the piece's 15, so the piece still takes a tap and closes it) and
 the buttons at z 16; the bar at the top at 2000.
+
+The lab's fans (2026-10-27, chassis/menu-fan.js; user: "I want 4 Fan,
+but I want to be able to spin / rotate the menu to access all settings,
+ultimately, fully replacing the button dock. Give me 5 revisions of this
+one"): versions 4.1 Dial, 4.2 Rings, 4.3 Rail, 4.4 Pages, 4.5 Corner,
+spliced into the lab's list after 4 (VERSIONS' `n` is a string; the pick
+is stored by n). Unlike the first ten they open in every phase (the lab's
+`update` gets `phase`: setup, play, over): in play and after, the corner
+piece's tap goes to the lab too, and `dockShift` either brings the piece
+from its corner to the pre-game place (`centre: true`, drawn with the
+pre-game geometry) or raises it where it is (`raise: true`, z 15,
+opacity 1). `readDock(host, phase)` reads everything off the panel as
+settings (toggle, choice, open, action; disabled when the panel holds
+it back) with a header (turn status; after a game the caption) and the
+one big button (Begin; New game); `prepareDock` first opens Next game's
+picker after a game and, with the computer picked before one, re-clicks
+it so the levels are in the panel. A setting pressed is the panel's own
+button `.click()`ed; open ones (sound, saves, replay, the catalog, move
+log) and actions (End turn, End game, the bar) close the fan first, the
+cart's first tap and Plain rules keep it. The turning: ring-space angles
+per setting, a turn offset, screen angle = focus + wrap(angle − turn);
+cyclic when the round is longer than the window; drags follow the
+finger's angle about the hub (an invisible grip band under the settings,
+so a drag begun in a gap still turns), flicks project their speed,
+settles to the nearest setting (Pages: page). Labels are HTML over the
+SVG wedges, clipped to the same half (or quarter) as the wedges. On a
+phone a finger drag got a pointercancel after its first move (the
+browser's pan won: `touch-action: none` on the SVG shapes isn't kept), so
+the fan barely turned; a document `touchstart` listener (passive: false,
+added with the fan, removed with it) calls preventDefault for touches on
+its wedges, grip, Rail stops and Rings' kinds. Found by the test's CDP
+touch swipe (`Input.dispatchTouchEvent`), which a mouse drag can't show.
+A touch during the spin-in stops it (its timer is the settle timer) and a
+tap then lands it on the nearest setting first; the stage carries
+data-turning while it spins, follows a finger or settles. Hooks
+used by tests: data-testid menu-fan, menu-fan-read, menu-fan-prev/next,
+menu-fan-primary, menu-fan-head, menu-fan-ctl (chips data-mf-choice),
+data-ml-item / data-ml-label per setting, .mf-focus on the one at the
+point, data-mf-kind on Rings' kinds, data-phase on the lab's layer.

@@ -108,6 +108,11 @@ async function tapItem(page, key) {
   await page.touchscreen.tap(p.x, p.y);
   return true;
 }
+// A version picked from the lab's bar by its number ("4", "4.2").
+async function pick(page, n) {
+  const at = await page.evaluate((n) => [...document.querySelectorAll('[data-testid="menu-lab-pick"] option')].findIndex((o) => o.textContent.startsWith(`${n} · `)), String(n));
+  await page.selectOption('[data-testid="menu-lab-pick"]', String(at));
+}
 const pieceAtRest = (page) => page.evaluate(() => document.querySelector("[data-dock-piece]").style.transform === "translateX(-50%) scale(1)");
 const overlap = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
 
@@ -119,7 +124,7 @@ console.log("The store, on a phone: each version out and away");
   const { ctx, page, errs } = await store();
   check("the lab's bar is up, on version 1", await poll(() => page.evaluate(() => !!document.querySelector('[data-testid="menu-lab-bar"]') && document.querySelector('[data-testid="menu-lab-pick"]').value === "0"), 15000));
   for (let v = 1; v <= 10; v++) {
-    await page.selectOption('[data-testid="menu-lab-pick"]', String(v - 1));
+    await pick(page, v);
     const opened = await openMenu(page);
     check(`${v} ${NAMES[v - 1]}: a tap on the piece flies it out`, opened);
     if (!opened) continue;
@@ -170,7 +175,7 @@ console.log("The store, on a phone: the buttons at work");
   await page.waitForTimeout(700);
 
   // Just three: a tap moves the level on.
-  await page.selectOption('[data-testid="menu-lab-pick"]', "7");
+  await pick(page, 8);
   await openMenu(page);
   await settled(page);
   await tapItem(page, "level");
@@ -184,7 +189,7 @@ console.log("The store, on a phone: the buttons at work");
   await page.waitForTimeout(700);
 
   // Ring: into the cart, the menu kept out.
-  await page.selectOption('[data-testid="menu-lab-pick"]', "0");
+  await pick(page, 1);
   await openMenu(page);
   await settled(page);
   await tapItem(page, "cart");
@@ -195,7 +200,7 @@ console.log("The store, on a phone: the buttons at work");
   await page.waitForTimeout(700);
 
   // Two steps: More's own, the start, then the panel.
-  await page.selectOption('[data-testid="menu-lab-pick"]', "8");
+  await pick(page, 9);
   await openMenu(page);
   await settled(page);
   await tapItem(page, "more");
@@ -221,7 +226,7 @@ console.log("The store, on a phone: the buttons at work");
   await page.waitForTimeout(800);
 
   // Pill row: the catalog.
-  await page.selectOption('[data-testid="menu-lab-pick"]', "5");
+  await pick(page, 6);
   await openMenu(page);
   await settled(page);
   await tapItem(page, "pieces");
@@ -232,7 +237,7 @@ console.log("The store, on a phone: the buttons at work");
   await page.waitForTimeout(800);
 
   // Crown: More is the panel.
-  await page.selectOption('[data-testid="menu-lab-pick"]', "1");
+  await pick(page, 2);
   await openMenu(page);
   await settled(page);
   await tapItem(page, "more");
@@ -243,7 +248,7 @@ console.log("The store, on a phone: the buttons at work");
   await page.waitForTimeout(800);
 
   // Thumb: Try a Game begins the game.
-  await page.selectOption('[data-testid="menu-lab-pick"]', "9");
+  await pick(page, 10);
   await openMenu(page);
   await settled(page);
   check("Thumb: the piece moved into the corner while it's out", await page.evaluate(() => /translate\(calc\(-50% \+ \d/.test(document.querySelector("[data-dock-piece]").style.transform)));
@@ -251,6 +256,219 @@ console.log("The store, on a phone: the buttons at work");
   check("...Try a Game begins the game (the piece to its corner)", await poll(() => page.evaluate(() => document.querySelector("[data-dock-piece]").style.left === "calc(100% - 108px)"), 8000, 100));
   check("...the menu away", !(await isOpen(page)));
   check("...the bar says the menu's for before a game", await poll(() => page.evaluate(() => /Before a game/.test(document.querySelector('[data-testid="menu-lab-about"]').textContent)), 3000, 100));
+  check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
+/* The fans (user, 2026-10-27: "I want 4 Fan, but I want to be able to
+   spin / rotate the menu to access all settings, ultimately, fully
+   replacing the button dock. Give me 5 revisions of this one";
+   chassis/menu-fan.js). */
+// The open fan as it is: its settings (each where its name is, how
+// showing, what a tap there finds, its angle about the hub), the one at
+// its point, the read-out.
+const fan = (page) => page.evaluate(() => {
+  const layer = document.querySelector('[data-testid="menu-lab"][data-open="true"]');
+  const stage = layer && layer.querySelector('[data-testid="menu-fan"]');
+  if (!stage) return null;
+  const hx = parseFloat(layer.style.getPropertyValue("--hx")), hy = parseFloat(layer.style.getPropertyValue("--hy"));
+  const slots = [...layer.querySelectorAll("[data-ml-item]")].map((n) => {
+    const key = n.getAttribute("data-ml-item");
+    const at = (layer.querySelector(`[data-ml-label="${key}"]`) || n.querySelector(".mf-dot") || n).getBoundingClientRect();
+    const x = at.x + at.width / 2, y = at.y + at.height / 2;
+    const hit = document.elementFromPoint(x, y);
+    const op = +(n.getAttribute("opacity") ?? getComputedStyle(n).opacity);
+    return { key, x, y, op, angle: (Math.atan2(y - hy, x - hx) * 180) / Math.PI, hit: hit && hit.closest("[data-ml-item]") ? hit.closest("[data-ml-item]").getAttribute("data-ml-item") : null };
+  });
+  const focus = layer.querySelector("[data-ml-item].mf-focus");
+  const read = layer.querySelector('[data-testid="menu-fan-read"]');
+  const primary = layer.querySelector('[data-testid="menu-fan-primary"]');
+  return {
+    id: stage.getAttribute("data-fan"), phase: layer.getAttribute("data-phase"), keys: slots.map((s) => s.key), slots,
+    focus: focus ? focus.getAttribute("data-ml-item") : null, read: read ? read.textContent.replace(/\s+/g, " ").trim() : "",
+    primary: primary && primary.style.display !== "none" ? primary.textContent.trim() : null, stage: getComputedStyle(stage).opacity, turning: stage.getAttribute("data-turning") === "true",
+  };
+});
+// Still: out, and not turning.
+async function fanStill(page) {
+  let last = "";
+  for (let i = 0; i < 40; i++) {
+    const f = await fan(page);
+    const now = f ? JSON.stringify(f.slots.map((s) => [s.key, Math.round(s.x), Math.round(s.y)])) : "";
+    if (f && f.stage === "1" && !f.turning && now === last) return f;
+    last = now;
+    await page.waitForTimeout(150);
+  }
+  return fan(page);
+}
+// A finger along the fan's arc (CDP touch, as a phone's), from a0 to a1
+// degrees about the hub.
+async function swipe(page, cdp, a0, a1, r = 130) {
+  const c = await page.evaluate(() => { const l = document.querySelector('[data-testid="menu-lab"][data-open="true"]'); return { x: parseFloat(l.style.getPropertyValue("--hx")), y: parseFloat(l.style.getPropertyValue("--hy")) }; });
+  const at = (a) => ({ x: c.x + r * Math.cos((a * Math.PI) / 180), y: c.y + r * Math.sin((a * Math.PI) / 180) });
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [at(a0)] });
+  for (let i = 1; i <= 12; i++) {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [at(a0 + ((a1 - a0) * i) / 12)] });
+    await page.waitForTimeout(16);
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+}
+// A tap on a fan's setting (on its name; a Rail stop on its dot).
+async function tapSlot(page, key) {
+  const s = ((await fan(page)) || { slots: [] }).slots.find((x) => x.key === key);
+  if (!s) return false;
+  await page.touchscreen.tap(s.x, s.y);
+  return true;
+}
+const SETUP = ["first", "opponent", "level", "start", "pieces", "cart", "check", "points", "costs", "guide", "sound", "language", "replay", "saves", "bar"];
+const FANS = [["4.1", "dial", -90], ["4.2", "rings", -90], ["4.3", "rail", -90], ["4.4", "pages", -90], ["4.5", "corner", -135]];
+
+console.log("The fans, on a phone in the store: every setting, turned");
+{
+  const { ctx, page, errs } = await store({ version: "4.1" });
+  const cdp = await ctx.newCDPSession(page);
+  check("?menulab=4.1 opens on the Dial", await page.evaluate(() => /^4\.1 · Dial/.test(document.querySelector('[data-testid="menu-lab-pick"]').selectedOptions[0].textContent)));
+  for (const [n, id, point] of FANS) {
+    await pick(page, n);
+    const opened = await openMenu(page);
+    let f = opened ? await fanStill(page) : null;
+    check(`${n} ${id}: a tap on the piece brings the fan out`, !!f && f.id === id && f.phase === "setup");
+    if (!f) continue;
+    check(`${n}: every setting the panel has before a game`, SETUP.every((k) => f.keys.includes(k)), f.keys.join());
+    check(`${n}: Try a Game above it`, /try a game/i.test(f.primary || ""), f.primary);
+    const shown = f.slots.filter((s) => s.op > 0.9);
+    const off = shown.filter((s) => s.x < 0 || s.x > W || s.y < 0 || s.y > H);
+    check(`${n}: those showing on the screen (${shown.map((s) => s.key).join()})`, shown.length >= 3 && !off.length, off.map((s) => s.key).join());
+    const lost = shown.filter((s) => s.hit !== s.key);
+    check(`${n}: a tap finds each one showing`, !lost.length, lost.map((s) => `${s.key} -> ${s.hit}`).join("; "));
+    if (id === "pages") {
+      check("4.4: the first page is the game's, said in the read-out", /^‹ ?Game/.test(f.read) && shown.every((s) => ["first", "opponent", "level"].includes(s.key)), f.read);
+      await page.locator('[data-testid="menu-fan-next"]').tap();
+      f = await fanStill(page);
+      check("4.4: › turns the page (the board's)", /Board/.test(f.read) && f.slots.filter((s) => s.op > 0.9).every((s) => ["start", "pieces", "cart"].includes(s.key)), f.read);
+      await swipe(page, cdp, -40, -140);
+      f = await fanStill(page);
+      check("4.4: a swipe turns it on a page (the hints')", /Hints/.test(f.read), f.read);
+    } else {
+      const atPoint = f.slots.find((s) => s.key === f.focus);
+      check(`${n}: the first setting at the point, named in the read-out`, f.focus === "first" && !!atPoint && Math.abs(atPoint.angle - point) < 4 && /First move/i.test(f.read), `${f.focus} ${atPoint && Math.round(atPoint.angle)} ${f.read}`);
+      await page.locator('[data-testid="menu-fan-next"]').tap();
+      f = await fanStill(page);
+      check(`${n}: › turns it on one (Opponent)`, f.focus === "opponent" && /Opponent/i.test(f.read), `${f.focus} ${f.read}`);
+      await swipe(page, cdp, id === "corner" ? -100 : -40, id === "corner" ? -170 : -150);
+      f = await fanStill(page);
+      const now = f.slots.find((s) => s.key === f.focus);
+      check(`${n}: a finger along it turns it, and it settles with one at the point`, !!now && !["first", "opponent"].includes(f.focus) && Math.abs(now.angle - point) < 4, `${f.focus} ${now && Math.round(now.angle)}`);
+      check(`${n}: ...named in the read-out`, !!now && f.read.toLowerCase().includes(await page.evaluate((k) => document.querySelector(`[data-ml-item="${k}"]`).getAttribute("aria-label").split(":")[0].toLowerCase(), f.focus)), f.read);
+    }
+    await page.touchscreen.tap(12, 240);
+    check(`${n}: a tap outside puts it away, the piece back where it rests`, (await poll(async () => !(await isOpen(page)), 3000, 100)) && !!(await poll(() => pieceAtRest(page), 3000, 100)));
+    check(`${n}: the panel not opened`, !(await panelOpen(page)));
+    await page.waitForTimeout(700);
+  }
+  check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
+console.log("The fans at work: before a game, in play, after it");
+{
+  const { ctx, page, errs } = await store({ version: "4.1" });
+  const diff = (k) => page.evaluate((k) => { const b = document.querySelector(`[data-ec-diff="${k}"]`); return !!b && b.getAttribute("aria-pressed") === "true"; }, k);
+  const chip = async (k) => { const b = await page.locator(`[data-testid="menu-fan-ctl"] [data-mf-choice="${k}"]`).boundingBox(); if (b) await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); return !!b; };
+
+  // Dial: a tap turns to the level and offers its choices; a switch flips.
+  await openMenu(page);
+  await fanStill(page);
+  await tapSlot(page, "level");
+  check("Dial: a tap on Level turns to it, its choices in the read-out", !!(await poll(async () => (await page.locator('[data-testid="menu-fan-ctl"] [data-mf-choice]').count()) === 3 && (await fan(page)).focus === "level", 3000, 100)));
+  await chip("medium");
+  check("...Medium chosen is the panel's Medium", !!(await poll(() => diff("medium"), 3000, 100)));
+  check("...the read-out says Medium, the fan still out", !!(await poll(async () => /medium/i.test((await fan(page)).read) && (await isOpen(page)), 3000, 100)));
+  const side = () => page.evaluate(() => document.querySelector('[data-testid="turn-status"]').getAttribute("data-side"));
+  const was = await side();
+  await page.waitForTimeout(3000);
+  await tapSlot(page, "first");
+  check("Dial: a tap on First move switches who starts", !!(await poll(async () => (await side()) !== was, 3000, 100)));
+  await page.waitForTimeout(600);
+  await tapSlot(page, "first");
+  check("...and back", !!(await poll(async () => (await side()) === was, 3000, 100)));
+  await page.touchscreen.tap(12, 240);
+  await poll(async () => !(await isOpen(page)), 3000, 100);
+  await page.waitForTimeout(700);
+
+  // Rings: a kind tapped turns the ring to its settings.
+  await pick(page, "4.2");
+  await openMenu(page);
+  await fanStill(page);
+  const kind = await page.evaluate(() => { const r = document.querySelector('[data-mf-kind="settings"] path').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  await page.touchscreen.tap(kind.x, kind.y);
+  check("Rings: Settings tapped turns the ring to Sound", !!(await poll(async () => (await fanStill(page)).focus === "sound", 4000, 150)));
+  await page.touchscreen.tap(12, 240);
+  await poll(async () => !(await isOpen(page)), 3000, 100);
+  await page.waitForTimeout(700);
+
+  // Rail: a stop tapped comes to the top; its control in the read-out.
+  await pick(page, "4.3");
+  await openMenu(page);
+  await fanStill(page);
+  await tapSlot(page, "level");
+  await poll(async () => (await fanStill(page)).focus === "level", 3000, 150);
+  await page.locator('[data-testid="menu-fan-next"]').tap();
+  check("Rail: Level tapped to the top, then › to Start, its choices in the read-out", !!(await poll(async () => (await fanStill(page)).focus === "start" && (await page.locator('[data-testid="menu-fan-ctl"] [data-mf-choice="start-by-hand"]').count()) === 1, 4000, 150)));
+  await chip("start-by-hand");
+  check("...Manual is the panel's Manual", !!(await poll(() => page.evaluate(() => document.querySelector('[data-testid="start-by-hand"]').getAttribute("aria-pressed") === "true"), 3000, 100)));
+  check("...and the fan has the new setting it brings (My half), Start still at the top", !!(await poll(async () => { const f = await fan(page); return f.keys.includes("half") && f.focus === "start"; }, 3000, 100)));
+  await chip("start-standard");
+  check("...Standard again", !!(await poll(() => page.evaluate(() => document.querySelector('[data-testid="start-standard"]').getAttribute("aria-pressed") === "true"), 3000, 100)));
+  await page.touchscreen.tap(12, 240);
+  await poll(async () => !(await isOpen(page)), 3000, 100);
+  await page.waitForTimeout(700);
+
+  // Pages: See the pieces, on the board's page, opens the catalog.
+  await pick(page, "4.4");
+  await openMenu(page);
+  await fanStill(page);
+  await page.locator('[data-testid="menu-fan-next"]').tap();
+  await fanStill(page);
+  await tapSlot(page, "pieces");
+  check("Pages: See the pieces opens the catalog, the fan away", !!(await poll(async () => (await page.evaluate(() => !!document.querySelector('[data-testid="tienda-catalog"]'))) && !(await isOpen(page)), 6000, 100)));
+  await page.locator('[data-testid="tienda-catalog-close"]').tap();
+  await poll(() => page.evaluate(() => !document.querySelector('[data-testid="tienda-catalog"]')), 6000, 100);
+  await page.waitForTimeout(800);
+
+  // Corner: the piece in the corner, Try a Game begins the game.
+  await pick(page, "4.5");
+  await openMenu(page);
+  await fanStill(page);
+  check("Corner: the piece moved into the corner while it's out", await page.evaluate(() => /translate\(calc\(-50% \+ \d/.test(document.querySelector("[data-dock-piece]").style.transform)));
+  await page.locator('[data-testid="menu-fan-primary"]').tap();
+  check("...Try a Game begins the game (the piece to its corner)", !!(await poll(() => page.evaluate(() => document.querySelector("[data-dock-piece]").style.left === "calc(100% - 108px)"), 8000, 100)));
+  check("...the fan away", !(await isOpen(page)));
+  await page.waitForTimeout(2500);
+
+  // In play: the corner piece brings it out; End game asks twice.
+  check("In play: the corner piece brings the Corner fan out", await openMenu(page));
+  let f = await fanStill(page);
+  check("...in play's own settings (End game, View, Check alert, Sound, Language...)", !!f && f.phase === "play" && ["endgame", "view", "check", "language"].every((k) => f.keys.includes(k)) && !f.keys.includes("first"), f && f.keys.join());
+  check("...the piece kept in its corner", await page.evaluate(() => document.querySelector("[data-dock-piece]").style.left === "calc(100% - 108px)"));
+  check("...whose move it is, on top", !!(await page.evaluate(() => { const h = document.querySelector('[data-testid="menu-fan-head"]'); return h && /to move/i.test(h.textContent); })));
+  await pick(page, "4.1");
+  f = await poll(async () => { const g = await fanStill(page); return g && g.id === "dial" ? g : null; }, 5000, 150);
+  check("...the Dial, picked with it out, takes its place", !!f);
+  if (f && f.focus !== "endgame") { await tapSlot(page, "endgame"); await fanStill(page); }
+  await tapSlot(page, "endgame");
+  check("...End game asks first (Tap it again to be sure)", !!(await poll(async () => /again to be sure/i.test((await fan(page)).read), 3000, 100)));
+  await tapSlot(page, "endgame");
+  check("...the second tap ends the game, the fan away", !!(await poll(async () => !(await isOpen(page)) && (await page.evaluate(() => !!document.querySelector('[data-testid="new-game"]'))), 6000, 100)));
+  await page.waitForTimeout(2500);
+
+  // After: New game on top, the next game's opponent in it.
+  check("After the game: the corner piece brings the fan out", await openMenu(page));
+  f = await fanStill(page);
+  const ng = await page.evaluate(() => document.querySelector('[data-testid="new-game"]').textContent.trim());
+  check("...with New game (the store's Set up the demo again), and who to play next", !!f && f.phase === "over" && !!f.primary && f.primary.replace(/[^a-z]/gi, "").toLowerCase() === ng.replace(/[^a-z]/gi, "").toLowerCase() && f.keys.includes("opponent"), f && `${f.primary} / ${ng} ${f.keys.join()}`);
+  await page.locator('[data-testid="menu-fan-primary"]').tap();
+  check("...New game begins the next one, the fan away", !!(await poll(async () => !(await isOpen(page)) && (await page.evaluate(() => !document.querySelector('[data-testid="new-game"]'))), 8000, 100)));
   check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

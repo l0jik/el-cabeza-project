@@ -1823,9 +1823,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       } else {
         state.pieceGroup.scale.set(base, base, base);
         state.bouncing = false;
-        // (Before a game, with ?menulab: the lab's menu out round the
-        // piece instead, or away again.)
-        if (menuLabRef.current && awaitingBeginRef.current && menuLabRef.current.toggle()) return;
+        // (With ?menulab: the lab's menu out round the piece instead, or
+        // away again; it says when it isn't for now.)
+        if (menuLabRef.current && menuLabRef.current.toggle()) return;
         setDockView("panel");
       }
     };
@@ -1936,6 +1936,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // starts nothing; moved over the piece, it does (dockHoverMoved below).
   const handleDockPieceHoverStart = useCallback((ev) => {
     if (dockView !== "corner" || dockHoverTimerRef.current) return;
+    // (The lab's fan out, the piece brought out to it: no hover reopening.)
+    if (menuLabRef.current && menuLabRef.current.isOpen()) return;
     if (ev && ev.type === "pointerenter" && ev.pointerType !== "touch" && pointerAtRest(ev)) { restEnterRef.current = true; return; }
     dockHoverTimerRef.current = setTimeout(() => {
       dockHoverTimerRef.current = null;
@@ -3921,6 +3923,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      own buttons; More opens the panel. Told when it can: before a game,
      the piece showing, nothing being set out. */
   const menuLabStateRef = useRef(null);
+  const menuLabGameRef = useRef({});
+  menuLabGameRef.current = { ai: aiPlayer };
   useEffect(() => {
     if (!menuLabWanted()) return undefined;
     let gone = false;
@@ -3931,6 +3935,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         piece: () => dockPieceMountRef.current,
         openPanel: () => setDockView("panel"),
         shift: setDockShift,
+        // (where the piece waits before a game: its foot 8 px up, 220 tall)
+        home: () => ({ x: window.innerWidth / 2, y: window.innerHeight - 8 - 110 }),
+        ai: () => menuLabGameRef.current.ai,
+        online: () => !!onlineRef.current,
+        markSeen: () => setDockCallSeen(true),
         sideName: (side) => sideName(side),
         colors: { paper: COLORS.cream, ink: COLORS.charcoal, line: COLORS.slateSoft },
         sounds: { open: () => audioRef.current.playDockOpen(), close: () => audioRef.current.playDockClose() },
@@ -3945,11 +3954,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // (ready: the piece showing, the panel not open, nothing being set out,
+  // no tour, no replay; the phase: before a game, in play, after one.)
   useEffect(() => {
-    const s = { ready: awaitingBegin && dockView === "piece" && !setOut && !shell, shell };
+    const phase = awaitingBegin ? "setup" : isPlaying ? "play" : "over";
+    const s = { ready: dockView !== "panel" && !setOut && !shell && !tourStep && !replaying, shell, phase };
     menuLabStateRef.current = s;
     if (menuLabRef.current) menuLabRef.current.update(s);
-  }, [awaitingBegin, dockView, setOut, shell]);
+  }, [awaitingBegin, isPlaying, dockView, setOut, shell, tourStep, replaying]);
   const commitSetOut = (next) => { setOutRef.current = next; setSetOut(next); };
   // A press on a piece while setting out (its drag, or its tap), and
   // where a drag or the arrow keys would set the chosen piece.
@@ -11294,7 +11306,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // what lets every transition between them — piece <-> panel via
   // opacity/scale, piece <-> corner via left/bottom/size — actually
   // animate instead of snapping.
-  const dockPieceIsCorner = dockView === "corner";
+  // (The menu lab's fans bring the corner piece out to where it waits
+  // before a game (dockShift.centre), or raise it in its corner.)
+  const dockPieceIsCorner = dockView === "corner" && !(dockShift && dockShift.centre);
+  const dockPieceRaised = !!(dockShift && dockShift.raise);
   /* The light it calls in (dockCall): its world's glow for the side the
      piece shows (theme.pointsGlow, as the action points have it; else
      that side's accent), the side as the piece's mesh effect picks it.
@@ -11338,13 +11353,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     height: dockPieceIsCorner ? 106 : 220,
     // (Moved by the menu lab while its menu's out: dockShift.)
     transform: dockPieceIsCorner ? "translateX(0) scale(1)"
-      : dockShift ? `translate(calc(-50% + ${dockShift.x}px), ${dockShift.y}px) scale(${dockShift.scale})`
+      : dockShift ? `translate(calc(-50% + ${dockShift.x || 0}px), ${dockShift.y || 0}px) scale(${dockShift.scale || 1})`
       : "translateX(-50%) scale(1)",
     // (theme.dockCornerOpacity: the den's dark room lost it at 0.35, user.
     // At full strength while it calls after a game: dockCall above.)
-    opacity: dockView === "panel" ? 0 : dockPieceIsCorner && !dockCall ? (theme.dockCornerOpacity != null ? theme.dockCornerOpacity : 0.35) : 1,
+    opacity: dockView === "panel" ? 0 : dockPieceIsCorner && !dockCall && !dockPieceRaised ? (theme.dockCornerOpacity != null ? theme.dockCornerOpacity : 0.35) : 1,
     pointerEvents: dockView === "panel" ? "none" : "auto",
-    zIndex: dockPieceIsCorner ? 2 : 15,
+    zIndex: dockPieceIsCorner && !dockPieceRaised ? 2 : 15,
     /* Position/size cut from 900ms linear-feeling ease to a shorter,
        snappier curve with a touch of overshoot — per feedback that the
        move into the corner read as "almost zero animation." A slower
@@ -13235,12 +13250,12 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             }}
           >
             {isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && shadowEntries.length > 0 && (
-              <button className="ec-btn" onClick={handleEndTurnClick} style={playerButtonStyle(currentPlayer)}>
+              <button className="ec-btn" data-testid="end-turn-dock" onClick={handleEndTurnClick} style={playerButtonStyle(currentPlayer)}>
                 End turn
               </button>
             )}
             {isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && (
-              <button className="ec-btn" onClick={handleUndoTurn} style={ghostButtonStyle()}>
+              <button className="ec-btn" data-testid="undo-move-dock" onClick={handleUndoTurn} style={ghostButtonStyle()}>
                 Undo move
               </button>
             )}

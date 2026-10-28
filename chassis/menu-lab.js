@@ -16,12 +16,19 @@
    the rest still is. A bar at the top picks the version (‹ ›, or the
    list) and leaves the lab.
 
+   Then (user: "I want 4 Fan, but I want to be able to spin / rotate the
+   menu to access all settings, ultimately, fully replacing the button
+   dock"): five revisions of the Fan, 4.1 to 4.5 (menu-fan.js), each
+   holding all of the dock, and these open from the piece in play and
+   after a game too, the corner piece brought out to them.
+
    ?menulab turns it on for the tab (the chassis's menuLabWanted keeps it
-   on from page to page there), ?menulab=4 starts on the fourth version,
+   on from page to page there), ?menulab=4.2 starts on that version,
    ?menulab=0 turns it off; the version last looked at is kept in this
    browser. Loaded only when asked for. Plain DOM over the game, as the
    fps readout is (fps-readout.js). */
 import { t } from "./i18n.js";
+import { FAN_VERSIONS, mountFan, prepareDock } from "./menu-fan.js";
 
 const ON_KEY = "el-cabeza:menu-lab";
 const PICK_KEY = "el-cabeza:menu-lab-version";
@@ -296,6 +303,9 @@ const VERSIONS = [
     },
   },
 ];
+// Numbered as first shown, 1 to 10; the Fan's revisions after it, 4.1 to 4.5.
+VERSIONS.forEach((v, i) => { v.n = String(i + 1); });
+VERSIONS.splice(4, 0, ...FAN_VERSIONS);
 
 /* ---------------------------------------------------------------- style */
 
@@ -371,6 +381,7 @@ const CSS = `
 .ml-bar-pick{appearance:none;-webkit-appearance:none;border:0;border-radius:999px;background:rgba(255,255,255,.13);color:inherit;font:inherit;font-weight:600;padding:7px 12px;cursor:pointer;max-width:46vw}
 .ml-bar-pick option{color:#1a140e;background:#f6efe2}
 .ml-bar-btn:focus-visible,.ml-bar-pick:focus-visible{outline:2px solid #f6efe2;outline-offset:1px}
+body.ml-lab [data-testid="toggle-hint"]{display:none!important}
 .ml-bar-about{max-width:340px;padding:4px 10px;border-radius:8px;background:rgba(26,20,14,.66);font-size:11.5px;line-height:1.35;text-align:center;text-wrap:balance}
 `;
 
@@ -418,27 +429,34 @@ function flash(node, cls, ms) {
   setTimeout(() => node.classList.remove(cls), ms);
 }
 
+// The version asked for (?menulab=4.2), else the last looked at, else 4.1.
 function loadPick() {
-  let n = NaN;
+  const find = (n) => VERSIONS.findIndex((v) => v.n === n);
+  let i = -1;
   try {
-    const v = new URLSearchParams(window.location.search).get("menulab");
-    n = parseInt(v, 10);
-    if (!(n >= 1 && n <= VERSIONS.length)) n = parseInt(window.localStorage.getItem(PICK_KEY), 10);
-  } catch (e) { /* storage blocked: the first */ }
-  return n >= 1 && n <= VERSIONS.length ? n - 1 : 0;
+    const q = new URLSearchParams(window.location.search).get("menulab");
+    if (q) i = find(q);
+    if (i < 0) i = find(window.localStorage.getItem(PICK_KEY) || "");
+  } catch (e) { /* storage blocked */ }
+  return i >= 0 ? i : find("4.1");
 }
 
 /* ------------------------------------------------------------- the lab */
 
 /* host: panel() the dock's panel, piece() the piece's box, openPanel(),
-   shift(s) to move the piece ({ x, y, scale }, or null back), sideName(side),
-   colors { paper, ink, line } (the panel's), sounds { open, close }.
-   Gives back toggle() (true if it took the tap), update({ ready, shell })
-   (ready: before a game, the piece showing), close(), isOpen(), dispose(). */
+   shift(s) to move the piece ({ x, y, scale }, centre: from its corner to
+   where it waits before a game, raise: up in its corner; or null back),
+   home() (that waiting place's middle), sideName(side), ai() (the side the
+   computer plays, or null), online(), markSeen() (the corner piece's call
+   after a game answered), colors { paper, ink, line } (the panel's),
+   sounds { open, close }. Gives back toggle() (true if it took the tap),
+   update({ ready, shell, phase }) (ready: the piece showing, nothing
+   else up; phase: "setup", "play" or "over"), close(), isOpen(), dispose(). */
 export function installMenuLab(host) {
   addStyle();
+  document.body.classList.add("ml-lab");
   let at = loadPick();
-  let ready = false, shell = false;
+  let ready = false, shell = false, phase = "setup";
   let menu = null;
   let rest = null, shifted = null, shiftedAt = 0, seq = 0, size = null, relayout = 0;
   const bar = makeBar();
@@ -451,7 +469,7 @@ export function installMenuLab(host) {
       return b;
     };
     const pickEl = el("select", { className: "ml-bar-pick", "aria-label": "Menu version", "data-testid": "menu-lab-pick" },
-      ...VERSIONS.map((v, i) => el("option", { value: String(i) }, `${i + 1} · ${v.name}`)));
+      ...VERSIONS.map((v, i) => el("option", { value: String(i) }, `${v.n} · ${v.name}`)));
     pickEl.value = String(at);
     pickEl.addEventListener("change", () => choose(+pickEl.value));
     const about = el("div", { className: "ml-bar-about", "data-testid": "menu-lab-about" });
@@ -470,16 +488,19 @@ export function installMenuLab(host) {
   function say() {
     const v = VERSIONS[at];
     const now = shell ? "It needs the floating piece: switch from the control bar to the dock."
-      : !ready ? "Before a game, tap the piece." : menu ? "Tap outside to close." : "Tap the piece.";
+      : menu ? "Tap outside to close."
+      : v.fan ? (phase === "setup" ? "Tap the piece. (In a game too: the corner piece.)" : "Tap the corner piece.")
+      : phase !== "setup" || !ready ? "Before a game, tap the piece." : "Tap the piece.";
     bar.about.textContent = `${v.about} ${now}`;
   }
 
   function choose(i) {
     at = (i + VERSIONS.length) % VERSIONS.length;
-    try { window.localStorage.setItem(PICK_KEY, String(at + 1)); } catch (e) { /* this visit only */ }
+    try { window.localStorage.setItem(PICK_KEY, VERSIONS[at].n); } catch (e) { /* this visit only */ }
     bar.pick.value = String(at);
-    // An open menu becomes the new version at once, to compare.
-    if (menu) { close({ now: true }); open(); } else say();
+    // An open menu becomes the new version at once, to compare (a version
+    // that's only for before a game doesn't open in one).
+    if (menu) { close({ now: true }); if (VERSIONS[at].fan) openFan(VERSIONS[at]); else if (phase === "setup") open(); else say(); } else say();
   }
 
   function leave() {
@@ -499,7 +520,8 @@ export function installMenuLab(host) {
     shiftedAt = performance.now();
     host.shift(s);
   }
-  // Where the piece rests (its middle): measured while it's there.
+  // Where the piece rests (its middle): measured while it's there (before
+  // a game the big piece; in play, the corner one).
   function restAt() {
     if (!shifted && performance.now() - shiftedAt > 600) {
       const p = host.piece(), r = p && p.getBoundingClientRect();
@@ -535,7 +557,7 @@ export function installMenuLab(host) {
     const s = v.place ? v.place(vw, vh, r) : null;
     setShift(s);
     const center = s ? { x: r.x + s.x, y: r.y + s.y } : r;
-    const layer = el("div", { className: `ml-layer ml-v-${v.id}`, "data-testid": "menu-lab", "data-version": String(at + 1), "data-open": "true" });
+    const layer = el("div", { className: `ml-layer ml-v-${v.id}`, "data-testid": "menu-lab", "data-version": v.n, "data-open": "true" });
     const back = el("div", { className: "ml-back", "data-testid": "menu-lab-back" });
     dress(layer);
     back.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); close(); });
@@ -554,10 +576,44 @@ export function installMenuLab(host) {
     return true;
   }
 
+  /* A fan (menu-fan.js), in any phase: the piece where the version wants
+     it (in play, brought out of its corner), the dock read (after a game,
+     the next game's opponent opened in it first), then the fan. */
+  function openFan(v, { still = false, keep = null } = {}) {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    size = { vw, vh };
+    const home = host.home ? host.home() : { x: vw / 2, y: vh - 118 };
+    const { shift, center } = v.place(phase, vw, vh, restAt(), home);
+    setShift(shift);
+    const layer = el("div", { className: `ml-layer ml-v-${v.id}`, "data-testid": "menu-lab", "data-version": v.n, "data-phase": phase, "data-open": "true" });
+    const back = el("div", { className: "ml-back", "data-testid": "menu-lab-back" });
+    dress(layer);
+    back.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); close(); });
+    document.body.append(back, layer);
+    const m = { layer, back, fan: null, center, items: [], nodes: new Map() };
+    menu = m;
+    if (still || reduced()) layer.classList.add("ml-still");
+    requestAnimationFrame(() => { if (menu === m) back.classList.add("ml-on"); });
+    if (phase === "over" && host.markSeen) host.markSeen();
+    const lead = shift && !shift.raise && !still ? 300 : 0;
+    prepareDock(host, phase).then(() => {
+      if (menu !== m) return;
+      m.fan = mountFan(v, { host, layer, back, center, vw, vh, phase, still, keep, lead, close: () => close() });
+      void layer.offsetWidth;
+      requestAnimationFrame(() => { if (menu === m) layer.classList.add("ml-on"); });
+    });
+    document.addEventListener("keydown", onKey, true);
+    window.addEventListener("resize", onResize);
+    if (!still) sound("open");
+    say();
+    return true;
+  }
+
   function close({ now = false } = {}) {
     const m = menu;
     if (!m) return;
     menu = null;
+    if (m.fan) m.fan.dispose();
     document.removeEventListener("keydown", onKey, true);
     window.removeEventListener("resize", onResize);
     setShift(null);
@@ -574,7 +630,9 @@ export function installMenuLab(host) {
   }
 
   function onKey(e) {
-    if (e.key !== "Escape" || !menu) return;
+    if (!menu) return;
+    if (menu.fan && menu.fan.key(e)) { e.preventDefault(); e.stopPropagation(); return; }
+    if (e.key !== "Escape") return;
     e.preventDefault();
     e.stopPropagation();
     if (menu.choices) closeChoices();
@@ -590,8 +648,10 @@ export function installMenuLab(host) {
       if (!menu || !size) return;
       const vw = window.innerWidth, vh = window.innerHeight;
       if (rest) rest = { x: rest.x + (vw - size.vw) / 2, y: rest.y + (vh - size.vh) };
+      const keep = menu.fan ? menu.fan.turnNow() : null;
       close({ now: true });
-      open({ still: true });
+      if (VERSIONS[at].fan) openFan(VERSIONS[at], { still: true, keep });
+      else open({ still: true });
     });
   }
 
@@ -874,18 +934,23 @@ export function installMenuLab(host) {
     toggle() {
       if (menu) { close(); return true; }
       if (!ready || shell) return false;
-      return open();
+      const v = VERSIONS[at];
+      if (v.fan) return openFan(v);
+      return phase === "setup" ? open() : false;
     },
     update(s) {
       ready = !!s.ready;
       shell = !!s.shell;
-      if (!ready && menu) close();
+      const was = phase;
+      phase = s.phase || "setup";
+      if (menu && (!ready || phase !== was)) close();
       say();
     },
     close: () => close(),
     isOpen: () => !!menu,
     dispose() {
       close({ now: true });
+      document.body.classList.remove("ml-lab");
       bar.node.remove();
     },
   };
