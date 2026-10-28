@@ -252,3 +252,20 @@ immediately.
   Confirmed on the user's phone (2026-10-22): "The spin feels right now, no
   reversal crossing the middle". This is the settled rule: don't change the
   turn's direction rules again without the user asking.
+
+- **Home from the closed store, facing the fireplace** (2026-10-28; user,
+  with a phone screenshot of the home card over the den seen straight at
+  the fire: "If it's not already set this way, it needs to be made sure that you need to ensure that when you return from the abandoned Big Glutz department store and you're back home and you're like, you know, a game nobody has ever heard of. I like it when the camera angle is such that you can see the fireplace, because he mentions the fireplace and having it within view emphasizes that. So the camera should always be in this position when you return back after the unsuccessful store visit."). It wasn't always so: the trip ended in the Room
+  view at whatever heading the room had before it (after the call,
+  wherever the camera had been). Now (den-fx.js homeView, from the trip's
+  onReturn) the Room view at heading 0, square on to the fireplace (the
+  north wall): the fire at the top in the middle, the card, the coffee
+  table and its board, the near sofa below. Set while it's still black,
+  the eased view with it, so it fades up there without swinging round. The
+  user's screenshot is this view exactly; the same on phones and
+  computers, and for any board (the room's walls are fixed: RZ 88). The
+  ?scene=glutts preview ends there too. Tests: e2e-story (desktop, the
+  whole trip with the room turned 2.3 off while away: heading 0, the eased
+  view too, the fire up top in the middle by __DEN_FIRE_AT__; and a phone,
+  the trip pinned by __DEN_TRIP_PIN__, turned 1.9 off: the same, then the
+  card).

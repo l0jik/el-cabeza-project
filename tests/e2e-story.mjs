@@ -55,6 +55,19 @@ async function throughCut(page, to) {
   return { came: !!came, gone: !!gone, there: !!there };
 }
 
+// Home from the closed store, square on to the fireplace (user: "I like it
+// when the camera angle is such that you can see the fireplace ... So the
+// camera should always be in this position when you return back after the
+// unsuccessful store visit"): the Room view at heading 0, the eased view
+// there too (no swing round as it fades up), the fire up top in the middle.
+async function facingFire(page) {
+  const off = (a) => Math.abs((((a % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
+  const c = await page.evaluate(() => window.__EC_TEST_CAM__());
+  check(`...facing the fireplace, however the room was turned (heading ${c.theta.toFixed(3)}, eased ${c.view.theta.toFixed(3)})`, off(c.theta) < 0.01 && off(c.view.theta) < 0.01 && c.dollhouse);
+  const f = await poll(() => page.evaluate(() => { const f = window.__DEN_FIRE_AT__ && window.__DEN_FIRE_AT__(); return f && f.ahead && f.y > 0 && f.y < f.h * 0.4 && Math.abs(f.x - f.w / 2) < f.w * 0.08 ? f : null; }), 3000, 100);
+  check("...the fire in view, up top in the middle", !!f, JSON.stringify(await page.evaluate(() => window.__DEN_FIRE_AT__ && window.__DEN_FIRE_AT__())));
+}
+
 async function open({ phone = false, bar = false, storage = null } = {}) {
   const ctx = await browser.newContext(phone
     ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
@@ -401,10 +414,13 @@ console.log("\ndesktop: the store, the purchase, home");
   check("the car leaving and arriving, and the getaway: the user's recordings, not the made ones", !!(await poll(async () => (await page.evaluate(() => { const d = window.__DEN_TRIP__ && window.__DEN_TRIP__(); return d && d.stage !== "idle" && d.car && d.arrival && d.escape; })), 9000, 100)));
   check("...the steps back timed to the track (its first step 0.1 s in)", await page.evaluate(() => { const d = window.__DEN_TRIP__(); return d.steps.length === 3 && d.steps[0] - d.trackAt === 100 && d.steps[1] - d.steps[0] === 1800 && d.steps[2] - d.steps[1] === 1800; }));
   check("the trip: off to the store", !!(await poll(async () => (await page.evaluate(() => window.__DEN_TRIP__ && window.__DEN_TRIP__().stage)) === "store", 9000, 100)));
+  // (The room turned off the fireplace while away: home's square on to it all the same.)
+  await page.evaluate(() => { const c = window.__EC_TEST_CAM__(); window.__EC_TEST_CAM__({ theta: c.theta + 2.3, snap: true }); });
   check("...\"What the...!??\"", !!(await poll(async () => (await page.locator('[data-testid="den-trip-say-1"].on').count()) === 1, 20000, 100)));
   check("...\"...but I was just here!\" right after it", !!(await poll(async () => (await page.locator('[data-testid="den-trip-say-1b"].on').count()) === 1 && (await page.locator('[data-testid="den-trip-say-1"].on').count()) === 0, 8000, 100)));
   check("...\"Time to get the heck out of here!\"", !!(await poll(async () => (await page.locator('[data-testid="den-trip-say-2"].on').count()) === 1, 25000, 100)));
   check("...home, in the Room view", !!(await poll(async () => { const s = await page.evaluate(() => window.__DEN_TRIP__().stage); const c = await page.evaluate(() => window.__EC_TEST_CAM__()); return (s === "home" || s === "done") && c.dollhouse; }, 25000, 100)));
+  await facingFire(page);
   check("...and the trip's gone", !!(await poll(async () => !(await has(page, "den-trip")), 6000, 100)));
   // Home: a card in the user's words, a tap and it's gone (and the hall
   // counts its moves from then).
@@ -521,6 +537,29 @@ console.log("\ndesktop: the den's television, into Singularity and back");
     });
     check(`...re-centred on the coffee table (${JSON.stringify(v)})`, !!v.bv && !v.c.dollhouse && Math.hypot(...v.c.target) < 0.5 && Math.abs(v.c.radius - v.bv.radius) < 0.5 && Math.abs(v.sx) < 0.25 && Math.abs(v.sy) < 0.4);
   }
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+/* ---------------- phone: home from the closed store, facing the fire ---------------- */
+console.log("\nphone: home from the closed store, facing the fireplace");
+{
+  const { ctx, page, errs } = await open({ phone: true, storage: "owned" });
+  check("bought: the phone opens at home", (await place(page)) === "home");
+  // The trip, pinned: away at the closed store, the room turned off the
+  // fireplace meanwhile, then home.
+  await poll(() => page.evaluate(() => !!window.__DEN_TRIP_PIN__), 10000);
+  await page.evaluate(() => window.__DEN_TRIP_PIN__(20000));
+  check("away at the closed store", !!(await poll(async () => (await page.evaluate(() => window.__DEN_TRIP__().stage)) === "store", 5000, 100)));
+  await page.evaluate(() => { const c = window.__EC_TEST_CAM__(); window.__EC_TEST_CAM__({ theta: c.theta - 1.9, snap: true }); });
+  await page.evaluate(() => window.__DEN_TRIP_PIN__(40900));
+  check("home, in the Room view", !!(await poll(async () => (await page.evaluate(() => window.__DEN_TRIP__().stage)) === "home" && (await page.evaluate(() => window.__EC_TEST_CAM__())).dollhouse, 5000, 100)));
+  await facingFire(page);
+  // Up from the black, and the card.
+  await page.evaluate(() => window.__DEN_TRIP_PIN__(44500));
+  check("...the card", !!(await poll(() => has(page, "den-home-card"), 8000, 100)));
+  await page.waitForTimeout(3000);
+  await page.screenshot({ path: process.env.EC_SHOTS ? `${process.env.EC_SHOTS}/home-card-phone.png` : "/dev/null" }).catch(() => {});
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

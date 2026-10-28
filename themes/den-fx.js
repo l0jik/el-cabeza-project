@@ -61,7 +61,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     // call from Big Glutts (den-call.js).
     /* ...and after it, the trip back to the store for the free pieces and
        home again (den-trip.js), ending in the Room view (as its button:
-       standard.js freeCamera.dollhouse). */
+       standard.js freeCamera.dollhouse), facing the fireplace (homeView). */
     const roomView = () => {
       const btn = typeof document !== "undefined" && (document.querySelector('[data-testid="room-view-corner"]') || document.querySelector('[data-testid="room-view"]'));
       if (btn) { btn.click(); return; }
@@ -69,6 +69,25 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       cam.current.dollhouse = true; cam.current.phi = 0.78; cam.current.radius = 118;
       if (cam.current.target) cam.current.target.set(0, 0, 0);
       if (cam.current.view && cam.current.view.target) cam.current.view.target.set(0, 0, 0);
+    };
+    /* Home from the closed store, always this way round (user: "I like it
+       when the camera angle is such that you can see the fireplace,
+       because he mentions the fireplace ... So the camera should always be
+       in this position when you return back after the unsuccessful store
+       visit"): the Room view square on to the fireplace (the north wall,
+       heading 0), the fire at the top, the coffee table and its board in
+       the middle, the near sofa below. Whichever way the room was turned
+       before the trip. Set while it's still black, the eased view with
+       it, so it fades up there and doesn't swing round. */
+    const homeView = () => {
+      roomView();
+      if (!cam || !cam.current) return;
+      const c = cam.current, turn = 2 * Math.PI;
+      c.theta = Math.round(c.theta / turn) * turn;
+      if (c.view) {
+        c.view.theta = c.theta; c.view.phi = c.phi; c.view.radius = c.radius;
+        if (c.view.target && c.target) c.view.target.copy(c.target);
+      }
     };
     /* Back on the board when the set lets the camera go (after the
        commercial, or any watch of the set; user: always the coffee table
@@ -380,7 +399,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       settleDrop = () => { finish(); };
     }
     const trip = novaTv ? createTrip({ audio, onReturn: () => {
-      roomView();
+      homeView();
       // (Not on a look at the scene alone: nothing's kept.)
       if (novaTv.hall && !preview) novaTv.hall.arm();
       // (Once the den's faded up from the black.)
@@ -1875,6 +1894,14 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       // set on, the commercial.
       window.__DEN_TV_AIR__ = () => { returning = true; commercialNext = true; };
       window.__DEN_TRIP__ = () => (trip ? trip.state() : null);
+      // Where the fire is on the screen (home from the trip: in view).
+      window.__DEN_FIRE_AT__ = () => {
+        const t = three.current, el = t && t.renderer && t.renderer.domElement;
+        if (!el || !t.camera || !t.boardGroup || !den) return null;
+        const p = t.boardGroup.localToWorld(new THREE.Vector3().copy(den.firePoint)).project(t.camera);
+        const r = el.getBoundingClientRect();
+        return { x: r.left + ((p.x + 1) / 2) * r.width, y: r.top + ((1 - p.y) / 2) * r.height, w: r.width, h: r.height, ahead: p.z < 1 };
+      };
       // The end of the story: the hall, the void, the channels after.
       window.__DEN_HALL__ = () => (hall ? hall.state() : null);
       window.__DEN_HALL_NOW__ = () => hall && hall.now(movesNow());
@@ -2305,7 +2332,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           window.removeEventListener("keydown", onLookKey, true);
           lookListenersOn = null;
         }
-        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; delete window.__DEN_TV_BLAST_PIN__; delete window.__DEN_TRIP__; delete window.__DEN_TRIP_PIN__; ["__DEN_TV_CHANNEL__", "__DEN_HALL__", "__DEN_HALL_NOW__", "__DEN_HALL_PICK__", "__DEN_HALL_SKIP__", "__DEN_ENDING__", "__DEN_ENDING_SKIP__", "__DEN_CHANNEL__"].forEach((k) => { delete window[k]; }); }
+        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; delete window.__DEN_TV_BLAST_PIN__; delete window.__DEN_TRIP__; delete window.__DEN_TRIP_PIN__; ["__DEN_TV_CHANNEL__", "__DEN_FIRE_AT__", "__DEN_HALL__", "__DEN_HALL_NOW__", "__DEN_HALL_PICK__", "__DEN_HALL_SKIP__", "__DEN_ENDING__", "__DEN_ENDING_SKIP__", "__DEN_CHANNEL__"].forEach((k) => { delete window[k]; }); }
         if (whiteEl) { whiteEl.remove(); whiteEl = null; }
       },
     };

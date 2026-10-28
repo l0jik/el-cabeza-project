@@ -11,7 +11,7 @@
    heck out of here!"; a turn, and in the black the run for the car, the
    door, the engine, away hard (the user's recordings, one track timed to
    the first step: trip-escape.mp3, tools/den_trip_escape.py). Then home:
-   the den, in the Room view.
+   the den, in the Room view, facing the fireplace (den-fx.js homeView).
 
    den-fx.js makes it (createTrip) and starts it from den-call.js's card
    (onTrip). The pictures are files beside the page (build/build.js). The
@@ -49,7 +49,7 @@ const T = {
   say2: [29900, 32900],      // "Time to get the heck out of here!"
   run: [31600, 34200],       // a turn, and running for the car
   blackOut: [31900, 33900],  // to black (the run, the door, the engine, away: heard; sooner, user: it all took too long)
-  home: 40800,               // the den, the Room view
+  home: 40800,               // the den, the Room view (facing the fireplace)
   fadeHome: [41100, 44300],  // up from black, home
 };
 // The escape track starts here: its first step lands 0.1 s in (T.steps[0]).
