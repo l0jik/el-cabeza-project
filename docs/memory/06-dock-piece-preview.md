@@ -206,3 +206,14 @@ covers (the hand comes from below, either side), so no handedness
 setting.
 Tests: e2e-rings (who's who and Game, Futuris's Anomaly), e2e-hold-to-end
 (the phone's words over the ring).
+
+The actions bar names the side with its colour (2026-10-28; user: "add
+(dark) to the Photon · Actions bar too"): the points counter's
+points-side is the side's name plus, where the world's names don't say
+it (side-names.js hint), " (dark)" in .ec-pts-hint: beside the name on a
+wide screen ("Photon (dark) · Actions"), and under 600 px wide small
+under the name, out of the row's flow (absolute), so the row keeps the
+width it had and stays clear of the corner piece and the full-screen
+button (beside it, Spanish City's "Pizarra (gris azulado) · Acciones"
+ran into both on a 360 px phone); the phone bar's side buttons put it
+under the name the same way. Test: e2e-costs (Photon (dark), desktop).

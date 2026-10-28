@@ -11925,9 +11925,15 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
 @keyframes ecEmberBreathe{0%,100%{box-shadow:0 0 0 1.5px color-mix(in srgb,var(--ec-ember) 55%,black),0 0 5px 1px var(--ec-ember),0 0 12px 2px color-mix(in srgb,var(--ec-ember) 40%,transparent)}50%{box-shadow:0 0 0 1.5px color-mix(in srgb,var(--ec-ember) 55%,black),0 0 8px 3px var(--ec-ember),0 0 22px 6px color-mix(in srgb,var(--ec-ember) 60%,transparent)}}
 [data-testid="points-counter"] [data-filled="true"]{background:radial-gradient(circle at 38% 34%,color-mix(in srgb,var(--ec-ember) 45%,white) 0 16%,var(--ec-ember) 46%,color-mix(in srgb,var(--ec-ember) 72%,black) 100%);animation:ecEmberBreathe 2.6s ease-in-out infinite}
 [data-testid="points-counter"] [data-filled="false"]{background:#2a221d;box-shadow:inset 0 1px 2px rgba(0,0,0,0.8),0 0 0 1.5px rgba(255,244,226,0.28)}
-@media (prefers-reduced-motion: reduce){[data-testid="points-counter"] [data-filled="true"]{animation:none;box-shadow:0 0 0 1.5px color-mix(in srgb,var(--ec-ember) 55%,black),0 0 6px 2px var(--ec-ember),0 0 16px 4px color-mix(in srgb,var(--ec-ember) 50%,transparent)}}`}</style>
-            {/* Whose points (user: say whose turn it is, by name). */}
-            <span style={{ opacity: 0.9 }}><span data-testid="points-side">{sideName(player)}</span> · Actions</span>
+@media (prefers-reduced-motion: reduce){[data-testid="points-counter"] [data-filled="true"]{animation:none;box-shadow:0 0 0 1.5px color-mix(in srgb,var(--ec-ember) 55%,black),0 0 6px 2px var(--ec-ember),0 0 16px 4px color-mix(in srgb,var(--ec-ember) 50%,transparent)}}
+@media (max-width: 600px){[data-testid="points-side"]{position:relative;display:inline-block}[data-testid="points-side"] .ec-pts-hint{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:3px;font-size:0.78em;letter-spacing:0.08em;white-space:nowrap}}`}</style>
+            {/* Whose points (user: say whose turn it is, by name), the
+                side's colour with it where the name doesn't say it (user:
+                "add (dark) to the Photon · Actions bar too"): beside the
+                name, or on a phone small under it (the bar's width as it
+                was, clear of the corner piece; as the phone bar's side
+                buttons have it). */}
+            <span style={{ opacity: 0.9 }}><span data-testid="points-side">{tr(sideName(player))}{SIDE_NAMES.hint && SIDE_NAMES.hint[player] ? <span className="ec-pts-hint"> ({tr(SIDE_NAMES.hint[player])})</span> : null}</span> · Actions</span>
             <span key={pointsPulse} style={{ display: "flex", gap: 10, animation: pointsPulse ? "ecPointsRefund 0.6s ease-out" : "none" }}>
               {Array.from({ length: budget }, (_, i) => (
                 <span

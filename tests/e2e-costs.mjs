@@ -117,6 +117,8 @@ for (const theme of ["futuris", "standard"]) {
     await page.waitForTimeout(400);
   }
   check("the points row names whose points they are", /Photon/i.test(await page.locator('[data-testid="points-side"]').innerText()));
+  // (and the side's colour, beside the name on a wide screen; user: "add (dark) to the Photon · Actions bar too")
+  check("...with the side's colour beside it: Photon (dark)", /^Photon \(dark\)$/i.test((await page.locator('[data-testid="points-side"]').innerText()).replace(/\s+/g, " ").trim()), await page.locator('[data-testid="points-side"]').innerText());
   check("no End turn before a move", (await page.locator('[data-testid="stop-here-float"]').count()) === 0);
   {
     // The other side's piece won't move on this side's turn (the Theme Lab
