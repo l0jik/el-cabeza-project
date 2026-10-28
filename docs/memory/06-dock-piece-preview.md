@@ -237,3 +237,21 @@ the kind and data-a0/a1. The lab's other fans keep their place-marks.
 Test: e2e-rings (store, phone: over Game's settings only, edge to edge,
 clear of the rest; the blue, the lit kind's edge, no place-marks; turned
 on to Start, over Board's from Start, no others).
+
+Rings' kind names along their pieces (2026-10-28; user, with a phone
+screenshot, SETTINGS circled where its straight-set word ran out of its
+slanted piece: "Perhaps the text in the inner brown wheels, or whatever color it is, the darker ones, can be arced or arched to where they fit into the button better. The one that's circled in red, you can see that it's just sticking out. It doesn't look right, so we need to come up with more. We need to finesse that to make it look better. I'm thinking maybe try arcing it in there. Maybe make those in bold, perhaps."). Each kind's name is a textPath on its own arc
+(a <defs> path inside the kind's g, data-mf-arc, after the piece's
+sector so `[data-mf-kind] path` is still the sector) through the piece's
+middle, centred (startOffset 50%, text-anchor middle), reading clockwise
+over the top, the letters standing out from the hub; all bold now (the
+lit one full strength, the rest .78). nameKind measures the name set
+straight (the textPath taken out for it), fits it to the piece's arc
+less 3 px each end (letter-spacing .12em, then .02em, then smaller, 6.5 px
+at least: Configuración comes to 6.51 px), then sets the arc at the
+ring's middle less 0.35 × the size, so the capitals' middle is on the
+ring's middle; text dominant-baseline alphabetic (no central, which
+Safari doesn't keep on a textPath). Kind g's carry data-a0/a1; the svg
+data-hub. Test: e2e-rings (each name's first and last letter inside its
+piece by angle round the hub and between 62 and 100 px out, bold; in
+English and in Spanish).

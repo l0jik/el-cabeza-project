@@ -50,7 +50,7 @@ const poll = async (fn, ms = 15000, step = 200) => {
   }
 };
 
-async function store({ toured = true } = {}) {
+async function store({ toured = true, lang = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   await ctx.addInitScript(({ toured }) => {
     window.__EC_TEST_HOOKS__ = true;
@@ -60,7 +60,7 @@ async function store({ toured = true } = {}) {
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
-  await page.goto(NOVA);
+  await page.goto(lang ? `${NOVA}?lang=${lang}` : NOVA);
   await page.waitForSelector('[data-testid="tienda-open-box"]', { timeout: 60000 });
   await page.waitForTimeout(1500);
   await page.locator('[data-testid="tienda-open-box"]').tap();
@@ -157,6 +157,23 @@ const groupLine = (page) => page.evaluate(() => {
     marks: L.querySelectorAll("[data-mf-track], [data-mf-thumb]").length,
   };
 });
+// Rings' kind names: each laid along its own piece of the inner ring, its
+// first letter to its last inside the piece (by angle round the hub, and
+// between the ring's edges, 62 to 100 px out), bold.
+const kindNames = (page) => page.evaluate(() => {
+  const L = document.querySelector('[data-testid="dock-menu"][data-open="true"]');
+  const svg = L && L.querySelector("svg.mf-ring");
+  if (!svg) return null;
+  const [cx, cy] = svg.getAttribute("data-hub").split(" ").map(Number);
+  const at = (p) => ({ a: (Math.atan2(p.y - cy, p.x - cx) * 180) / Math.PI, r: Math.hypot(p.x - cx, p.y - cy) });
+  return [...L.querySelectorAll(".mf-kind")].map((g) => {
+    const txt = g.querySelector("text"), n = txt.getNumberOfChars();
+    const s = at(txt.getStartPositionOfChar(0)), e = at(txt.getEndPositionOfChar(n - 1));
+    const a0 = +g.getAttribute("data-a0"), a1 = +g.getAttribute("data-a1");
+    const inside = s.a >= a0 + 0.5 && e.a <= a1 - 0.5 && [s.r, e.r].every((r) => r > 62 && r < 100);
+    return { kind: g.getAttribute("data-mf-kind"), name: txt.textContent, onArc: !!txt.querySelector("textPath"), inside, bold: +getComputedStyle(txt).fontWeight >= 700, from: Math.round(s.a), to: Math.round(e.a), piece: `${a0}..${a1}` };
+  });
+});
 const SETUP = ["first", "opponent", "level", "start", "pieces", "cart", "check", "points", "costs", "guide", "sound", "language", "replay", "saves", "bar"];
 
 console.log("The store, on a phone: Rings is the menu");
@@ -178,7 +195,15 @@ console.log("The store, on a phone: Rings is the menu");
   // another kind, it goes over that kind's.
   {
     let g = await groupLine(page);
-    check(`the lit kind's line: over Game's settings only, edge to edge (${g && `${g.mine.join()} ${g.a0}..${g.a1}`})`, !!g && g.kind === "game" && g.lit === "game" && g.exact && g.clear && g.mine.includes("first") && !g.mine.includes("start"), JSON.stringify(g));
+    // The kinds' names (user, of SETTINGS set straight across and sticking
+  // out of its piece: "can be arced or arched to where they fit into the
+  // button better ... Maybe make those in bold"): along their pieces,
+  // inside them, bold.
+  {
+    const names = await kindNames(page);
+    check(`the inner ring's names run along their pieces, inside them, bold (${names && names.map((x) => `${x.name} ${x.from}..${x.to} in ${x.piece}`).join("; ")})`, !!names && names.length === 4 && names.every((x) => x.onArc && x.inside && x.bold), JSON.stringify(names));
+  }
+  check(`the lit kind's line: over Game's settings only, edge to edge (${g && `${g.mine.join()} ${g.a0}..${g.a1}`})`, !!g && g.kind === "game" && g.lit === "game" && g.exact && g.clear && g.mine.includes("first") && !g.mine.includes("start"), JSON.stringify(g));
     check("...in the Singularity's blue, the lit kind outlined in it, no place-marks", !!g && g.stroke === "rgb(180, 240, 255)" && g.litStroke === "rgb(155, 233, 255)" && g.marks === 0, JSON.stringify(g));
     for (let i = 0; i < 8 && (await rings(page) || {}).focus !== "start"; i++) {
       await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-next"]').tap();
@@ -375,6 +400,16 @@ console.log("Noir, on a desktop");
   }
   r = await poll(() => out(page), 5000, 150);
   check("...the mouse brought onto the corner piece: Rings out, in play", !!r && r.phase === "play", JSON.stringify(r));
+  check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
+console.log("The store in Spanish, on a phone: the inner ring's names fit");
+{
+  const { ctx, page, errs } = await store({ lang: "es" });
+  await openRings(page);
+  const names = await kindNames(page);
+  check(`...Partida, Tablero, Ayudas, Configuración, each inside its piece (${names && names.map((x) => `${x.name} ${x.from}..${x.to} in ${x.piece}`).join("; ")})`, !!names && names.map((x) => x.name).join() === "Partida,Tablero,Ayudas,Configuración" && names.every((x) => x.onArc && x.inside && x.bold), JSON.stringify(names));
   check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

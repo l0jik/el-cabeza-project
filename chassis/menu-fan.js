@@ -443,8 +443,8 @@ body.mf-quiet [data-testid="toggle-hint"]{display:none!important}
 .mf-kind{pointer-events:auto;cursor:pointer;touch-action:none}
 .mf-kind path{fill:color-mix(in srgb,var(--ml-ink) 78%,transparent);stroke:color-mix(in srgb,var(--ml-paper) 30%,transparent);stroke-width:.8;transition:fill .2s ease,stroke .2s ease}
 .mf-kind.mf-on path{fill:var(--ml-ink);stroke:#9be9ff;stroke-width:1.6}
-.mf-kind text{fill:var(--ml-paper);font-size:8.5px;letter-spacing:.12em;text-transform:var(--ml-case);font-family:var(--ml-font);text-anchor:middle;dominant-baseline:central;opacity:.72}
-.mf-kind.mf-on text{opacity:1;font-weight:700}
+.mf-kind text{fill:var(--ml-paper);font-size:8.5px;font-weight:700;letter-spacing:.12em;text-transform:var(--ml-case);font-family:var(--ml-font);text-anchor:middle;dominant-baseline:alphabetic;opacity:.78}
+.mf-kind.mf-on text{opacity:1}
 .mf-track{fill:none;stroke:color-mix(in srgb,var(--ml-paper) 40%,transparent);stroke-width:1.5;stroke-linecap:round}
 .mf-thumb{fill:none;stroke:var(--ml-paper);stroke-width:3;stroke-linecap:round}
 .mf-group{pointer-events:none}
@@ -536,7 +536,7 @@ export function mountFan(v, env) {
     : `radial-gradient(circle at ${c.x}px ${c.y}px, rgba(12,9,6,.14) 0, rgba(12,9,6,.14) ${geo.r0}px, rgba(12,9,6,.5) ${geo.r1 + 50}px, rgba(12,9,6,.58) ${geo.r1 + 300}px)`;
 
   const stage = el("div", { className: `mf-stage mf-${v.id}`, "data-testid": "menu-fan", "data-fan": v.id });
-  const svg = svgEl("svg", { class: "mf-ring", width: vw, height: vh, viewBox: `0 0 ${vw} ${vh}` });
+  const svg = svgEl("svg", { class: "mf-ring", width: vw, height: vh, viewBox: `0 0 ${vw} ${vh}`, "data-hub": `${r1d(c.x)} ${r1d(c.y)}` });
   const clipId = `mf-clip-${Math.random().toString(36).slice(2, 8)}`;
   const defs = svgEl("defs"), clip = svgEl("clipPath", { id: clipId });
   clip.append(svgEl("rect", v.corner ? { x: 0, y: 0, width: c.x + 1, height: c.y + 1 } : { x: 0, y: 0, width: vw, height: c.y + 1 }));
@@ -684,15 +684,24 @@ export function mountFan(v, env) {
     if (v.kinds) {
       const present = KINDS.filter((k) => slots.some((s) => s.it.kind === k.key));
       const span = W / Math.max(1, present.length);
-      // (Its name's room: the chord across its piece of the ring.)
-      const room = 2 * ((geo.inner[0] + geo.inner[1]) / 2) * Math.sin(rad(span / 2)) - 10;
+      /* Each name runs along its piece of the ring (user, of SETTINGS
+         sticking out of its piece, set straight across: "the text in the
+         inner brown wheels ... can be arced or arched to where they fit
+         into the button better ... Maybe make those in bold, perhaps"):
+         on an arc through the piece's middle (nameKind sets its radius),
+         centred, bold. Its room: the piece along that arc, less a little
+         each end. */
+      const room = rad(span - 2) * ((geo.inner[0] + geo.inner[1]) / 2 - 3) - 6;
       present.forEach((k, i) => {
         const a0 = geo.win[0] + i * span, a1 = a0 + span;
-        const g = svgEl("g", { class: "mf-kind", role: "button", tabindex: "-1", "data-mf-kind": k.key, "data-mid": r1d((a0 + a1) / 2) });
+        const g = svgEl("g", { class: "mf-kind", role: "button", tabindex: "-1", "data-mf-kind": k.key, "data-mid": r1d((a0 + a1) / 2), "data-a0": r1d(a0), "data-a1": r1d(a1) });
         g.append(svgEl("path", { d: sector(c, geo.inner[0], geo.inner[1], a0 + 1, a1 - 1) }));
-        const p = polar(c, (geo.inner[0] + geo.inner[1]) / 2, (a0 + a1) / 2);
-        const txt = svgEl("text", { x: r1d(p.x), y: r1d(p.y), "data-room": r1d(room) });
-        g.append(txt);
+        const id = `${clipId}-kind-${k.key}`, line = svgEl("defs"), on = svgEl("textPath", { href: `#${id}`, startOffset: "50%" });
+        line.append(svgEl("path", { id, "data-mf-arc": "" }));
+        on.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", `#${id}`);
+        const txt = svgEl("text", { "data-room": r1d(room) });
+        txt.append(on);
+        g.append(line, txt);
         g.addEventListener("pointerdown", (e) => startDrag(e, { kind: k.key }));
         gKinds.append(g);
         nameKind(g);
@@ -700,25 +709,35 @@ export function mountFan(v, env) {
     }
   }
 
-  // A kind's name on the inner ring, in the language now; one longer than
-  // its piece of the ring (CONFIGURACIÓN) closes its letters up, then
-  // shrinks, to fit.
+  // A kind's name on the inner ring, in the language now, along its arc;
+  // one longer than its piece of the ring (CONFIGURACIÓN) closes its
+  // letters up, then shrinks, to fit. The arc then sits where the capitals'
+  // middle is on the ring's middle (the letters stand out from the hub).
   function nameKind(g) {
     const k = KINDS.find((x) => x.key === g.getAttribute("data-mf-kind"));
-    const txt = g.querySelector("text");
-    if (!k || !txt) return;
-    g.setAttribute("aria-label", t(k.name));
-    txt.textContent = t(k.name);
+    const txt = g.querySelector("text"), on = txt && txt.querySelector("textPath"), arc = g.querySelector("[data-mf-arc]");
+    if (!k || !on || !arc) return;
+    const name = t(k.name);
+    g.setAttribute("aria-label", name);
+    // (Measured set straight, then laid on its arc.)
+    on.remove();
+    txt.textContent = name;
     txt.style.letterSpacing = "";
     txt.style.fontSize = "";
     const room = +txt.getAttribute("data-room");
-    const n = txt.textContent.length;
+    const n = name.length;
     const len = (guess) => { let w = 0; try { w = txt.getComputedTextLength(); } catch (e) { /* not drawn */ } return w || guess; };
-    const w = len(n * 8.5 * 0.62 + (n - 1) * 8.5 * 0.12);
-    if (w <= room) return;
-    txt.style.letterSpacing = ".02em";
-    const w2 = len(n * 8.5 * 0.62 + (n - 1) * 8.5 * 0.02);
-    if (w2 > room) txt.style.fontSize = `${Math.max(6.5, (8.5 * room) / w2).toFixed(2)}px`;
+    let size = 8.5;
+    if (len(n * 8.5 * 0.62 + (n - 1) * 8.5 * 0.12) > room) {
+      txt.style.letterSpacing = ".02em";
+      const w2 = len(n * 8.5 * 0.62 + (n - 1) * 8.5 * 0.02);
+      if (w2 > room) { size = Math.max(6.5, (8.5 * room) / w2); txt.style.fontSize = `${size.toFixed(2)}px`; }
+    }
+    txt.textContent = "";
+    on.textContent = name;
+    txt.append(on);
+    const rb = (geo.inner[0] + geo.inner[1]) / 2 - 0.35 * size;
+    arc.setAttribute("d", arcPath(c, r1d(rb), +g.getAttribute("data-a0") + 1, +g.getAttribute("data-a1") - 1));
   }
 
   function paintSlot(s) {
