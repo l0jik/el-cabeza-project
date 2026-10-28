@@ -122,7 +122,8 @@ replay; a phase change or not ready closes it. `openDockMenu()` (the end
 of triggerDockBounce): the lab if on, else Rings' toggle (still loading:
 after the import), else the panel; `reopenDockMenu()` for the ways back
 to the menu (cancelling setting out, the tour's back from the bar):
-Rings again once it's ready (ringsAgainRef). A touch held on the piece
+Rings again once it's ready (ringsAgainRef), or the panel if that's the
+one the player last had out (lastMenuRef: Online's page, a test's). A touch held on the piece
 opens the menu by the hover timer (0.5 s); its lift would have toggled it
 shut, so the lift's tap is skipped when the hold opened it (dockHeldRef).
 Online's page in the panel (picked from Rings, then put away): Rings'

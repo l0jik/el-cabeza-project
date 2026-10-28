@@ -1471,6 +1471,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const ringsRef = useRef(null);
   const ringsLoadRef = useRef(null);
   const ringsAgainRef = useRef(false);
+  // Which of the two the player last had out ("rings", "panel": Online's
+  // page, a test's): the one the menu comes back as (reopenDockMenu).
+  const lastMenuRef = useRef("rings");
   const [dockShift, setDockShift] = useState(null);
   /* Points-left counter (user-requested, off by default, remembered per
      browser): a row of dots at the bottom centre showing how many of the
@@ -1786,7 +1789,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const prev = prevDockViewRef.current;
     prevDockViewRef.current = dockView;
     if (prev === dockView) return;
-    if (dockView === "panel") audioRef.current.playDockOpen();
+    if (dockView === "panel") { lastMenuRef.current = "panel"; audioRef.current.playDockOpen(); }
     else if (prev === "panel") { audioRef.current.playDockClose(); setSoundMenuAt(null); }
   }, [dockView]);
 
@@ -1833,9 +1836,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   };
   // The menu put back where the player was (set out undone, back from the
   // bar to the tour): Rings, as soon as it may open (the effect that tells
-  // it what's up does it), else the panel.
+  // it what's up does it), else (or if it was the panel they had out) the
+  // panel.
   const reopenDockMenu = () => {
-    if (!menuLabRef.current && !dockPanelWanted() && (ringsRef.current || ringsLoadRef.current)) { ringsAgainRef.current = true; return; }
+    if (lastMenuRef.current !== "panel" && !menuLabRef.current && !dockPanelWanted() && (ringsRef.current || ringsLoadRef.current)) { ringsAgainRef.current = true; return; }
     setDockView("panel");
   };
   const triggerDockBounce = useCallback(() => {
@@ -4006,7 +4010,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     let gone = false;
     ringsLoadRef.current = import("./menu-fan.js").then((m) => {
       if (gone) return;
-      const r = m.fanMenu({ ...dockMenuHost(), onOpen: (open) => setRingsOpen(open) }, { testid: "dock-menu" });
+      const r = m.fanMenu({ ...dockMenuHost(), onOpen: (open) => { if (open) lastMenuRef.current = "rings"; setRingsOpen(open); } }, { testid: "dock-menu" });
       ringsRef.current = { ...r, toggle: () => r.toggle(m.RINGS), open: () => r.open(m.RINGS) };
       const st = ringsStateRef.current;
       if (st) {
