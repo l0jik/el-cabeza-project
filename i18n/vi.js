@@ -2231,7 +2231,7 @@ export default {
   "Your menu turns.": "Menu của bạn xoay được.",
   "Turn it": "Xoay",
   "Drag the ring round the piece, or tap ‹ ›.": "Kéo vòng quanh quân cờ, hoặc chạm ‹ ›.",
-  "Drag the ring round the piece, or click ‹ ›.": "Kéo vòng quanh quân cờ, hoặc nhấp ‹ ›.",
+  "Drag the ring round the piece, roll the mouse wheel, or click ‹ ›.": "Kéo vòng quanh quân cờ, lăn con lăn chuột, hoặc nhấp ‹ ›.",
   "Read it": "Đọc",
   "The setting at the top is named above, with what it's set to and what it does.": "Mục ở trên cùng được ghi tên phía trên, kèm giá trị hiện tại và công dụng.",
   "Tap a setting: a switch flips, a choice shows its options.": "Chạm một mục: công tắc sẽ bật hoặc tắt, lựa chọn sẽ hiện các phương án.",

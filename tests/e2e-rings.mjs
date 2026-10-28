@@ -14,6 +14,14 @@
    desktop (Noir): a click, the mouse wheel, Escape, and the mouse
    brought onto the corner piece in play.
 
+   Then (user: "I'm still with the fans. I want to combine rings and
+   fans. make sure that the rings and all that can be scrolled by rolling
+   a mouse wheel too."): Rings opens like the lab's first Fan, its
+   settings and kinds folded at the top, opening out to their places; the
+   wheel turns it a setting a notch (a small smooth roll and a Firefox
+   line notch too), a quick spin as many, a kind a notch over the inner
+   ring, never with Ctrl (a pinch).
+
    node tests/e2e-rings.mjs */
 import { chromium } from "playwright";
 import { waitForDockCorner } from "./dock-helpers.mjs";
@@ -72,6 +80,18 @@ const rings = (page) => page.evaluate(() => {
   };
 });
 const out = async (page) => { const r = await rings(page); return r && r.still ? r : null; };
+// The angle each of Rings' settings is drawn at, as Rings is first laid
+// out (watched from before the tap), and now.
+const watchOpening = (page) => page.evaluate(() => {
+  window.__ringsFirst = null;
+  const angles = () => [...document.querySelectorAll('[data-testid="dock-menu"] .mf-w')].map((g) => +((g.getAttribute("transform") || "").match(/rotate\((-?[\d.]+)/) || [0, NaN])[1]);
+  const mo = new MutationObserver(() => {
+    const a = angles();
+    if (!window.__ringsFirst && a.length && a.every((x) => !isNaN(x))) { window.__ringsFirst = a; mo.disconnect(); }
+  });
+  mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["transform"] });
+  window.__ringsAngles = angles;
+});
 const panelOpen = (page) => page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.open === "true");
 const pieceBox = (page) => page.locator('canvas[data-testid="dock-piece-canvas"]').boundingBox();
 // The piece tapped till Rings is out (a tap can land while it bounces).
@@ -109,8 +129,12 @@ const SETUP = ["first", "opponent", "level", "start", "pieces", "cart", "check",
 console.log("The store, on a phone: Rings is the menu");
 {
   const { ctx, page, errs } = await store();
+  await watchOpening(page);
   let r = await openRings(page);
   check("a tap on the piece: Rings out round it, not the panel", !!r && r.fan === "rings" && r.version === "4.2" && r.phase === "setup" && !(await panelOpen(page)), JSON.stringify(r));
+  const [first, settled] = await page.evaluate(() => [window.__ringsFirst, window.__ringsAngles()]);
+  const span = (a) => (a && a.length ? Math.max(...a) - Math.min(...a) : NaN);
+  check("...it opens like a fan: its settings folded at the top, then open out to their places", !!first && first.every((a) => Math.abs(a + 90) < 2) && span(settled) > 170, `${first && first.map(Math.round).join()} → ${settled.map(Math.round).join()}`);
   check("...every setting the panel has before a game", !!r && SETUP.every((k) => r.keys.includes(k)), r && r.keys.join());
   check("...Try a Game over it, the first move at its point, named and said", !!r && /try a game/i.test(r.primary || "") && r.focus === "first" && /First move/i.test(r.read) && /Which side makes the first move/.test(r.read), JSON.stringify(r));
   // Level: its choices, Medium.
@@ -208,11 +232,44 @@ console.log("Noir, on a desktop");
   await page.waitForTimeout(2500);
   let r = await openRings(page, false);
   check("a click on the piece: Rings out", !!r && r.fan === "rings" && !(await panelOpen(page)), JSON.stringify(r));
-  const f0 = r && r.focus;
+  // The wheel: how many settings along it went (round the ring).
+  const along = (a, b) => { const n = r.keys.length, i = r.keys.indexOf(a), j = r.keys.indexOf(b); return (((j - i) % n) + n + Math.floor(n / 2)) % n - Math.floor(n / 2); };
+  const wheeled = async (fn) => {
+    const a = (await poll(() => out(page), 4000, 100)) || {};
+    await fn();
+    await page.waitForTimeout(400);
+    const b = (await poll(() => out(page), 4000, 100)) || {};
+    return { n: a.focus && b.focus ? along(a.focus, b.focus) : NaN, from: a.focus, to: b.focus, kind: await page.evaluate(() => (document.querySelector('[data-testid="dock-menu"] .mf-kind.mf-on') || { getAttribute: () => null }).getAttribute("data-mf-kind")) };
+  };
+  const at = (x, y, o) => page.evaluate(({ x, y, o }) => { const t = document.elementFromPoint(x, y); for (const d of [].concat(o)) t.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, clientX: x, clientY: y, ...d })); }, { x, y, o });
   await page.mouse.move(640, 560);
-  for (let i = 0; i < 3; i++) { await page.mouse.wheel(0, 70); await page.waitForTimeout(60); }
-  r = await poll(async () => { const x = await out(page); return x && x.focus !== f0 ? x : null; }, 4000, 150);
-  check("...the mouse wheel turns it on", !!r, JSON.stringify(r));
+  let w = await wheeled(() => page.mouse.wheel(0, 100));
+  check("...the mouse wheel: a notch turns it one setting", w.n === 1, JSON.stringify(w));
+  w = await wheeled(() => page.mouse.wheel(0, -100));
+  check("...a notch back, one back", w.n === -1, JSON.stringify(w));
+  w = await wheeled(() => page.mouse.wheel(0, 4));
+  check("...a small smooth roll (a Mac's wheel) still turns one", w.n === 1, JSON.stringify(w));
+  w = await wheeled(() => at(640, 560, { deltaY: 3, deltaMode: 1 }));
+  check("...a line notch (Firefox's) turns one", w.n === 1, JSON.stringify(w));
+  w = await wheeled(() => at(640, 560, [{ deltaY: 100 }, { deltaY: 100 }, { deltaY: 100 }]));
+  check("...a quick spin of three notches, three", w.n === 3, JSON.stringify(w));
+  w = await wheeled(() => at(640, 560, Array.from({ length: 20 }, () => ({ deltaY: 10 }))));
+  check("...a trackpad's stream (200 px), two", w.n === 2, JSON.stringify(w));
+  w = await wheeled(async () => { await page.keyboard.down("Control"); await page.mouse.wheel(0, 100); await page.keyboard.up("Control"); });
+  check("...with Ctrl (a pinch) it stays", w.n === 0, JSON.stringify(w));
+  const kindAt = (k) => page.evaluate((k) => { const n = document.querySelector(`[data-testid="dock-menu"] [data-mf-kind="${k}"] path`); const b = n.getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; }, k);
+  const [kx, ky] = await kindAt("board");
+  await page.mouse.move(kx, ky);
+  // (the setting at the point, its kind, and whether it's its kind's first)
+  const firstOf = () => page.evaluate(() => {
+    const ws = [...document.querySelectorAll('[data-testid="dock-menu"] .mf-w')], f = ws.findIndex((g) => g.classList.contains("mf-focus"));
+    if (f < 0) return "none";
+    const k = ws[f].getAttribute("data-mf-of"), lit = (document.querySelector('[data-testid="dock-menu"] .mf-kind.mf-on') || { getAttribute: () => "" }).getAttribute("data-mf-kind");
+    return `${k}${k === lit ? "" : "(lit " + lit + ")"}${ws[(f - 1 + ws.length) % ws.length].getAttribute("data-mf-of") !== k ? "" : " (not its first)"}`;
+  });
+  const kinds = [];
+  for (let i = 0; i < 4; i++) { await wheeled(() => page.mouse.wheel(0, 100)); kinds.push(await firstOf()); }
+  check("...over the inner ring, a notch a kind, each kind's first setting", new Set(kinds).size === 4 && kinds.every((x) => /^(game|board|hints|settings)$/.test(x)), kinds.join(" → "));
   await page.keyboard.press("Escape");
   check("Escape puts it away", !!(await away(page)));
   await page.waitForTimeout(800);

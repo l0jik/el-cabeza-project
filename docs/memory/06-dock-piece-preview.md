@@ -145,3 +145,31 @@ away. Tests: the panel's own tests open the panel through
 test hooks on; tests/dock-helpers.mjs openDockPanel and
 reopenDockPanelFromCorner set it for their taps);
 e2e-rings for Rings itself.
+
+Rings and the Fan, and the wheel (2026-10-28; user: "I'm still going to
+have a fan, right? I'm still with the fans. I want to combine rings and
+fans. make sure that the rings and all that can be scrolled by rolling a
+mouse wheel too."). Rings is the fourth version's second revision (a
+fan); now it also opens as the lab's first Fan did ("Wedges open over
+the piece like a fan"): `unfold: true` on 4.2 only (the lab's other four
+open as before). mountFan's opening for it: `openOut(delay)` sets
+`unfold.t0`; render() draws each setting at focus + (angle − focus) ×
+`opened(angle).at` (a springy ease, a little past and back), grown about
+the hub from 0.7 and faded in, each 1.8 ms per degree from the point
+later (the middle first); the kinds (`foldKinds`, data-mid on each) 70 ms
+ahead; the place-marks' track and thumb open with the edge. Where it's
+going names the focus at once; a touch, wheel or key during it
+(stop() → openNow()) opens it at once. Reduced motion or a re-lay: no
+opening. The wheel (one window listener per fan, passive: false): a run
+is wheel events less than 70 ms apart by e.timeStamp (when each was made,
+so a busy page doesn't split a trackpad's stream); deltas in px (lines
+×33, pages ×600), the larger axis; a run turns round(total / 100)
+settings, at least one once past 3 px (a Mac's smooth wheel, Firefox's
+line notch), from where it was going (`aim`, turnTo's target, while a
+turn's under way) else the nearest; over Rings' inner ring a notch is a
+kind (each kind's first setting, `kindsFrom`); Ctrl (a pinch) never
+turns it. Every fan: 4.1–4.5 a setting a notch (Pages a page). The
+tour's "Turn it" on a computer names the wheel. Wedges carry
+data-mf-of (their kind). Tests: e2e-rings (opening folded at −90°, then
+spread over 170°+; a notch, back, a small roll, a line notch, three
+quick, a 200 px stream, Ctrl, the inner ring by kind).

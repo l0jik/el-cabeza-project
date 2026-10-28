@@ -349,7 +349,7 @@ export const FAN_VERSIONS = [
     geometry: (vw, vh, c) => { const r1 = ringR1(vw, c); return { r0: Math.round(r1 * 0.55), r1, win: [-180, 0], focus: -90, step: 36, layout: "uniform" }; },
   },
   {
-    n: "4.2", id: "rings", name: "Rings", fan: true, form: "ring", tap: "turn", kinds: true,
+    n: "4.2", id: "rings", name: "Rings", fan: true, form: "ring", tap: "turn", kinds: true, unfold: true,
     about: "The kinds on the inner ring, their settings on the turning ring outside. Tap a kind to turn to it.",
     place: centred(0.6),
     geometry: (vw, vh, c) => { const r1 = ringR1(vw, c); return { r0: 106, r1, inner: [62, 100], win: [-180, 0], focus: -90, step: 30, layout: "kinds" }; },
@@ -484,7 +484,7 @@ export function mountFan(v, env) {
   const labR = rail ? 0 : geo.r0 + (geo.r1 - geo.r0) * 0.53;
   let data = readDock(host, phase) || { header: "", primary: null, items: [] };
   let slots = [], snaps = [], T = 360, cyclic = false;
-  let turn = 0, anim = 0, settleTimer = 0, sticky = null, armed = null, choosing = null, spun = false;
+  let turn = 0, anim = 0, aim = null, settleTimer = 0, sticky = null, armed = null, choosing = null, spun = false;
   let focusKey = null, focusPage = 0, gone = false;
 
   layer.style.setProperty("--hx", `${c.x}px`);
@@ -592,7 +592,7 @@ export function mountFan(v, env) {
         labels.append(node);
         s.node = node;
       } else {
-        const g = svgEl("g", { class: "mf-w", role: "button", tabindex: "-1", "data-mf-key": it.key, "data-ml-item": it.key });
+        const g = svgEl("g", { class: "mf-w", role: "button", tabindex: "-1", "data-mf-key": it.key, "data-ml-item": it.key, "data-mf-of": it.kind });
         const gap = geo.layout === "pages" ? 1.6 : 2;
         g.append(svgEl("path", { d: sector(c, geo.r0, geo.r1, -s.span / 2 + gap / 2, s.span / 2 - gap / 2) }));
         hold(g, s);
@@ -610,7 +610,7 @@ export function mountFan(v, env) {
     // Pages say it their own ways).
     if (!rail && geo.layout !== "pages" && cyclic) {
       const rr = geo.r1 + 7;
-      gMarks.append(svgEl("path", { class: "mf-track", d: arcPath(c, rr, geo.win[0] + 2, geo.win[1] - 2) }));
+      gMarks.append(svgEl("path", { class: "mf-track", "data-mf-track": "", d: arcPath(c, rr, geo.win[0] + 2, geo.win[1] - 2) }));
       gMarks.append(svgEl("path", { class: "mf-thumb", "data-mf-thumb": "" }));
     }
     if (rail) gMarks.append(svgEl("path", { class: "mf-railline", d: arcPath(c, geo.R, geo.win[0], geo.win[1]) }));
@@ -623,7 +623,7 @@ export function mountFan(v, env) {
       const room = 2 * ((geo.inner[0] + geo.inner[1]) / 2) * Math.sin(rad(span / 2)) - 10;
       present.forEach((k, i) => {
         const a0 = geo.win[0] + i * span, a1 = a0 + span;
-        const g = svgEl("g", { class: "mf-kind", role: "button", tabindex: "-1", "data-mf-kind": k.key });
+        const g = svgEl("g", { class: "mf-kind", role: "button", tabindex: "-1", "data-mf-kind": k.key, "data-mid": r1d((a0 + a1) / 2) });
         g.append(svgEl("path", { d: sector(c, geo.inner[0], geo.inner[1], a0 + 1, a1 - 1) }));
         const p = polar(c, (geo.inner[0] + geo.inner[1]) / 2, (a0 + a1) / 2);
         const txt = svgEl("text", { x: r1d(p.x), y: r1d(p.y), "data-room": r1d(room) });
@@ -693,30 +693,40 @@ export function mountFan(v, env) {
       const live = vis > 0.55;
       const d = Math.abs(a - geo.focus);
       if (live && d < bestD) { bestD = d; best = s; }
+      // (Opening like a fan: drawn folded toward the top, as far as it's
+      // opened; where it's going says what's at the point.)
+      const o = opened(a), ad = geo.focus + (a - geo.focus) * o.at, op = vis * o.fade;
       if (rail) {
-        const p = polar(c, geo.R, a);
+        const p = polar(c, geo.R, ad);
         s.node.style.transform = `translate(${r1d(p.x - 40)}px, ${r1d(p.y - 18)}px)`;
-        s.node.style.opacity = vis.toFixed(3);
+        s.node.style.opacity = op.toFixed(3);
         s.node.style.pointerEvents = live ? "auto" : "none";
-        s.node.style.visibility = vis < 0.02 ? "hidden" : "";
+        s.node.style.visibility = op < 0.02 ? "hidden" : "";
       } else {
-        s.node.setAttribute("transform", `rotate(${r1d(a)} ${r1d(c.x)} ${r1d(c.y)})`);
-        s.node.setAttribute("opacity", vis.toFixed(3));
+        s.node.setAttribute("transform", `rotate(${r1d(ad)} ${r1d(c.x)} ${r1d(c.y)})${grown(o.size)}`);
+        s.node.setAttribute("opacity", op.toFixed(3));
         s.node.style.pointerEvents = live ? "auto" : "none";
-        s.node.style.visibility = vis < 0.02 ? "hidden" : "";
-        const p = polar(c, labR, a);
+        s.node.style.visibility = op < 0.02 ? "hidden" : "";
+        const p = polar(c, labR * o.size, ad);
         s.lab.style.transform = `translate(${r1d(p.x)}px, ${r1d(p.y)}px) translate(-50%, -50%)`;
-        s.lab.style.opacity = (vis * (s.it.disabled ? 0.45 : 1)).toFixed(3);
-        s.lab.style.visibility = vis < 0.02 ? "hidden" : "";
+        s.lab.style.opacity = (op * (s.it.disabled ? 0.45 : 1)).toFixed(3);
+        s.lab.style.visibility = op < 0.02 ? "hidden" : "";
       }
     }
     // The place-marks' thumb: this window's share of the whole round.
+    // (Opening, they open out with the fan's edge.)
     const thumb = gMarks.querySelector("[data-mf-thumb]");
     if (thumb && snaps.length) {
       const share = clamp(W / T, 0.08, 1), len = W * share;
       const frac = ((((turn - snaps[0].at) % T) + T) % T) / T;
       const mid = geo.win[0] + len / 2 + (W - len) * frac;
-      thumb.setAttribute("d", arcPath(c, geo.r1 + 7, mid - len / 2, mid + len / 2));
+      const edge = opened(geo.win[0]), k = Math.min(1, edge.at), out = (x) => geo.focus + (x - geo.focus) * k;
+      thumb.setAttribute("d", arcPath(c, geo.r1 + 7, out(mid - len / 2), out(mid + len / 2)));
+      const track = gMarks.querySelector("[data-mf-track]");
+      if (unfold || track.hasAttribute("opacity")) {
+        track.setAttribute("d", arcPath(c, geo.r1 + 7, out(geo.win[0] + 2), out(geo.win[1] - 2)));
+        for (const n of [track, thumb]) { if (unfold) n.setAttribute("opacity", edge.fade.toFixed(3)); else n.removeAttribute("opacity"); }
+      }
     }
     // The focus: the setting at the fan's point (Pages: the page).
     if (geo.layout === "pages") {
@@ -737,6 +747,59 @@ export function mountFan(v, env) {
     }
   }
 
+  /* ---- opening like a fan (Rings: the lab's first Fan, "Wedges open
+     over the piece like a fan", put with the rings; user: "I want to
+     combine rings and fans") ---- */
+  // Folded, its settings and its kinds lie at the top; it opens out to
+  // both sides, the middle first, a little past and back.
+  let unfold = null, unfoldAnim = 0; // { t0 } while it opens
+  const UNFOLD_MS = 480;
+  const springy = (x) => { const s2 = 1.5; return 1 + (s2 + 1) * Math.pow(x - 1, 3) + s2 * Math.pow(x - 1, 2); };
+  // How far open the one at angle a is (lead: ms ahead of the rest).
+  function opened(a, lead = 0) {
+    if (!unfold) return { at: 1, size: 1, fade: 1 };
+    const x = clamp((performance.now() - unfold.t0 + lead - Math.abs(a - geo.focus) * 1.8) / UNFOLD_MS, 0, 1);
+    return { at: springy(x), size: 0.7 + 0.3 * Math.min(1, x * 1.6), fade: clamp(x * 3, 0, 1) };
+  }
+  // (grown about the hub, as far as it's grown)
+  const grown = (k) => (k >= 0.999 ? "" : ` translate(${r1d(c.x)} ${r1d(c.y)}) scale(${k.toFixed(3)}) translate(${r1d(-c.x)} ${r1d(-c.y)})`);
+  function foldKinds() {
+    gKinds.querySelectorAll(".mf-kind").forEach((g) => {
+      if (!unfold) { g.removeAttribute("transform"); g.removeAttribute("opacity"); return; }
+      const mid = +g.getAttribute("data-mid"), o = opened(mid, 70);
+      g.setAttribute("transform", `rotate(${r1d((mid - geo.focus) * (o.at - 1))} ${r1d(c.x)} ${r1d(c.y)})${grown(o.size)}`);
+      g.setAttribute("opacity", o.fade.toFixed(3));
+    });
+  }
+  function openOut(delay) {
+    unfold = { t0: performance.now() + delay };
+    turning(true);
+    render();
+    foldKinds();
+    const end = unfold.t0 + UNFOLD_MS + 120 * 1.8;
+    const tick = () => {
+      if (gone || !unfold) return;
+      render();
+      foldKinds();
+      if (performance.now() < end) { unfoldAnim = requestAnimationFrame(tick); return; }
+      unfold = null;
+      unfoldAnim = 0;
+      render();
+      foldKinds();
+      turning(false);
+    };
+    unfoldAnim = requestAnimationFrame(tick);
+  }
+  // Touched as it opens: open at once.
+  function openNow() {
+    if (!unfold) return;
+    cancelAnimationFrame(unfoldAnim);
+    unfoldAnim = 0;
+    unfold = null;
+    render();
+    foldKinds();
+  }
+
   /* ---- turning ---- */
   function nearestSnap(at) {
     let best = snaps[0], bestD = Infinity;
@@ -753,10 +816,12 @@ export function mountFan(v, env) {
     const lo = snaps[0].at, hi = snaps[snaps.length - 1].at;
     return v2 < lo ? lo - Math.min(30, (lo - v2) * 0.35) : v2 > hi ? hi + Math.min(30, (v2 - hi) * 0.35) : v2;
   }
-  function stop() { cancelAnimationFrame(anim); anim = 0; clearTimeout(settleTimer); }
+  function stop() { cancelAnimationFrame(anim); anim = 0; clearTimeout(settleTimer); openNow(); }
   const turning = (on) => stage.setAttribute("data-turning", on ? "true" : "false");
+  // (aim: the snap it's turning to, while it turns.)
   function turnTo(target, { dur, back: overshoot = false } = {}) {
     stop();
+    aim = target;
     const from = turn, to = near(target);
     const ms = dur || clamp(Math.abs(to - from) * 5, 200, 620);
     const t0 = performance.now();
@@ -846,17 +911,51 @@ export function mountFan(v, env) {
     const vel = t1 > t0 ? (v1 - v0) / (t1 - t0) : 0;
     settle(clamp(vel, -1.2, 1.2));
   }
+  /* The mouse wheel, anywhere: a notch turns it one setting (Pages: a
+     page), a quick spin of them as many; a trackpad's stream of small
+     ones a setting a notch's worth; the first of a run always turns one,
+     however small (a Mac's smooth wheel, a line in Firefox). Over Rings'
+     inner ring, a kind at a time. (Pinching is the page's, never a turn.)
+     A run: wheel events less than 70 ms apart, by when each was made, not
+     when it's handled (a busy page mustn't split a trackpad's stream). */
+  let wheelRun = null;
+  const NOTCH = 100; // px a notch rolls (a line 33, a page 600)
   function onWheel(e) {
     e.preventDefault();
-    stop();
+    if (e.ctrlKey || !snaps.length) return;
+    const raw = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+    const px = raw * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 600 : 1);
+    if (!px) return;
+    const tg = e.target, byKind = !!(v.kinds && tg && tg.closest && tg.closest(".mf-kind"));
+    const at = e.timeStamp || performance.now();
+    if (!wheelRun || at - wheelRun.last > 70 || wheelRun.byKind !== byKind) wheelRun = { from: aim != null && anim ? aim : nearestSnap(turn).at, acc: 0, n: 0, byKind };
+    wheelRun.last = at;
+    wheelRun.acc += px;
+    const far = Math.abs(wheelRun.acc);
+    const n = far < 3 ? 0 : Math.sign(wheelRun.acc) * Math.max(1, Math.round(far / NOTCH));
+    if (n === wheelRun.n) return;
+    wheelRun.n = n;
     spun = true;
     sticky = null;
     closeChoice();
-    turn = bounds(turn + clamp(e.deltaY || e.deltaX, -80, 80) * 0.35);
-    turning(true);
-    render();
-    settleTimer = setTimeout(() => settle(0), 160);
+    turnTo(byKind ? kindsFrom(wheelRun.from, n) : stepsFrom(wheelRun.from, n), { dur: 280 });
   }
+  // n settings along from a snap (round the wheel, or to its end).
+  function stepsFrom(at, n) {
+    let to = at;
+    for (let i = 0; i < Math.abs(n); i++) to = stepFrom(to, Math.sign(n));
+    return to;
+  }
+  // n kinds along from the kind of the snap at (each kind's first setting).
+  function kindsFrom(at, n) {
+    const firsts = KINDS.map((k) => snaps.find((s) => slotOf(s.key)?.it.kind === k.key)).filter(Boolean);
+    if (!firsts.length) return at;
+    const here = slotOf((snaps.find((s) => Math.abs(s.at - at) < 0.5) || {}).key);
+    let i = Math.max(0, firsts.findIndex((s) => here && slotOf(s.key).it.kind === here.it.kind));
+    i = cyclic ? (((i + n) % firsts.length) + firsts.length) % firsts.length : clamp(i + n, 0, firsts.length - 1);
+    return firsts[i].at;
+  }
+  const slotOf = (key) => slots.find((s) => s.it.key === key);
   window.addEventListener("wheel", onWheel, { passive: false });
   // A finger on the fan turns it, never the page: the browser's own pan is
   // stopped as the touch starts (touch-action alone isn't kept on an SVG
@@ -1030,7 +1129,9 @@ export function mountFan(v, env) {
   layout();
   build();
   const start = env.keep != null ? env.keep : snaps.length ? snaps[0].at : 0;
-  if (env.still) { turn = start; render(); say(); turning(false); }
+  if (env.still || (v.unfold && reduced())) { turn = start; render(); say(); turning(false); }
+  // (Rings opens as the piece comes to its middle, a little before it's there.)
+  else if (v.unfold) { turn = start; openOut(Math.max(0, (env.lead || 0) - 120) + 60); say(); }
   else {
     turning(true);
     turn = start + (geo.layout === "pages" ? W * 0.32 : (geo.step || 30) * 1.6);

@@ -2219,7 +2219,7 @@ export default {
   "Your menu turns.": "Tu menú gira.",
   "Turn it": "Giralo",
   "Drag the ring round the piece, or tap ‹ ›.": "Arrastrá el anillo alrededor de la pieza, o tocá ‹ ›.",
-  "Drag the ring round the piece, or click ‹ ›.": "Arrastrá el anillo alrededor de la pieza, o hacé clic en ‹ ›.",
+  "Drag the ring round the piece, roll the mouse wheel, or click ‹ ›.": "Arrastrá el anillo alrededor de la pieza, girá la rueda del mouse o hacé clic en ‹ ›.",
   "Read it": "Leelo",
   "The setting at the top is named above, with what it's set to and what it does.": "La opción de arriba aparece nombrada encima, con su valor y lo que hace.",
   "Tap a setting: a switch flips, a choice shows its options.": "Tocá una opción: un interruptor cambia, una elección muestra sus alternativas.",

@@ -299,7 +299,7 @@ function cardText(t) {
         return {
           title: "Your menu turns.",
           rows: [
-            ["Turn it", t.touch ? "Drag the ring round the piece, or tap ‹ ›." : "Drag the ring round the piece, or click ‹ ›."],
+            ["Turn it", t.touch ? "Drag the ring round the piece, or tap ‹ ›." : "Drag the ring round the piece, roll the mouse wheel, or click ‹ ›."],
             ["Read it", "The setting at the top is named above, with what it's set to and what it does."],
             ["Change it", t.touch ? "Tap a setting: a switch flips, a choice shows its options." : "Click a setting: a switch flips, a choice shows its options."],
           ],
