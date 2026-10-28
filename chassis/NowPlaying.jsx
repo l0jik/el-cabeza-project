@@ -8,7 +8,8 @@ import { t, trIn } from "./i18n.js";
    the time. Pausing holds the track exactly where it is; playing picks
    it up from there.
 
-   `source.get()` says what's on: { title, at, length, paused, skips }
+   `source.get()` says what's on: { title, at, length, paused, skips,
+   restart }
    (at and length in seconds; either may be missing), or null for
    nothing, and the strip isn't drawn. `source.toggle(paused)` pauses or
    plays. It's read four times a second while the menu is open.
@@ -18,9 +19,11 @@ import { t, trIn } from "./i18n.js";
    back to the beginning of a song you're currently listening to"), where
    get() says `skips` and there's a `source.skip(dir)` (-1 back, 1
    forward; what back does, the start or the song before, is the
-   source's): either side of the play button, as on any player. Then the
-   time goes under the title, at the end of its line, so the title keeps
-   its room.
+   source's): either side of the play button, as on any player. Back
+   alone where get() says `restart` (one song: user, of Orinoco's, "Need a
+   button to skip back to the beginning of the track."). Then the time
+   goes under the title, at the end of its line, so the title keeps its
+   room.
 
    No overlap: the button, the words and the time each have their own
    grid column (with back and forward, the three buttons share the
@@ -57,7 +60,9 @@ export default function NowPlaying({ source, ink, muted, hair, accent, font, tes
   const boxRef = useRef(null), textRef = useRef(null);
   const [over, setOver] = useState(0);
   const title = s && s.title;
-  const skips = !!(s && s.skips && source.skip);
+  const next = !!(s && s.skips && source.skip);
+  const back = !!(s && (s.skips || s.restart) && source.skip);
+  const skips = back || next;
   useLayoutEffect(() => {
     const measure = () => {
       const b = boxRef.current, t = textRef.current;
@@ -102,7 +107,7 @@ export default function NowPlaying({ source, ink, muted, hair, accent, font, tes
     <button
       type="button"
       data-testid={`${testid}-${dir < 0 ? "back" : "next"}`}
-      aria-label={dir < 0 ? "Back to the start of the song, or the one before" : "Next song"}
+      aria-label={dir < 0 ? (next ? "Back to the start of the song, or the one before" : "Back to the start of the song") : "Next song"}
       title={dir < 0 ? "Back" : "Next"}
       onClick={() => { source.skip(dir); tick((n) => n + 1); }}
       style={{ ...btn, width: 26, border: "none", borderRadius: 6 }}
@@ -137,7 +142,7 @@ export default function NowPlaying({ source, ink, muted, hair, accent, font, tes
       }}
     >
       {skips ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 2 }}>{skip(-1)}{toggle}{skip(1)}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 2 }}>{back && skip(-1)}{toggle}{next && skip(1)}</div>
       ) : toggle}
       <div style={{ minWidth: 0, paddingLeft: 3 }}>
         <div

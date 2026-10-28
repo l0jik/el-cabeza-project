@@ -103,6 +103,15 @@ on "does this theme have audio." Both Standard and Futuris currently have
   song). The user's answer to "from the opening, near song changes, or
   all through" decides it: bunched at the start and the changes, the
   decodes; all through, the steady load.
+- **The now-playing strip's back button (2026-10-28).** Parrish's
+  soundtrack: back and forward where the look has more than one song
+  (Watermark), back alone where it has one (Orinoco's "Dodhéanta an
+  Ghrian"; user, a screenshot of its strip with the pause button ringed:
+  "Need a button to skip back to the beginning of the track."):
+  nowPlaying() says `restart` once the song's here, NowPlaying.jsx draws
+  |◀ before the round button, and skipSong(-1) with one song takes it to
+  its start (looped, it comes in over SKIP_SEAM_FADE_S; paused, it stays
+  paused there). The den's records and the store's tape have neither.
 
 **Standard's wood-impact percussion — do not re-attempt a resonant-filter
 approach.** Three full rewrites happened before landing on the current

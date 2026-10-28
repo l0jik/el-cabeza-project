@@ -896,12 +896,14 @@ export function createAudio() {
     // The song on now, its own title (between songs, the one just played,
     // at its end; a song skipped to, from the press). `skips`: back and
     // forward buttons, where there's more than one song (once the first
-    // is here).
+    // is here); `restart`: back, with one (user, of Orinoco's: "Need a
+    // button to skip back to the beginning of the track."), skipSong
+    // taking it to its start.
     nowPlaying() {
       const h = hums;
       if (!HUMS_URL || !h || (!h.g && !h.paused)) return null;
       const song = h.song;
-      return { title: SOUNDTRACK[h.k].title, at: song ? humsPos(h) - song.start : 0, length: song ? song.end - song.start : null, paused: !!h.paused, skips: SOUNDTRACK.length > 1 && !!h.g };
+      return { title: SOUNDTRACK[h.k].title, at: song ? humsPos(h) - song.start : 0, length: song ? song.end - song.start : null, paused: !!h.paused, skips: SOUNDTRACK.length > 1 && !!h.g, restart: !!h.g };
     },
     setNowPlayingPaused(pause) { setHumsPaused(pause); },
     skipNowPlaying(dir) { return skipSong(dir); },
