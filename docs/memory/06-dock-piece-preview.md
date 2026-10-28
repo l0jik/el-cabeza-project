@@ -199,5 +199,10 @@ lends you() (youSide), level() (AI_DIFFICULTY label) and sideLabel().
 ring, under a finger ("you can't read anything"): for a touch they go
 over the ring now (data-over, unless there's no room above), kept on the
 screen at the sides (a ref nudges them in); a mouse keeps them under.
+Asked about left and right hands (user: "it should be taken into
+consideration whether somebody is left-handed or right-handed, so maybe
+put it above the piece?"): above the piece is the one place neither hand
+covers (the hand comes from below, either side), so no handedness
+setting.
 Tests: e2e-rings (who's who and Game, Futuris's Anomaly), e2e-hold-to-end
 (the phone's words over the ring).
