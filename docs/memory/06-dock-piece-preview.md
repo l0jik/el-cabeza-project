@@ -136,6 +136,7 @@ and the setting at the point: TOUR_RINGS_HOW), "foot" is "Four kinds of
 setting." (the kinds ringed: TOUR_RINGS_KINDS); the card and its marks at
 z 17 over Rings' layer (16) while it's out; Back, Skip and Got it put it
 away. Tests: the panel's own tests open the panel through
-`window.__EC_DOCK_PANEL__` (with `__EC_TEST_HOOKS__`; tests/dock-helpers.mjs
-openDockPanel and reopenDockPanelFromCorner set it for their taps);
+`window.__EC_DOCK_PANEL__` (hooks on or not: many of them don't turn the
+test hooks on; tests/dock-helpers.mjs openDockPanel and
+reopenDockPanelFromCorner set it for their taps);
 e2e-rings for Rings itself.

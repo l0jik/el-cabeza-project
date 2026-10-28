@@ -379,8 +379,9 @@ function saveCheckAlert(on) {
    for the tab once asked for; ?menulab=0 off. */
 const MENU_LAB_KEY = "el-cabeza:menu-lab";
 // (A test that drives the panel itself asks the piece for it, not Rings:
-// tests/dock-helpers.mjs openDockPanel.)
-const dockPanelWanted = () => typeof window !== "undefined" && !!window.__EC_TEST_HOOKS__ && !!window.__EC_DOCK_PANEL__;
+// tests/dock-helpers.mjs openDockPanel; with the test hooks on or not, as
+// many of the tests that open the panel don't turn them on.)
+const dockPanelWanted = () => typeof window !== "undefined" && !!window.__EC_DOCK_PANEL__;
 function menuLabWanted() {
   try {
     const v = new URLSearchParams(window.location.search).get("menulab");

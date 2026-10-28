@@ -23,7 +23,7 @@
 // clicks again once the panel's open.)
 // (The piece opens Rings, the dock's menu, now (chassis/menu-fan.js);
 // these taps ask it for the panel itself, which the tests drive, and stop
-// asking once it's open: window.__EC_DOCK_PANEL__, with the test hooks.)
+// asking once it's open: window.__EC_DOCK_PANEL__.)
 export async function openDockPanel(page, { attempts = 8 } = {}) {
   const dockCanvas = page.locator('canvas[data-testid="dock-piece-canvas"]');
   const ask = (on) => page.evaluate((on) => { window.__EC_DOCK_PANEL__ = on; }, on).catch(() => {});
