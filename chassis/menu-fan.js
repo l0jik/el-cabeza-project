@@ -124,13 +124,13 @@ export const KINDS = [
   { key: "settings", name: "Settings", tip: "Sound, language, saves." },
 ];
 const KIND_OF = {
-  first: "game", opponent: "game", level: "game", endturn: "game", undomove: "game", undoturn: "game", endgame: "game", plainrules: "game",
+  you: "game", first: "game", opponent: "game", level: "game", endturn: "game", undomove: "game", undoturn: "game", endgame: "game", plainrules: "game",
   start: "board", half: "board", pieces: "board", nova: "board", cart: "board", view: "board", focus: "board", movelog: "board",
   check: "hints", points: "hints", costs: "hints", guide: "hints",
   sound: "settings", language: "settings", replay: "settings", saves: "settings", bar: "settings",
 };
 const NAMES = {
-  first: "First move", opponent: "Opponent", level: "Level", check: "Check alert", start: "Start", half: "My half", cart: "Cart",
+  you: "You", first: "First move", opponent: "Opponent", level: "Level", check: "Check alert", start: "Start", half: "My half", cart: "Cart",
   sound: "Sound", language: "Language", replay: "Replay", saves: "Saves", points: "Actions left", costs: "Move costs",
   guide: "Piece guide", bar: "Control bar", view: "View", focus: "Focus", endturn: "End turn", undomove: "Undo move",
   undoturn: "Undo turn", endgame: "End game", movelog: "Move log", plainrules: "Plain rules",
@@ -165,9 +165,11 @@ const TIPS = {
 /* Everything the dock's panel offers right now, as settings: { key, kind
    (of KINDS), name, value (what it's set to, in words), tip, icon, type
    (toggle: a tap flips it; choice: choose from choices; open: opens its
-   own page; action: does a thing), disabled }, with the button each
-   presses; and the line on top (whose move; after a game, how it ended)
-   and the one big button (Begin, the store's Try a Game; New game). A
+   own page; action: does a thing; info: says something, nothing to
+   press), disabled }, with the button each presses; and the line on top
+   (whose move; after a game, how it ended) with, in play, who's who under
+   it (sub), and the one big button (Begin, the store's Try a Game; New
+   game). A
    button the panel holds back (a new player's first look, the computer
    thinking) is held back here. */
 export function readDock(host, phase) {
@@ -184,8 +186,37 @@ export function readDock(host, phase) {
   const add = (key, it) => items.push({ key, kind: KIND_OF[key] || "board", name: t(NAMES[key] || key), tip: t(TIPS[key] || ""), value: "", ...it });
 
   const status = one('[data-testid="turn-status"]');
-  let header = phase === "setup" ? "" : words(status);
+  let header = phase === "setup" ? "" : words(status), sub = "";
   let primary = null;
+  /* In play, who's who (user, in a game in Futuris: "When I open this
+     menu mid-game, I want to know who I am. If it says photon... it has
+     to be either dark or light... I need to know what level the AI is
+     set to... This needs to be obvious... when you hit game, that has to
+     be something where it immediately shows you that information"): the
+     side to move named with its colour ("Photon (dark) to move"), under
+     it you and the computer's level, and first among the game's
+     settings (where Rings opens, where Game turns to) You, saying it
+     whole. */
+  if (phase === "play" && host.sideLabel) {
+    const full = (s) => host.sideLabel(s), norm = (x) => x.replace(/\s+/g, " ").trim();
+    const s = status && status.getAttribute("data-side");
+    if (s && header === norm(t("{side} to move", { side: side(s) }))) header = t("{side} to move", { side: full(s) });
+    const me = host.you ? host.you() : null, ai = host.ai(), level = host.level ? host.level() : "";
+    if (me) {
+      const them = me === "dark" ? "light" : "dark";
+      sub = ai ? t("You: {you} · Computer: {level}", { you: full(me), level }) : t("You: {you} · Online", { you: full(me) });
+      add("you", {
+        type: "info", value: full(me), icon: ai ? "computer" : "online", wrap: true,
+        tip: ai ? t("You play {you}. The computer plays {them}, on {level}.", { you: full(me), them: full(them), level })
+          : t("You play {you}. Your opponent online plays {them}.", { you: full(me), them: full(them) }),
+      });
+    } else {
+      add("you", {
+        type: "info", name: t("Players"), value: t("Two players"), icon: "human", wrap: true,
+        tip: t("Two players, one screen: {dark} and {light}.", { dark: full("dark"), light: full("light") }),
+      });
+    }
+  }
   if (phase === "setup") {
     const begin = one('[data-dock-role="begin"]');
     // (The store's idle nudge lights its Try a Game, td-try-game:
@@ -257,11 +288,16 @@ export function readDock(host, phase) {
   const begin = one('[data-dock-role="begin"]');
   const beside = begin && begin.parentElement ? Array.from(begin.parentElement.children).filter((b) => b !== begin && b.tagName === "BUTTON") : [];
   for (const id of ["nova-again-setup", "nova-again"]) { const b = one(`[data-testid="${id}"]`); if (b) beside.push(b); }
+  // (One that changes things where they are, data-dock-stay, keeps the
+  // fan out, its word after in the read-out: Futuris's Anomaly, a new
+  // layout a tap; Cromo's stone. User: "when you click anomaly, it
+  // closes the menu... It should just keep the menu open.")
   beside.forEach((b, i) => {
-    const id = b.getAttribute("data-testid") || "";
+    const id = b.getAttribute("data-testid") || "", stay = b.hasAttribute("data-dock-stay");
     add(i ? `extra${i}` : "pieces", {
-      kind: "board", type: "open", name: words(b), icon: id === "tienda-order-form" ? "pieces" : /nova/.test(id) ? "nova" : "spark",
-      tip: b.getAttribute("title") ? t(b.getAttribute("title")) : "", disabled: off(b), press: () => b.click(),
+      kind: "board", type: stay ? "action" : "open", keepOpen: stay, name: words(b), icon: id === "tienda-order-form" ? "pieces" : /nova/.test(id) ? "nova" : "spark",
+      tip: b.getAttribute("title") ? t(b.getAttribute("title")) : "", said: b.getAttribute("data-dock-said") ? t(b.getAttribute("data-dock-said")) : "",
+      disabled: off(b), press: () => b.click(),
     });
   });
   const buy = one('[data-testid="story-purchase"], [data-testid="story-go-home-confused"]');
@@ -310,7 +346,7 @@ export function readDock(host, phase) {
 
   const order = KINDS.map((k) => k.key);
   items.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
-  return { phase, header, primary, items };
+  return { phase, header, sub, primary, items };
 }
 
 /* Before a fan reads the dock: after a game the next game's opponent is
@@ -414,6 +450,7 @@ body.mf-quiet [data-testid="toggle-hint"]{display:none!important}
 .mf-lab .mf-ico{width:17px;height:17px}.mf-lab .mf-ico svg{display:block;width:100%;height:100%}
 .mf-lab .mf-name{max-width:100%;overflow-wrap:anywhere}
 .mf-lab .mf-val{font-size:8.5px;opacity:.7;letter-spacing:.04em;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 0 2px;margin:-3px 0 -2px}
+.mf-lab .mf-val.mf-two{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.2;max-width:min(100%,62px)}
 .mf-lab .mf-val.mf-yes,.mf-lab .mf-val.mf-no{display:inline-flex;align-items:center;gap:4px;opacity:.85}
 .mf-lab .mf-val.mf-yes::before,.mf-lab .mf-val.mf-no::before{content:"";width:6px;height:6px;border-radius:50%;border:1.2px solid currentColor;box-sizing:border-box}
 .mf-lab .mf-val.mf-yes::before{background:currentColor}
@@ -432,6 +469,7 @@ body.mf-quiet [data-testid="toggle-hint"]{display:none!important}
 .ml-on .mf-stack{transform:none}
 .mf-stack.mf-right{align-items:flex-end}
 .mf-head{font-size:10px;letter-spacing:.14em;text-transform:var(--ml-case);color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.75);text-align:center;max-width:100%}
+.mf-head .mf-sub{display:block;margin-top:4px;font-size:9.5px;letter-spacing:.1em;opacity:.92}
 .mf-primary{pointer-events:auto;height:44px;padding:0 22px 0 8px;border-radius:999px;display:inline-flex;align-items:center;gap:10px;font-size:11.5px;letter-spacing:.14em;text-transform:var(--ml-case);box-shadow:0 0 0 1px rgba(0,0,0,.18),0 8px 22px rgba(0,0,0,.3)}
 .mf-primary .mf-ico{width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center}
 .mf-primary .mf-ico svg{width:15px;height:15px}
@@ -535,7 +573,8 @@ export function mountFan(v, env) {
 
   function paintTop() {
     head.textContent = data.header || "";
-    head.style.display = data.header ? "" : "none";
+    if (data.sub) head.append(el("span", { className: "mf-sub", "data-testid": "menu-fan-sub" }, data.sub));
+    head.style.display = data.header || data.sub ? "" : "none";
     const p = data.primary;
     primary.style.display = p ? "" : "none";
     primary.classList.toggle("td-try-game", !!(p && p.lit));
@@ -672,7 +711,7 @@ export function mountFan(v, env) {
     ico.innerHTML = iconOf(it.icon, it.level);
     name.textContent = it.name;
     val.textContent = it.value || "";
-    val.className = `mf-val${it.type === "toggle" && it.on !== undefined ? (it.on ? " mf-yes" : " mf-no") : ""}`;
+    val.className = `mf-val${it.type === "toggle" && it.on !== undefined ? (it.on ? " mf-yes" : " mf-no") : ""}${it.wrap ? " mf-two" : ""}`;
     s.lab.classList.toggle("mf-held", held);
   }
 
@@ -994,6 +1033,7 @@ export function mountFan(v, env) {
       tell(it, t("Not available right now."), true);
       return;
     }
+    if (it.type === "info") { if (s) flash(s.lab || s.node, "mf-pulse", 420); tell(it); return; }
     if (it.type === "choice") { openChoice(it); return; }
     if (it.confirm && armed !== it.key) {
       disarm();
@@ -1011,7 +1051,7 @@ export function mountFan(v, env) {
     }
     it.press();
     if (s) flash(s.lab || s.node, "mf-pulse", 420);
-    frames(2).then(() => { refresh(); tell(find(it.key) || it); });
+    frames(2).then(() => { refresh(); tell(find(it.key) || it, it.said); });
   }
   function disarm() {
     if (!armed) return;
@@ -1095,7 +1135,7 @@ export function mountFan(v, env) {
           act(it, slots.find((s) => s.it.key === it.key));
         }, { key: now ? "toggle-now" : "toggle" });
       }
-    } else {
+    } else if (it.type !== "info") {
       chip(it.type === "open" ? `${t("Open")} ›` : it.name, null, () => act(it, slots.find((s) => s.it.key === it.key)), { key: "go", go: true });
     }
     return box;

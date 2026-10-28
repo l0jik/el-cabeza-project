@@ -46,7 +46,7 @@ import { gameRules } from "./corner-menu.js";
 import { RealityGate, storyOver, GATE_EVENT, openRealityGate, lookParts } from "../themes/reality-gate.js";
 import { modelViews, FUTURIS_SHOWCASE } from "../themes/piece-showcase.js";
 import { saveLastWorld } from "../themes/realities.js";
-import { sideNamesOf, SIDE_NAMES as WORLD_SIDE_NAMES, DEFAULT_SIDE_NAMES } from "../themes/side-names.js";
+import { sideNamesOf, sideLabel, SIDE_NAMES as WORLD_SIDE_NAMES, DEFAULT_SIDE_NAMES } from "../themes/side-names.js";
 import { RULE_LAWS, HOLES_LAW } from "../themes/rules-selections.js";
 import { gameRecord, encodeReplay, checkReplay, readPastedLog, VANILLA_LAWS } from "../engine/replay.js";
 import { quality, createGovernor } from "./device-fit.js";
@@ -3963,7 +3963,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      the piece showing, nothing being set out. */
   const menuLabStateRef = useRef(null);
   const menuLabGameRef = useRef({});
-  menuLabGameRef.current = { ai: aiPlayer };
+  menuLabGameRef.current = { ai: aiPlayer, you: youSide, level: aiDifficulty };
   // What the lab and Rings are lent: the panel they read and press, the
   // piece they move, and the rest.
   const dockMenuHost = () => ({
@@ -3974,6 +3974,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // (where the piece waits before a game: its foot 8 px up, 220 tall)
     home: () => ({ x: window.innerWidth / 2, y: window.innerHeight - 8 - 110 }),
     ai: () => menuLabGameRef.current.ai,
+    // Who's who, for Rings in play: your side (null: two players here),
+    // the computer's level in words, a side's name with its colour
+    // ("Photon (dark)") where the name doesn't say it.
+    you: () => menuLabGameRef.current.you,
+    level: () => { const k = menuLabGameRef.current.level; return k && AI_DIFFICULTY[k] ? t(AI_DIFFICULTY[k].label) : ""; },
+    sideLabel: (side) => (SIDE_NAMES.hint && SIDE_NAMES.hint[side] ? sideLabel(SIDE_NAMES, side) : t(sideName(side))),
     online: () => !!onlineRef.current,
     markSeen: () => setDockCallSeen(true),
     sideName: (side) => sideName(side),
@@ -12133,14 +12139,25 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
       })()}
 
       {/* Hold to end (see endHoldRef): the ring round the piece filling
-         while it's held, and under it what to do; drawn a moment after the
+         while it's held, and by it what to do; drawn a moment after the
          press, so a quick tap or a drag never shows it. The first, till
          one's been held to its end (HOLD_END_FIRST_MS): slower, the ring
          larger and lit with a light breathing round it, and a second line
-         saying what the ring's for. */}
+         saying what the ring's for. The words: under the ring for a mouse;
+         over it for a finger, which hides what's under it (user: "This
+         message should be moved to where it's not underneath your finger
+         as you're holding it down because you can't read anything"), unless
+         there's no room above; kept on the screen at its sides. */}
       {endHold && (() => {
         const f = !!endHold.first;
         const r = (endHold.touch ? 50 : 40) + (f ? 14 : 0), S = r + (f ? 18 : 8), w = f ? 7 : 5;
+        const over = !!endHold.touch && endHold.y - S - 6 - (f ? 92 : 36) > 8;
+        const onScreen = (n) => {
+          if (!n) return;
+          const b = n.getBoundingClientRect(), vw = window.innerWidth;
+          const dx = b.left < 8 ? 8 - b.left : b.right > vw - 8 ? vw - 8 - b.right : 0;
+          if (dx) n.style.marginLeft = `${Math.round(dx)}px`;
+        };
         return (
           <div key={endHold.key} data-testid="hold-to-end" data-first={f ? "true" : "false"} aria-hidden="true" style={{ position: "fixed", left: endHold.x, top: endHold.y, width: 0, height: 0, zIndex: 14, pointerEvents: "none" }}>
             <style>{"@keyframes ecHoldFill{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}@keyframes ecHoldIn{from{opacity:0}to{opacity:1}}@keyframes ecHoldBreathe{0%,100%{opacity:0.2;transform:scale(0.97)}50%{opacity:0.75;transform:scale(1.05)}}"}</style>
@@ -12150,7 +12167,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
               <circle cx={S} cy={S} r={r} fill="none" stroke={COLORS.cream} strokeOpacity="0.35" strokeWidth={w} />
               <circle cx={S} cy={S} r={r} fill="none" stroke={COLORS.cream} strokeWidth={w} strokeLinecap="round" pathLength="100" strokeDasharray="100" transform={`rotate(-90 ${S} ${S})`} style={{ animation: `ecHoldFill ${endHold.ms}ms linear both` }} />
             </svg>
-            <div style={{ position: "absolute", left: 0, top: S + 6, transform: "translateX(-50%)", whiteSpace: f ? "normal" : "nowrap", width: f ? "max-content" : undefined, maxWidth: f ? "min(80vw, 300px)" : undefined, textAlign: "center", padding: f ? "8px 14px 9px" : "6px 12px", borderRadius: f ? 14 : 999, background: COLORS.charcoal, color: COLORS.cream, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: f ? 14.5 : 13, fontWeight: 600, boxShadow: "0 4px 14px rgba(0,0,0,0.3)", animation: "ecHoldIn 160ms ease 160ms both" }}>
+            <div ref={onScreen} data-testid="hold-to-end-words" data-over={over ? "true" : "false"} style={{ position: "absolute", left: 0, ...(over ? { bottom: S + 6 } : { top: S + 6 }), transform: "translateX(-50%)", whiteSpace: f ? "normal" : "nowrap", width: f ? "max-content" : undefined, maxWidth: f ? "min(80vw, 300px)" : undefined, textAlign: "center", padding: f ? "8px 14px 9px" : "6px 12px", borderRadius: f ? 14 : 999, background: COLORS.charcoal, color: COLORS.cream, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: f ? 14.5 : 13, fontWeight: 600, boxShadow: "0 4px 14px rgba(0,0,0,0.3)", animation: "ecHoldIn 160ms ease 160ms both" }}>
               Keep holding to end your turn
               {f && <div data-testid="hold-to-end-teach" style={{ marginTop: 3, fontSize: 12.5, fontWeight: 400, lineHeight: 1.35, opacity: 0.88 }}>When the ring closes, your turn ends. Let go to keep playing.</div>}
             </div>

@@ -22,12 +22,21 @@
    line notch too), a quick spin as many, a kind a notch over the inner
    ring, never with Ctrl (a pinch).
 
+   In play, who's who (user: "When I open this menu mid-game, I want to
+   know who I am... it has to be either dark or light... what level the
+   AI is set to... when you hit game... immediately shows you that
+   information"): the side to move with its colour, you and the
+   computer's level under it, You first and at the point; Game turns back
+   to it. Futuris's Anomaly from Rings keeps Rings out (user: "It should
+   just keep the menu open"), a new layout a tap.
+
    node tests/e2e-rings.mjs */
 import { chromium } from "playwright";
 import { waitForDockCorner } from "./dock-helpers.mjs";
 
 const NOVA = "file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html";
 const NOIR = "file:///home/user/el-cabeza-project/dist/el-cabeza-noir.html";
+const FUTURIS = "file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html";
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--enable-unsafe-swiftshader", "--use-gl=swiftshader"] });
 let fails = 0, checks = 0;
 const check = (name, ok, detail = "") => { checks++; if (!ok) fails++; console.log(`  ${ok ? "ok  " : "FAIL"} ${name}${!ok && detail ? " — " + detail : ""}`); };
@@ -187,12 +196,22 @@ console.log("The store, on a phone: Rings is the menu");
   await page.waitForTimeout(1200);
   check("...still out a moment on", !!(await rings(page)));
   check("...in play's own: End game, the view, the hints, whose move on top", !!r && ["endgame", "view", "check", "language"].every((k) => r.keys.includes(k)) && !r.keys.includes("first") && /to move/i.test(r.head), JSON.stringify(r));
+  // Who's who: the side to move with its colour, you and the computer's
+  // level under it, and You first, at the point as it opens.
+  check("...who you are first, at its point: You, Ash (light), the computer and its level said", !!r && r.keys[0] === "you" && r.focus === "you" && /You\s*Ash \(light\)/.test(r.read) && /You play Ash \(light\)\. The computer plays Walnut \(dark\), on (Easy|Medium|Hard)\./.test(r.read) && /Ash \(light\) to move/.test(r.head) && /You: Ash \(light\) · Computer: (Easy|Medium|Hard)/.test(r.head), JSON.stringify(r));
+  for (let i = 0; i < 2; i++) { await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-next"]').tap(); await page.waitForTimeout(350); }
+  await poll(async () => { const x = await out(page); return x && x.focus !== "you" ? x : null; }, 3000, 100);
+  const gameKind = await page.evaluate(() => { const n = document.querySelector('[data-testid="dock-menu"] [data-mf-kind="game"] path'); const b = n.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; });
+  await page.touchscreen.tap(gameKind.x, gameKind.y);
+  r = await poll(async () => { const x = await out(page); return x && x.focus === "you" ? x : null; }, 4000, 150);
+  check("...turned away, a tap on Game: back to You, said in the read-out", !!r && /The computer plays Walnut \(dark\), on (Easy|Medium|Hard)\./.test(r.read), JSON.stringify(r));
   await page.touchscreen.tap(12, 300);
   await away(page);
   await page.waitForTimeout(1000);
   // End game, twice.
   r = await openRings(page);
-  if (r && r.focus !== "endgame") { await tapSetting(page, "endgame"); await poll(() => out(page), 3000, 150); }
+  // (turned to it with ›: a tap off the point turns to it and presses it at once; You is first now)
+  for (let i = 0; i < 12 && r && r.focus !== "endgame"; i++) { await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-next"]').tap(); r = await poll(() => out(page), 3000, 100); }
   await tapSetting(page, "endgame");
   check("End game asks first", !!(await poll(async () => /again to be sure/i.test((await rings(page)).read), 3000, 100)));
   await tapSetting(page, "endgame");
@@ -203,6 +222,36 @@ console.log("The store, on a phone: Rings is the menu");
   r = await openRings(page);
   const ng = await page.evaluate(() => document.querySelector('[data-testid="new-game"]').textContent.replace(/[^a-z]/gi, "").toLowerCase());
   check("...Rings out from it: New game over it (the store's own words), who to play next, the call answered", !!r && r.phase === "over" && !!r.primary && r.primary.replace(/[^a-z]/gi, "").toLowerCase() === ng && r.keys.includes("opponent") && (await page.evaluate(() => document.querySelector("[data-dock-piece]").dataset.dockCall !== "true")), JSON.stringify(r));
+  check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
+console.log("Futuris, on a phone: Anomaly from Rings");
+{
+  // (user: "when you click anomaly, it closes the menu and immediately
+  // starts... It should just keep the menu open.")
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto(FUTURIS);
+  await page.waitForSelector('canvas[data-testid="dock-piece-canvas"]', { timeout: 60000 });
+  await page.waitForTimeout(2500);
+  let r = await openRings(page);
+  const named = await page.evaluate(() => { const n = document.querySelector('[data-testid="dock-menu"] [data-ml-item="pieces"]'); return n && n.getAttribute("aria-label"); });
+  for (let i = 0; i < 12 && r && r.focus !== "pieces"; i++) { await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-next"]').tap(); r = await poll(() => out(page), 3000, 100); }
+  check("Rings out, Anomaly among the board's settings, turned to", !!r && named === "Anomaly" && r.focus === "pieces", `${named} ${JSON.stringify(r)}`);
+  const layout = () => page.evaluate(() => JSON.stringify((window.__EC_TEST_PIECES__ || []).map((p) => [p.id, p.row, p.col])));
+  let was = await layout();
+  await tapSetting(page, "pieces");
+  r = await poll(async () => { const x = await rings(page); return x && /new layout/i.test(x.read) ? x : null; }, 4000, 100);
+  check("...a tap: a new layout, Rings still out, saying so", !!r && (await layout()) !== was, JSON.stringify(r));
+  was = await layout();
+  await page.waitForTimeout(600);
+  await tapSetting(page, "pieces");
+  check("...and again: another, still out", !!(await poll(async () => (await layout()) !== was && !!(await rings(page)), 4000, 100)));
+  check("...the game not begun", ((await rings(page)) || {}).phase === "setup");
   check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

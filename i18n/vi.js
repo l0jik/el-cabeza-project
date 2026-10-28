@@ -2244,4 +2244,13 @@ export default {
   "{list}: what the board shows to help you.": "{list}: những gì bàn cờ hiện ra để giúp bạn.",
   // Orinoco's one song: back to its start.
   "Back to the start of the song": "Về đầu bài hát",
+  // Rings in play, who's who; Futuris's Anomaly from Rings.
+  "Players": "Người chơi",
+  "Two players": "Hai người chơi",
+  "You: {you} · Computer: {level}": "Bạn: {you} · Máy: {level}",
+  "You: {you} · Online": "Bạn: {you} · Trực tuyến",
+  "You play {you}. The computer plays {them}, on {level}.": "Bạn chơi {you}. Máy chơi {them}, mức {level}.",
+  "You play {you}. Your opponent online plays {them}.": "Bạn chơi {you}. Đối thủ trực tuyến chơi {them}.",
+  "Two players, one screen: {dark} and {light}.": "Hai người chơi, một màn hình: {dark} và {light}.",
+  "A new layout. Tap again for another.": "Bố cục mới. Chạm lần nữa để đổi tiếp.",
 };

@@ -3443,6 +3443,10 @@ export function renderSetupExtras({ beginGameButton, handleAnomaly, revealSingul
         {
           key: "anomaly",
           className: "ec-btn ec-btn-invert",
+          "data-testid": "futuris-anomaly",
+          // (Rings, the dock's menu, stays out for it: a new layout a tap.)
+          "data-dock-stay": "",
+          "data-dock-said": "A new layout. Tap again for another.",
           onClick: handleAnomaly,
           title: "Generate a random, rotationally-symmetric opening layout",
           style: {

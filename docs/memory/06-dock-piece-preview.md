@@ -173,3 +173,31 @@ tour's "Turn it" on a computer names the wheel. Wedges carry
 data-mf-of (their kind). Tests: e2e-rings (opening folded at −90°, then
 spread over 170°+; a notch, back, a small roll, a line notch, three
 quick, a 200 px stream, Ctrl, the inner ring by kind).
+
+Rings' fixes from play in Futuris (2026-10-28, user screenshots). (1)
+Anomaly closed Rings ("when you click anomaly, it closes the menu and
+immediately starts... It should just keep the menu open"): the buttons
+beside Begin are read as "open" (the store's See the pieces opens the
+catalog), so Rings closed first; a button that changes things in place
+now says so with data-dock-stay (Futuris's Anomaly, data-testid
+futuris-anomaly; Cromo's stone), read as an action that keeps the fan
+out, and data-dock-said is its word after ("A new layout. Tap again for
+another."). (2) Who's who in play ("When I open this menu mid-game, I
+want to know who I am. If it says photon... it has to be either dark or
+light... I need to know what level the AI is set to... when you hit
+game, that has to be something where it immediately shows you that
+information"): readDock in play rebuilds the header's "{side} to move"
+with the side's colour (host.sideLabel: the world's hint, "Photon
+(dark)"), adds `sub` under it ("You: Photon (dark) · Computer: Hard";
+online "· Online"; menu-fan-sub), and a first Game setting `you` (type
+info: a tap says it again, nothing pressed; its value may wrap, mf-two)
+whose read-out says it whole ("You play Photon (dark). The computer plays
+Plasma (light), on Hard."; two players: "Players", "Two players, one
+screen: ..."). Rings opens on it in play, and Game turns to it. The host
+lends you() (youSide), level() (AI_DIFFICULTY label) and sideLabel().
+(3) Hold to end's words ("Keep holding to end your turn") sat under the
+ring, under a finger ("you can't read anything"): for a touch they go
+over the ring now (data-over, unless there's no room above), kept on the
+screen at the sides (a ref nudges them in); a mouse keeps them under.
+Tests: e2e-rings (who's who and Game, Futuris's Anomaly), e2e-hold-to-end
+(the phone's words over the ring).

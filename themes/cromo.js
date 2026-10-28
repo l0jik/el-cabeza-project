@@ -470,6 +470,8 @@ export function renderSetupExtras({ beginGameButton, stone: key, toggleStone }) 
         type: "button",
         className: "ec-btn ec-btn-invert",
         "data-testid": "cromo-stone",
+        // (Rings, the dock's menu, stays out for it: the stone changes under it.)
+        "data-dock-stay": "",
         "aria-label": inWords("Board stone: {stone}. Switch stone", { stone: st.label }),
         title: "Switch the monolith between tungsten and shungite",
         onClick: toggleStone,

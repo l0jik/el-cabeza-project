@@ -455,7 +455,8 @@ console.log("The fans at work: before a game, in play, after it");
   await pick(page, "4.1");
   f = await poll(async () => { const g = await fanStill(page); return g && g.id === "dial" ? g : null; }, 5000, 150);
   check("...the Dial, picked with it out, takes its place", !!f);
-  if (f && f.focus !== "endgame") { await tapSlot(page, "endgame"); await fanStill(page); }
+  // (turned to it with ›: a tap off the point turns to it and presses it at once; You is first in play)
+  for (let i = 0; i < 12 && f && f.focus !== "endgame"; i++) { await page.locator('[data-testid="menu-fan-next"]').tap(); f = await fanStill(page); }
   await tapSlot(page, "endgame");
   check("...End game asks first (Tap it again to be sure)", !!(await poll(async () => /again to be sure/i.test((await fan(page)).read), 3000, 100)));
   await tapSlot(page, "endgame");

@@ -14,7 +14,9 @@
      mechanic. The toggle is unnecessary"): no switch in the dock, a tap
      still the note, End turn the one tap that ends it.
    On a phone (the den's bar, the old switch's "off" kept from before):
-   no switch in the menu; a tap, the note; a held touch ends the turn.
+   no switch in the menu; a tap, the note; a held touch ends the turn, its
+   words over the ring (user: "This message should be moved to where it's
+   not underneath your finger").
 
    node tests/e2e-hold-to-end.mjs */
 import { chromium } from "playwright";
@@ -225,11 +227,14 @@ console.log("The den on a phone, the bar layout");
   await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: Math.round(p.x), y: Math.round(p.y) }] });
   await page.waitForTimeout(300);
   const shownOnPhone = (await ring(page).count()) === 1 && (await ring(page).getAttribute("data-first")) === "false";
+  // (the words over the ring, clear of the finger under it, and on the screen)
+  const words = await page.evaluate(() => { const n = document.querySelector('[data-testid="hold-to-end-words"]'); if (!n) return null; const b = n.getBoundingClientRect(); return { over: n.dataset.over, bottom: b.bottom, left: b.left, right: b.right, vw: window.innerWidth }; });
   await page.screenshot({ path: "/tmp/e2e-hold-to-end-phone.png" });
   const endedOnPhone = await poll(async () => (await turns(page)) === 1, 2500, 50);
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await page.waitForTimeout(500);
   check("a touch held on it: the ring (the usual one, learned), then the turn ends", shownOnPhone && !!endedOnPhone);
+  check("...its words over the ring, not under the finger, all on the screen", !!words && words.over === "true" && words.bottom < p.y - 50 && words.left >= 7 && words.right <= words.vw - 7, JSON.stringify(words));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

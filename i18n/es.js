@@ -2232,4 +2232,13 @@ export default {
   "{list}: what the board shows to help you.": "{list}: lo que el tablero te muestra para ayudarte.",
   // Orinoco's one song: back to its start.
   "Back to the start of the song": "Volver al principio de la canción",
+  // Rings in play, who's who; Futuris's Anomaly from Rings.
+  "Players": "Jugadores",
+  "Two players": "Dos jugadores",
+  "You: {you} · Computer: {level}": "Vos: {you} · Computadora: {level}",
+  "You: {you} · Online": "Vos: {you} · En línea",
+  "You play {you}. The computer plays {them}, on {level}.": "Jugás con {you}. La computadora juega con {them}, en {level}.",
+  "You play {you}. Your opponent online plays {them}.": "Jugás con {you}. Tu rival en línea juega con {them}.",
+  "Two players, one screen: {dark} and {light}.": "Dos jugadores, una pantalla: {dark} y {light}.",
+  "A new layout. Tap again for another.": "Una disposición nueva. Tocá otra vez para otra.",
 };
