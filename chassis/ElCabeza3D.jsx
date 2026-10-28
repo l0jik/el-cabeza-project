@@ -32,7 +32,7 @@ import {
   pieceName as setOutPieceName, SET_OUT_ACCENT,
 } from "./set-out.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo, pieceLesson } from "./RulesCards.jsx";
-import FirstGameTour, { TourMarks, tourDone, markTourDone, TOUR_CARDS, TOUR_MENU, TOUR_BAR, TOUR_TONES } from "./FirstGameTour.jsx";
+import FirstGameTour, { TourMarks, tourDone, markTourDone, TOUR_CARDS, TOUR_MENU, TOUR_BAR, TOUR_TONES, TOUR_RINGS_HOW, TOUR_RINGS_KINDS } from "./FirstGameTour.jsx";
 import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
 const FOCUS_EVENT = "el-cabeza:focus";
@@ -378,6 +378,9 @@ function saveCheckAlert(on) {
    of its panel before a game (chassis/menu-lab.js, loaded only then). On
    for the tab once asked for; ?menulab=0 off. */
 const MENU_LAB_KEY = "el-cabeza:menu-lab";
+// (A test that drives the panel itself asks the piece for it, not Rings:
+// tests/dock-helpers.mjs openDockPanel.)
+const dockPanelWanted = () => typeof window !== "undefined" && !!window.__EC_TEST_HOOKS__ && !!window.__EC_DOCK_PANEL__;
 function menuLabWanted() {
   try {
     const v = new URLSearchParams(window.location.search).get("menulab");
@@ -1458,10 +1461,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      straight back to "piece" and re-rolls which piece/color represents
      the new session (see the dockSessionSeed effect below). */
   const [dockView, setDockView] = useState(() => (C && C.gameArmed ? "corner" : "piece")); // "piece" | "panel" | "corner"
-  // The menu lab (?menulab, menu-lab.js), once loaded; and where it's moved
-  // the piece while its menu's out ({ x, y, scale }: up to the middle, or
-  // into the corner), or null.
+  // The menu lab (?menulab, menu-lab.js), once loaded; the dock's own menu,
+  // Rings (menu-fan.js), once loaded, and its loading; and where either's
+  // moved the piece while it's out ({ x, y, scale }: up to the middle, or
+  // into the corner; centre, raise: the corner piece brought out to it, or
+  // raised in its corner), or null.
   const menuLabRef = useRef(null);
+  const ringsRef = useRef(null);
+  const ringsLoadRef = useRef(null);
+  const ringsAgainRef = useRef(false);
   const [dockShift, setDockShift] = useState(null);
   /* Points-left counter (user-requested, off by default, remembered per
      browser): a row of dots at the bottom centre showing how many of the
@@ -1617,6 +1625,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // gated behind a hover/hold (see handleDockPieceHoverStart) instead of
   // a click, so it can't be triggered by an incidental tap mid-play.
   const dockHoverTimerRef = useRef(null);
+  const dockHeldRef = useRef(false);
   // Where the mouse last moved on the page, and where it was resting when
   // the piece took its corner (see handleDockPieceHoverStart).
   const lastPointerRef = useRef(null);
@@ -1807,6 +1816,27 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // normalized to a consistent apparent size in this tiny preview, so
   // bouncing back to a bare 1 would visibly snap a smaller/larger piece
   // to the wrong size for one frame.
+  // The piece tapped, its bounce done: with ?menulab the lab's menu, else
+  // Rings, the dock's menu (out, or away again), else (not for now, or not
+  // loaded) the panel.
+  const openDockMenu = () => {
+    if (menuLabRef.current) { if (!menuLabRef.current.toggle()) setDockView("panel"); return; }
+    if (!dockPanelWanted()) {
+      if (ringsRef.current) { if (ringsRef.current.toggle()) return; }
+      else if (ringsLoadRef.current) {
+        ringsLoadRef.current.then(() => { if (!(ringsRef.current && ringsRef.current.toggle())) setDockView("panel"); });
+        return;
+      }
+    }
+    setDockView("panel");
+  };
+  // The menu put back where the player was (set out undone, back from the
+  // bar to the tour): Rings, as soon as it may open (the effect that tells
+  // it what's up does it), else the panel.
+  const reopenDockMenu = () => {
+    if (!menuLabRef.current && !dockPanelWanted() && (ringsRef.current || ringsLoadRef.current)) { ringsAgainRef.current = true; return; }
+    setDockView("panel");
+  };
   const triggerDockBounce = useCallback(() => {
     const state = dockPieceRef.current;
     if (!state || state.bouncing) return;
@@ -1823,10 +1853,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       } else {
         state.pieceGroup.scale.set(base, base, base);
         state.bouncing = false;
-        // (With ?menulab: the lab's menu out round the piece instead, or
-        // away again; it says when it isn't for now.)
-        if (menuLabRef.current && menuLabRef.current.toggle()) return;
-        setDockView("panel");
+        openDockMenu();
       }
     };
     requestAnimationFrame(tick);
@@ -1936,11 +1963,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // starts nothing; moved over the piece, it does (dockHoverMoved below).
   const handleDockPieceHoverStart = useCallback((ev) => {
     if (dockView !== "corner" || dockHoverTimerRef.current) return;
-    // (The lab's fan out, the piece brought out to it: no hover reopening.)
-    if (menuLabRef.current && menuLabRef.current.isOpen()) return;
+    // (Rings or the lab's fan out, the piece brought out to it: no hover
+    // reopening.)
+    if ((menuLabRef.current && menuLabRef.current.isOpen()) || (ringsRef.current && ringsRef.current.isOpen())) return;
     if (ev && ev.type === "pointerenter" && ev.pointerType !== "touch" && pointerAtRest(ev)) { restEnterRef.current = true; return; }
     dockHoverTimerRef.current = setTimeout(() => {
       dockHoverTimerRef.current = null;
+      // (A touch held till it opened: its lifting isn't a tap too, which
+      // would put Rings straight away again.)
+      dockHeldRef.current = !!dockDragRef.current.dragging;
       triggerDockBounce();
     }, 500);
   }, [dockView, triggerDockBounce, pointerAtRest]);
@@ -1957,6 +1988,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const handleDockPiecePointerDown = useCallback((ev) => {
     const state = dockPieceRef.current;
     if (!state) return;
+    dockHeldRef.current = false;
     state.dragging = true;
     dockDragRef.current = { dragging: true, lastX: ev.clientX, lastY: ev.clientY, lastT: performance.now() };
     if (ev.currentTarget.setPointerCapture) {
@@ -2015,7 +2047,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // precisely is inconvenient mid-play; this is simply the other way
     // in, not a replacement for it. Skipped entirely if this pointer-up
     // ended an actual drag (see handleDockPiecePointerMove).
-    if ((!state || !state.draggedFar) && isInsideDockHitbox(ev)) {
+    const held = dockHeldRef.current;
+    dockHeldRef.current = false;
+    if ((!state || !state.draggedFar) && !held && isInsideDockHitbox(ev)) {
       triggerDockBounce();
     }
     if (state) state.draggedFar = false;
@@ -3925,28 +3959,31 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const menuLabStateRef = useRef(null);
   const menuLabGameRef = useRef({});
   menuLabGameRef.current = { ai: aiPlayer };
+  // What the lab and Rings are lent: the panel they read and press, the
+  // piece they move, and the rest.
+  const dockMenuHost = () => ({
+    panel: () => cardRef.current,
+    piece: () => dockPieceMountRef.current,
+    openPanel: () => setDockView("panel"),
+    shift: setDockShift,
+    // (where the piece waits before a game: its foot 8 px up, 220 tall)
+    home: () => ({ x: window.innerWidth / 2, y: window.innerHeight - 8 - 110 }),
+    ai: () => menuLabGameRef.current.ai,
+    online: () => !!onlineRef.current,
+    markSeen: () => setDockCallSeen(true),
+    sideName: (side) => sideName(side),
+    colors: { paper: COLORS.cream, ink: COLORS.charcoal, line: COLORS.slateSoft },
+    sounds: { open: () => audioRef.current.playDockOpen(), close: () => audioRef.current.playDockClose() },
+  });
   useEffect(() => {
     if (!menuLabWanted()) return undefined;
     let gone = false;
     import("./menu-lab.js").then(({ installMenuLab }) => {
       if (gone) return;
-      const lab = installMenuLab({
-        panel: () => cardRef.current,
-        piece: () => dockPieceMountRef.current,
-        openPanel: () => setDockView("panel"),
-        shift: setDockShift,
-        // (where the piece waits before a game: its foot 8 px up, 220 tall)
-        home: () => ({ x: window.innerWidth / 2, y: window.innerHeight - 8 - 110 }),
-        ai: () => menuLabGameRef.current.ai,
-        online: () => !!onlineRef.current,
-        markSeen: () => setDockCallSeen(true),
-        sideName: (side) => sideName(side),
-        colors: { paper: COLORS.cream, ink: COLORS.charcoal, line: COLORS.slateSoft },
-        sounds: { open: () => audioRef.current.playDockOpen(), close: () => audioRef.current.playDockClose() },
-      });
+      const lab = installMenuLab(dockMenuHost());
       menuLabRef.current = lab;
       if (menuLabStateRef.current) lab.update(menuLabStateRef.current);
-    }).catch(() => { /* (no lab: the panel as ever) */ });
+    }).catch(() => { /* (no lab: the dock as ever) */ });
     return () => {
       gone = true;
       if (menuLabRef.current) menuLabRef.current.dispose();
@@ -3954,13 +3991,50 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  /* The dock's menu (user, of the lab's five turning fans: "I like rings",
+     then "Replace the dock everywhere"): Rings (menu-fan.js), out round
+     the piece in place of the panel, in every world, before a game, in
+     play (the corner piece) and after one; it reads and presses the
+     panel's own buttons, so the panel stays (out of sight) as the one
+     place the game's settings live, and opens itself only for Online's
+     own page. Its own chunk, fetched as the page starts. ringsOpen: for
+     the first-game tour's menu cards. */
+  const ringsStateRef = useRef(null);
+  const [ringsOpen, setRingsOpen] = useState(false);
+  useEffect(() => {
+    let gone = false;
+    ringsLoadRef.current = import("./menu-fan.js").then((m) => {
+      if (gone) return;
+      const r = m.fanMenu({ ...dockMenuHost(), onOpen: (open) => setRingsOpen(open) }, { testid: "dock-menu" });
+      ringsRef.current = { ...r, toggle: () => r.toggle(m.RINGS), open: () => r.open(m.RINGS) };
+      const st = ringsStateRef.current;
+      if (st) {
+        r.update(st);
+        if (ringsAgainRef.current && st.ready) { ringsAgainRef.current = false; r.open(m.RINGS); }
+      }
+    }).catch(() => { /* (none: the panel as ever) */ });
+    return () => {
+      gone = true;
+      if (ringsRef.current) ringsRef.current.dispose();
+      ringsRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // (ready: the piece showing, the panel not open, nothing being set out,
-  // no tour, no replay; the phase: before a game, in play, after one.)
+  // no replay (and for the lab, no tour); the phase: before a game, in
+  // play, after one. Rings asked back for (ringsAgainRef: set out undone,
+  // back from the bar to the tour's menu cards) opens once it may.)
   useEffect(() => {
     const phase = awaitingBegin ? "setup" : isPlaying ? "play" : "over";
     const s = { ready: dockView !== "panel" && !setOut && !shell && !tourStep && !replaying, shell, phase };
     menuLabStateRef.current = s;
     if (menuLabRef.current) menuLabRef.current.update(s);
+    const r = { ready: dockView !== "panel" && !setOut && !shell && !replaying, shell, phase };
+    ringsStateRef.current = r;
+    if (ringsRef.current) {
+      ringsRef.current.update(r);
+      if (ringsAgainRef.current && r.ready && !ringsRef.current.isOpen()) { ringsAgainRef.current = false; ringsRef.current.open(); }
+    }
   }, [awaitingBegin, isPlaying, dockView, setOut, shell, tourStep, replaying]);
   const commitSetOut = (next) => { setOutRef.current = next; setSetOut(next); };
   // A press on a piece while setting out (its drag, or its tap), and
@@ -4078,7 +4152,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     c.target.copy(v.target);
     // (The setup's own fit may take the camera on a resize again.)
     c.placed = v.placed;
-    if (!shell) setDockView("panel");
+    if (!shell) reopenDockMenu();
   }
   // One step of setting out: the board follows; Undo takes it back.
   function stepSetOut(next, extra = {}) {
@@ -4928,6 +5002,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // piece (inset).
       t2.boxes.push({ key: "dock", sel: "[data-dock-piece]", inset: 26, tone: "mine" });
       tag("dock", { el: "[data-dock-piece]", inset: 26 }, isCoarsePointer() ? t("Tap to open your menu") : t("Click to open your menu"), "mine", "above");
+    } else if (tourStep === "panel" && ringsOpen) {
+      // Rings: turning it, reading it, a tap; each ringed in turn as its
+      // card lights its line.
+      TOUR_RINGS_HOW.forEach(([key, sel], i) => t2.boxes.push({ key, sel, tone: "mine", turn: i, of: TOUR_RINGS_HOW.length }));
+    } else if (tourStep === "foot" && ringsOpen) {
+      // Its four kinds on the inner ring, the same.
+      TOUR_RINGS_KINDS.forEach((k, i) => t2.boxes.push({ key: `kind-${k}`, sel: `[data-testid="dock-menu"] [data-mf-kind="${k}"]`, tone: "mine", turn: i, of: TOUR_RINGS_KINDS.length }));
     } else if (tourStep === "panel") {
       // What's in it, each ringed in turn as its card lights its line.
       tourMenuRows.forEach(([key, sel], i) => t2.boxes.push({ key, sel: `[data-testid="dock-panel"] ${sel}`, tone: "mine", turn: i, of: tourMenuRows.length }));
@@ -5576,16 +5657,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      menu open again. */
   useEffect(() => {
     const st = tourStepRef.current;
-    if (st === "menu" && dockView === "panel") setTourStep("panel");
-    else if ((st === "panel" || st === "foot") && dockView !== "panel") setTourStep("menu");
+    const out = dockView === "panel" || ringsOpen;
+    if (st === "menu" && out) setTourStep("panel");
+    else if ((st === "panel" || st === "foot") && !out) setTourStep("menu");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dockView]);
+  }, [dockView, ringsOpen]);
   const tourBarFromRef = useRef(null);
   useEffect(() => {
     if (shell && TOUR_MENU.includes(tourStep)) { tourBarFromRef.current = tourStep; setTourStep(TOUR_BAR); }
     else if (!shell && tourStep === TOUR_BAR) {
       const back = tourBarFromRef.current || "foot";
-      if (back !== "menu") setDockView("panel");
+      if (back !== "menu") reopenDockMenu();
       setTourStep(back);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -11929,7 +12011,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
       {/* The first game's tour (FirstGameTour.jsx): its card at the top
          (at the left on a wide screen), what it names marked over the
          board (put away with the dock's panel, as the piece card is). */}
-      {tourShown && tour2d && <TourMarks marks={tour2d} geo={tourGeo} subscribe={tourSubscribe} cardRef={tourCardRef} />}
+      {tourShown && tour2d && <TourMarks marks={tour2d} geo={tourGeo} subscribe={tourSubscribe} cardRef={tourCardRef} raised={ringsOpen} />}
       {tourShown && (
         <FirstGameTour
           cardRef={tourCardRef}
@@ -11959,6 +12041,8 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             // it; inside, its rows in its own words; along its foot, which
             // buttons it has.
             menu: !shell,
+            // (Rings, the dock's menu: its own cards inside it.)
+            rings: ringsOpen,
             undo: tourMenuRows.some(([k]) => k === "undo") ? "Undo turn" : null,
             views: dockWords.views.slice(0, theme.freeCamera && theme.freeCamera.dollhouse ? 3 : 2),
             check: aiPlayer ? "Check alert" : null,
@@ -11986,13 +12070,13 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
                 // (The menu's: back to the other side's move from the piece's
                 // card; out of the menu from the card inside it.)
                 : tourStep === "menu" ? () => setTourStep("foe")
-                  : tourStep === "panel" ? () => { setTourStep("menu"); setDockView("corner"); }
+                  : tourStep === "panel" ? () => { setTourStep("menu"); if (ringsRef.current) ringsRef.current.close(); setDockView("corner"); }
                     : tourStep === "foot" ? () => setTourStep("panel")
                       : null,
             // (Over with the menu open: it's put away too. Over from the
             // bar's card: the bar kept, as if chosen.)
-            skip: () => { if (tourStep === TOUR_BAR && layoutSwitch) layoutSwitch("bar"); if (dockView === "panel") setDockView("corner"); endTour(); },
-            finish: () => { if (tourStep === TOUR_BAR && layoutSwitch) layoutSwitch("bar"); if (dockView === "panel") setDockView("corner"); endTour(); },
+            skip: () => { if (tourStep === TOUR_BAR && layoutSwitch) layoutSwitch("bar"); if (ringsRef.current) ringsRef.current.close(); if (dockView === "panel") setDockView("corner"); endTour(); },
+            finish: () => { if (tourStep === TOUR_BAR && layoutSwitch) layoutSwitch("bar"); if (ringsRef.current) ringsRef.current.close(); if (dockView === "panel") setDockView("corner"); endTour(); },
           }}
         />
       )}

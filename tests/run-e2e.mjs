@@ -79,6 +79,8 @@ const E2E = [
   ["e2e-language.mjs"],
   // The menu lab (?menulab): ten fly-out menus round the dock's piece, each one working.
   ["e2e-menu-lab.mjs"],
+  // Rings, the dock's menu everywhere: out from the piece and the corner piece, in each phase.
+  ["e2e-rings.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

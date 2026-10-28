@@ -19,7 +19,7 @@
       switches) back at rest in the game's panel after the setup's scrolled. */
 import { chromium } from "playwright";
 import { SIDE_NAMES } from "../themes/side-names.js";
-import { waitForDockCorner, reopenDockPanelFromCorner } from "./dock-helpers.mjs";
+import { waitForDockCorner, reopenDockPanelFromCorner, openDockPanel } from "./dock-helpers.mjs";
 
 const DARK_NAMES = `\\b(${[...new Set(["Dark", ...Object.values(SIDE_NAMES).map((n) => n.dark)])].join("|")})\\b`;
 
@@ -296,9 +296,8 @@ async function waitFor(fn, ms = 8000) {
   check("desktop Nova keeps the dock", !(await q(d.page, "shell-bar").count()) && (await q(d.page, "dock-piece-canvas").count()) > 0);
   // Both layouts on a desktop: the dock's layout icon switches to the bar,
   // the menu switches back, and the choice is remembered.
-  const dockBox = await q(d.page, "dock-piece-canvas").boundingBox();
-  await d.page.mouse.click(dockBox.x + dockBox.width / 2, dockBox.y + dockBox.height / 2);
-  await waitFor(async () => (await q(d.page, "dock-panel").getAttribute("data-open")) === "true");
+  // (The panel itself, which the piece opens for a test: openDockPanel.)
+  await openDockPanel(d.page);
   await q(d.page, "layout-toggle").click();
   check("the dock's layout icon switches to the bar", await waitFor(() => visible(d.page, "shell-bar")));
   const bar = await q(d.page, "shell-bar").boundingBox();
@@ -333,9 +332,7 @@ async function waitFor(fn, ms = 8000) {
   console.log("phone default: the floating piece");
   const p = await open(NOVA, { width: 390, height: 844 });
   check("a phone opens Nova with the floating piece, no bar", !(await q(p.page, "shell-bar").count()) && (await visible(p.page, "dock-piece-canvas")));
-  const dockBox = await q(p.page, "dock-piece-canvas").boundingBox();
-  await p.page.touchscreen.tap(dockBox.x + dockBox.width / 2, dockBox.y + dockBox.height / 2);
-  await waitFor(async () => (await q(p.page, "dock-panel").getAttribute("data-open")) === "true");
+  await openDockPanel(p.page);
   check("the dock offers the bar on a phone too", (await q(p.page, "layout-toggle").count()) === 1);
   await q(p.page, "layout-toggle").tap();
   check("...and switches to it", await waitFor(() => visible(p.page, "shell-bar")));
@@ -359,9 +356,7 @@ async function waitFor(fn, ms = 8000) {
 {
   console.log("the dock's foot after Begin");
   const p = await open(NOVA, { width: 360, height: 560 });
-  const dockBox = await q(p.page, "dock-piece-canvas").boundingBox();
-  await p.page.touchscreen.tap(dockBox.x + dockBox.width / 2, dockBox.y + dockBox.height / 2);
-  await waitFor(async () => (await q(p.page, "dock-panel").getAttribute("data-open")) === "true");
+  await openDockPanel(p.page);
   await p.page.waitForTimeout(800);
   const foot = () => p.page.evaluate(() => {
     const el = document.querySelector('[data-testid="dock-panel"]');

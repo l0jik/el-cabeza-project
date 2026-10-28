@@ -5,6 +5,7 @@
    straight back where it started, and the piece's mesh must never leave
    the board on the way. */
 import { chromium } from "playwright";
+import { openDockPanel } from "./dock-helpers.mjs";
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });
 let failures = 0;
@@ -26,9 +27,7 @@ async function setup(laws) {
     P("light-turrito", "turrito", "light", 9, 9, 1, 1, 1),
   ]);
   await page.waitForTimeout(400);
-  const dock = page.locator('canvas[data-testid="dock-piece-canvas"]');
-  const b = await dock.boundingBox();
-  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  await openDockPanel(page);
   await page.waitForTimeout(600);
   await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Game/ }).click();
   await page.waitForTimeout(1500);
@@ -62,8 +61,7 @@ async function watchStray(page, ms) {
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "NW"));
   const turned = await (async () => { for (let i = 0; i < 30; i++) { await page.waitForTimeout(200); if ((await page.evaluate(() => (window.__EC_TEST_TURNS__ || []).length)) === 1) return true; } return false; })();
   check("the wormhole step ends the turn", turned);
-  const d = page.locator('canvas[data-testid="dock-piece-canvas"]'); const bb = await d.boundingBox();
-  await page.mouse.click(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.waitForTimeout(700);
+  await openDockPanel(page); await page.waitForTimeout(700);
   const strayP = watchStray(page, 1800);
   await page.locator('[data-testid="dock-panel"] button', { hasText: "Undo turn" }).click();
   const stray = await strayP;
@@ -90,9 +88,7 @@ async function watchStray(page, ms) {
     P("light-turrito", "turrito", "light", 4, 4, 1, 1, 1),
   ]);
   await page.waitForTimeout(400);
-  const dock = page.locator('canvas[data-testid="dock-piece-canvas"]');
-  let b = await dock.boundingBox();
-  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  await openDockPanel(page);
   await page.waitForTimeout(600);
   await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Game/ }).click();
   await page.waitForTimeout(1500);
@@ -100,8 +96,7 @@ async function watchStray(page, ms) {
   await page.waitForTimeout(1600);
   const at = (id) => page.evaluate((i) => { const p = window.__EC_TEST_PIECES__.find((q) => q.id === i); return p && [p.row, p.col]; }, id);
   check("the slide pushed the Turrito", JSON.stringify(await at("light-turrito")) === "[4,5]", JSON.stringify(await at("light-turrito")));
-  b = await dock.boundingBox();
-  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  await openDockPanel(page);
   await page.waitForTimeout(700);
   await page.locator('[data-testid="dock-panel"] button', { hasText: "Undo turn" }).click();
   await page.waitForTimeout(1800);

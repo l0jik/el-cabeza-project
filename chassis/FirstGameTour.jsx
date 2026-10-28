@@ -72,6 +72,16 @@ export function markTourDone() {
 // the piece in the corner, inside the menu, and the buttons along its foot.
 export const TOUR_CARDS = ["welcome", "ways", "goal", "crush", "blocks", "turn", "board"];
 export const TOUR_MENU = ["menu", "panel", "foot"];
+/* With Rings, the dock's menu (chassis/menu-fan.js; user: "Replace the
+   dock everywhere"), the two cards inside it are its own: how it turns
+   (the ring, the read-out above it, the setting at its point, each ringed
+   as its line is lit), then its four kinds on the inner ring. */
+export const TOUR_RINGS_HOW = [
+  ["turn", '[data-testid="dock-menu"] [data-mf-grip]'],
+  ["read", '[data-testid="dock-menu"] [data-testid="menu-fan-read"]'],
+  ["tap", '[data-testid="dock-menu"] .mf-w.mf-focus'],
+];
+export const TOUR_RINGS_KINDS = ["game", "board", "hints", "settings"];
 // (The control bar shown for now from the menu's cards: its own card.)
 export const TOUR_BAR = "bar";
 
@@ -283,8 +293,19 @@ function cardText(t) {
           "To have the spinning piece back any time: ☰, then Use the classic dock.",
         ],
       };
-    // Inside it, top to bottom, in its own words.
+    // Inside it, top to bottom, in its own words. (Rings: how it turns.)
     case "panel": {
+      if (t.rings) {
+        return {
+          title: "Your menu turns.",
+          rows: [
+            ["Turn it", t.touch ? "Drag the ring round the piece, or tap ‹ ›." : "Drag the ring round the piece, or click ‹ ›."],
+            ["Read it", "The setting at the top is named above, with what it's set to and what it does."],
+            ["Change it", t.touch ? "Tap a setting: a switch flips, a choice shows its options." : "Click a setting: a switch flips, a choice shows its options."],
+          ],
+          lit: true,
+        };
+      }
       const rows = [];
       if (t.undo) rows.push([t.undo, "Takes back your last turn, and your opponent's answer."]);
       if (t.views && t.views.length) rows.push(["Views", say("{views}: ready-made views of the board.", { views: list(t.views) })]);
@@ -292,8 +313,25 @@ function cardText(t) {
       if (t.endGame) rows.push([t.endGame, "Ends this game."]);
       return { title: "Inside your menu.", rows, lit: true };
     }
-    // Along its foot: each button drawn as the menu draws it.
+    // Along its foot: each button drawn as the menu draws it. (Rings: its
+    // four kinds.)
     case "foot": {
+      if (t.rings) {
+        const hints = [t.check ? "Check alert" : null, "Piece guide", t.costs ? "Move costs" : null, "Actions left"].filter(Boolean).map(tr);
+        const settings = [t.sound ? "Sound" : null, "Language", t.layout ? "Control bar" : null].filter(Boolean).map(tr);
+        return {
+          title: "Four kinds of setting.",
+          body: [t.touch ? "On the inner ring: tap one to turn straight to it." : "On the inner ring: click one to turn straight to it."],
+          rows: [
+            ["Game", "Your turn and the game: end your turn, undo, end the game."],
+            ["Board", t.views && t.views.length ? say("{views}: ready-made views of the board.", { views: list(t.views) }) : "Ready-made views of the board."],
+            ["Hints", say("{list}: what the board shows to help you.", { list: list(hints) })],
+            ["Settings", say("{list}.", { list: list(settings) })],
+          ],
+          lit: true,
+          note: t.touch ? "That's the tour. Your move: tap any of your pieces to see what it does. Good luck!" : "That's the tour. Your move: click any of your pieces to see what it does. Good luck!",
+        };
+      }
       const icons = [];
       if (t.layout) icons.push({ icon: "layout", name: "Control bar", text: "moves the menu to a bar along the foot of the screen." });
       icons.push({ icon: "guide", name: "Piece guide", text: "a card that tells you what the piece you pick does." });
@@ -387,7 +425,7 @@ export default function FirstGameTour({ tour, cardRef }) {
           top: below ? below : "calc(var(--ec-shell-top, env(safe-area-inset-top, 0px)) + 12px)",
           left: side ? "max(16px, env(safe-area-inset-left, 0px))" : "50%",
           transform: side ? "none" : "translateX(-50%)",
-          zIndex: 13,
+          zIndex: tour.rings ? 17 : 13,
           width: side ? 360 : "min(calc(100vw - 32px), 440px)",
           // (A phone on its side: the card scrolls rather than runs off.)
           maxHeight: `calc(100vh - ${below ? below + 12 : 24}px)`,
@@ -502,7 +540,7 @@ const HALO = "rgba(22,14,6,0.62)";
    `leg` and resting a beat (`rest`) at each end. Still with reduced
    motion. */
 const SWEEP = { hold: 700, leg: 2400, rest: 300 };
-export function TourMarks({ marks, geo, subscribe, cardRef }) {
+export function TourMarks({ marks, geo, subscribe, cardRef, raised = false }) {
   const tagEls = useRef({});
   const lineEls = useRef({});
   const boxEls = useRef({});
@@ -756,7 +794,7 @@ export function TourMarks({ marks, geo, subscribe, cardRef }) {
     </g>
   );
   return (
-    <div data-testid="tour-marks" aria-hidden="true" style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 12, overflow: "hidden" }}>
+    <div data-testid="tour-marks" aria-hidden="true" style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: raised ? 17 : 12, overflow: "hidden" }}>
       <style>{"@keyframes ecTourPulse{0%,100%{opacity:1}50%{opacity:.4}}@keyframes ecTourMarch{to{stroke-dashoffset:-46}}.ec-tour-pulse{animation:ecTourPulse 1.3s ease-in-out infinite}.ec-tour-march{animation:ecTourMarch 1.1s linear infinite}@media (prefers-reduced-motion: reduce){.ec-tour-pulse,.ec-tour-march,[data-turn]{animation:none!important}}"
         + [...new Set((marks.boxes || []).filter((b) => b.of).map((b) => b.of))].map((n) => turnFrames("ecTourTurn", n, "opacity:1", "opacity:0")).join("")}</style>
       <svg width="100%" height="100%" style={{ position: "absolute", inset: 0, overflow: "visible" }}>

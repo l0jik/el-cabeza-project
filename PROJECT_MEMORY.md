@@ -93,36 +93,6 @@ built or dropped.
     Poniachik first: change them too?
   - whether the Singularity's sound now plays on the user's Chromebook
     (the light reverbs since 2026-10-23);
-  - the dock menu on phones (2026-10-27; user, after A to C: "I need 10
-    more options."): A bigger (grows to fit, foot on two lines), B fewer
-    things (the start menu only; the switches left to the in-game menu),
-    C two pages ("More options ›", every switch named), D tabs (Play |
-    Options), E fold-out (Options unfold in place), F bottom sheet (edge
-    to edge, drag up), G gear (by the language badge), H one line (the
-    choices said, Change ›), I tiles (tap to change), J steps (three big
-    buttons, Try a Game asks how hard), K all of it in words (named
-    chips, grows to fit), L tightened (all of it packed to fit), M round
-    buttons around the piece; D recommended, C or F next. And phones
-    only or everywhere. Then (user: "Give me 10 more variations of M
-    around the piece. I want to explore that."): M1 icons with names on
-    an arc, M2 clock face (full ring, piece raised), M3 pie (wedges), M4
-    orbit (tilted ring, front big, back behind the piece), M5 Big Glutts
-    price tags on strings, M6 two rings (game inside, switches as chips
-    outside), M7 speech bubbles (the piece talks), M8 thumb corner
-    (piece bottom right, quarter circle), M9 speed dial (named pills
-    rise above it), M10 wooden tokens (discs like the game's pieces);
-    suggested M1's arc with M10's wooden discs, or M9 for the clearest.
-    Then the menu lab (user: "Create 10 versions fully functional in a
-    lab outside of the chat"): ten working fly-out menus round the piece
-    on the live site, any page with ?menulab (?menulab=N for one): 1 Ring,
-    2 Crown, 3 Wedges, 4 Fan, 5 Speed dial, 6 Pill row, 7 Pill arc, 8 Just
-    three, 9 Two steps, 10 Thumb. Then (user: "I want 4 Fan, but I want
-    to be able to spin / rotate the menu ... fully replacing the button
-    dock. Give me 5 revisions of this one"): five turning fans in the lab
-    holding every setting before, during and after a game (?menulab=4.1
-    to 4.5): 4.1 Dial, 4.2 Rings, 4.3 Rail, 4.4 Pages, 4.5 Corner.
-    Waiting on a pick; then the panel's place taken for good (phones only
-    or everywhere, still to say).
 - The user's own step: the online play and cloud saves server on their
   free Cloudflare account (server/README.md, then its address in
   chassis/online-config.js RELAY_URL; until then online games and cloud
@@ -135,6 +105,11 @@ built or dropped.
   City is; a walk-home warning (the check alert's kind, for "the
   computer's Cabeza can reach your back row next turn"); the computer
   faster and stronger with big armies.
+- Settled: the dock menu on phones (2026-10-27, A to M, M1 to M10, the
+  menu lab's ten, its five turning fans): Rings (4.2) is the dock's menu
+  everywhere (user: "I like rings."; then "Replace the dock everywhere
+  (Recommended)"), every world, phones and computers; the lab's other
+  versions stay in ?menulab.
 - Settled: the store's mouse drag (asked 2026-10-18 whether it should turn
   the board the way a finger does): since the turn "where you touch"
   (2026-10-22), any pointer, everywhere (docs/memory/05-camera-input.md).
@@ -342,3 +317,4 @@ built or dropped.
 - The menu lab (user: "create a testing lab for this, because we really need to actually see real life functional versions of these to see how they work. I'm thinking fly out menus. I like the circle around the piece, like the wedges, also maybe just the, I don't know, I mean, yeah, fly out is maybe the key here, or also the one with the horizontal list of rounded buttons on a transparent backdrop, but still seems we need to go for a less is more sort of thing here. Create 10 versions fully functional in a lab outside of the chat."). chassis/menu-lab.js, loaded only with ?menulab (on for the tab; ?menulab=N picks one; ✕ in its bar leaves): before a game a tap on the dock's piece flies one of ten menus out round it instead of the panel, each pressing the panel's own buttons (Try a Game, the level, See the pieces, the cart; More opens the panel; a new player's first look held back as there): 1 Ring, 2 Crown, 3 Wedges, 4 Fan, 5 Speed dial, 6 Pill row, 7 Pill arc, 8 Just three, 9 Two steps, 10 Thumb. Chassis: triggerDockBounce hands the tap to the lab, dockShift moves the piece (up for the full circles, the corner for Thumb). Test: e2e-menu-lab. docs/memory/06-dock-piece-preview.md. Waiting on a pick (Backlog).
 - Five turning fans (user: "I want 4 Fan, but I want to be able to spin / rotate the menu to access all settings, ultimately, fully replacing the button dock. Give me 5 revisions of this one, but incorporating all settings into a arc, semicircle, fan, rotatable menu selection. It needs to be intuitive and explanatory, yet simple to understand, and svelte."). chassis/menu-fan.js, in the lab as 4.1 to 4.5 after 4 Fan (?menulab=4.2 picks one; the lab's numbers are now strings): every setting the dock's panel has, read off it each time (readDock: before a game first move, opponent, level, start, the pieces, the cart, check alert, the hint switches, sound, language, replay, saves, control bar; in play End turn and Undo move when there, End game, view, Focus; after, the next game's opponent, move log), each with a name, what it's set to, an icon and a line saying what it does, sorted Game / Board / Hints / Settings; it turns (drag round the piece, flick, wheel, the read-out's ‹ ›, arrow keys), settles with one at its point, and the read-out above says that one, its value and what it does, with Begin / Try a Game / New game over it and whose move it is on top. 4.1 Dial (one wheel, a tap turns to a setting and changes it), 4.2 Rings (the four kinds on an inner ring), 4.3 Rail (round stops on a thin arc, the one at the top shows its control: chips, both ways of a switch), 4.4 Pages (a kind per page), 4.5 Corner (a quarter fan, bottom right, the piece kept in its corner in play). Opens in every phase now (old versions before a game only): in play the corner piece's tap; the piece brought to the middle (dockShift centre) or kept in its corner (raise). End game asks twice. Test: e2e-menu-lab (fans section). docs/memory/06-dock-piece-preview.md. Waiting on a pick (Backlog).
 - A back-to-start button for Orinoco's song (user, a screenshot of the sound menu's now-playing strip with its pause button ringed: "Need a button to skip back to the beginning of the track."): Orinoco's one song had no back button (Watermark, with two songs, has back and forward); now the strip has |◀ before the pause button wherever Parrish's soundtrack plays, taking the song to its start (paused, it stays paused there). NowPlaying.jsx (`restart`), parrish-audio.js nowPlaying(). Test: e2e-now-playing (Orinoco: back alone, its layout, back playing and paused). docs/memory/09-audio.md.
+- Rings, the dock's menu everywhere (user, of the menu lab's five turning fans: "I like rings."; asked what next, the answer picked: "Replace the dock everywhere (Recommended)"). In every world, on phones and computers, the piece's tap before a game, and the corner piece's in play and after one (a held touch and the mouse's hover too), bring Rings out round it in place of the button panel: the four kinds on the inner ring, every setting on the turning ring, the read-out naming the one at the top, Begin / Try a Game / New game over it. The panel stays as the one place the settings live (Rings presses its buttons) and opens only for Online's own page. chassis/menu-fan.js fanMenu (one controller for the lab and the dock), RINGS, dress; ElCabeza3D.jsx openDockMenu / reopenDockMenu, ringsOpen, the hold guard; Online's page picked and put away no longer strands the opponent choice (Back pressed for it). The first game's tour shows Rings on its menu pages ("Your menu turns." and "Four kinds of setting."). Spanish and Vietnamese lines for Rings, the tour's new cards and Orinoco's back button. Tests: e2e-rings (new); e2e-first-game-tour, e2e-try-it, e2e-menu-lab, e2e-dock-call; the panel's own tests open it through window.__EC_DOCK_PANEL__ (tests/dock-helpers.mjs). docs/memory/06-dock-piece-preview.md.

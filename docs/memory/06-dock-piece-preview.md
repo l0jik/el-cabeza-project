@@ -100,3 +100,42 @@ used by tests: data-testid menu-fan, menu-fan-read, menu-fan-prev/next,
 menu-fan-primary, menu-fan-head, menu-fan-ctl (chips data-mf-choice),
 data-ml-item / data-ml-label per setting, .mf-focus on the one at the
 point, data-mf-kind on Rings' kinds, data-phase on the lab's layer.
+
+Rings, the dock's menu everywhere (2026-10-28; user, of the five: "I like
+rings."; asked what next: "Replace the dock everywhere (Recommended)").
+4.2 Rings, out of the lab: in every world, on phones and computers, the
+piece's tap before a game and the corner piece's in play and after (and
+a held touch, and the mouse's hover) bring Rings out in place of the
+panel. The panel stays mounted (faded) as the one source of every
+setting, Rings pressing its buttons; it opens only for Online's own page
+(Rings' Online choice: host.openPanel()) and for the lab's More.
+menu-fan.js `fanMenu(host, { testid })` is the controller the lab and the
+chassis share (open, close, toggle, update, isOpen, setShift, restAt,
+moveRest, dispose): its layer `data-testid` "dock-menu" (the lab's
+"menu-lab"), the backdrop `${testid}-back`, data-open, data-phase,
+data-version; `dress(layer, host)` gives it the world's colours and the
+panel's Begin's font, case and wood; `RINGS` is the version. The chassis
+lazy-loads menu-fan.js at mount (ringsLoadRef; not with ?menulab, where
+the lab has the tap) and `update({ ready, shell, phase })`s it: ready
+while the dock isn't the panel, no setting out, no control bar, no
+replay; a phase change or not ready closes it. `openDockMenu()` (the end
+of triggerDockBounce): the lab if on, else Rings' toggle (still loading:
+after the import), else the panel; `reopenDockMenu()` for the ways back
+to the menu (cancelling setting out, the tour's back from the bar):
+Rings again once it's ready (ringsAgainRef). A touch held on the piece
+opens the menu by the hover timer (0.5 s); its lift would have toggled it
+shut, so the lift's tap is skipped when the hold opened it (dockHeldRef).
+Online's page in the panel (picked from Rings, then put away): Rings'
+Opponent says Online and its other choices press Back first (twice from
+the join page); with a game hosted or joined they're held, Leave being
+the page's own. The store's idle nudge lights Rings' Try a Game
+(td-try-game) as it lights the panel's. The first game's tour: its menu
+step waits for Rings out (or the panel); "panel" on Rings is "Your menu
+turns." (turn it, read it, change it; rings round the grip, the read-out
+and the setting at the point: TOUR_RINGS_HOW), "foot" is "Four kinds of
+setting." (the kinds ringed: TOUR_RINGS_KINDS); the card and its marks at
+z 17 over Rings' layer (16) while it's out; Back, Skip and Got it put it
+away. Tests: the panel's own tests open the panel through
+`window.__EC_DOCK_PANEL__` (with `__EC_TEST_HOOKS__`; tests/dock-helpers.mjs
+openDockPanel and reopenDockPanelFromCorner set it for their taps);
+e2e-rings for Rings itself.

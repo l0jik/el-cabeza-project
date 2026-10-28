@@ -9,6 +9,7 @@
    at the other hole on the piece's own half, taken by tapping it.
      node tests/e2e-hole-sets.mjs (after npm run build) */
 import { chromium } from "playwright";
+import { openDockPanel } from "./dock-helpers.mjs";
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });
 let failures = 0;
@@ -27,9 +28,7 @@ async function setup(laws, pieces) {
   await page.evaluate((h) => window.__EC_TEST_SET_HOLES__(h), HOLES);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), pieces);
   await page.waitForTimeout(400);
-  const dock = page.locator('canvas[data-testid="dock-piece-canvas"]');
-  const b = await dock.boundingBox();
-  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  await openDockPanel(page);
   await page.waitForTimeout(600);
   await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Game/ }).click();
   await page.waitForTimeout(1500);
@@ -81,8 +80,7 @@ const tapPiece = async (page, id) => {
   const turned = await (async () => { for (let i = 0; i < 30; i++) { await page.waitForTimeout(200); if ((await page.evaluate(() => (window.__EC_TEST_TURNS__ || []).length)) === 1) return true; } return false; })();
   check("tapping the other set's marker takes the Cabeza there, and ends the turn", turned && JSON.stringify(await at(page, "dark-cabeza")) === "[7,2]", JSON.stringify(await at(page, "dark-cabeza")));
   check("...the turn's record says which way out (E-x)", (await page.evaluate(() => JSON.stringify(window.__EC_TEST_TURNS__[0]))).includes("E-x"), await page.evaluate(() => JSON.stringify(window.__EC_TEST_TURNS__[0])));
-  const d = page.locator('canvas[data-testid="dock-piece-canvas"]'); const bb = await d.boundingBox();
-  await page.mouse.click(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.waitForTimeout(700);
+  await openDockPanel(page); await page.waitForTimeout(700);
   await page.locator('[data-testid="dock-panel"] button', { hasText: "Undo turn" }).click();
   await page.waitForTimeout(1500);
   check("Undo turn puts it back beside A1", JSON.stringify(await at(page, "dark-cabeza")) === "[3,1]", JSON.stringify(await at(page, "dark-cabeza")));
@@ -142,9 +140,7 @@ const tapPiece = async (page, id) => {
     P("light-cabeza", "cabeza", "light", 9, 9, 1, 1, 1),
   ]);
   await page.waitForTimeout(400);
-  const dock = page.locator('canvas[data-testid="dock-piece-canvas"]');
-  const b = await dock.boundingBox();
-  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  await openDockPanel(page);
   await page.waitForTimeout(600);
   await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Game/ }).click();
   await page.waitForTimeout(1500);

@@ -122,8 +122,11 @@ await page.waitForTimeout(400);
 check("...and one just above \"Let's play!\": still up, a shake", (await card.count()) === 1 && !(await panelOpen()) && (await shakesReach(6)) === 6, `${await shakes()} shakes`);
 await page.touchscreen.tap(gb.x + gb.width / 2, gb.y + gb.height / 2);
 await page.waitForTimeout(900);
-check("then a press on \"Let's play!\": the menu, as the piece's tap opens it", (await card.count()) === 0 && (await panelOpen()) && (await shakes()) === 6, `${await shakes()} shakes`);
-check("...Try a Game lit", await page.evaluate(() => document.documentElement.classList.contains("td-idle-nudge")) && (await page.locator("button.td-try-game").count()) > 0);
+// (The menu the piece's tap opens is Rings now, the dock's menu.)
+const ringsOut = () => page.evaluate(() => !!document.querySelector('[data-testid="dock-menu"][data-open="true"] [data-testid="menu-fan"]'));
+for (let i = 0; i < 20 && !(await ringsOut()); i++) await page.waitForTimeout(150);
+check("then a press on \"Let's play!\": the menu, as the piece's tap opens it", (await card.count()) === 0 && (await ringsOut()) && !(await panelOpen()) && (await shakes()) === 6, `${await shakes()} shakes`);
+check("...Try a Game lit", await page.evaluate(() => document.documentElement.classList.contains("td-idle-nudge")) && (await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-primary"].td-try-game').count()) === 1 && /try a game/i.test(await page.locator('[data-testid="menu-fan-primary"]').innerText()));
 check("no page errors", errs.length === 0, errs.join(" | "));
 await browser.close();
 console.log(failures ? `${failures} failure(s)` : "all passed");

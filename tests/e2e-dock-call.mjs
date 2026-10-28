@@ -214,11 +214,13 @@ async function open(name, opts = {}) {
   const under = corner && Math.abs(corner.x + corner.width / 2 - cx) < 30 && Math.abs(corner.y + corner.height / 2 - cy) < 30;
   check("the piece came to rest under the mouse", !!under, JSON.stringify({ corner, cx, cy }));
   await page.waitForTimeout(3000);
-  const shut = await page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.open !== "true");
+  // (The menu: Rings, the dock's menu, out round the piece; or the panel.)
+  const menuOut = () => page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.open === "true" || !!document.querySelector('[data-testid="dock-menu"][data-open="true"]'));
+  const shut = !(await menuOut());
   check("...and the dock stayed shut (no hover: the mouse never moved)", shut);
   // (five pixels toward the piece's middle, so still on it)
   if (corner) await page.mouse.move(cx + Math.sign(corner.x + corner.width / 2 - cx || 1) * 5, cy + Math.sign(corner.y + corner.height / 2 - cy || 1) * 5, { steps: 2 });
-  const opened = await poll(() => page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.open === "true"), 4000);
+  const opened = await poll(() => menuOut(), 4000);
   check("...then the mouse moved a little over it: it opens", !!opened);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();

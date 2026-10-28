@@ -20,14 +20,17 @@ async function openGame() {
   await page.locator("button", { hasText: /open the box/i }).first().click();
   await page.waitForTimeout(5000);
 }
+// (The piece opens Rings now, the dock's menu; this asks it for the panel.)
 async function openDock() {
   const dock = page.locator('canvas[data-testid="dock-piece-canvas"]');
+  await page.evaluate(() => { window.__EC_DOCK_PANEL__ = true; });
   for (let i = 0; i < 6; i++) {
-    if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true") return;
+    if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true") break;
     const b = await dock.boundingBox();
     await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
     await page.waitForTimeout(1200);
   }
+  await page.evaluate(() => { window.__EC_DOCK_PANEL__ = false; });
 }
 const audio = () => page.evaluate(() => window.__TIENDA_AUDIO__());
 

@@ -523,7 +523,13 @@ console.log("Noir, on a desktop");
   await page.waitForSelector('canvas[data-testid="dock-piece-canvas"]', { timeout: 60000 });
   await page.waitForTimeout(2500);
   check("✕ leaves the lab (no bar, no ?menulab)", !(await page.evaluate(() => !!document.querySelector('[data-testid="menu-lab-bar"]'))) && !/menulab/.test(page.url()));
-  check("...and the piece opens the panel as ever", await openDockPanel(page));
+  // (Rings now, the dock's menu: the lab's 4.2 made the game's own.)
+  const ringsOut = () => page.evaluate(() => !!document.querySelector('[data-testid="dock-menu"][data-open="true"] [data-testid="menu-fan"]'));
+  for (let i = 0; i < 4 && !(await ringsOut()); i++) {
+    await tapPiece(page, false);
+    await poll(ringsOut, 2500, 100);
+  }
+  check("...and the piece opens Rings, the dock's menu", await ringsOut());
   check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

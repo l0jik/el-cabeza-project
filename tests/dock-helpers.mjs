@@ -21,18 +21,27 @@
 // second click while it's on its way lands on the panel's own controls,
 // the setup's Start row now, once Begin Game; so it waits longer, and never
 // clicks again once the panel's open.)
+// (The piece opens Rings, the dock's menu, now (chassis/menu-fan.js);
+// these taps ask it for the panel itself, which the tests drive, and stop
+// asking once it's open: window.__EC_DOCK_PANEL__, with the test hooks.)
 export async function openDockPanel(page, { attempts = 8 } = {}) {
   const dockCanvas = page.locator('canvas[data-testid="dock-piece-canvas"]');
-  for (let i = 0; i < attempts; i++) {
-    if (await waitForPanelOpen(page, 0)) return true;
-    const box = await dockCanvas.boundingBox();
-    if (!box) return false;
-    const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
-    await page.mouse.click(cx, cy);
-    const opened = await waitForPanelOpen(page, 2500);
-    if (opened) return true;
+  const ask = (on) => page.evaluate((on) => { window.__EC_DOCK_PANEL__ = on; }, on).catch(() => {});
+  try {
+    for (let i = 0; i < attempts; i++) {
+      if (await waitForPanelOpen(page, 0)) return true;
+      const box = await dockCanvas.boundingBox();
+      if (!box) return false;
+      await ask(true);
+      const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+      await page.mouse.click(cx, cy);
+      const opened = await waitForPanelOpen(page, 2500);
+      if (opened) return true;
+    }
+    return false;
+  } finally {
+    await ask(false);
   }
-  return false;
 }
 
 // Polls the panel's own data-open flag (set synchronously by React the
@@ -108,13 +117,20 @@ export async function waitForDockCorner(page, { timeoutMs = 15000 } = {}) {
 // reason.
 export async function reopenDockPanelFromCorner(page, cornerBox, { attempts = 8 } = {}) {
   const cx = cornerBox.x + cornerBox.width / 2, cy = cornerBox.y + cornerBox.height / 2;
-  for (let i = 0; i < attempts; i++) {
-    // Moving off-target first guarantees a fresh pointerenter fires even
-    // if a previous attempt's pointer is already sitting on the piece.
-    await page.mouse.move(cx + 40, cy + 40);
-    await page.mouse.move(cx, cy);
-    const opened = await waitForPanelOpen(page, 2200);
-    if (opened) return true;
+  // (The panel, not Rings: as openDockPanel asks.)
+  const ask = (on) => page.evaluate((on) => { window.__EC_DOCK_PANEL__ = on; }, on).catch(() => {});
+  try {
+    await ask(true);
+    for (let i = 0; i < attempts; i++) {
+      // Moving off-target first guarantees a fresh pointerenter fires even
+      // if a previous attempt's pointer is already sitting on the piece.
+      await page.mouse.move(cx + 40, cy + 40);
+      await page.mouse.move(cx, cy);
+      const opened = await waitForPanelOpen(page, 2200);
+      if (opened) return true;
+    }
+    return false;
+  } finally {
+    await ask(false);
   }
-  return false;
 }

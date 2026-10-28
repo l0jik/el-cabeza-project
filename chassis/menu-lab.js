@@ -28,7 +28,7 @@
    browser. Loaded only when asked for. Plain DOM over the game, as the
    fps readout is (fps-readout.js). */
 import { t } from "./i18n.js";
-import { FAN_VERSIONS, mountFan, prepareDock } from "./menu-fan.js";
+import { FAN_VERSIONS, fanMenu, dress } from "./menu-fan.js";
 
 const ON_KEY = "el-cabeza:menu-lab";
 const PICK_KEY = "el-cabeza:menu-lab-version";
@@ -310,27 +310,19 @@ VERSIONS.splice(4, 0, ...FAN_VERSIONS);
 /* ---------------------------------------------------------------- style */
 
 const CSS = `
-.ml-back{position:fixed;inset:0;z-index:14;opacity:0;transition:opacity .32s ease;touch-action:none;-webkit-tap-highlight-color:transparent}
-.ml-back.ml-on{opacity:1}
-.ml-layer{position:fixed;inset:0;z-index:16;pointer-events:none;--ml-paper:#f4eedc;--ml-ink:#2a2018;--ml-line:#b8a68a;--ml-font:'IBM Plex Mono',ui-monospace,monospace;--ml-case:uppercase;font-family:var(--ml-font);color:var(--ml-ink)}
-.ml-item{appearance:none;-webkit-appearance:none;box-sizing:border-box;border:0;margin:0;padding:0;font:inherit;color:var(--ml-ink);cursor:pointer;pointer-events:auto;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none}
-.ml-item:focus{outline:none}.ml-item:focus-visible{outline:2px solid var(--ml-ink);outline-offset:3px}
 .ml-fly{position:fixed;left:var(--x);top:var(--y);transform:translate(-50%,-50%) translate(var(--dx),var(--dy)) scale(.2);opacity:0;transition:transform .46s cubic-bezier(.34,1.56,.64,1) var(--d,0ms),opacity .2s ease var(--d,0ms)}
 .ml-on .ml-fly{transform:translate(-50%,-50%) translate(0px,0px) scale(1);opacity:1}
 .ml-ffly{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0;transition:transform .46s cubic-bezier(.34,1.56,.64,1) var(--d,0ms),opacity .2s ease var(--d,0ms)}
 .ml-on .ml-ffly{transform:translate(0px,0px) scale(1);opacity:1}
-.ml-on .ml-item[aria-disabled="true"]{opacity:.4;cursor:default}
 .ml-on .ml-sub .ml-fly{transform:translate(-50%,-50%) translate(var(--dx),var(--dy)) scale(.2);opacity:0}
 .ml-on .ml-sub.ml-shown .ml-fly{transform:translate(-50%,-50%) translate(0px,0px) scale(1);opacity:1}
 .ml-on .ml-sub.ml-shown .ml-item[aria-disabled="true"]{opacity:.4}
 .ml-layer.ml-deep>.ml-item:not(.ml-owner){opacity:.35}
 .ml-off .ml-fly,.ml-off .ml-ffly,.ml-off .ml-wedge,.ml-off .ml-ringline{transition-duration:.2s,.16s;transition-delay:0s,0s;transition-timing-function:cubic-bezier(.5,0,.75,0),ease}
 .ml-still .ml-fly,.ml-still .ml-ffly,.ml-still .ml-wedge,.ml-still .ml-ringline{transition:none!important}
-.ml-ico{display:flex;align-items:center;justify-content:center}.ml-ico svg{display:block;width:100%;height:100%}
 .ml-disc{width:var(--s);height:var(--s);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:color-mix(in srgb,var(--ml-paper) 94%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--ml-line) 85%,transparent),0 8px 22px rgba(0,0,0,.3)}
 .ml-disc>.ml-ico{width:calc(var(--s)*.42);height:calc(var(--s)*.42)}
 .ml-disc.ml-inside>.ml-ico{width:calc(var(--s)*.32);height:calc(var(--s)*.32)}
-.ml-item.ml-primary{background-color:var(--ml-pbg,var(--ml-ink));background-image:var(--ml-pimg,none);background-size:cover;background-position:center;color:var(--ml-pink,var(--ml-paper));text-shadow:var(--ml-pshadow,none)}
 .ml-name{position:absolute;left:50%;top:calc(100% + 6px);transform:translateX(calc(-50% + var(--nx,0px)));white-space:nowrap;font-size:10px;line-height:1;letter-spacing:.1em;text-transform:var(--ml-case);padding:4px 8px;border-radius:999px;background:color-mix(in srgb,var(--ml-paper) 90%,transparent);color:var(--ml-ink);box-shadow:0 2px 10px rgba(0,0,0,.22);text-shadow:none}
 .ml-inside>.ml-name{position:static;transform:none;padding:0;background:none;box-shadow:none;font-size:9px;letter-spacing:.08em;color:inherit;text-shadow:inherit;max-width:86%;white-space:normal;text-align:center;line-height:1.1}
 .ml-pill{height:var(--h,44px);border-radius:999px;display:inline-flex;align-items:center;gap:9px;padding:0 16px 0 6px;white-space:nowrap;font-size:11px;letter-spacing:.1em;text-transform:var(--ml-case);background:color-mix(in srgb,var(--ml-paper) 92%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--ml-line) 80%,transparent),0 8px 22px rgba(0,0,0,.26)}
@@ -364,8 +356,6 @@ const CSS = `
 .ml-choice[aria-disabled="true"]{opacity:.4;cursor:default}
 .ml-pop{animation:mlPop .32s ease}
 @keyframes mlPop{40%{scale:1.13}}
-.ml-nudge{animation:mlNudge .36s ease}
-@keyframes mlNudge{20%{translate:-4px 0}40%{translate:4px 0}60%{translate:-3px 0}80%{translate:2px 0}}
 @media (prefers-reduced-motion: reduce){
 .ml-fly,.ml-on .ml-sub .ml-fly{transform:translate(-50%,-50%)!important;transition:opacity .2s ease!important}
 .ml-ffly,.ml-wedge{transform:none!important;transition:opacity .2s ease!important}
@@ -458,7 +448,11 @@ export function installMenuLab(host) {
   let at = loadPick();
   let ready = false, shell = false, phase = "setup";
   let menu = null;
-  let rest = null, shifted = null, shiftedAt = 0, seq = 0, size = null, relayout = 0;
+  let seq = 0, size = null, relayout = 0;
+  // (The fans, 4.1 to 4.5: the dock's own controller, on the lab's layer.)
+  const fans = fanMenu({ ...host, onOpen: () => say() }, { testid: "menu-lab" });
+  const setShift = (s) => fans.setShift(s);
+  const restAt = () => fans.restAt();
   const bar = makeBar();
   say();
 
@@ -488,7 +482,7 @@ export function installMenuLab(host) {
   function say() {
     const v = VERSIONS[at];
     const now = shell ? "It needs the floating piece: switch from the control bar to the dock."
-      : menu ? "Tap outside to close."
+      : menu || fans.isOpen() ? "Tap outside to close."
       : v.fan ? (phase === "setup" ? "Tap the piece. (In a game too: the corner piece.)" : "Tap the corner piece.")
       : phase !== "setup" || !ready ? "Before a game, tap the piece." : "Tap the piece.";
     bar.about.textContent = `${v.about} ${now}`;
@@ -500,7 +494,7 @@ export function installMenuLab(host) {
     bar.pick.value = String(at);
     // An open menu becomes the new version at once, to compare (a version
     // that's only for before a game doesn't open in one).
-    if (menu) { close({ now: true }); if (VERSIONS[at].fan) openFan(VERSIONS[at]); else if (phase === "setup") open(); else say(); } else say();
+    if (menu || fans.isOpen()) { close({ now: true }); if (VERSIONS[at].fan) fans.open(VERSIONS[at]); else if (phase === "setup") open(); else say(); } else say();
   }
 
   function leave() {
@@ -512,39 +506,6 @@ export function installMenuLab(host) {
 
   function sound(which) {
     try { if (host.sounds && host.sounds[which]) host.sounds[which](); } catch (e) { /* audio not started */ }
-  }
-
-  function setShift(s) {
-    if (JSON.stringify(s) === JSON.stringify(shifted)) return;
-    shifted = s;
-    shiftedAt = performance.now();
-    host.shift(s);
-  }
-  // Where the piece rests (its middle): measured while it's there (before
-  // a game the big piece; in play, the corner one).
-  function restAt() {
-    if (!shifted && performance.now() - shiftedAt > 600) {
-      const p = host.piece(), r = p && p.getBoundingClientRect();
-      if (r && r.width > 0) rest = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    }
-    return rest || { x: window.innerWidth / 2, y: window.innerHeight - 118 };
-  }
-
-  // The world's colours and face: the panel's paper and ink, and the face,
-  // case and colours of its Begin (the store's Try a Game wears the wood).
-  function dress(layer) {
-    const c = host.colors || {};
-    const set = (k, v) => { if (v) layer.style.setProperty(k, v); };
-    set("--ml-paper", c.paper); set("--ml-ink", c.ink); set("--ml-line", c.line);
-    const panel = host.panel(), begin = panel && panel.querySelector('[data-dock-role="begin"]');
-    if (!begin) return;
-    const cs = getComputedStyle(begin);
-    set("--ml-font", cs.fontFamily); set("--ml-case", cs.textTransform);
-    const clear = /^transparent$|rgba\([^)]*,\s*0\)$/.test(cs.backgroundColor);
-    const img = cs.backgroundImage && cs.backgroundImage !== "none" ? cs.backgroundImage : null;
-    if (clear && !img) return;
-    set("--ml-pbg", cs.backgroundColor); set("--ml-pimg", img); set("--ml-pink", cs.color);
-    set("--ml-pshadow", cs.textShadow && cs.textShadow !== "none" ? cs.textShadow : null);
   }
 
   function open({ still = false } = {}) {
@@ -559,7 +520,7 @@ export function installMenuLab(host) {
     const center = s ? { x: r.x + s.x, y: r.y + s.y } : r;
     const layer = el("div", { className: `ml-layer ml-v-${v.id}`, "data-testid": "menu-lab", "data-version": v.n, "data-open": "true" });
     const back = el("div", { className: "ml-back", "data-testid": "menu-lab-back" });
-    dress(layer);
+    dress(layer, host);
     back.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); close(); });
     document.body.append(back, layer);
     menu = { layer, back, items, keys: items.map((i) => i.key).join(), nodes: new Map(), choices: null, sub: null, center };
@@ -576,44 +537,11 @@ export function installMenuLab(host) {
     return true;
   }
 
-  /* A fan (menu-fan.js), in any phase: the piece where the version wants
-     it (in play, brought out of its corner), the dock read (after a game,
-     the next game's opponent opened in it first), then the fan. */
-  function openFan(v, { still = false, keep = null } = {}) {
-    const vw = window.innerWidth, vh = window.innerHeight;
-    size = { vw, vh };
-    const home = host.home ? host.home() : { x: vw / 2, y: vh - 118 };
-    const { shift, center } = v.place(phase, vw, vh, restAt(), home);
-    setShift(shift);
-    const layer = el("div", { className: `ml-layer ml-v-${v.id}`, "data-testid": "menu-lab", "data-version": v.n, "data-phase": phase, "data-open": "true" });
-    const back = el("div", { className: "ml-back", "data-testid": "menu-lab-back" });
-    dress(layer);
-    back.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); close(); });
-    document.body.append(back, layer);
-    const m = { layer, back, fan: null, center, items: [], nodes: new Map() };
-    menu = m;
-    if (still || reduced()) layer.classList.add("ml-still");
-    requestAnimationFrame(() => { if (menu === m) back.classList.add("ml-on"); });
-    if (phase === "over" && host.markSeen) host.markSeen();
-    const lead = shift && !shift.raise && !still ? 300 : 0;
-    prepareDock(host, phase).then(() => {
-      if (menu !== m) return;
-      m.fan = mountFan(v, { host, layer, back, center, vw, vh, phase, still, keep, lead, close: () => close() });
-      void layer.offsetWidth;
-      requestAnimationFrame(() => { if (menu === m) layer.classList.add("ml-on"); });
-    });
-    document.addEventListener("keydown", onKey, true);
-    window.addEventListener("resize", onResize);
-    if (!still) sound("open");
-    say();
-    return true;
-  }
-
   function close({ now = false } = {}) {
+    if (fans.isOpen()) fans.close({ now });
     const m = menu;
     if (!m) return;
     menu = null;
-    if (m.fan) m.fan.dispose();
     document.removeEventListener("keydown", onKey, true);
     window.removeEventListener("resize", onResize);
     setShift(null);
@@ -631,7 +559,6 @@ export function installMenuLab(host) {
 
   function onKey(e) {
     if (!menu) return;
-    if (menu.fan && menu.fan.key(e)) { e.preventDefault(); e.stopPropagation(); return; }
     if (e.key !== "Escape") return;
     e.preventDefault();
     e.stopPropagation();
@@ -647,11 +574,9 @@ export function installMenuLab(host) {
     relayout = requestAnimationFrame(() => {
       if (!menu || !size) return;
       const vw = window.innerWidth, vh = window.innerHeight;
-      if (rest) rest = { x: rest.x + (vw - size.vw) / 2, y: rest.y + (vh - size.vh) };
-      const keep = menu.fan ? menu.fan.turnNow() : null;
+      fans.moveRest((vw - size.vw) / 2, vh - size.vh);
       close({ now: true });
-      if (VERSIONS[at].fan) openFan(VERSIONS[at], { still: true, keep });
-      else open({ still: true });
+      open({ still: true });
     });
   }
 
@@ -932,10 +857,10 @@ export function installMenuLab(host) {
     // A tap on the piece: the menu out, or away again. False when it's not
     // for the lab (in a game, setting out): the panel opens as ever.
     toggle() {
-      if (menu) { close(); return true; }
+      if (menu || fans.isOpen()) { close(); return true; }
       if (!ready || shell) return false;
       const v = VERSIONS[at];
-      if (v.fan) return openFan(v);
+      if (v.fan) return fans.open(v);
       return phase === "setup" ? open() : false;
     },
     update(s) {
@@ -943,13 +868,15 @@ export function installMenuLab(host) {
       shell = !!s.shell;
       const was = phase;
       phase = s.phase || "setup";
+      fans.update(s);
       if (menu && (!ready || phase !== was)) close();
       say();
     },
     close: () => close(),
-    isOpen: () => !!menu,
+    isOpen: () => !!menu || fans.isOpen(),
     dispose() {
       close({ now: true });
+      fans.dispose();
       document.body.classList.remove("ml-lab");
       bar.node.remove();
     },

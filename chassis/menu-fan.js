@@ -23,7 +23,12 @@
 
    As the lab's first ten (menu-lab.js), every control presses the panel's
    own button, so all of it works as from the panel; the panel itself
-   never opens (Online's own page aside, which lives in it). */
+   never opens (Online's own page aside, which lives in it).
+
+   Then (user, of the five: "I like rings", and asked what next: "Replace
+   the dock everywhere"): Rings is the dock's menu in every world, out
+   from the piece (in a game, the corner piece) in place of the panel
+   (fanMenu below, the chassis's; RINGS). */
 import { t, LANGUAGES, language, setLanguage } from "./i18n.js";
 
 /* ------------------------------------------------------------ geometry */
@@ -183,7 +188,9 @@ export function readDock(host, phase) {
   let primary = null;
   if (phase === "setup") {
     const begin = one('[data-dock-role="begin"]');
-    if (begin) primary = { label: words(begin), disabled: off(begin), press: () => begin.click() };
+    // (The store's idle nudge lights its Try a Game, td-try-game:
+    // tienda-overlay.js; this one lit the same.)
+    if (begin) primary = { label: words(begin), disabled: off(begin), lit: begin.classList.contains("td-try-game"), press: () => begin.click() };
     if (status) {
       const s = status.getAttribute("data-side");
       add("first", { type: "toggle", value: side(s), alt: side(s === "dark" ? "light" : "dark"), icon: "first", disabled: status.getAttribute("role") !== "button", press: () => status.click() });
@@ -202,20 +209,27 @@ export function readDock(host, phase) {
   }
 
   // Who plays (the picker's buttons are out of the panel while Difficulty
-  // has their place: Back brings them first).
-  const who = all("[data-opponent]"), back = one("[data-ec-diff-back]");
-  if (who.length || back) {
-    const ai = host.ai(), onl = host.online();
+  // has their place, or Online's own page: Back brings them first, from
+  // Online's join page twice). A game hosted or joined online is left only
+  // from its page (its Leave): the others held till then.
+  const who = all("[data-opponent]"), back = one("[data-ec-diff-back]"), onlinePage = one('[data-testid="online-panel"]');
+  if (who.length || back || onlinePage) {
+    const ai = host.ai(), hosted = host.online(), onl = hosted || !!onlinePage;
     const cur = onl ? "online" : ai ? `ai-${ai}` : "human";
     const label = (k) => (k === "human" ? t("Human") : k === "online" ? t("Online") : `${t("AI")} · ${side(k === "ai-dark" ? "dark" : "light")}`);
     const choose = async (k) => {
-      if (!panel.querySelector("[data-opponent]")) { const b = panel.querySelector("[data-ec-diff-back]"); if (b) b.click(); await frames(2); }
+      for (let i = 0; i < 3 && !panel.querySelector("[data-opponent]"); i++) {
+        const b = panel.querySelector('[data-ec-diff-back], [data-testid="online-back"]');
+        if (!b) break;
+        b.click();
+        await frames(2);
+      }
       const b = panel.querySelector(`[data-opponent="${k}"]`);
       if (b && !off(b)) b.click();
     };
     add("opponent", {
-      type: "choice", value: label(cur), icon: onl ? "online" : ai ? "computer" : "human", disabled: who.length ? who.every(off) : off(back),
-      choices: ["human", "ai-dark", "ai-light", "online"].map((k) => ({ key: k, label: label(k), on: k === cur, pick: () => choose(k), opens: k === "online" })),
+      type: "choice", value: label(cur), icon: onl ? "online" : ai ? "computer" : "human", disabled: who.length ? who.every(off) : back ? off(back) : false,
+      choices: ["human", "ai-dark", "ai-light", "online"].map((k) => ({ key: k, label: label(k), on: k === cur, disabled: hosted && k !== "online", pick: () => choose(k), opens: k === "online" })),
     });
   }
   const diffs = all("[data-ec-diff]");
@@ -367,6 +381,17 @@ export const FAN_VERSIONS = [
 /* ---------------------------------------------------------------- style */
 
 const CSS = `
+.ml-back{position:fixed;inset:0;z-index:14;opacity:0;transition:opacity .32s ease;touch-action:none;-webkit-tap-highlight-color:transparent}
+.ml-back.ml-on{opacity:1}
+.ml-layer{position:fixed;inset:0;z-index:16;pointer-events:none;--ml-paper:#f4eedc;--ml-ink:#2a2018;--ml-line:#b8a68a;--ml-font:'IBM Plex Mono',ui-monospace,monospace;--ml-case:uppercase;font-family:var(--ml-font);color:var(--ml-ink)}
+.ml-item{appearance:none;-webkit-appearance:none;box-sizing:border-box;border:0;margin:0;padding:0;font:inherit;color:var(--ml-ink);cursor:pointer;pointer-events:auto;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.ml-item:focus{outline:none}.ml-item:focus-visible{outline:2px solid var(--ml-ink);outline-offset:3px}
+.ml-on .ml-item[aria-disabled="true"]{opacity:.4;cursor:default}
+.ml-ico{display:flex;align-items:center;justify-content:center}.ml-ico svg{display:block;width:100%;height:100%}
+.ml-item.ml-primary{background-color:var(--ml-pbg,var(--ml-ink));background-image:var(--ml-pimg,none);background-size:cover;background-position:center;color:var(--ml-pink,var(--ml-paper));text-shadow:var(--ml-pshadow,none)}
+.ml-nudge{animation:mlNudge .36s ease}
+@keyframes mlNudge{20%{translate:-4px 0}40%{translate:4px 0}60%{translate:-3px 0}80%{translate:2px 0}}
+body.mf-quiet [data-testid="toggle-hint"]{display:none!important}
 .mf-stage{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .28s ease;transform-origin:var(--hx) var(--hy)}
 .ml-on .mf-stage{opacity:1}
 .ml-off .mf-stage{opacity:0;transition-duration:.16s}
@@ -487,8 +512,8 @@ export function mountFan(v, env) {
   const stack = el("div", { className: `mf-stack${v.corner ? " mf-right" : ""}`, "data-testid": "menu-fan-stack" });
   const head = el("div", { className: "mf-head", "data-testid": "menu-fan-head" });
   const primary = el("button", { type: "button", className: "ml-item ml-primary mf-primary", "data-testid": "menu-fan-primary" });
-  const prev = el("button", { type: "button", className: "mf-step", "aria-label": "Turn back", "data-testid": "menu-fan-prev" }, "‹");
-  const next = el("button", { type: "button", className: "mf-step", "aria-label": "Turn on", "data-testid": "menu-fan-next" }, "›");
+  const prev = el("button", { type: "button", className: "mf-step", "aria-label": t("Previous setting"), "data-testid": "menu-fan-prev" }, "‹");
+  const next = el("button", { type: "button", className: "mf-step", "aria-label": t("Next setting"), "data-testid": "menu-fan-next" }, "›");
   const mid = el("div", { className: "mf-mid", "aria-live": "polite" });
   const read = el("div", { className: "mf-read", "data-testid": "menu-fan-read" }, prev, mid, next);
   stack.append(head, primary, read);
@@ -513,6 +538,7 @@ export function mountFan(v, env) {
     head.style.display = data.header ? "" : "none";
     const p = data.primary;
     primary.style.display = p ? "" : "none";
+    primary.classList.toggle("td-try-game", !!(p && p.lit));
     if (p) {
       primary.innerHTML = `<span class="mf-ico">${iconOf("play")}</span><span>${escapeHtml(p.label)}</span>`;
       primary.setAttribute("aria-disabled", p.disabled ? "true" : "false");
@@ -818,7 +844,11 @@ export function mountFan(v, env) {
   };
   document.addEventListener("touchstart", onTouch, { passive: false });
   // A language chosen (its words load after the pick): read again in it.
-  const onLanguage = () => frames(2).then(refresh);
+  const onLanguage = () => frames(2).then(() => {
+    prev.setAttribute("aria-label", t("Previous setting"));
+    next.setAttribute("aria-label", t("Next setting"));
+    refresh();
+  });
   window.addEventListener("el-cabeza:language-changed", onLanguage);
 
   function tapKind(kind) {
@@ -1006,6 +1036,183 @@ export function mountFan(v, env) {
       window.removeEventListener("pointermove", onMove, true);
       window.removeEventListener("pointerup", onUp, true);
       window.removeEventListener("pointercancel", onUp, true);
+    },
+  };
+}
+
+/* ------------------------------------------------ the fan, on the page */
+
+// The one the dock opens (the user's pick of the five: 4.2 Rings).
+export const RINGS = FAN_VERSIONS.find((v) => v.id === "rings");
+
+const reduced = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } };
+
+/* The world's colours and face on a menu's layer: the panel's paper and
+   ink (host.colors), and the face, case and colours of its Begin (the
+   store's Try a Game wears the wood). */
+export function dress(layer, host) {
+  const c = host.colors || {};
+  const set = (k, v) => { if (v) layer.style.setProperty(k, v); };
+  set("--ml-paper", c.paper); set("--ml-ink", c.ink); set("--ml-line", c.line);
+  const panel = host.panel(), begin = panel && panel.querySelector('[data-dock-role="begin"]');
+  if (!begin) return;
+  const cs = getComputedStyle(begin);
+  set("--ml-font", cs.fontFamily); set("--ml-case", cs.textTransform);
+  const clear = /^transparent$|rgba\([^)]*,\s*0\)$/.test(cs.backgroundColor);
+  const img = cs.backgroundImage && cs.backgroundImage !== "none" ? cs.backgroundImage : null;
+  if (clear && !img) return;
+  set("--ml-pbg", cs.backgroundColor); set("--ml-pimg", img); set("--ml-pink", cs.color);
+  set("--ml-pshadow", cs.textShadow && cs.textShadow !== "none" ? cs.textShadow : null);
+}
+
+/* A fan out from the dock's piece, and away again (the dock's own menu,
+   ElCabeza3D; the menu lab's fans): a backdrop over the game (a tap on it
+   puts the fan away), the fan on a layer above the piece, the piece where
+   the version wants it, its keys, laid out again on a resize; told the
+   game's phase and whether it may open (update). host: panel() the dock's
+   panel, piece() the piece's box, openPanel(), shift(s) to move the piece
+   ({ x, y, scale }; centre: from its corner to where it waits before a
+   game; raise: up in its corner; null: back), home() (that waiting
+   place's middle), sideName(side), ai(), online(), markSeen() (the corner
+   piece's call after a game answered), colors, sounds { open, close },
+   and onOpen(open) (told as it opens and as it closes). testid: the
+   layer's. Gives back open(v), close(), toggle(v) (false when it isn't for
+   now: the piece not showing, the control bar), update({ ready, shell,
+   phase }), isOpen(), version(), setShift(s) and restAt() (the piece's
+   place, for the lab's own menus), dispose(). */
+export function fanMenu(host, { testid = "dock-menu" } = {}) {
+  addStyle();
+  let ready = false, shell = false, phase = "setup";
+  let menu = null, rest = null, shifted = null, shiftedAt = 0, size = null, relayout = 0, quiet = 0, silent = false;
+  const sound = (which) => { if (silent) return; try { if (host.sounds && host.sounds[which]) host.sounds[which](); } catch (e) { /* audio not started */ } };
+  const told = (open) => { if (!silent && host.onOpen) host.onOpen(open); };
+
+  function setShift(sh) {
+    if (JSON.stringify(sh) === JSON.stringify(shifted)) return;
+    shifted = sh;
+    shiftedAt = performance.now();
+    host.shift(sh);
+  }
+  // Where the piece rests (its middle): measured while it's there (before
+  // a game the big piece; in play, the corner one).
+  function restAt() {
+    if (!shifted && performance.now() - shiftedAt > 600) {
+      const p = host.piece(), r = p && p.getBoundingClientRect();
+      if (r && r.width > 0) rest = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+    return rest || { x: window.innerWidth / 2, y: window.innerHeight - 118 };
+  }
+
+  /* Out: the piece where the version has it (in play and after, brought
+     out of its corner, or raised in it), the dock read (after a game the
+     next game's opponent opened in it first), then the fan. */
+  function open(v, { still = false, keep = null } = {}) {
+    if (menu) close({ now: true });
+    const vw = window.innerWidth, vh = window.innerHeight;
+    size = { vw, vh };
+    const home = host.home ? host.home() : { x: vw / 2, y: vh - 118 };
+    const { shift, center } = v.place(phase, vw, vh, restAt(), home);
+    setShift(shift);
+    const layer = el("div", { className: `ml-layer ml-v-${v.id}`, "data-testid": testid, "data-version": v.n, "data-phase": phase, "data-open": "true" });
+    const back = el("div", { className: "ml-back", "data-testid": `${testid}-back` });
+    dress(layer, host);
+    back.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); close(); });
+    document.body.append(back, layer);
+    const m = { v, layer, back, fan: null };
+    menu = m;
+    if (still || reduced()) layer.classList.add("ml-still");
+    requestAnimationFrame(() => { if (menu === m) back.classList.add("ml-on"); });
+    if (phase === "over" && host.markSeen) host.markSeen();
+    const lead = shift && !shift.raise && !still ? 300 : 0;
+    prepareDock(host, phase).then(() => {
+      if (menu !== m) return;
+      m.fan = mountFan(v, { host, layer, back, center, vw, vh, phase, still, keep, lead, close: () => close() });
+      void layer.offsetWidth;
+      requestAnimationFrame(() => { if (menu === m) layer.classList.add("ml-on"); });
+    });
+    document.addEventListener("keydown", onKey, true);
+    window.addEventListener("resize", onResize);
+    // (The panel's switch notes point at the panel: not while it's this.)
+    clearTimeout(quiet);
+    document.body.classList.add("mf-quiet");
+    if (!still) sound("open");
+    told(true);
+    return true;
+  }
+
+  function close({ now = false } = {}) {
+    const m = menu;
+    if (!m) return;
+    menu = null;
+    if (m.fan) m.fan.dispose();
+    document.removeEventListener("keydown", onKey, true);
+    window.removeEventListener("resize", onResize);
+    setShift(null);
+    m.layer.setAttribute("data-open", "false");
+    if (now || reduced()) { m.layer.remove(); m.back.remove(); }
+    else {
+      m.layer.classList.remove("ml-on");
+      m.layer.classList.add("ml-off");
+      m.back.classList.remove("ml-on");
+      setTimeout(() => { m.layer.remove(); m.back.remove(); }, 260);
+    }
+    clearTimeout(quiet);
+    quiet = setTimeout(() => document.body.classList.remove("mf-quiet"), 4600);
+    if (!now) sound("close");
+    told(false);
+  }
+
+  function onKey(e) {
+    if (!menu) return;
+    if (menu.fan && menu.fan.key(e)) { e.preventDefault(); e.stopPropagation(); return; }
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    e.stopPropagation();
+    close();
+  }
+  /* The page resized under it (on a phone, the first tap's full screen):
+     laid out again where it is, turned as it was. The piece rests
+     centred, its foot on the bottom, so where it rests moves with the
+     page. */
+  function onResize() {
+    cancelAnimationFrame(relayout);
+    relayout = requestAnimationFrame(() => {
+      if (!menu || !size) return;
+      const vw = window.innerWidth, vh = window.innerHeight;
+      if (vw === size.vw && vh === size.vh) return;
+      if (rest) rest = { x: rest.x + (vw - size.vw) / 2, y: rest.y + (vh - size.vh) };
+      const v = menu.v, keep = menu.fan ? menu.fan.turnNow() : null;
+      silent = true;
+      try { close({ now: true }); open(v, { still: true, keep }); } finally { silent = false; }
+    });
+  }
+
+  return {
+    open,
+    close: (o) => close(o),
+    // A tap on the piece: out, or away again. False when it's not for now.
+    toggle(v) {
+      if (menu) { close(); return true; }
+      if (!ready || shell) return false;
+      return open(v);
+    },
+    update(st) {
+      ready = !!st.ready;
+      shell = !!st.shell;
+      const was = phase;
+      phase = st.phase || "setup";
+      if (menu && (!ready || phase !== was)) close();
+    },
+    isOpen: () => !!menu,
+    version: () => (menu ? menu.v : null),
+    setShift,
+    restAt,
+    // (The page resized under a menu of the lab's own: its rest moves too.)
+    moveRest(dx, dy) { if (rest) rest = { x: rest.x + dx, y: rest.y + dy }; },
+    dispose() {
+      close({ now: true });
+      clearTimeout(quiet);
+      document.body.classList.remove("mf-quiet");
     },
   };
 }
