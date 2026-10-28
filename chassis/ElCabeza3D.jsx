@@ -3336,14 +3336,22 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // board. Read fresh each render: the laws and the board's size are the
   // engine's, set as a game begins.
   const rulesNow = gameRules(turnHistory.length && turnHistory[0].pieces ? turnHistory[0].pieces : pieces, missingSquares, blackHoles);
+  /* The result said to you (user: "Since I won and I was Chrome, it should
+     say you win, not Chrome wins. And I probably need to propagate this
+     throughout the rest of the game globally."): against the computer or
+     online, "win" or "lose", and the placard, the status line (with it
+     Rings' header and the phone bar), the Lab's read-out and the move
+     log's Result line say "You win" or "You lose". Two players at one
+     screen and a replay keep the winner's name: there's no one "you". */
+  const youResult = status === "finished" && winner && youSide && !replaying ? (winner === youSide ? "win" : "lose") : null;
   /* Who the winner beat, small, under the reason on the win placard, on the
      Lab's read-out and in the move log's Result line (user: "in small text
      underneath Ash wins, it should say against medium AI or whatever the
      case may have been"): the AI's level when the game had one, as the
-     one beaten or as the winner itself; two humans, an online game or a
+     one beaten or as the one you lost to; two humans, an online game or a
      replay say nothing. */
   const winFoeNote = status === "finished" && winner && aiPlayer && !replaying
-    ? t(winner === aiPlayer ? "The {level} AI" : "Against the {level} AI", { level: (AI_DIFFICULTY[aiDifficulty] || {}).label || "chosen" })
+    ? t(winner === aiPlayer ? "To the {level} AI" : "Against the {level} AI", { level: (AI_DIFFICULTY[aiDifficulty] || {}).label || "chosen" })
     : null;
   // Placing pieces manually: its two choices (see "Place pieces manually" below), here so
   // the theme's own menus can be handed them.
@@ -3397,7 +3405,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     game: {
       currentPlayer, stepsUsed, turnBudget: turnBudget(), log, status, winner, winReason,
       turns: turnHistory.length, selectedId, hoveredId, aiPlayer, awaitingBegin, busy,
-      aiDifficulty, aiLevel: aiPlayer ? (AI_DIFFICULTY[aiDifficulty] || {}).label || null : null, winFoeNote,
+      aiDifficulty, aiLevel: aiPlayer ? (AI_DIFFICULTY[aiDifficulty] || {}).label || null : null, winFoeNote, youResult,
       selectedType: (pieces.find((p) => p.id === selectedId) || {}).type || null,
       pieceCount: { dark: pieces.filter((p) => p.owner === "dark").length, light: pieces.filter((p) => p.owner === "light").length },
       rules: rulesNow,
@@ -11027,7 +11035,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     });
     const summary =
       status === "finished" && winner
-        ? t("Result: {side} wins", { side: sideName(winner) }) + (winReason ? " \u2014 " + tr(winReason) : "") + (winFoeNote ? ", " + winFoeNote[0].toLowerCase() + winFoeNote.slice(1) : "")
+        ? // (Yours: which side you were, the moves below going by sides.)
+          (youResult ? t(youResult === "win" ? "Result: you win, as {side}" : "Result: you lose, as {side}", { side: sideName(youSide) }) : t("Result: {side} wins", { side: sideName(winner) }))
+          + (winReason ? " \u2014 " + tr(winReason) : "") + (winFoeNote ? ", " + winFoeNote[0].toLowerCase() + winFoeNote.slice(1) : "")
         : status === "ended"
         ? t("Game ended manually, no winner")
         : "";
@@ -11408,7 +11418,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }
 
   const statusText = status === "finished"
-    ? t("{side} wins · {why}", { side: sideName(winner), why: winReason })
+    ? youResult ? t(youResult === "win" ? "You win · {why}" : "You lose · {why}", { why: winReason }) : t("{side} wins · {why}", { side: sideName(winner), why: winReason })
     : status === "ended"
     ? t("Game ended")
     : aiThinking
@@ -15316,7 +15326,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
               color: COLORS.charcoal,
             }}
           >
-            {t("{side} wins", { side: sideName(winner) }).toUpperCase()}
+            {(youResult ? t(youResult === "win" ? "You win" : "You lose") : t("{side} wins", { side: sideName(winner) })).toUpperCase()}
           </h2>
 
           <p

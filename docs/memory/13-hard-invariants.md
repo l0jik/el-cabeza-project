@@ -27,3 +27,16 @@
   and the store look around, `theme.freeCamera`, §5.)
 - `npm test` must pass before any change is considered done.
 
+- The result is said to you (user, after a Cromo win as Chrome: "Since I
+  won and I was Chrome, it should say you win, not Chrome wins. And I
+  probably need to propagate this throughout the rest of the game
+  globally."). Against the computer or online, the chassis's `youResult`
+  ("win" / "lose", from `youSide`, never in a replay) drives every place
+  the end of a game is put into words: the placard ("YOU WIN" / "YOU
+  LOSE"; under it "Against the {level} AI" or "To the {level} AI"), the
+  status line ("You win · {why}", which Rings' header and the phone bar
+  read), the Lab's read-out (`game.youResult`) and the copied move log
+  ("Result: you win, as {side}", the moves below going by sides). Two
+  people at one screen, a replay and a pasted log's summary keep the
+  winner's name. A new place that says who won takes `youResult` too.
+  Test: e2e-you-win.

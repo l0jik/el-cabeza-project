@@ -160,8 +160,9 @@ check("...the turn over, and over there", !!(await poll(async () => (await turns
 await wait(400);
 check("the host rolls S", !!(await move(host.page, "dark-turrito", "S")) && !!(await landed(host.page, "dark-turrito", 7, 4)));
 await wait(300);
-check("...and S onto the Cabeza: a crush", !!(await move(host.page, "dark-turrito", "S")) && !!(await poll(() => T(host.page, () => /wins/i.test(document.body.innerText)), 10000)));
-check("the guest's board ends the same way", !!(await poll(() => T(guest.page, () => /wins/i.test(document.body.innerText) && !window.__EC_TEST_PIECES__.some((p) => p.id === "light-cabeza")), 15000)), JSON.stringify(await T(guest.page, () => window.__EC_TEST_PIECES__.map((p) => [p.id, p.row, p.col]))));
+// (Each told their own result: the host won, the guest lost.)
+check("...and S onto the Cabeza: a crush, \"You win\" for the host", !!(await move(host.page, "dark-turrito", "S")) && !!(await poll(() => T(host.page, () => /you win/i.test(document.body.innerText)), 10000)));
+check("the guest's board ends the same way, \"You lose\" there", !!(await poll(() => T(guest.page, () => /you lose/i.test(document.body.innerText) && !window.__EC_TEST_PIECES__.some((p) => p.id === "light-cabeza")), 15000)), JSON.stringify(await T(guest.page, () => window.__EC_TEST_PIECES__.map((p) => [p.id, p.row, p.col]))));
 const ngGuest = guest.page.locator('[data-testid="new-game"]').first();
 check("the guest's New Game waits for the host", !!(await poll(async () => (await ngGuest.count()) > 0, 8000)) && (await ngGuest.isDisabled()) && /host starts/.test((await ngGuest.getAttribute("title")) || ""));
 

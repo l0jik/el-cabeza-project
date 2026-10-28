@@ -83,6 +83,8 @@ const E2E = [
   ["e2e-rings.mjs"],
   // Cromo on a phone: the board's surface from Rings, mid-game too; the dark side's dots; the title clear of the corner tab.
   ["e2e-cromo.mjs"],
+  // The result said to you: "You win" / "You lose" against the computer (placard, status, move log, the Lab), the winner's name for two people, in Spanish too.
+  ["e2e-you-win.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

@@ -333,7 +333,8 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await page.evaluate(() => window.__EC_TEST_MOVE__("light-cabeza", "N"));
   await page.waitForTimeout(5000);
   const placard = page.locator('[data-testid="victory-placard"]');
-  check("the Cabeza reaching the far row puts up the win placard", (await placard.count()) === 1 && /ash wins/i.test(await placard.innerText())); // (Big Glutts calls Light "Ash", side-names.js)
+  // (Against the computer, said to you: "You win", not "Ash wins".)
+  check("the Cabeza reaching the far row puts up the win placard, \"You win\"", (await placard.count()) === 1 && /you win/i.test(await placard.innerText()) && !/ash wins/i.test(await placard.innerText()), await placard.innerText().catch(() => ""));
   // (The store's test game is against the Easy AI, playing Walnut: whom they beat, small, under the reason.)
   check("...and whom they beat, under the reason", /against the easy ai/i.test(await placard.locator('[data-testid="victory-foe"]').innerText().catch(() => "")), await placard.innerText());
   check("...on screen", inView(await placard.boundingBox(), size, 1));

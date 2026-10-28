@@ -61,10 +61,10 @@ async function openPage() {
   check("the enemy Cabeza under the overhang is sheltered, not crushed",
     after.some((p) => p.id === "light-cabeza-1" && p.row === 4 && p.col === 5));
   const status = await page.evaluate(() => {
-    const s = [...document.querySelectorAll("span")].find((el) => /to move|left|wins|won/i.test(el.textContent || ""));
+    const s = [...document.querySelectorAll("span")].find((el) => /to move|left|wins|won|you win|you lose/i.test(el.textContent || ""));
     return s ? s.textContent : null;
   });
-  check("the game carries on (no win declared)", !!status && /to move|left/i.test(status) && !/wins|won/i.test(status), JSON.stringify(status));
+  check("the game carries on (no win declared)", !!status && /to move|left/i.test(status) && !/wins|won|you win|you lose/i.test(status), JSON.stringify(status));
   await page.screenshot({ path: "/tmp/e2e-codo-sheltered.png" });
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();

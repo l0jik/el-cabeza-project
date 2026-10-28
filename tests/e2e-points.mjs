@@ -117,7 +117,7 @@ for (const theme of ["futuris", "standard"]) {
   await page.waitForTimeout(1500);
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "S"));
   await page.waitForTimeout(2500);
-  const won = await page.evaluate(() => [...document.querySelectorAll("span")].some((el) => /wins/i.test(el.textContent || "")));
+  const won = await page.evaluate(() => [...document.querySelectorAll("span")].some((el) => /wins|you win|you lose/i.test(el.textContent || "")));
   check("a Cabeza stepping onto its far row wins", won);
   check("after the win the counter stays up, holding the last turn (1 action left)", (await left(page)) === 1, String(await left(page)));
   if (theme === "futuris") await page.screenshot({ path: "/tmp/e2e-points-won.png" });
