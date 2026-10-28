@@ -53,11 +53,11 @@ const md = (line) => line.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;",
    once, but as it would be said, a phrase at a time. Each word condenses
    out of a blur of light; each dot of an ellipsis on its own, a breath
    apart; and after a run of dots, or a "!" or a ",", a pause, longer the
-   longer the run. Returns the line's HTML: the spaces plain, every word
-   and dot a <span class="ph"> with its own delay (--d, ms). */
+   longer the run. reveal() returns the line's HTML: the spaces plain,
+   every word and dot a <span class="ph"> with its own delay (--d, ms);
+   phrases(), its words and dots and when each comes (`at`, ms). */
 const REVEAL_SPAN = 2000;   // the last word starts by this (it shows ~3.4 s)
-function reveal(line) {
-  const esc = (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] || c;
+function phrases(line) {
   const units = []; let em = false, strong = false, t = 0;
   for (let i = 0; i < line.length;) {
     if (line.startsWith("**", i)) { strong = !strong; i += 2; continue; }
@@ -79,13 +79,26 @@ function reveal(line) {
   }
   const last = Math.max(1, ...units.filter((u) => u.text).map((u) => u.at));
   const k = Math.min(1, REVEAL_SPAN / last);
-  return units.map((u) => {
+  units.forEach((u) => { if (u.text) u.at = Math.round(u.at * k); });
+  return units;
+}
+function reveal(line) {
+  const esc = (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] || c;
+  return phrases(line).map((u) => {
     if (u.space) return u.space;
-    let h = `<span class="ph${u.dot ? " dot" : ""}" style="--d:${Math.round(u.at * k)}ms">${u.text.replace(/[&<>]/g, esc)}</span>`;
+    let h = `<span class="ph${u.dot ? " dot" : ""}" style="--d:${u.at}ms">${u.text.replace(/[&<>]/g, esc)}</span>`;
     if (u.em) h = `<em>${h}</em>`;
     if (u.strong) h = `<strong>${h}</strong>`;
     return h;
   }).join("");
+}
+/* When the first word after a run of dots in the middle of a line comes
+   (ms into the line): "everything" in "the universe..... everything!"
+   ("¡todo!", "và mọi thứ"), for the arms (everything()). */
+function afterDots(line) {
+  const us = phrases(line).filter((u) => u.text);
+  const n = us.findIndex((u, i) => i > 1 && !u.dot && us[i - 1].dot && us.slice(0, i).some((v) => !v.dot));
+  return n < 0 ? null : us[n].at;
 }
 
 // The timeline (ms from the white).
@@ -100,6 +113,8 @@ const T = {
    drift begins just after it does, and it stays while they go, gone a
    little before the push in. */
 const LAST_AT = T.words + (REVELATION.length - 1) * T.wordEach;
+// (The line with "everything" in it, for the arms: everything().)
+const EVERY_LINE = 3;
 const MERGE = [LAST_AT + 900, LAST_AT + 900 + 9400];   // drifting into the sphere
 T.lastHold = MERGE[1] - 2600 - LAST_AT + 1300;
 const ZOOM = [MERGE[1] - 3200, MERGE[1] + 2600];      // in on it, crescendoing
@@ -410,6 +425,35 @@ function admit(f, w, t) {
   f.chest.rotation.x += (0.2 + 0.02 * breath - f.chest.rotation.x) * w;
   f.headG.rotation.x += (0.68 - f.headG.rotation.x) * w;
   f.headG.rotation.y *= 1 - w;
+}
+/* Everything (user: on "the universe..... everything!", "their arms
+   should go up, like, kind of like in front of them, but then like their
+   arms are pivoted forward, and then their elbow, their forearms snap out
+   forward from their elbows, not snap out, but you know what I mean"):
+   the arms come up in front, the elbows bent and the hands up over the
+   head, palms in (`up`, 0..1, blending it over the pose); then the upper
+   arms pivot forward as the forearms swing out from the elbows (`out`,
+   0..1), until both arms reach out ahead, a little up and apart, the
+   palms turned up; the chest opening a little and the head lifting with
+   it. */
+const _evA = new THREE.Vector3(), _evB = new THREE.Vector3();
+function everything(f, up, out, t) {
+  if (up <= 0.001) return;
+  const breath = Math.sin((t * Math.PI * 2) / 7.2);
+  f.arms.forEach(({ j, k }, i) => {
+    const s = i ? 1 : -1;
+    // (Up in front, the elbows high; then pivoted forward, and the
+    // forearm from folded up to straight, turning palm up as it goes.)
+    // (A V wide enough that both arms read from behind.)
+    _evA.set(s * 0.45, 0.88, 0.47);
+    _evB.set(s * (0.5 + 0.01 * breath), 0.42 + 0.02 * breath, 0.9);
+    _ecv.copy(_evA).lerp(_evB, out).normalize();
+    j.quaternion.slerp(_ecq.setFromUnitVectors(Y_DOWN, _ecv), up);
+    k.quaternion.slerp(_ecq.setFromEuler(_ece.set(-0.78 + 0.73 * out, s * (-1.25 + 1.6 * out), 0)), up);
+  });
+  f.chest.rotation.x += (-0.14 * out + 0.02 * breath - f.chest.rotation.x) * up;
+  f.headG.rotation.x += (-0.32 - 0.1 * out - f.headG.rotation.x) * up;
+  f.headG.rotation.y *= 1 - up;
 }
 function pose(f, t, a, m, st = 0, g = 0, lg = NO_LEGS, bal = 0) {
   const breath = Math.sin((t * Math.PI * 2) / 7.2);
@@ -769,7 +813,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
   const doc = typeof document !== "undefined" ? document : null;
   let root = null, canvas = null, veil = null, dark = null, words = [], styleEl = null, crawl = null, crawlText = null, crawlLast = null, crawlAnim = null, crawlD = 0, crawlSkip = 0, crawlCheckAt = 0, crawlP = 0, crawlTap = false, crawlFade = null, lastS = 0;
   let renderer = null, scene = null, camera = null, raf = 0, t0 = 0, stage = "idle", menu = null, finished = false;
-  let fig = null, figMat = null, disposables = [], snd = null, skipMs = 0, wisps = null;
+  let fig = null, figMat = null, disposables = [], snd = null, skipMs = 0, wisps = null, everyAt = 1200;
   let look = { yaw: 0, pitch: 0, goalYaw: 0, goalPitch: 0 }, dragAt = null;
   // Resolution held to the frame rate: an average of frame times; slow for
   // a while, a step down (never below 1).
@@ -880,6 +924,8 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     root = doc.createElement("div"); root.className = "den-ending"; root.setAttribute("data-testid", "den-ending");
     canvas = doc.createElement("canvas"); root.appendChild(canvas);
     REVELATION.forEach((line, i) => { const w = doc.createElement("div"); w.className = "word"; w.setAttribute("data-testid", `den-ending-line-${i + 1}`); w.setAttribute("role", "status"); w.setAttribute("data-said", ""); w.innerHTML = reveal(tr(line)); root.appendChild(w); words.push(w); });
+    // (When "everything" comes in its line, in the language it's in.)
+    everyAt = afterDots(tr(REVELATION[EVERY_LINE])) ?? afterDots(REVELATION[EVERY_LINE]) ?? 1200;
     dark = doc.createElement("div"); dark.className = "dark"; root.appendChild(dark);
     crawl = doc.createElement("div"); crawl.className = "crawl"; crawl.setAttribute("data-testid", "den-ending-crawl"); crawl.setAttribute("aria-live", "polite");
     crawlText = doc.createElement("div"); crawlText.className = "text";
@@ -1088,7 +1134,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     ["iPos", "iAlpha", "iSize", "iAng", "iSeed"].forEach((k) => { W.g.attributes[k].needsUpdate = true; });
     W.mat.uniforms.uTime.value = s / 1000;
   }
-  let mergeFrom = null, lastNow = 0, admitW = 0;
+  let mergeFrom = null, lastNow = 0, admitW = 0, everyW = 0, everyOut = 0;
   function frame() {
     raf = requestAnimationFrame(frame);
     const now = performance.now(), s = (lastS = now - t0 + skipMs), rawMs = lastNow ? now - lastNow : 16.7, dt = Math.min(0.05, rawMs / 1000);
@@ -1161,6 +1207,13 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // Arms out, paddling, while they turn over (not while on the head).
     const bal = smooth((s - 2600) / 2000) * (1 - smooth((s - 15500) / 4000));
     pose(fig, T1, awe, smooth(m * 1.6), st, onHead, LEGS, bal);
+    // "...the universe..... everything!" (the fourth line): the arms up in
+    // front as "everything" comes, a beat, then swung out ahead (brisk,
+    // landing softly); held through the line, then back as it goes.
+    const everyLine = T.words + EVERY_LINE * T.wordEach, everyWord = everyLine + everyAt;
+    everyW = smooth((s - (everyWord - 150)) / 450) * (1 - smooth((s - (everyLine + 3900)) / 1600));
+    everyOut = 1 - Math.pow(1 - smooth((s - (everyWord + 500)) / 500), 2);
+    everything(fig, everyW, everyOut, T1);
     // "It never was!!" (the sixth line): admitting it, the arms fall and
     // the head drops as it's said; held through the line, then lifted into
     // the reach as "It's El Cabeza" comes.
@@ -1346,7 +1399,10 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     },
     // Whether it covers the screen (the den needn't draw underneath).
     covering: () => !!root && (stage === "void" || stage === "black" || stage === "menu" || stage === "going"),
-    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, crawlAt: CRAWL[0], crawl: crawlP, crawlTap, crawlFade: crawlFade != null, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null, solid: figMat ? figMat.uniforms.uSolid.value : null, level: snd && snd.fade ? snd.fade.gain.value * snd.musicG.gain.value : 0, music: !!(snd && (snd.musicOn || snd.els)), drone: !!(snd && (snd.droneOn || (snd.els && snd.els.drone))), wisps: wisps ? wisps.al.reduce((n, a) => n + (a > 0 ? 1 : 0), 0) : 0, turn: 2 * Math.acos(Math.min(1, Math.abs(turnQ.w))), admit: admitW, head: fig ? fig.headG.rotation.x : null, armsDown: fig ? fig.arms.map(({ j }) => -new THREE.Vector3(0, -1, 0).applyQuaternion(j.quaternion).y) : null, edge: scene && scene.userData.edgeMat ? scene.userData.edgeMat.uniforms.uEdge.value : null }),
+    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, crawlAt: CRAWL[0], crawl: crawlP, crawlTap, crawlFade: crawlFade != null, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null, solid: figMat ? figMat.uniforms.uSolid.value : null, level: snd && snd.fade ? snd.fade.gain.value * snd.musicG.gain.value : 0, music: !!(snd && (snd.musicOn || snd.els)), drone: !!(snd && (snd.droneOn || (snd.els && snd.els.drone))), wisps: wisps ? wisps.al.reduce((n, a) => n + (a > 0 ? 1 : 0), 0) : 0, turn: 2 * Math.acos(Math.min(1, Math.abs(turnQ.w))), admit: admitW, head: fig ? fig.headG.rotation.x : null, armsDown: fig ? fig.arms.map(({ j }) => -new THREE.Vector3(0, -1, 0).applyQuaternion(j.quaternion).y) : null, every: everyW, everyOut, everyAt: T.words + EVERY_LINE * T.wordEach + everyAt,
+      // (Test-only: how far each upper arm points forward, and each elbow's bend, radians.)
+      armsFwd: fig ? fig.arms.map(({ j }) => new THREE.Vector3(0, -1, 0).applyQuaternion(j.quaternion).z) : null,
+      elbows: fig ? fig.arms.map(({ k }) => new THREE.Vector3(0, -1, 0).angleTo(new THREE.Vector3(0, -1, 0).applyQuaternion(k.quaternion))) : null, edge: scene && scene.userData.edgeMat ? scene.userData.edgeMat.uniforms.uEdge.value : null }),
     // Test-only: on by ms.
     skip(ms) { skipMs += ms; },
     // Test-only: the sound's peak and loudness (dBFS) out of the scene, and the hum's and the pad's.

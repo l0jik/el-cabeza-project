@@ -129,6 +129,34 @@ check("the words, one at a time", !!(await poll(async () => (await page.evaluate
 await shot(page, "end-2-words");
 check("...the corner buttons and points still away", await page.evaluate(() => document.documentElement.classList.contains("ec-hall-scene")));
 {
+  // "...the universe..... everything!" (user: "When it says everything,
+  // their arms should go up, like, kind of like in front of them, but then
+  // like their arms are pivoted forward, and then their elbow, their
+  // forearms snap out forward from their elbows"): the fourth line. Every
+  // frame from just before the word: first up in front, elbows bent, the
+  // hands over the head; then out ahead, a little up, elbows straight.
+  // (Skipped to it and watched from the same moment, so a slow machine's
+  // round trips don't lose the frames before the word.)
+  const seen = await page.evaluate(() => new Promise((done) => {
+    const s0 = window.__DEN_ENDING__();
+    window.__DEN_ENDING_SKIP__(s0.everyAt - 1200 - s0.t);
+    const out = [];
+    const step = () => {
+      const s = window.__DEN_ENDING__(), rel = s.t - s.everyAt;
+      if (rel > -900) out.push({ rel: Math.round(rel), line: s.line, every: +s.every.toFixed(2), out: +s.everyOut.toFixed(2), down: s.armsDown.map((v) => +v.toFixed(2)), fwd: s.armsFwd.map((v) => +v.toFixed(2)), elbows: s.elbows.map((v) => +v.toFixed(2)) });
+      if (rel > 1800) { done(out); return; }
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }));
+  const before = seen.find((f) => f.rel < -200);
+  const up = seen.find((f) => f.every > 0.85 && f.out < 0.05 && f.down.every((v) => v < -0.5) && f.elbows.every((v) => v > 0.5));
+  const out = seen.find((f) => f.out > 0.97 && f.fwd.every((v) => v > 0.7) && f.down.every((v) => v < -0.15) && f.elbows.every((v) => v < 0.15));
+  check(`"...everything!": the arms up in front, elbows bent (${JSON.stringify(up || seen.filter((f) => f.rel > 0 && f.rel < 700).slice(0, 3))})`, !!before && before.every < 0.05 && !!up && up.line === 4 && up.rel > -150 && up.rel < 700);
+  check(`...then swung out ahead from the elbows, straight (${JSON.stringify(out || seen.slice(-2))})`, !!out && !!up && out.rel > up.rel && out.rel < 1600 && out.line === 4);
+  await shot(page, "end-2a-everything");
+}
+{
   // "It never was!!" (user: "their arms that are up need to drop down, the
   // head needs to drop down, sort of like they're kind of admitting
   // something"): the sixth line, 33 s in; then up into the reach on "It's
@@ -136,7 +164,7 @@ check("...the corner buttons and points still away", await page.evaluate(() => d
   const s0 = await page.evaluate(() => window.__DEN_ENDING__());
   await page.evaluate((ms) => window.__DEN_ENDING_SKIP__(ms), Math.max(0, 35000 - s0.t));
   const a = await poll(async () => { const s = await page.evaluate(() => window.__DEN_ENDING__()); return s.admit > 0.95 ? s : null; }, 4000, 100);
-  check(`"It never was!!": the arms drop to the sides, the head drops (${JSON.stringify(a && { line: a.line, arms: a.armsDown.map((v) => +v.toFixed(2)), head: +a.head.toFixed(2) })})`, !!a && a.line === 6 && a.armsDown.every((v) => v > 0.85) && a.head > 0.55);
+  check(`"It never was!!": the arms drop to the sides, the head drops (${JSON.stringify(a && { line: a.line, arms: a.armsDown.map((v) => +v.toFixed(2)), head: +a.head.toFixed(2) })})`, !!a && a.line === 6 && a.armsDown.every((v) => v > 0.85) && a.head > 0.55 && a.every < 0.01);
   await shot(page, "end-2b-never-was");
   const r = await poll(async () => { const s = await page.evaluate(() => window.__DEN_ENDING__()); return s.t > 39500 ? s : null; }, 8000, 150);
   check(`...then, on "It's El Cabeza", up into the reach (${JSON.stringify(r && { line: r.line, arms: r.armsDown.map((v) => +v.toFixed(2)), head: +r.head.toFixed(2) })})`, !!r && r.admit < 0.05 && r.armsDown.every((v) => v < 0) && r.head < 0);

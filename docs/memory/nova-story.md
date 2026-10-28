@@ -682,3 +682,28 @@ in; leaving Singularity, back in the den as the set switches off.
   back with gl.readPixels all through the hold: bright and varied, mean
   84-100 and spread 67-86 where before the fix it was about 50 and 9-24;
   the start 5.7-7 s after the set came on).
+- **"...everything!": the arms up, then out** (2026-10-28; user: "And
+  during the, I guess, the epiphany, I forget what that section is
+  called, when the figure is saying that they realize the light, answer
+  lock, universe, and everything. When it says everything, their arms
+  should go up, like, kind of like in front of them, but then like their
+  arms are pivoted forward, and then their elbow, their forearms snap out
+  forward from their elbows, not snap out, but you know what I mean.").
+  The ending's fourth line ("The meaning of life, the universe.....
+  everything!…", den-ending.js REVELATION, EVERY_LINE): as "everything"
+  comes (its own time in the line, from the line's own reveal: afterDots,
+  the first word after the run of dots, so "¡todo!" and "và mọi thứ"
+  follow too; 1.2 s in, in English) the arms come up in front in a V, the
+  elbows bent about 45°, the hands over the head, palms in (450 ms); a
+  beat; then the upper arms pivot forward as the forearms swing out from
+  the elbows (500 ms, eased in and landing softly: brisk, not a snap)
+  till both reach out ahead, a little up and apart, palms up, the chest
+  opening and the head lifting. Held through the line, back to the
+  floating pose as it goes (before "…it's not 42!"). everything() in
+  den-ending.js, blended after pose() like admit(). The V is wide so both
+  arms read from the scene's camera, behind and to one side (narrower,
+  the far arm hid behind the body). reveal() split into phrases() (the
+  words and their times) and the HTML: the same times for all 24 lines in
+  three languages. Test: tests/e2e-ending.mjs (state() everyAt, every,
+  everyOut, armsFwd, elbows; every frame sampled in the page from before
+  the word: up and bent first, then out and straight).
