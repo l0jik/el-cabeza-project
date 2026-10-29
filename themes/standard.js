@@ -290,9 +290,12 @@ export const dockWords = {
 export const styleSheet = `
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..900,0..100,0..1&family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Libre+Franklin:wght@500;700&family=Courier+Prime:wght@400;700&display=swap');
   /* The television's visit (den-fx.js): the title and the dock's piece
-     step aside while the camera is over at the set. */
+     step aside while the camera is over at the set. (The piece's taps are
+     its frame's, round the canvas: that's made deaf too; with the canvas
+     alone deaf, the frame still took taps where the piece had been.) */
   @keyframes ec-tv-step-aside { from { opacity: 1; } to { opacity: 0; } }
   html.ec-tv-visit .ec-title, html.ec-tv-visit canvas[data-testid="dock-piece-canvas"] { animation: ec-tv-step-aside 0.5s ease both; pointer-events: none; }
+  html.ec-tv-visit [data-dock-piece] { pointer-events: none !important; }
   html, body { overscroll-behavior: none; background: #1a120b; }
   [style*="Fraunces"] { font-variation-settings: "SOFT" 100, "WONK" 1; }
   .ec-title {

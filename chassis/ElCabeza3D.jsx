@@ -1493,6 +1493,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // page, a test's): the one the menu comes back as (reopenDockMenu).
   const lastMenuRef = useRef("rings");
   const [dockShift, setDockShift] = useState(null);
+  /* Put aside while a scene has the camera's head (the den's look round
+     and its hold on the set, den-fx.js: helpers.dockAside): the piece
+     minimized into its corner and deaf to taps till it's let go (user,
+     of a tap on it opening the menu as the den looked round: "the 3D
+     button should be probably minimized at that point"). */
+  const [dockAside, setDockAside] = useState(false);
+  const dockAsideRef = useRef(false);
+  dockAsideRef.current = dockAside;
   /* Points-left counter (user-requested, off by default, remembered per
      browser): a row of dots at the bottom centre showing how many of the
      current player's actions this turn has left — filled for
@@ -1663,6 +1671,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       dockHoverTimerRef.current = null;
     }
   }, []);
+  // (Put aside: a hover or hold already counting doesn't open it.)
+  useEffect(() => { if (dockAside) clearDockHoverTimer(); }, [dockAside, clearDockHoverTimer]);
 
   /* One representative orientation per piece type — just enough to
      render a recognizable, correctly-proportioned standalone model;
@@ -1842,6 +1852,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // Rings, the dock's menu (out, or away again), else (not for now, or not
   // loaded) the panel.
   const openDockMenu = () => {
+    // (Not while it's put aside: a bounce begun just before still lands.)
+    if (dockAsideRef.current) return;
     if (menuLabRef.current) { if (!menuLabRef.current.toggle()) setDockView("panel"); return; }
     if (!dockPanelWanted()) {
       if (ringsRef.current) { if (ringsRef.current.toggle()) return; }
@@ -1862,7 +1874,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   };
   const triggerDockBounce = useCallback(() => {
     const state = dockPieceRef.current;
-    if (!state || state.bouncing) return;
+    if (!state || state.bouncing || dockAsideRef.current) return;
     state.bouncing = true;
     const start = performance.now();
     const DUR = 260;
@@ -1900,7 +1912,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // (And while the first game's tour shows what the piece is for: its card
   // for it says "it glows like this", tourStep "menu", set below.)
   const [dockCallTour, setDockCallTour] = useState(false);
-  const dockCall = !shell && dockView === "corner" && !replaying && ((gameOver && !dockCallSeen) || dockCallTour);
+  const dockCall = !shell && dockView === "corner" && !dockAside && !replaying && ((gameOver && !dockCallSeen) || dockCallTour);
   // The hop: the squash and stretch of opening it, smaller, nothing
   // opened (its own flag: a tap meanwhile gets its bounce, which takes
   // the piece over).
@@ -6462,13 +6474,21 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           checkCamRef.current = null; // (its view, not Show me's way back)
         },
         music: music ? { tracks: () => music.tracks(), play: (track) => playTrackRef.current && playTrackRef.current(track), playing: () => !!musicNowRef.current } : null,
+        // (The dock's menu counts: Rings, the lab's, the panel.)
         sheets: {
-          up: () => sheetsUpRef.current || (typeof document !== "undefined" && document.documentElement.classList.contains("ec-shell-menu-open")),
+          up: () => sheetsUpRef.current || dockViewRef.current === "panel" || !!(ringsRef.current && ringsRef.current.isOpen()) || !!(menuLabRef.current && menuLabRef.current.isOpen()) || (typeof document !== "undefined" && document.documentElement.classList.contains("ec-shell-menu-open")),
           close: () => {
             setMusicPanel(false); setMusicChipOpen(false); setSoundMenuAt(null); setShowInfoOverlay(false);
             setShowMoveLog(false); setEndTurnAsk(null); setShowVictoryPlacard(false); setShutMenu((n) => n + 1);
+            if (ringsRef.current && ringsRef.current.isOpen()) ringsRef.current.close();
+            if (menuLabRef.current && menuLabRef.current.isOpen()) menuLabRef.current.close();
+            if (dockViewRef.current === "panel") setDockView(awaitingBeginRef.current ? "piece" : "corner");
           },
         },
+        /* The dock's piece put aside while the scene has the camera's head
+           (the den's look round, its hold on the set: dockAside above),
+           and back. */
+        dockAside: (on) => setDockAside(!!on),
       }
     );
 
@@ -11534,7 +11554,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // animate instead of snapping.
   // (The menu lab's fans bring the corner piece out to where it waits
   // before a game (dockShift.centre), or raise it in its corner.)
-  const dockPieceIsCorner = dockView === "corner" && !(dockShift && dockShift.centre);
+  // (Put aside, dockAside: in the corner whatever the view.)
+  const dockPieceIsCorner = (dockView === "corner" || (dockAside && dockView === "piece")) && !(dockShift && dockShift.centre);
   const dockPieceRaised = !!(dockShift && dockShift.raise);
   /* The light it calls in (dockCall): its world's light for the side the
      piece shows (theme.worldLight, points-glow.js: the den's firelight,
@@ -11585,7 +11606,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // (theme.dockCornerOpacity: the den's dark room lost it at 0.35, user.
     // At full strength while it calls after a game: dockCall above.)
     opacity: dockView === "panel" ? 0 : dockPieceIsCorner && !dockCall && !dockPieceRaised ? (theme.dockCornerOpacity != null ? theme.dockCornerOpacity : 0.35) : 1,
-    pointerEvents: dockView === "panel" ? "none" : "auto",
+    pointerEvents: dockView === "panel" || dockAside ? "none" : "auto",
     zIndex: dockPieceIsCorner && !dockPieceRaised ? 2 : 15,
     /* Position/size cut from 900ms linear-feeling ease to a shorter,
        snappier curve with a touch of overshoot — per feedback that the

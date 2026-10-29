@@ -7,6 +7,10 @@
    held there, nothing but a tap on it doing anything. A tap on it (or the
    menu's Turn on the TV, the same press) takes the camera over to watch (still off, stirring more often); a tap anywhere
    else goes back; a second tap on it turns it on, into Futuris.
+   While the den has the head, the dock's piece is minimized into its
+   corner and deaf (a tap where it was, or on it there, opens nothing),
+   through a visit to the set begun from the hold too; back after. On
+   any visit to the set its frame is deaf as it steps aside.
    The test moves the lure's clock on (__DEN_LURE_SKIP__).
 
    node tests/e2e-tv-lure.mjs [--shots DIR] */
@@ -41,10 +45,25 @@ await page.evaluate(() => window.__DEN_PULL_HOLD__(true));
 await page.waitForTimeout(1500);
 const tv = () => page.evaluate(() => window.__DEN_TV__());
 const near = () => page.evaluate(() => (window.__DEN_AUDIO__ && window.__DEN_AUDIO__().haunt.near) || 0);
+// The dock's piece: its box's middle and size, and whether it's deaf.
+const piece = () => page.evaluate(() => {
+  const el = document.querySelector("[data-dock-piece]");
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, vw: innerWidth, deaf: getComputedStyle(el).pointerEvents === "none" };
+});
+const inCorner = (p) => !!p && p.w < 140 && p.x > p.vw - 120;
+const atHome = (p, home) => !!p && !!home && Math.abs(p.x - home.x) < 3 && Math.abs(p.y - home.y) < 3 && Math.abs(p.w - home.w) < 2;
+// Its menu out: Rings, or the panel.
+const menuOpen = () => page.evaluate(() => !!document.querySelector('[data-testid="dock-menu"][data-open="true"], [data-testid="dock-panel"][data-open="true"]'));
+// Nothing under the point the piece takes its taps on.
+const deafAt = (p) => page.evaluate((p) => { const e = document.elementFromPoint(p.x, p.y); return !(e && e.closest("[data-dock-piece]")); }, p);
 let s = await tv();
 check("the set waits at first", s.lure && s.locked, JSON.stringify(s));
 await page.waitForTimeout(3000);
 check("...and nothing stirs yet", (await tv()).lureEvents === 0);
+const home = await piece();
+check(`the dock's piece waits in its place before a game (${home ? `${Math.round(home.x)}, ${Math.round(home.y)}, ${Math.round(home.w)} wide` : "none"})`, !!home && home.w > 200 && !home.deaf, JSON.stringify(home));
 // A record on, at full: the set's stirring mustn't be lost under it.
 await poll(() => page.evaluate(() => !!window.__DEN_TEST_PLAY__), 10000);
 await page.evaluate(() => window.__DEN_TEST_PLAY__("el-cabeza-den-record-1.mp3"));
@@ -66,8 +85,24 @@ check(`...and the record backs off and warps (${JSON.stringify(m1 || (await mus(
 check("the den takes the camera: it looks round", !!(await poll(async () => (await tv()).glance === "round", 4000, 50)), JSON.stringify(await tv()));
 check("...\"Huh? What's going on?\"", !!(await poll(async () => /Huh\? What's going on\?/.test(await page.locator('[data-testid="den-huh"]').innerText().catch(() => "")), 4000, 100)));
 check("...taps elsewhere wait meanwhile", (await tv()).lock === true);
+// The dock's piece meanwhile (user, of a tap on it opening the menu as the
+// den looked round: "that probably shouldn't open anything ... the 3D
+// button should be probably minimized at that point"): minimized into its
+// corner and deaf; a tap where it was, or on it there, opens nothing.
+{
+  const aside = await poll(async () => { const p = await piece(); return inCorner(p) && p.deaf ? p : null; }, 3000, 50);
+  check("...the dock's piece minimized into its corner, deaf", !!aside, JSON.stringify(await piece()));
+  const spots = [home, aside].filter(Boolean);
+  // (Not where the set is, wherever the head's turned: a tap there is its.)
+  await poll(() => page.evaluate((ps) => ps.every((p) => !(window.__DEN_OVER_TV__ && window.__DEN_OVER_TV__(p.x, p.y))), spots), 3000, 50);
+  for (const p of spots) await page.mouse.click(p.x, p.y);
+  await page.waitForTimeout(900);
+  const t = await tv();
+  check("...a tap where it was, or on it there, opens nothing", !(await menuOpen()) && t.glance === "round" && t.lock, JSON.stringify({ menu: await menuOpen(), tv: t }));
+}
 check("...and it passes over the set", !!(await poll(async () => (await tv()).glanceAt === "tv", 9000, 50)));
 check("...then back, and the taps are free again", !!(await poll(async () => { const t = await tv(); return t.glance === null && !t.lock; }, 9000, 100)), JSON.stringify(await tv()));
+check("...the dock's piece back in its place, to be tapped", !!(await poll(async () => { const p = await piece(); return atHome(p, home) && !p.deaf; }, 3000, 50)), JSON.stringify(await piece()));
 await page.waitForTimeout(400);
 const far = await near();
 // The music panel up as the blast comes, the camera over at the console:
@@ -98,6 +133,15 @@ check("...the music panel put away, the camera back from the console", (await pa
   const dockOpen = await page.evaluate(() => !!document.querySelector('[data-testid="dock-panel"][data-open="true"]'));
   check("...a tap elsewhere does nothing (still held)", (await tv()).fixed && (await tv()).glance === "fix" && !dockOpen);
 }
+{
+  const p = await piece();
+  check("...the dock's piece in its corner meanwhile, deaf", inCorner(p) && p.deaf, JSON.stringify(p));
+  if (p && !(await page.evaluate((p) => !!(window.__DEN_OVER_TV__ && window.__DEN_OVER_TV__(p.x, p.y)), p))) {
+    await page.mouse.click(p.x, p.y);
+    await page.waitForTimeout(900);
+    check("...a tap on it opens nothing", !(await menuOpen()) && (await tv()).fixed, JSON.stringify({ menu: await menuOpen(), tv: await tv() }));
+  } else console.log("  (the set under the corner: no tap there)");
+}
 if (shots) {
   await page.evaluate(() => window.__DEN_TV_LOOK__(true));
   await page.waitForTimeout(2500);
@@ -115,6 +159,12 @@ check(`a tap on the set (${at && `${Math.round(at.x)}, ${Math.round(at.y)}`})...
 if (at) await page.mouse.click(at.x, at.y);
 check("...takes the camera over to watch", !!(await poll(async () => { const t = await tv(); return t.looking && t.focus > 0.9; }, 8000, 100)), JSON.stringify(await tv()));
 check("...and the den lets go of the head", !!(await poll(async () => { const t = await tv(); return !t.fixed && !t.lock && t.glance === null; }, 4000, 100)), JSON.stringify(await tv()));
+{
+  // (Begun from the hold: the piece kept aside, in its corner, till the
+  // visit's over.)
+  const p = await piece();
+  check("...the dock's piece kept in its corner through the visit, deaf", inCorner(p) && p.deaf && (await deafAt(p)), JSON.stringify(p));
+}
 check("...and it's still off", (await tv()).phase === "off");
 check("...with the hint, on two lines, no dot", await page.locator('[data-testid="den-tv-hint"].on').count() === 1 && !/\u00b7/.test(await page.locator('[data-testid="den-tv-hint"]').innerText()));
 check("...and soon the Singularity flashes on the dead tube", !!(await poll(async () => (await tv()).flashes >= 1, 6000, 50)), JSON.stringify(await tv()));
@@ -128,10 +178,17 @@ check(`...where it keeps stirring (${(await tv()).lureEvents - w0} in 6 s)`, (aw
 const box = await page.locator("canvas").first().boundingBox();
 await page.mouse.click(box.x + 12, box.y + box.height - 12);
 check("a tap off the set goes back", !!(await poll(async () => { const t = await tv(); return !t.looking && t.goal === 0 && t.phase === "off"; }, 3000, 100)));
+check("...and the dock's piece back in its place, to be tapped", !!(await poll(async () => { const p = await piece(); return atHome(p, home) && !p.deaf; }, 6000, 100)), JSON.stringify(await piece()));
 await page.waitForTimeout(4200);
 // Over again, and a tap on the set (the middle of the screen) turns it on.
 await page.evaluate(() => window.__DEN_TV_PRESS__());
 await poll(async () => (await tv()).focus > 0.95, 8000, 100);
+{
+  // Any visit to the set: the piece steps aside, its frame deaf too (its
+  // taps are the frame's, round the canvas).
+  const p = await piece();
+  check("over to the set again: the dock's piece stepped aside, deaf to taps", !!p && p.deaf && (await deafAt(p)), JSON.stringify(p));
+}
 await page.waitForTimeout(500);
 await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 check("the second tap turns it on", !!(await poll(async () => (await tv()).phase !== "off", 3000, 100)), JSON.stringify(await tv()));

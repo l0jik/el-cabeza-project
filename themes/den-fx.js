@@ -55,7 +55,7 @@ import { loadSound } from "../chassis/sound-files.js";
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
 
 export function createDenEffects(woodSet, { viewPitch = null } = {}) {
-  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, music = null, tv: novaTv = null, moves = null, over = null, beginGame = null, sheets = null }) {
+  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, music = null, tv: novaTv = null, moves = null, over = null, beginGame = null, sheets = null, dockAside = null }) {
     const q = quality();
     // Home with the special order (Nova): the thought, then the telephone
     // call from Big Glutts (den-call.js).
@@ -916,7 +916,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     }
 
     /* ---- the television ---- */
-    let tvGoal = 0, tvW = 0, tvDive = 0, tvPhase = "off", lastTick = 0, offAt = 0, onStage = false, lureEvents = 0, lastHaunt = null;
+    let tvGoal = 0, tvW = 0, tvDive = 0, tvPhase = "off", lastTick = 0, offAt = 0, onStage = false, pieceAside = false, lureEvents = 0, lastHaunt = null;
     let returning = !!(novaTv && novaTv.returning);
     // The first time back, the commercial is on (den-commercial.js, the
     // user's spot): the camera comes in close on the picture (tvWatch),
@@ -1233,47 +1233,59 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       return !!tvRay.intersectObjects(den.tv.pickables, false)[0];
     };
     // (The starts of things only: a finger already down when it began
-    // still lifts, so no drag is left hanging.) A tap on the set is the
-    // set's, pressed here at once (pressTv: over to watch, and the head let
-    // go), whatever's over it or in front of it (a wall cut away, the
-    // table), and the rest of that tap goes nowhere. Held on the set after
-    // the blast, Enter or Space does the same from the keyboard.
+    // still lifts, so no drag is left hanging.) A press goes nowhere, and
+    // the rest of it with it: its lift too, which is what opens the dock's
+    // piece's menu (user, of a tap on the piece as it looked round: "that
+    // probably shouldn't open anything"). A tap on the set is the set's,
+    // pressed here at once (pressTv: over to watch, and the head let go),
+    // whatever's over it or in front of it (a wall cut away, the table).
+    // Held on the set after the blast, Enter or Space does the same from
+    // the keyboard.
     const LOCK_EVENTS = ["pointerdown", "click", "dblclick", "mousedown", "touchstart", "wheel", "contextmenu", "gesturestart"];
     const swallow = (e) => { e.stopImmediatePropagation(); e.stopPropagation(); if (e.cancelable) e.preventDefault(); };
     const onLock = (e) => {
       if (e.target instanceof Element && e.target.closest("[data-fullscreen-toggle]")) return;
       swallow(e);
+      if (e.type === "pointerdown") swallowRest(e.pointerId);
       // (Being taken, the set's build-up: not even the set.)
       if (tug) return;
-      if (e.type === "pointerdown" && e.isPrimary !== false && overTv(e.clientX, e.clientY)) { swallowRest(e.pointerId); pressTv(); }
+      if (e.type === "pointerdown" && e.isPrimary !== false && overTv(e.clientX, e.clientY)) pressTv();
     };
     const onLockKey = (e) => {
       if (e.key === "Tab") return;
       swallow(e);
       if (lureFix && !tug && (e.key === "Enter" || e.key === " ") && !e.repeat) pressTv();
     };
-    /* The rest of that tap: its lift (the chassis takes a lift on the board
-       for a tap even with no press, and on the set that's a second press,
-       turning it on), and the mouse and touch events a browser makes of it,
-       for a moment after. */
-    const REST_EVENTS = ["pointerup", "pointercancel", "touchstart", "touchend", "mousedown", "mouseup", "click", "dblclick", "contextmenu"];
-    let restId = null, restUntil = 0, restOn = false;
+    /* The rest of those presses, each finger's: its lift (the chassis
+       takes a lift on the board for a tap even with no press, and on the
+       set that's a second press, turning it on; the dock's piece opens on
+       one), and the mouse and touch events a browser makes of it, for a
+       moment after, or till a new press once the hold's let go (that one's
+       its own, all of it). */
+    const REST_EVENTS = ["pointerdown", "pointerup", "pointercancel", "touchstart", "touchend", "mousedown", "mouseup", "click", "dblclick", "contextmenu"];
+    const restIds = new Set();
+    let restUntil = 0, restOn = false;
     const onRest = (e) => {
+      if (e.type === "pointerdown") {
+        restUntil = 0;
+        if (!restIds.size) restOff();
+        return;
+      }
       if (e.type === "pointerup" || e.type === "pointercancel") {
-        if (restId === null || e.pointerId !== restId) return;
-        restId = null; restUntil = performance.now() + 700;
-      } else if (restId === null && performance.now() > restUntil) { restOff(); return; }
+        if (!restIds.has(e.pointerId)) return;
+        restIds.delete(e.pointerId); restUntil = performance.now() + 700;
+      } else if (!restIds.size && performance.now() > restUntil) { restOff(); return; }
       swallow(e);
     };
     function swallowRest(id) {
-      restId = id; restUntil = Infinity;
+      restIds.add(id); restUntil = Infinity;
       if (restOn || typeof window === "undefined") return;
       restOn = true;
       REST_EVENTS.forEach((ev) => window.addEventListener(ev, onRest, { capture: true, passive: false }));
     }
     function restOff() {
       if (!restOn || typeof window === "undefined") return;
-      restOn = false; restId = null;
+      restOn = false; restIds.clear();
       REST_EVENTS.forEach((ev) => window.removeEventListener(ev, onRest, { capture: true }));
     }
     function lureLock(on) {
@@ -1919,6 +1931,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       // Test-only: the camera over at the set (or back), the set left as it is.
       window.__DEN_TV_LOOK__ = (on) => { tvGoal = on ? 1 : 0; };
       window.__DEN_TV_PRESS__ = pressTv;
+      // Test-only: is the set under this point of the screen (a tap there its)?
+      window.__DEN_OVER_TV__ = (x, y) => overTv(x, y);
       // Test-only: the lure's Singularity frame on the set, held (ms).
       window.__DEN_TV_FLASH__ = (ms) => !!(den && den.tv && den.tv.flash(performance.now(), ms));
     }
@@ -2080,6 +2094,13 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         showBookHint(bookGoal === 1 && bookW > 0.6);
         const visiting = tvGoal > 0 || tvW > 0.02 || bookGoal > 0 || bookW > 0.02 || phoneGoal > 0 || phoneW > 0.02 || !!(hall && hall.active()) || !!tug;
         if (visiting !== onStage && typeof document !== "undefined") { onStage = visiting; document.documentElement.classList.toggle("ec-tv-visit", visiting); }
+        // While the lure has the head (the look round, the hold on the set
+        // after the blast, the tugs, the pull: the lock), the dock's piece
+        // minimized into its corner, deaf to taps (chassis dockAside; user:
+        // "the 3D button should be probably minimized at that point"); and
+        // through a visit to the set begun from it, back once that's over.
+        const aside = lockOn || (pieceAside && visiting);
+        if (aside !== pieceAside) { pieceAside = aside; if (dockAside) dockAside(aside); }
         const ph = den.tv.phase();
         if (ph !== tvPhase) {
           if (audio && audio.tvHiss) audio.tvHiss(HISS[ph] || 0);
@@ -2319,6 +2340,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         }
         if (typeof window !== "undefined") { delete window.__DEN_PHONE_VISIT__; delete window.__DEN_PHONE_AT__; }
         if (typeof document !== "undefined") document.documentElement.classList.remove("ec-tv-visit");
+        if (pieceAside) { pieceAside = false; if (dockAside) dockAside(false); }
         setCommercialOn(false);
         if (tvHint) { tvHint.remove(); tvHint = null; }
         if (holdOn) {
@@ -2334,7 +2356,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           window.removeEventListener("keydown", onLookKey, true);
           lookListenersOn = null;
         }
-        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; delete window.__DEN_TV_BLAST_PIN__; delete window.__DEN_TRIP__; delete window.__DEN_TRIP_PIN__; ["__DEN_TV_CHANNEL__", "__DEN_FIRE_AT__", "__DEN_HALL__", "__DEN_HALL_NOW__", "__DEN_HALL_PICK__", "__DEN_HALL_SKIP__", "__DEN_ENDING__", "__DEN_ENDING_SKIP__", "__DEN_CHANNEL__"].forEach((k) => { delete window[k]; }); }
+        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; delete window.__DEN_OVER_TV__; delete window.__DEN_TV_BLAST_PIN__; delete window.__DEN_TRIP__; delete window.__DEN_TRIP_PIN__; ["__DEN_TV_CHANNEL__", "__DEN_FIRE_AT__", "__DEN_HALL__", "__DEN_HALL_NOW__", "__DEN_HALL_PICK__", "__DEN_HALL_SKIP__", "__DEN_ENDING__", "__DEN_ENDING_SKIP__", "__DEN_CHANNEL__"].forEach((k) => { delete window[k]; }); }
         if (whiteEl) { whiteEl.remove(); whiteEl = null; }
       },
     };

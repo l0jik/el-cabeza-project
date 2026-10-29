@@ -518,6 +518,37 @@ in; leaving Singularity, back in the den as the set switches off.
   412 x 915 phone pass (on the old code both fail, 1.86 and 1.83 of the
   glass's size off; on the fix 0.01).
 
+- **The 3D piece out of the look round** (2026-10-29; user, a phone
+  screenshot of Rings open over the den's coffee table: "Clicking the 3D
+  floating menu piece opened the menu when I was first in the den, and
+  the looking around confused cinematic was happening that probably
+  shouldn't open anything. In fact, that the 3D button should be
+  probably minimized at that point, I'm thinking."). The lure's lock
+  (den-fx.js onLock) swallowed the starts of presses but not their
+  lifts, and the dock's piece opens on a lift (handleDockPiecePointerUp,
+  no press of its own needed), so a tap on it as the den looked round
+  opened Rings. Now every press the lock swallows takes the rest of it
+  with it, each finger's (swallowRest: a Set of pointer ids; the 700 ms
+  tail for the mouse and touch events a browser makes of it ends at a
+  new press once the hold's let go). And while the lock holds (the look
+  round, the hold on the set after the blast, the tugs, the pull) the
+  piece is minimized into its corner, as in play ("minimized" is the
+  user's word for the corner badge), and deaf: the chassis's dockAside
+  (helpers.dockAside from the den; dockPieceIsCorner for the "piece"
+  view, pointer-events none, no bounce or menu, no after-game call
+  meanwhile); through a visit to the set begun from it too; back in its
+  place after (den-fx.js pieceAside, each frame). The look round waits
+  while the dock's menu is out (sheets.up counts Rings, the lab's and
+  the panel), and the blast's hold, the tugs and the pull put it away
+  (sheets.close). Found on the way: the TV visit's step-aside made only
+  the canvas deaf, but the piece's taps are its frame's
+  ([data-dock-piece]), so the faded piece still took taps; standard.js
+  makes the frame deaf too. The old build, tapped where the piece sat
+  during the look round: the menu opened (e2e-tv-lure, which now checks
+  the piece minimized and deaf, a tap where it was and on it in its
+  corner opening nothing, the same through the hold and the visit, back
+  in its place after, and on any visit its frame deaf;
+  __DEN_OVER_TV__(x, y) keeps its taps off the set).
 - **The check alert stops for the phone** (2026-10-21; user, a phone
   screenshot of the den after the trip, the CHECK / SHOW AGAIN chip
   circled: "showed up both, like right before I left to go get the pieces
