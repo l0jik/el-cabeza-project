@@ -138,14 +138,17 @@ async function home(url, flares = 0) {
   // you initially see the body tumbling in space.") The scream ends at the
   // hand-off to the void; its echo is heard there, still there over a
   // second on, and gone by 1.7 s.
-  const samples = [];
+  const samples = [], env = [];
   const t0 = Date.now();
   while (Date.now() - t0 < 9000) {
     const h = await hall();
-    if (h.pull.echo) { samples.push({ ...h.pull.echo, t: h.t, state: h.state }); if (h.pull.echo.age > 2.2) break; }
+    if (h.pull.echo) { samples.push({ ...h.pull.echo, t: h.t, state: h.state }); env.push(...(h.pull.echo.env || [])); if (h.pull.echo.age > 2.2) break; }
     await page.waitForTimeout(60);
   }
-  const at = (a, b) => samples.filter((e) => e.age >= a && e.age < b).map((e) => e.rms);
+  // (Its level by age from each read's last 0.7 s, not just where the reads
+  // fell: the void's first frames can hold the page up for most of a
+  // second, and GitHub's run on 0ed78cb read nothing between 0.1 and 0.6 s.)
+  const at = (a, b) => env.filter(([age]) => age >= a && age < b).map(([, rms]) => rms);
   const echoEarly = at(0.1, 0.6), echoLate = at(1.0, 1.4), echoAfter = at(1.85, 9);
   const show = JSON.stringify({ early: echoEarly.slice(0, 4), late: echoLate.slice(0, 4), after: echoAfter.slice(0, 3) });
   // (When the scream ended, on the walk's clock: its echo's age read

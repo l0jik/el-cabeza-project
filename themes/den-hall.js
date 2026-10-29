@@ -592,18 +592,28 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     wet.gain.value = 1.3;
     from.connect(send).connect(room).connect(wet).connect(o.ear);
     const meter = typeof window !== "undefined" && window.__EC_TEST_HOOKS__ ? ctx.createAnalyser() : null;
-    if (meter) { meter.fftSize = 2048; wet.connect(meter); }
+    if (meter) { meter.fftSize = 32768; wet.connect(meter); }
     echo = { ctx, end: t + len, meter };
     // (Let go once it's rung out: the shout may be due a while yet.)
     setTimeout(() => { [send, room, wet, meter].forEach((x) => { try { x && x.disconnect(); } catch (e) { /* gone */ } }); }, (t - ctx.currentTime + len + ECHO_SECS + 1) * 1000);
   }
-  // How loud the echo is now (for the tests): its RMS, and how long since
-  // the scream ended (s; negative while it's still going).
+  // How loud the echo is now (for the tests): its RMS (the last 2048
+  // samples), and how long since the scream ended (s; negative while it's
+  // still going); and, like the preverb's below, how loud it's been over
+  // the last 0.7 s or so (each 2048 samples' RMS, at its age at their end):
+  // the void's first frames can hold the page up for most of a second on a
+  // slow machine (GitHub's run on 0ed78cb read nothing between 0.1 and
+  // 0.6 s), and one read after them still has those.
   function echoNow() {
     if (!echo || !echo.meter) return null;
-    const a = new Float32Array(echo.meter.fftSize); echo.meter.getFloatTimeDomainData(a);
-    let e = 0; for (let i = 0; i < a.length; i++) e += a[i] * a[i];
-    return { rms: +Math.sqrt(e / a.length).toFixed(4), age: +(echo.ctx.currentTime - echo.end).toFixed(2) };
+    const a = new Float32Array(echo.meter.fftSize), now = echo.ctx.currentTime, sr = echo.ctx.sampleRate, B = 2048;
+    echo.meter.getFloatTimeDomainData(a);
+    const env = [];
+    for (let i = 0; i + B <= a.length; i += B) {
+      let e = 0; for (let k = i; k < i + B; k++) e += a[k] * a[k];
+      env.push([+(now - (a.length - i - B) / sr - echo.end).toFixed(3), +Math.sqrt(e / B).toFixed(4)]);
+    }
+    return { rms: env.length ? env[env.length - 1][1] : 0, age: +(now - echo.end).toFixed(2), env };
   }
   // ...and the preverb: when it started and the shout's due (the audio
   // clock), and how loud it's been over the last 0.7 s or so (the RMS of

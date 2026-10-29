@@ -38,3 +38,11 @@
   translucent pieces are ever rendered spinning/tumbling somewhere else,
   this same fix will likely be needed there too.
 
+- Sound levels a test reads just after a heavy moment (the hall's hand-off
+  to the void, a scene's first frames) must come from a history the page
+  keeps, not from where node's round trips happen to land: GitHub's
+  runner can hold the page up for most of a second there. The hall's
+  preverb and echo meters (den-hall.js, test hooks only) both keep the
+  last ~0.7 s as per-2048-sample RMS by age (`env`), and e2e-hall-sound
+  reads its windows from those (2026-10-29: run 40804464153 on 0ed78cb
+  read no echo at all between 0.1 and 0.6 s with the old 43 ms meter).
