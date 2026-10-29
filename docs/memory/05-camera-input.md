@@ -291,19 +291,36 @@ immediately.
   under reduced motion), 4 Path (an arrow on the board onto the squares
   it moves into, each outlined, over everything), 5 Screen (an SVG over
   the canvas, re-projected each frame, at least 96 px, dots running).
-  Waiting on the user's pick; the review page compares them mid-drag in
-  the den, the store, Futuris and a phone. Test: tests/e2e-arrow-lab.mjs
+  The review page compared them mid-drag in the den, the store, Futuris
+  and a phone. Picked (user: "go with arrow 4, path"): 4, Path, is the
+  game's own arrow now in every world (chassis/slide-path.js
+  buildSlidePath, which the lab's 4 draws with too): updateSlideArrow
+  builds it into slideArrowGroup once per piece (where it stands) and way,
+  keyed in userData.key, and only keeps it lit while the pointer moves;
+  the old round arrow at the piece's foot is gone. Its squares are those
+  the piece moves into (maskAt: not those it keeps, not an odd shape's
+  empty corners); userData.slidePath.cells counts them. The lab's other
+  four stay in ?arrowlab, as the menu lab's did. Test: tests/e2e-arrow-lab.mjs
   (no lab: today's arrow; each version shows on the drag for the right
   piece and way, drawn as it says, today's unlit, gone when dragged back;
   a switch while one shows; a real slide with the lab on; kept on reload;
   ✕ leaves). The lab's object is named "arrow-lab" in boardGroup and
   `window.__ARROW_LAB__.shown.drawn` says "over" / "through" / "page".
-  Found on the way, not changed (waiting on the user): pick() lets a move
-  marker (ghost) win over a piece for every click and press (kept so a
-  click on an enemy piece crushes it), so in a tilted view a ray through
-  your own tall picked piece reaches the marker on the board behind it:
-  the press never arms the slide drag (the drag turns the camera) and a
-  second click plays that hidden move (the store, a Chato on 4,4 went to
-  6,4). Proposed: when the nearest piece hit is the picked piece itself,
-  nearer than the marker, the piece wins. Screenshots press low on the
-  piece's near face to get past it.
+  Found on the way, then fixed (user: "Yes, fix it", to "let the piece
+  you press win over a marker behind it"): pick() let a move marker
+  (ghost) win over a piece for every click and press (kept so a click on
+  an enemy piece crushes it), so in a tilted view a ray through your own
+  tall picked piece reached the marker on the board behind it: the press
+  never armed the slide drag (the drag turned the camera) and a second
+  click played that hidden move (the store, a Chato on 4,4 went to 6,4).
+  Now, for clicks and presses, a piece nearer than every marker the ray
+  meets is what was pressed: the picked piece is always itself; another
+  piece standing on a marker's own squares (a crush's or a shove's
+  target; the ghost hit's userData.cand, markerUnder() with maskAt) is
+  still that move, as a click on it always was, even where the ray misses
+  the marker's plane under it; any other piece is itself. A marker nearer
+  than every piece still wins; hover (respectDepth) is unchanged. Test:
+  tests/e2e-hidden-marker.mjs (a point on the picked Chato found by
+  casting rays as pick() does, a marker behind it; the press arms the
+  slide, the click plays nothing; a marker in the open still plays; a
+  click on the enemy Cabeza where the roll lands crushes).

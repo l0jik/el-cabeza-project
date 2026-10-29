@@ -21,6 +21,7 @@ import {
   setGhostLineTarget,
 } from "../engine/geometry.js";
 import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmPoint, maskAt, pressOffsets } from "../engine/shapes.js";
+import { buildSlidePath, dispose as disposeSlidePath } from "./slide-path.js";
 import {
   startSetOut, place as setOutPlace, putBack as setOutPutBack, turn as setOutTurn, setHalf as setOutSetHalf, turnsWhileSettingOut,
   readiness as setOutReadiness, keep as setOutKeep, restore as setOutRestore, canRestore as setOutCanRestore,
@@ -6284,27 +6285,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // on the tour's step (tour3d).
     const tourGroup = new THREE.Group();
 
-    // Slide LAW gesture cue — a single arrow lit up on the selected
-    // piece while the player is dragging it toward a legal slide (see
-    // the drag-to-slide handling in the pointer effect). Built once and
-    // reused: hidden by default, oriented and positioned imperatively
-    // per drag frame. A child of boardGroup so it turns WITH the board,
-    // which is what lets rotation.y (derived from the slide's own
-    // row/col direction) always point true regardless of camera heading.
+    // Slide LAW gesture cue — the slide's path lit up while the player
+    // drags the selected piece toward a legal slide (see the drag-to-slide
+    // handling in the pointer effect): an arrow on the board onto the
+    // squares it would move into, each outlined, drawn over everything
+    // (chassis/slide-path.js; user, of the slide-arrow lab's five: "go
+    // with arrow 4, path"). The arrow it replaced sat at the piece's foot,
+    // inside it, hidden behind tall pieces. Built per piece and way in
+    // updateSlideArrow, hidden by default. A child of boardGroup so it
+    // turns WITH the board.
     const slideArrowGroup = new THREE.Group();
-    {
-      const arrowMat = new THREE.MeshStandardMaterial({
-        color: 0x0a1a20, emissive: 0x66d9ff, emissiveIntensity: 0.95, roughness: 0.4, metalness: 0.1,
-      });
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 12), arrowMat);
-      shaft.rotation.z = -Math.PI / 2; // default +Y -> lie along +X
-      shaft.position.x = 0.28;
-      const head = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.3, 16), arrowMat);
-      head.rotation.z = -Math.PI / 2; // cone default +Y -> point +X
-      head.position.x = 0.66;
-      slideArrowGroup.add(shaft, head);
-      slideArrowGroup.visible = false;
-    }
+    slideArrowGroup.visible = false;
     // Its counterpart: an X on the square a drag points at when that's a
     // diagonal slide that would shove (shoves are never diagonal, user:
     // "make the board show an X when a diagonal shove is blocked"). Two
@@ -7872,7 +7863,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       );
       hit.rotation.x = -Math.PI / 2;
       hit.position.set(cx, 0.02, cz);
-      hit.userData = { dir, kind: "ghost", isCrush };
+      // (Its squares: a click on a piece standing on them is this move,
+      // pick() below.)
+      hit.userData = { dir, kind: "ghost", isCrush, cand: { row: cand.row, col: cand.col, w: cand.w, h: cand.h } };
       group.add(hit);
 
       /* Move-indicator visual: entirely theme-owned (see
@@ -9013,11 +9006,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         grab.phi = kept.view.grab.phi;
       }
     }
-    // Shows/orients/hides the slide arrow cue on the selected piece.
-    // dirKey is a "slide-<DIR>" key or null to hide. rotation.y maps the
-    // arrow's local +X onto the slide's own (dr,dc) board direction.
-    // `blocked` (an entry of blockedDiagonalShoves) shows the X on its
-    // square instead of the arrow: that way is a diagonal shove.
+    // Shows/hides the slide's path for the selected piece. dirKey is a
+    // "slide-<DIR>" key or null to hide. `blocked` (an entry of
+    // blockedDiagonalShoves) shows the X on its square instead of the
+    // path: that way is a diagonal shove.
     function updateSlideArrow(dirKey, blocked = null) {
       const g = t.slideArrowGroup;
       if (!g) return;
@@ -9044,10 +9036,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         return;
       }
       if (!piece) { g.visible = false; return; }
-      const [dr, dc] = STEP_DIRS[baseDirOfSlideKey(dirKey)];
-      const pc = pieceCenter(piece);
-      g.position.set(pc.x, 0.16, pc.z);
-      g.rotation.y = Math.atan2(-dr, dc);
+      // (Built once for the piece where it stands and the way it's
+      // dragged; every move of the pointer after that only keeps it lit.)
+      const key = `${piece.id}@${piece.row},${piece.col},${piece.w},${piece.h},${piece.z}|${dirKey}`;
+      if (g.userData.key !== key) {
+        g.children.slice().forEach(disposeSlidePath);
+        const d = slideDrag && slideDrag.dirs.find((q) => q.key === dirKey);
+        g.add(buildSlidePath(piece, STEP_DIRS[baseDirOfSlideKey(dirKey)], (d && d.candidate) || null));
+        g.userData.key = key;
+      }
       g.visible = true;
     }
     // Projects a boardGroup-local (x, z) point (piece centers are
@@ -9142,9 +9139,46 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         return null;
       }
 
+      /* ...but only for a marker in front of every piece the ray meets, or
+         one a piece stands on (user, 2026-10-29: "let the piece you press
+         win over a marker behind it"). In a tilted view the ray through a
+         tall piece goes on to the board behind it, where a marker it hides
+         lay: a second click on the picked piece played that hidden move
+         (the store: a Chato on row 4 rolled to row 6), and a press on it
+         never armed the slide drag (the drag turned the board). A piece in
+         front is what was pressed: the picked one is itself, always;
+         another standing on a marker's own squares (a crush's or a shove's
+         target) is still that move, as a click on it always was, whether
+         or not the ray reached the marker's plane under it; any other is
+         itself. */
+      if (nearestPiece && (!nearestGhost || nearestPiece.distance < nearestGhost.distance)) {
+        const id = nearestPiece.object.userData.pieceId;
+        const target = id !== selectedId ? markerUnder(id, ghostHits) : null;
+        if (target) return { type: "ghost", dir: target.userData.dir };
+        return { type: "piece", id };
+      }
       if (nearestGhost) return { type: "ghost", dir: nearestGhost.object.userData.dir };
-      if (nearestPiece) return { type: "piece", id: nearestPiece.object.userData.pieceId };
       return null;
+    }
+
+    // The marker whose squares a piece stands on (any of its cubes over
+    // them): one the ray met first, else any. null for none.
+    function markerUnder(id, hits) {
+      const p = pieces.find((q) => q.id === id);
+      if (!p) return null;
+      const on = (g) => {
+        const c = g.userData.cand;
+        if (!c) return false;
+        for (let r = Math.max(c.row, p.row); r < Math.min(c.row + c.h, p.row + p.h); r++) {
+          for (let col = Math.max(c.col, p.col); col < Math.min(c.col + c.w, p.col + p.w); col++) {
+            if (maskAt(p, r, col)) return true;
+          }
+        }
+        return false;
+      };
+      const met = hits.find((h) => on(h.object));
+      if (met) return met.object;
+      return t.ghostGroup.children.find((g) => g.userData.kind === "ghost" && on(g)) || null;
     }
 
     // The two-finger midpoint's vertical speed over its last 100 ms (px/ms).

@@ -85,8 +85,10 @@ const E2E = [
   ["e2e-cromo.mjs"],
   // The result said to you: "You win" / "You lose" against the computer (placard, status, move log, the Lab), the winner's name for two people, in Spanish too.
   ["e2e-you-win.mjs"],
-  // The slide-arrow lab (?arrowlab): five ways to draw the arrow a drag lights, each shown and put away; today's without it.
+  // The slide-arrow lab (?arrowlab): five ways to draw the arrow a drag lights, each shown and put away; the game's own (the Path) without it.
   ["e2e-arrow-lab.mjs"],
+  // A press on a piece wins over a marker hidden behind it (a tilted view); a click on a crush target still crushes.
+  ["e2e-hidden-marker.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

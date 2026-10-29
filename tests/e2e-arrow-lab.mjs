@@ -4,14 +4,16 @@
    chassis/arrow-lab.js).
 
    In Futuris with Slide on, a Chato picked and dragged east. Without the
-   lab, today's arrow lights and there's no lab bar. With ?arrowlab=1,
+   lab, the game's own arrow lights, the Path (the lab's 4, picked: "go
+   with arrow 4, path"; chassis/slide-path.js): over everything, onto the
+   two squares the Chato moves into; no lab bar. With ?arrowlab=1,
    each of the five in turn (the bar's ›): the drag shows it, for the
    Chato and east, drawn the way it says (over everything, through what
-   hides it, or on the page, there at least 96 px long), today's arrow
+   hides it, or on the page, there at least 96 px long), the game's own
    unlit; dragged back, it's gone, and nothing has moved. One showing
    while the version's changed becomes the new one at once. Let go while
    it shows, the Chato slides as ever. A reload keeps the lab and the
-   version last looked at; the bar's ✕ leaves it, and today's arrow is
+   version last looked at; the bar's ✕ leaves it, and the game's own is
    back.
 
    node tests/e2e-arrow-lab.mjs */
@@ -70,6 +72,14 @@ const state = () => page.evaluate(() => {
   const chato = window.__EC_TEST_PIECES__.find((p) => p.id === "dark-chato");
   return {
     today: t.slideArrowGroup.visible,
+    // (The game's own: the slide's path, drawn over everything.)
+    path: (() => {
+      const g = t.slideArrowGroup.children[0];
+      if (!t.slideArrowGroup.visible || !g) return null;
+      let over = true;
+      g.traverse((x) => { if (x.isMesh && x.material.depthTest !== false) over = false; });
+      return { cells: g.userData.slidePath && g.userData.slidePath.cells, over };
+    })(),
     lab: window.__ARROW_LAB__ || null,
     object: !!t.boardGroup.getObjectByName("arrow-lab"),
     bar: bar ? bar.dataset.version : null,
@@ -78,12 +88,12 @@ const state = () => page.evaluate(() => {
   };
 });
 
-console.log("\n[today's arrow, no lab]");
+console.log("\n[the game's arrow, no lab]");
 {
   const g = await begin();
   await out(g);
   const s = await state();
-  check("a drag east lights today's arrow; no lab bar, no lab", s.today && s.bar === null && s.lab === null && !s.object, JSON.stringify(s));
+  check("a drag east lights the game's arrow, the Path: over everything, onto the 2 squares the Chato moves into; no lab bar, no lab", s.today && s.path && s.path.over && s.path.cells === 2 && s.bar === null && s.lab === null && !s.object, JSON.stringify(s));
   await back(g);
   const b = await state();
   check("...dragged back, it's out and the Chato hasn't moved", !b.today && b.at.join() === "4,3", JSON.stringify(b));
@@ -99,7 +109,7 @@ const DRAWN = { 1: "over", 2: "through", 3: "over", 4: "over", 5: "page" };
     await out(g);
     const s = await state();
     const lab = s.lab || {};
-    check(`${n}: the drag shows it for the Chato, east, drawn ${DRAWN[n]}; today's arrow unlit`,
+    check(`${n}: the drag shows it for the Chato, east, drawn ${DRAWN[n]}; the game's own unlit`,
       lab.version === n && lab.shown && lab.shown.piece === "dark-chato" && lab.shown.dir.join() === "0,1" && lab.shown.drawn === DRAWN[n] && !s.today && s.object === (n !== 5), JSON.stringify(s));
     if (n === 5) {
       const [ax, ay] = s.svg ? s.svg.from.split(",").map(Number) : [0, 0], [bx, by] = s.svg ? s.svg.to.split(",").map(Number) : [0, 0];
@@ -138,7 +148,7 @@ console.log("\n[kept, and left]");
   const g = await begin();
   await out(g);
   const s = await state();
-  check("✕ leaves it: no bar, and a drag lights today's arrow again", s.bar === null && s.lab === null && s.today, JSON.stringify(s));
+  check("✕ leaves it: no bar, and a drag lights the game's own again", s.bar === null && s.lab === null && s.today && s.path && s.path.cells === 2, JSON.stringify(s));
   await back(g);
 }
 
