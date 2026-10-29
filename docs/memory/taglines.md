@@ -89,7 +89,9 @@ The box, the catalog, the signs, the PA (made):
   · © 1975" / "The complete game, board and ten pieces"
 - Catalog: "Games & Hobby Dept. · Fall & Winter Catalog 1975" / "In every
   box: five of each, a side apiece, and the folding board." / "Special
-  orders now open" / "New pieces, new laws, new boards, from the catalog."
+  orders now open" / "New pieces, new rules, new boards, from the catalog."
+  (was "new laws"; user, 2026-10-29: "It should say new rules, not new
+  laws." The store and the den say rules; "laws" is Futuris's word.)
 - Signs: "NOW IN STOCK" / "El Cabeza · Aisle 9" / "Complete set $7.97 ·
   Aisle 9" / "IN-STORE DEMONSTRATION • HOW TO PLAY • NO CHARGE" / "Please
   leave pieces on the board."

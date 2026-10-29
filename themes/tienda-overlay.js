@@ -866,7 +866,7 @@ function renderOverlaysHere(x) {
       },
         h(Style),
         h("b", null, "Special orders now open"),
-        h("span", null, "New pieces, new laws, new boards, from the catalog."),
+        h("span", null, "New pieces, new rules, new boards, from the catalog."),
         h("span", { className: "td-special-go" }, "Order from the catalog \u203a"))
     : null;
   if (!x.tiendaOverlay || !x.awaitingBegin) return note;

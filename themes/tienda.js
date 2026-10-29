@@ -568,7 +568,7 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
     { key: "row", style: { display: "flex", gap: 8, flexShrink: 0, flexWrap: "nowrap", width: "100%" } },
     h("button", {
       key: "order", type: "button", className: "ec-btn ec-btn-invert", "data-testid": "tienda-order-form",
-      title: catalogOnly ? "The catalog's page of the pieces in the box" : "Custom rules: order the pieces, laws and board you want from the catalog",
+      title: catalogOnly ? "The catalog's page of the pieces in the box" : "Custom rules: order the pieces, rules and board you want from the catalog",
       onClick: openOrderForm,
       style: quiet,
     }, catalogOnly ? "See the pieces" : "Custom rules"),
@@ -639,7 +639,7 @@ export function shellSetupActions({ openOrderForm, story, specialOpen, firstLook
     ];
   }
   if (!specialOpen) return [{ key: "see-pieces", label: "See the pieces", onClick: openOrderForm, testid: "shell-see-pieces", placement: "below", title: "The catalog's page of the pieces in the box" }];
-  return [{ key: "custom-rules", label: "Custom rules \u203a", onClick: openOrderForm, testid: "shell-custom-rules", placement: "below", title: "Order the pieces, laws and board you want from the catalog" }];
+  return [{ key: "custom-rules", label: "Custom rules \u203a", onClick: openOrderForm, testid: "shell-custom-rules", placement: "below", title: "Order the pieces, rules and board you want from the catalog" }];
 }
 
 export { useSetupExtras, renderExtraOverlays, resetLid, clerkConfused } from "./tienda-overlay.js";
