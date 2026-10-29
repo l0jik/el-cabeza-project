@@ -7075,7 +7075,10 @@ export function createSoundscape() {
 
 /* What the two sides are called here (user; themes/side-names.js). */
 import { sideNamesFor } from "./side-names.js";
-import { pointsGlowFor } from "./points-glow.js";
+import { pointsGlowFor, worldLightFor } from "./points-glow.js";
 export const sideNames = sideNamesFor("futuris");
-// The points counter's embers (points-glow.js).
+// The Actions dots, Photon's teal glass and Plasma's white as the pieces
+// are; the corner piece's call after a game, its own cyan and amber
+// glows (points-glow.js).
 export const pointsGlow = pointsGlowFor("futuris");
+export const worldLight = worldLightFor("futuris");

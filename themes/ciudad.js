@@ -655,6 +655,9 @@ export const soundCredits = "The city’s sounds are recordings of real streets,
 export const moveCostToggle = true;
 
 import { sideNamesFor } from "./side-names.js";
-import { pointsGlowFor } from "./points-glow.js";
+import { pointsGlowFor, worldLightFor } from "./points-glow.js";
 export const sideNames = sideNamesFor("ciudad");
+// The Actions dots in the pieces' colours; the corner piece's call after
+// a game, an office's light and a home's (points-glow.js).
 export const pointsGlow = pointsGlowFor("ciudad");
+export const worldLight = worldLightFor("ciudad");

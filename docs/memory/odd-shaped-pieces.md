@@ -465,7 +465,9 @@ unaffected.
 - During play (hidden while the dock panel is open) it shows one dot
   per point of `turnBudget()` at the bottom centre, labelled "Action points", dimmed (filled 0.55, spent 0.28) per feedback (`points-counter`,
   `data-left`). Filled dots use the player's accent (Futuris cyan/amber,
-  glowing) or body colour (Standard); spent dots are hollow.
+  glowing) or body colour (Standard); spent dots are hollow. (Since
+  2026-10-29 each side's dots are its pieces' colour in every world:
+  08-visual-invariants.md.)
 - `pointsPulse` flashes it when a free detour refunds points.
 - Test: tests/e2e-points.mjs (both themes).
 - Counter lifetime (user): shown from Begin Game until the next game's

@@ -61,6 +61,34 @@
   inventing a new hook shape.
 
 
+- **The Actions dots are each side's pieces' colour, in every world**
+  (2026-10-29; user, with a screenshot of Futuris's orange dots for
+  Plasma's white pieces: "Ensure globally peace, action point counter
+  colors reflect the pieces they are standing in for"; earlier one world
+  at a time: Cromo's Steel, Parrish's walnut and ash, the store's tags).
+  themes/points-glow.js POINTS_GLOW: each side's pieces' colour as drawn
+  in play, lit: a dark side's lifted to glow on the dark and to read
+  apart from a spent dot, its hue and tint kept (black pieces grey,
+  walnut a lit walnut, navy a lit navy). Chosen by photographing every
+  world's pieces side by side and sampling them (scratchpad dots/:
+  audit.mjs, audit2.mjs for the counter as it is and as proposed,
+  sample.py, sheet.py). The store keeps the first game's tags, yours
+  yellow and the computer's red (POINTS_GLOW_YOU, user). The corner
+  piece's call after a game keeps each world's own light, the dots'
+  colours before (WORLD_LIGHT, theme.worldLight: the den's firelight,
+  Futuris's cyan and amber, the Lab's reds and golds); a world without
+  one calls in its dots' colours. A new world: a POINTS_GLOW pair from
+  its pieces. tests/points-glow.smoke.mjs (in test:engine) holds every
+  switcher world's dots to its pieces' swatch (side-names.js): the hue
+  within 30° and no brighter a colour than lit pieces of it, greys for
+  grey pieces, lit (OKLCH L at least 0.45), the dark side's grey dots a
+  step darker (0.2); Futuris's Photon (near-black glass that reads teal)
+  and Lluvia's Nắng (pale pink the signs light magenta) are held to
+  their pieces as drawn. Run on the old table it fails 17 times (the
+  den's orange, Plasma's amber, Luna's gold and orange, Noir's Shadow
+  all but white, ...). tests/e2e-points.mjs: the counter shows each
+  side's (Futuris, the den).
+
 - **The title's badge clears the corner menu's tab, up top, by size**
   (2026-10-28; user, Cromo on a phone, the PARAMETERS plate over the
   "EL C": "the overlap on these items circled in red"). In play the title

@@ -25,7 +25,7 @@ import { createLabAudio } from "./audio.js";
 import { styleSheetFor } from "./css.js";
 import { LabHud } from "./hud.js";
 import { sideNamesFor } from "../side-names.js";
-import { pointsGlowFor } from "../points-glow.js";
+import { pointsGlowFor, worldLightFor } from "../points-glow.js";
 
 const rgba = (css, a) => {
   const c = new THREE.Color(css);
@@ -92,7 +92,8 @@ export function makeLabTheme(spec) {
     // lettered in the other side's colour and faded when not picked, their
     // words were lost: blue on red, the two AI buttons all but blank (user).
     sideSurface: SIDE_INKED.has(spec.id) ? (side) => (side === "dark" ? { background: c.pieceDark, color: c.inkOnDark } : { background: c.pieceLight, color: c.inkOnLight }) : undefined,
-    pointsGlow: pointsGlowFor(spec.id), // the points counter's embers (points-glow.js)
+    pointsGlow: pointsGlowFor(spec.id), // the Actions dots, in the pieces' colours (points-glow.js)
+    worldLight: worldLightFor(spec.id), // the corner piece's call after a game
 
     COLORS, HEX,
     EDGE_RADIUS: scene.EDGE_RADIUS,

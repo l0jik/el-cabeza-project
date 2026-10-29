@@ -585,5 +585,5 @@ export { applyStoneToScene, studioEnv, sideMaterial, stone as currentStone };
 import { sideNamesFor } from "./side-names.js";
 import { pointsGlowFor } from "./points-glow.js";
 export const sideNames = sideNamesFor("cromo");
-// The points counter's embers (points-glow.js).
+// The Actions dots in the pieces' colours (points-glow.js).
 export const pointsGlow = pointsGlowFor("cromo");

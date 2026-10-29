@@ -7,9 +7,14 @@
    next player; after a finished game it holds that game's last turn
    through the win screen and clears when a new game is set up. Checked
    in Futuris and in Standard (which has no Sound icon,
-   so the toggle takes its corner). */
+   so the toggle takes its corner). Each side's dots in the colour of its
+   pieces (user: "action point counter colors reflect the pieces they are
+   standing in for"; themes/points-glow.js, held to the pieces by
+   tests/points-glow.smoke.mjs): Futuris's Photon teal and Plasma white,
+   the den's walnut and ash. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
+import { pointsGlowFor } from "../themes/points-glow.js";
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });
 let failures = 0;
@@ -34,6 +39,11 @@ async function closeDock(page) {
     await page.waitForTimeout(400);
   }
 }
+// The counter's colour, and whose it is.
+const ember = (page) => page.evaluate(() => {
+  const el = document.querySelector('[data-testid="points-counter"]');
+  return el ? { side: window.__EC_TEST_TO_MOVE__(), glow: el.style.getPropertyValue("--ec-ember").trim().toLowerCase() } : null;
+});
 const left = (page) => page.evaluate(() => {
   const el = document.querySelector('[data-testid="points-counter"]');
   return el ? Number(el.getAttribute("data-left")) : null;
@@ -75,6 +85,9 @@ for (const theme of ["futuris", "standard"]) {
   await closeDock(page);
   await page.waitForTimeout(1500);
   check("in play, the counter shows 2 actions left", (await left(page)) === 2, String(await left(page)));
+  const pieces = pointsGlowFor(theme);
+  const darkEmber = await ember(page);
+  check(`...in the dark pieces' colour (${theme === "futuris" ? "Photon's teal" : "walnut"}: ${darkEmber && darkEmber.glow})`, !!darkEmber && darkEmber.side === "dark" && darkEmber.glow === pieces.dark, JSON.stringify(darkEmber));
 
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
   await page.waitForTimeout(1400);
@@ -90,6 +103,8 @@ for (const theme of ["futuris", "standard"]) {
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "E"));
   await page.waitForTimeout(1600);
   check("after a full turn it refills for the next player", (await left(page)) === 2 && (await page.evaluate(() => (window.__EC_TEST_LOG__ || []).length)) === 1, String(await left(page)));
+  const lightEmber = await ember(page);
+  check(`...in the light pieces' colour (${theme === "futuris" ? "Plasma's white, not amber" : "ash"}: ${lightEmber && lightEmber.glow})`, !!lightEmber && lightEmber.side === "light" && lightEmber.glow === pieces.light, JSON.stringify(lightEmber));
 
   // Remembered across a reload.
   await page.reload();

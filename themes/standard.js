@@ -444,7 +444,9 @@ export const styleSheet = `
 
 /* What the two sides are called here (user; themes/side-names.js). */
 import { sideNamesFor } from "./side-names.js";
-import { pointsGlowFor } from "./points-glow.js";
+import { pointsGlowFor, worldLightFor } from "./points-glow.js";
 export const sideNames = sideNamesFor("standard");
-// The points counter's embers (points-glow.js): firelight and lamplight.
+// The Actions dots, walnut and ash as the pieces are; the corner piece's
+// call after a game, firelight and lamplight (points-glow.js).
 export const pointsGlow = pointsGlowFor("standard");
+export const worldLight = worldLightFor("standard");

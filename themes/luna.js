@@ -246,6 +246,9 @@ export { createAudio, hasAudio } from "./luna-audio.js";
 export const moveCostToggle = true;
 
 import { sideNamesFor } from "./side-names.js";
-import { pointsGlowFor } from "./points-glow.js";
+import { pointsGlowFor, worldLightFor } from "./points-glow.js";
 export const sideNames = sideNamesFor("luna");
+// The Actions dots in the pieces' colours; the corner piece's call after
+// a game, the sides' gold and orange (points-glow.js).
 export const pointsGlow = pointsGlowFor("luna");
+export const worldLight = worldLightFor("luna");

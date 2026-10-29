@@ -386,6 +386,9 @@ export { createAudio, hasAudio } from "./plano-audio.js";
 export const moveCostToggle = true;
 
 import { sideNamesFor } from "./side-names.js";
-import { pointsGlowFor } from "./points-glow.js";
+import { pointsGlowFor, worldLightFor } from "./points-glow.js";
 export const sideNames = sideNamesFor("plano");
+// The Actions dots in the pieces' colours; the corner piece's call after
+// a game, the blueprint's line work (points-glow.js).
 export const pointsGlow = pointsGlowFor("plano");
+export const worldLight = worldLightFor("plano");

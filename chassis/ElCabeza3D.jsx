@@ -3265,11 +3265,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      goes as you move: a step out of reach clears it, a step into reach
      brings it up. [{ attacker, cabeza }] or null. */
   const youSide = aiPlayer ? (aiPlayer === "dark" ? "light" : "dark") : online && online.mySide ? online.mySide : null;
-  /* A side's light for its Actions (theme.pointsGlow, themes/points-glow.js);
-     where the world names one for you and one for the other player
-     (theme.pointsGlowYou, the store's: the first game's tags, yours yellow,
-     the computer's red), by whose it is. null: the side's accent. */
-  const pointsGlowOf = (side) => (theme.pointsGlowYou && youSide ? theme.pointsGlowYou[side === youSide ? "you" : "them"] : null) || (theme.pointsGlow && theme.pointsGlow[side]) || null;
+  /* A side's light for its Actions: its pieces' colour (theme.pointsGlow,
+     themes/points-glow.js); where the world names one for you and one for
+     the other player (theme.pointsGlowYou, the store's: the first game's
+     tags, yours yellow, the computer's red), by whose it is. null: the
+     side's accent. */
+  const yoursOrTheirs = (side) => (theme.pointsGlowYou && youSide ? theme.pointsGlowYou[side === youSide ? "you" : "them"] : null);
+  const pointsGlowOf = (side) => yoursOrTheirs(side) || (theme.pointsGlow && theme.pointsGlow[side]) || null;
   const checkThreats = React.useMemo(() => {
     // (Not while a replay plays: nobody's playing for real.)
     if (!checkAlert || !youSide || awaitingBegin || !isPlaying || winner || currentPlayer !== youSide || replaying) return null;
@@ -11534,15 +11536,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // before a game (dockShift.centre), or raise it in its corner.)
   const dockPieceIsCorner = dockView === "corner" && !(dockShift && dockShift.centre);
   const dockPieceRaised = !!(dockShift && dockShift.raise);
-  /* The light it calls in (dockCall): its world's glow for the side the
-     piece shows (theme.pointsGlow, as the action points have it; else
-     that side's accent), the side as the piece's mesh effect picks it.
+  /* The light it calls in (dockCall): its world's light for the side the
+     piece shows (theme.worldLight, points-glow.js: the den's firelight,
+     Futuris's own glows; else the side's Actions dots, else its accent),
+     the side as the piece's mesh effect picks it.
      A light that hardly shows on the page (white on Swiss Design's
      white): then the world's other light, if it shows better (Swiss
      Design's red). A theme may name its own (theme.dockCallGlow:
      Parrish's ash, candlelight on its painting). */
   const dockShownSide = dockTurnSide || (aiPlayer !== null ? (aiPlayer === "dark" ? "light" : "dark") : dockSessionColor);
-  const glowFor = (side) => pointsGlowOf(side) || (side === "dark" ? COLORS.accentDark : COLORS.accentLight) || (side === "dark" ? COLORS.bodyDark : COLORS.bodyLight);
+  const glowFor = (side) => yoursOrTheirs(side) || (theme.worldLight && theme.worldLight[side]) || pointsGlowOf(side) || (side === "dark" ? COLORS.accentDark : COLORS.accentLight) || (side === "dark" ? COLORS.bodyDark : COLORS.bodyLight);
   let dockGlow = theme.dockCallGlow || glowFor(dockShownSide);
   if (!theme.dockCallGlow) {
     const own = glowShows(dockGlow, COLORS.pageBg), other = glowFor(dockShownSide === "dark" ? "light" : "dark"), alt = glowShows(other, COLORS.pageBg);
@@ -12018,9 +12021,10 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
         const left = final ? final.left : Math.max(0, budget - stepsUsed);
         /* Ember, breathing (user, from a page of mock-ups: a point you
            have glows, a spent one goes dark): each point a small lamp in
-           this world's light for the side (pointsGlowOf: theme.pointsGlow,
-           themes/points-glow.js, or the store's yours and theirs; else the
-           side's accent), its glow slowly
+           the colour of the side's pieces (user: "action point counter
+           colors reflect the pieces they are standing in for";
+           pointsGlowOf: theme.pointsGlow, themes/points-glow.js, or the
+           store's yours and theirs; else the side's accent), its glow slowly
            swelling and easing, a beat apart; a spent one is a cold dark
            bead with a faint rim. A thin darker rim of its own colour keeps a
            lit one readable on a pale plate (Orinoco's paper, Minimal Mono).

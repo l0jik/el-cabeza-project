@@ -662,7 +662,7 @@ export const styleSheet = `
 import { sideNamesFor } from "./side-names.js";
 import { pointsGlowFor } from "./points-glow.js";
 export const sideNames = sideNamesFor("parrish");
-// The points counter's embers (points-glow.js), the look's own.
+// The Actions dots in the look's own walnut and ash (points-glow.js).
 export const pointsGlow = pointsGlowFor(DARK ? "parrish-watermark" : "parrish-orinoco");
 // The corner piece's light after a game (chassis dockGlow): the look's
 // ash, candlelight on the painting, whichever side's piece it is. Walnut

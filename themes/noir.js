@@ -474,6 +474,9 @@ export const soundCredits = "Sounds from freesound.org: the rain, kyles and crai
 export const moveCostToggle = true;
 
 import { sideNamesFor } from "./side-names.js";
-import { pointsGlowFor } from "./points-glow.js";
+import { pointsGlowFor, worldLightFor } from "./points-glow.js";
 export const sideNames = sideNamesFor("noir");
+// The Actions dots in the pieces' colours; the corner piece's call after
+// a game, a lamp's light and a lit window (points-glow.js).
 export const pointsGlow = pointsGlowFor("noir");
+export const worldLight = worldLightFor("noir");
