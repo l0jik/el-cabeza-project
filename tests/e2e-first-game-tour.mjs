@@ -291,6 +291,12 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const actionsTag = await tagBox(page, "actions");
   await cover("actions");
   check("...the lights ringed, and labelled 2 actions a turn above them", !!counter && !!ring && ring.w > counter.w && ring.x < counter.x && !!actionsTag && /2 actions a turn/i.test(actionsTag.text) && actionsTag.y + actionsTag.h <= counter.y, JSON.stringify({ counter, ring, actionsTag }));
+  // (User: "Action counter in fresh game / tutorial should be yellow to
+  // match the yellow color chosen for user piece label tags & same for
+  // opponent--colors should match.")
+  const ember = () => page.evaluate(() => { const c = document.querySelector('[data-testid="points-counter"]'); return c ? c.style.getPropertyValue("--ec-ember").trim().toLowerCase() : null; });
+  const yours = await ember();
+  check(`...your lights in your tags' yellow (${yours})`, yours === "#ffd23f", yours);
 
   // The board turns: arrows round it, a fingertip along them.
   await next(page);
@@ -374,9 +380,17 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await page.locator('[data-testid="stop-here-float"]').click();
   await page.waitForTimeout(600);
   if (await page.locator('[data-testid="end-turn-ask-end"]').count()) await page.locator('[data-testid="end-turn-ask-end"]').click();
+  // (Walnut's lights in its tags' red, while they're its: read as soon as
+  // they say Walnut.)
+  let theirs = null;
+  for (let i = 0; i < 60 && !theirs; i++) {
+    theirs = await page.evaluate(() => { const c = document.querySelector('[data-testid="points-counter"]'); return c && /walnut/i.test(c.textContent) ? c.style.getPropertyValue("--ec-ember").trim().toLowerCase() : null; });
+    if (!theirs) await page.waitForTimeout(100);
+  }
   for (let i = 0; i < 30 && (await tourOf(page)).step === "pieces"; i++) await page.waitForTimeout(250);
   t = await cardText(page);
   check("End turn: Walnut's turn, its own card", (await tourOf(page)).step === "foe" && /(Your opponent's turn\.|Your opponent moved its|Your turn again\.)/.test(t), t);
+  check(`...Walnut's lights in its tags' red (${theirs})`, theirs === "#ff5470", theirs);
 
   // The computer's move watched (user: "it happens too abruptly. The camera
   // should slowly pan in to watch the opponent's piece move so the user can

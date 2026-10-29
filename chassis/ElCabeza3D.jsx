@@ -392,6 +392,23 @@ function menuLabWanted() {
     return false;
   }
 }
+/* ?arrowlab: the slide-arrow lab, five ways to draw the arrow a drag
+   lights on a piece it would slide, in place of the game's own
+   (chassis/arrow-lab.js, loaded only then; user: "Slide drag indicator
+   arrows should be more visible, like always on top... But let's test 5
+   implementations to see the best way before making any changes"). On for
+   the tab once asked for; ?arrowlab=0 off. */
+const ARROW_LAB_KEY = "el-cabeza:arrow-lab";
+function arrowLabWanted() {
+  try {
+    const v = new URLSearchParams(window.location.search).get("arrowlab");
+    if (v === "0" || v === "off") window.sessionStorage.removeItem(ARROW_LAB_KEY);
+    else if (v !== null) window.sessionStorage.setItem(ARROW_LAB_KEY, "1");
+    return window.sessionStorage.getItem(ARROW_LAB_KEY) === "1";
+  } catch (e) {
+    return false;
+  }
+}
 /* A move's sounds, the world's (its audio's playRollStart as the piece
    sets off, playLanding as it comes down), every move, the Cabeza's too.
    Where the pieces are wood (theme.woodPieces: the den, the store) a
@@ -3247,6 +3264,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      goes as you move: a step out of reach clears it, a step into reach
      brings it up. [{ attacker, cabeza }] or null. */
   const youSide = aiPlayer ? (aiPlayer === "dark" ? "light" : "dark") : online && online.mySide ? online.mySide : null;
+  /* A side's light for its Actions (theme.pointsGlow, themes/points-glow.js);
+     where the world names one for you and one for the other player
+     (theme.pointsGlowYou, the store's: the first game's tags, yours yellow,
+     the computer's red), by whose it is. null: the side's accent. */
+  const pointsGlowOf = (side) => (theme.pointsGlowYou && youSide ? theme.pointsGlowYou[side === youSide ? "you" : "them"] : null) || (theme.pointsGlow && theme.pointsGlow[side]) || null;
   const checkThreats = React.useMemo(() => {
     // (Not while a replay plays: nobody's playing for real.)
     if (!checkAlert || !youSide || awaitingBegin || !isPlaying || winner || currentPlayer !== youSide || replaying) return null;
@@ -4034,6 +4056,22 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     colors: { paper: COLORS.cream, ink: COLORS.charcoal, line: COLORS.slateSoft },
     sounds: { open: () => audioRef.current.playDockOpen(), close: () => audioRef.current.playDockClose() },
   });
+  // The slide-arrow lab (?arrowlab, arrow-lab.js), once loaded.
+  const arrowLabRef = useRef(null);
+  useEffect(() => {
+    if (!arrowLabWanted()) return undefined;
+    let gone = false;
+    import("./arrow-lab.js").then(({ installArrowLab }) => {
+      if (gone) return;
+      arrowLabRef.current = installArrowLab({ three: () => three.current });
+    }).catch(() => { /* (no lab: the game's own arrow) */ });
+    return () => {
+      gone = true;
+      if (arrowLabRef.current) arrowLabRef.current.dispose();
+      arrowLabRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (!menuLabWanted()) return undefined;
     let gone = false;
@@ -8996,6 +9034,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         }
       }
       const piece = dirKey && !blocked ? pieces.find((p) => p.id === selectedId) : null;
+      // (?arrowlab: one of the lab's five in its place, to compare.)
+      const lab = arrowLabRef.current;
+      if (lab) {
+        g.visible = false;
+        if (!piece) { lab.hide(); return; }
+        const d = slideDrag && slideDrag.dirs.find((x) => x.key === dirKey);
+        lab.show({ piece, dir: STEP_DIRS[baseDirOfSlideKey(dirKey)], candidate: (d && d.candidate) || null });
+        return;
+      }
       if (!piece) { g.visible = false; return; }
       const [dr, dc] = STEP_DIRS[baseDirOfSlideKey(dirKey)];
       const pc = pieceCenter(piece);
@@ -9254,7 +9301,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                   const vx = a.x - originScreen.x;
                   const vy = a.y - originScreen.y;
                   const len = Math.hypot(vx, vy) || 1;
-                  return { key, dirX: vx / len, dirY: vy / len, blocked: m.blocked || null };
+                  return { key, dirX: vx / len, dirY: vy / len, blocked: m.blocked || null, candidate: m.candidate || null };
                 });
                 slideDrag = { dirs, chosen: null };
                 slideDownX = ev.clientX;
@@ -11461,7 +11508,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      Design's red). A theme may name its own (theme.dockCallGlow:
      Parrish's ash, candlelight on its painting). */
   const dockShownSide = dockTurnSide || (aiPlayer !== null ? (aiPlayer === "dark" ? "light" : "dark") : dockSessionColor);
-  const glowFor = (side) => (theme.pointsGlow && theme.pointsGlow[side]) || (side === "dark" ? COLORS.accentDark : COLORS.accentLight) || (side === "dark" ? COLORS.bodyDark : COLORS.bodyLight);
+  const glowFor = (side) => pointsGlowOf(side) || (side === "dark" ? COLORS.accentDark : COLORS.accentLight) || (side === "dark" ? COLORS.bodyDark : COLORS.bodyLight);
   let dockGlow = theme.dockCallGlow || glowFor(dockShownSide);
   if (!theme.dockCallGlow) {
     const own = glowShows(dockGlow, COLORS.pageBg), other = glowFor(dockShownSide === "dark" ? "light" : "dark"), alt = glowShows(other, COLORS.pageBg);
@@ -11937,14 +11984,14 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
         const left = final ? final.left : Math.max(0, budget - stepsUsed);
         /* Ember, breathing (user, from a page of mock-ups: a point you
            have glows, a spent one goes dark): each point a small lamp in
-           this world's light for the side (theme.pointsGlow,
-           themes/points-glow.js; else the side's accent), its glow slowly
+           this world's light for the side (pointsGlowOf: theme.pointsGlow,
+           themes/points-glow.js, or the store's yours and theirs; else the
+           side's accent), its glow slowly
            swelling and easing, a beat apart; a spent one is a cold dark
            bead with a faint rim. A thin darker rim of its own colour keeps a
            lit one readable on a pale plate (Orinoco's paper, Minimal Mono).
            Still for a reader who wants no motion. */
-        const pg = theme.pointsGlow || null;
-        const glow = (pg && pg[player]) || (player === "dark" ? COLORS.accentDark : COLORS.accentLight) || (player === "dark" ? COLORS.bodyDark : COLORS.bodyLight);
+        const glow = pointsGlowOf(player) || (player === "dark" ? COLORS.accentDark : COLORS.accentLight) || (player === "dark" ? COLORS.bodyDark : COLORS.bodyLight);
         return (
           <div
             data-testid="points-counter"
@@ -14432,7 +14479,7 @@ html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-reca
             onUndoMove: handleUndoTurn,
             onStopHere: handleEndTurnClick,
             onUndoTurn: handleUndoLastTurn,
-            points: showPoints && isPlaying ? { left: Math.max(0, turnBudget() - stepsUsed), budget: turnBudget(), glow: (theme.pointsGlow && theme.pointsGlow[currentPlayer]) || null } : null,
+            points: showPoints && isPlaying ? { left: Math.max(0, turnBudget() - stepsUsed), budget: turnBudget(), glow: pointsGlowOf(currentPlayer) } : null,
             pointsPulse,
             viewMode,
             onTopDown: () => topDownView(),

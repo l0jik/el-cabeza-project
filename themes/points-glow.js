@@ -13,8 +13,13 @@
 export const POINTS_GLOW = {
   standard: { dark: "#ff8a2a", light: "#ffd98a" }, // the den: firelight, lamplight
   den: { dark: "#ff8a2a", light: "#ffd98a" },
-  tienda: { dark: "#f2b632", light: "#6dffb0" }, // Big Glutts: harvest gold, the register's green digits
-  store: { dark: "#f2b632", light: "#6dffb0" },
+  // Big Glutts: the first game's tags (FirstGameTour.jsx TOUR_TONES), Ash's
+  // yellow and Walnut's red (user: "Action counter in fresh game / tutorial
+  // should be yellow to match the yellow color chosen for user piece label
+  // tags & same for opponent--colors should match"); they were harvest gold
+  // and the register's green digits.
+  tienda: { dark: "#ff5470", light: "#ffd23f" },
+  store: { dark: "#ff5470", light: "#ffd23f" },
   futuris: { dark: "#4de8ff", light: "#ffb454" }, // its own glows
   lluvia: { dark: "#3fe6ff", light: "#ff4fa3" }, // signs in the rain
   // (The dark side in its pieces' own warm gunmetal, lit (user: "Action point indicator
@@ -41,6 +46,20 @@ export const POINTS_GLOW = {
   minimalMono: { dark: "#bfbfbf", light: "#ffffff" },
   ultimateFusion: { dark: "#c1121f", light: "#f2b705" },
 };
+
+/* Where a world's lights are yours and the other player's, not the
+   sides' (the store's: the first game's tags say YOU in yellow and the
+   computer in red, whichever side you play): { you, them }, by whose the
+   side is when you play the computer or online (the chassis reads
+   theme.pointsGlowYou; two people at one screen keep the sides' pair). */
+export const POINTS_GLOW_YOU = {
+  tienda: { you: "#ffd23f", them: "#ff5470" },
+  store: { you: "#ffd23f", them: "#ff5470" },
+};
+
+export function pointsGlowYouFor(id) {
+  return POINTS_GLOW_YOU[String(id || "")] || null;
+}
 
 export function pointsGlowFor(id) {
   const key = String(id || "");

@@ -269,3 +269,41 @@ immediately.
   view too, the fire up top in the middle by __DEN_FIRE_AT__; and a phone,
   the trip pinned by __DEN_TRIP_PIN__, turned 1.9 off: the same, then the
   card).
+
+- **The slide arrow's lab, and a press that lands on a hidden marker**
+  (2026-10-29; user: "Slide drag indicator arrows should be more visible,
+  like always on top... But let's test 5 implementations to see the best
+  way before making any changes"). Today's arrow (slideArrowGroup,
+  updateSlideArrow) sits at the piece's foot, inside it, at y 0.16: only
+  its head shows past the piece's side, so behind a tall piece, or
+  pointing away from the camera, it can't be seen. Nothing in the game
+  changed: with ?arrowlab (sessionStorage `el-cabeza:arrow-lab` keeps it
+  on for the tab; ?arrowlab=N picks one, the last looked at kept in
+  localStorage `el-cabeza:arrow-lab-version`; ?arrowlab=0 or the bar's ✕
+  off) the chassis lazy-loads chassis/arrow-lab.js and updateSlideArrow
+  hands it { piece, dir, candidate } in place of lighting its own arrow:
+  1 On top (a flat arrow on the piece's top, outlined, depthTest off:
+  flat because a round one seen from low down pointing away is a pin, its
+  cone a disc; the store's camera showed it), 2 See-through (today's
+  round arrow, bigger, at half the piece's height, with a copy drawn
+  only where it's behind something: depthFunc GreaterDepth), 3 Sign above
+  (a flat sign floating over the piece, bobbing via frameHooks, still
+  under reduced motion), 4 Path (an arrow on the board onto the squares
+  it moves into, each outlined, over everything), 5 Screen (an SVG over
+  the canvas, re-projected each frame, at least 96 px, dots running).
+  Waiting on the user's pick; the review page compares them mid-drag in
+  the den, the store, Futuris and a phone. Test: tests/e2e-arrow-lab.mjs
+  (no lab: today's arrow; each version shows on the drag for the right
+  piece and way, drawn as it says, today's unlit, gone when dragged back;
+  a switch while one shows; a real slide with the lab on; kept on reload;
+  ✕ leaves). The lab's object is named "arrow-lab" in boardGroup and
+  `window.__ARROW_LAB__.shown.drawn` says "over" / "through" / "page".
+  Found on the way, not changed (waiting on the user): pick() lets a move
+  marker (ghost) win over a piece for every click and press (kept so a
+  click on an enemy piece crushes it), so in a tilted view a ray through
+  your own tall picked piece reaches the marker on the board behind it:
+  the press never arms the slide drag (the drag turns the camera) and a
+  second click plays that hidden move (the store, a Chato on 4,4 went to
+  6,4). Proposed: when the nearest piece hit is the picked piece itself,
+  nearer than the marker, the piece wins. Screenshots press low on the
+  piece's near face to get past it.

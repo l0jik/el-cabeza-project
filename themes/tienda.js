@@ -752,7 +752,9 @@ export function firstGameTour(x) {
 
 /* What the two sides are called here (user; themes/side-names.js). */
 import { sideNamesFor } from "./side-names.js";
-import { pointsGlowFor } from "./points-glow.js";
+import { pointsGlowFor, pointsGlowYouFor } from "./points-glow.js";
 export const sideNames = sideNamesFor("tienda");
-// The points counter's embers (points-glow.js).
+// The points counter's embers (points-glow.js): yours yellow and the
+// computer's red, as the first game's tags are.
 export const pointsGlow = pointsGlowFor("tienda");
+export const pointsGlowYou = pointsGlowYouFor("tienda");

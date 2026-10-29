@@ -627,3 +627,19 @@ box art and an ad standee (assets/tienda/*.jpg).
   in the box's middle in any browser (9 px all round at 2.75 px a CSS px).
   e2e-gate: the box holds the svg (no text), 22 px, blue, its middle the
   box's within 1 px.
+
+- **The Actions lights in the first game's tag colours** (2026-10-29;
+  user: "Action counter in fresh game / tutorial should be yellow to match
+  the yellow color chosen for user piece label tags & same for
+  opponent--colors should match"). The store's lights were harvest gold
+  (dark) and the register's green (light); now yours are the YOU tags'
+  yellow #ffd23f and the computer's its tags' red #ff5470
+  (FirstGameTour.jsx TOUR_TONES mine and foe), whichever side you play:
+  themes/points-glow.js POINTS_GLOW_YOU { you, them } for tienda/store,
+  exported as theme.pointsGlowYou; the chassis's pointsGlowOf(side) reads
+  it when there's a youSide (the computer or online), on the desktop
+  counter, the phone bar and the ember glow. Two people at one screen keep
+  the sides' pair, now Ash yellow and Walnut red (the first game's sides).
+  Test: e2e-first-game-tour (yours #ffd23f at the actions card; Walnut's
+  #ff5470 as soon as the counter names it after End turn).
+
