@@ -16,7 +16,7 @@
 
 import * as THREE from "three";
 import { SLAB_X, SLAB_Z } from "../engine/constants.js";
-import { createPainter } from "./parrish-paint.js";
+import { createPainter, motionMode } from "./parrish-paint.js";
 import { look, lookName } from "./parrish-looks.js";
 import { createGovernor } from "../chassis/device-fit.js";
 
@@ -46,16 +46,11 @@ export function parrishEnv() {
 
 /* ------------------------------------------------------------ the dome */
 
-const DOME_VERT = `
-varying vec3 vDir;
-void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
-const DOME_FRAG = `
-precision highp float;
+const DOME_COLOR = `
 uniform float uTime;
 uniform vec3 uF0, uF1, uF2, uF3, uF4, uF5;
 uniform vec3 uBlot, uBlot2;
 uniform float uBias;
-varying vec3 vDir;
 float h13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
 float vn3(vec3 p) {
   vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -71,8 +66,7 @@ vec3 ramp(float x) {
   if (x < 4.0) return mix(uF3, uF4, x - 3.0);
   return mix(uF4, uF5, x - 4.0);
 }
-void main() {
-  vec3 d = normalize(vDir);
+vec3 domeColor(vec3 d) {
   // The fields lean: the noise drawn out along one diagonal.
   vec3 q = vec3(d.x * 1.2 + d.y * 0.9, d.y * 3.0 - d.x * 0.6, d.z * 1.2) * 1.4;
   float t = uTime * 0.012;
@@ -83,8 +77,38 @@ void main() {
   vec3 col = ramp(f);
   col = mix(col, uBlot, smoothstep(0.62, 0.72, fbm3(q * 2.3 + w + 11.0)) * 0.65);
   col = mix(col, uBlot2, smoothstep(0.64, 0.74, fbm3(q * 1.9 - w + 23.0)) * 0.6);
-  gl_FragColor = vec4(col, 0.0);
+  return col;
 }`;
+/* The dome's colour is worked out on its own, before each painting, at
+   half the size the scene's drawn at (SKY_SCALE): it's the softest thing
+   in the picture, wide fields of colour, and its noise is the costliest
+   thing in the scene (six five-layered noises a pixel). Each pixel's ray
+   is followed out to the dome, a sphere of 900 about the board, in the
+   dome's own space (it turns with the board); the dome then lays it in
+   behind the scene. */
+const SKY_SCALE = 0.5;
+const SKY_VERT = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+const SKY_FRAG = `
+precision highp float;
+${DOME_COLOR}
+uniform mat4 uUnproject;   // the camera's matrixWorld * projectionMatrixInverse
+uniform mat4 uDomeInv;     // the dome's matrixWorld, inverted
+uniform vec3 uCam;
+varying vec2 vUv;
+void main() {
+  vec4 w = uUnproject * vec4(vUv * 2.0 - 1.0, 1.0, 1.0);
+  vec3 o = (uDomeInv * vec4(uCam, 1.0)).xyz;
+  vec3 dir = normalize((uDomeInv * vec4(w.xyz / w.w, 1.0)).xyz - o);
+  float b = dot(o, dir);
+  float t = -b + sqrt(max(b * b - dot(o, o) + 810000.0, 0.0));
+  gl_FragColor = vec4(domeColor(normalize(o + dir * t)), 1.0);
+}`;
+const DOME_VERT = `void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+const DOME_FRAG = `
+precision highp float;
+uniform sampler2D tSky;
+uniform vec2 uInvSize;     // 1 / the size the scene's drawn at
+void main() { gl_FragColor = vec4(texture2D(tSky, gl_FragCoord.xy * uInvSize).rgb, 0.0); }`;
 
 /* ------------------------------------------------------------ the effects */
 
@@ -100,20 +124,52 @@ export function createParrishEffects(woodSet, { quality }) {
     const lightBase = {};
 
     const v3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
+    const skyRT = new THREE.WebGLRenderTarget(4, 4, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, depthBuffer: false, stencilBuffer: false });
+    const skyMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        ...Object.fromEntries(L.field.map((c, i) => [`uF${i}`, { value: v3(c) }])),
+        uBlot: { value: v3(L.blot) }, uBlot2: { value: v3(L.blot2) }, uBias: { value: L.bias || 0 },
+        uUnproject: { value: new THREE.Matrix4() }, uDomeInv: { value: new THREE.Matrix4() }, uCam: { value: new THREE.Vector3() },
+      },
+      vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, depthWrite: false, depthTest: false,
+    });
+    const skyQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), skyMat);
+    skyQuad.frustumCulled = false;
+    const skyScene = new THREE.Scene();
+    skyScene.add(skyQuad);
+    const skyCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const dome = new THREE.Mesh(
       new THREE.SphereGeometry(900, 64, 32),
       new THREE.ShaderMaterial({
-        uniforms: {
-          uTime: { value: 0 },
-          ...Object.fromEntries(L.field.map((c, i) => [`uF${i}`, { value: v3(c) }])),
-          uBlot: { value: v3(L.blot) }, uBlot2: { value: v3(L.blot2) }, uBias: { value: L.bias || 0 },
-        },
+        uniforms: { tSky: { value: skyRT.texture }, uInvSize: { value: new THREE.Vector2(1, 1) } },
         vertexShader: DOME_VERT, fragmentShader: DOME_FRAG, side: THREE.BackSide, depthWrite: false, depthTest: false,
       }),
     );
     dome.renderOrder = -10;
     dome.frustumCulled = false;
     dome.name = "parrish-dome";
+    // The sky for this painting, as this camera sees it (the painter's
+    // beforeScene: w, h the size the scene's drawn at).
+    function drawSky(r, camera, w, h) {
+      // (Tests: window.__PARRISH_SKY__ { scale, time } to compare it drawn
+      // at full size, at one moment.)
+      const tune = typeof window !== "undefined" && window.__EC_TEST_HOOKS__ ? window.__PARRISH_SKY__ : null;
+      const scale = (tune && tune.scale) || SKY_SCALE;
+      const sw = Math.max(2, Math.round(w * scale)), sh = Math.max(2, Math.round(h * scale));
+      if (skyRT.width !== sw || skyRT.height !== sh) skyRT.setSize(sw, sh);
+      camera.updateMatrixWorld();
+      const u = skyMat.uniforms;
+      if (tune && tune.time != null) u.uTime.value = tune.time;
+      u.uUnproject.value.multiplyMatrices(camera.matrixWorld, camera.projectionMatrixInverse);
+      u.uCam.value.setFromMatrixPosition(camera.matrixWorld);
+      u.uDomeInv.value.copy(dome.matrixWorld).invert();
+      dome.material.uniforms.uInvSize.value.set(1 / w, 1 / h);
+      const prev = r.getRenderTarget();
+      r.setRenderTarget(skyRT);
+      r.render(skyScene, skyCam);
+      r.setRenderTarget(prev);
+    }
 
     function build() {
       const t = three.current;
@@ -127,12 +183,17 @@ export function createParrishEffects(woodSet, { quality }) {
     /* The pixel ratio. A painting needs no more than about one pixel to
        the screen's point (the strokes are wider than any pixel), and every
        pixel costs several passes: capped by the device's tier, lowered a
-       step when the frames run slow, raised again when there's room: the
+       step when the paintings run slow, raised again when there's room: the
        shared governor (chassis/device-fit.js, as the den's), with this
-       painting's own range and smaller steps, handed to the chassis to
-       run each frame (three.current.governor). */
+       painting's own range and smaller steps, judging each painting (not
+       the frames held between them, which cost nothing), handed to the
+       chassis to run each frame (three.current.governor). Down to 0.6 in
+       every tier (user: "Both Parrish boards graphically run very slowly
+       on low resource / power laptops"): a laptop's screen at 1 had no
+       room below it, and the paint holds up softer, its strokes still
+       many pixels wide. */
     const q = quality();
-    const PR = q.tier === "low" ? { cap: 1, floor: 0.7 } : q.tier === "mid" ? { cap: 1.25, floor: 0.85 } : { cap: 1.5, floor: 1 };
+    const PR = q.tier === "low" ? { cap: 1, floor: 0.6 } : q.tier === "mid" ? { cap: 1.25, floor: 0.6 } : { cap: 1.5, floor: 0.6 };
     let prBefore = null, governor = null;
 
     function attach() {
@@ -150,6 +211,9 @@ export function createParrishEffects(woodSet, { quality }) {
           governor = createGovernor(t.renderer, () => t.getMountSize && t.getMountSize(), q, {
             floor: PR.floor, cap: PR.cap, stepDown: 0.15, stepUp: 0.1, key: "parrish",
             light: () => t.lights && t.lights.key,
+            // (Held to 30 a second spares nothing when the frames between
+            // paintings draw nothing; boiling, every frame's a painting.)
+            paintings: true, pace: motionMode() === "boil",
             onChange: ({ pixelRatio }) => { if (typeof window !== "undefined") window.__PARRISH_PIXEL_RATIO__ = pixelRatio; },
           });
           if (typeof window !== "undefined") window.__PARRISH_PIXEL_RATIO__ = t.renderer.getPixelRatio();
@@ -195,7 +259,7 @@ export function createParrishEffects(woodSet, { quality }) {
       tick(now) {
         if (!attach()) return;
         const t = three.current;
-        dome.material.uniforms.uTime.value = now / 1000;
+        skyMat.uniforms.uTime.value = now / 1000;
         placeLights();
         woodSet.followGrain(t);
       },
@@ -203,7 +267,10 @@ export function createParrishEffects(woodSet, { quality }) {
       render(r, scn, camera) {
         if (!painter || !dome.parent) return false;
         // (?paint=raw: the footage, unpainted, for comparing.)
-        return painter.paint(r, scn, camera, null, RAW);
+        const drawn = painter.paint(r, scn, camera, (rr, w, h) => drawSky(rr, camera, w, h), RAW);
+        // (A painting drawn, not one held: what the governor judges.)
+        if (drawn === true && governor) governor.painted();
+        return drawn;
       },
       dispose() {
         const t = three.current;
@@ -211,6 +278,7 @@ export function createParrishEffects(woodSet, { quality }) {
         if (brass && brass.group.parent) brass.group.parent.remove(brass.group);
         if (brass) brass.dispose();
         dome.geometry.dispose(); dome.material.dispose();
+        skyRT.dispose(); skyMat.dispose(); skyQuad.geometry.dispose();
         if (painter) painter.dispose();
         if (t && t.camera && farBefore != null) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
         if (t && t.lights) ["key", "fill", "back"].forEach((k) => {

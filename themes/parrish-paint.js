@@ -341,7 +341,6 @@ vec3 accent(float k) {
 void main() {
   vec2 rs = hash22(aCell + vec2(uLayer * 17.31, 3.7));
   vec2 rs2 = hash22(aCell.yx * 1.37 + vec2(uLayer * 5.13, 9.1));
-  vec2 rs3 = hash22(aCell * 0.71 + vec2(uLayer * 2.9, 1.3));
   vec2 rb = hash22(aCell + vec2(uSeed * 0.917, uLayer * 7.7)) - 0.5;
   vec2 c = (aCell + 0.5 + (rs - 0.5) * 0.9 + rb * uBoil) * uSpacing;
   vec2 uv = c / uRes;
@@ -350,6 +349,15 @@ void main() {
   vPiece = smoothstep(0.85, 0.95, texture2D(tScene, uv).a);
   float laid = step(uDetail.x, subj) * step(subj, uDetail.y) * step(uKeep.x, strength) * step(rs2.x, uKeep.z);
   if (uCut > 0.5) laid *= step(0.5, vPiece);
+  // (Not laid here: off the screen, nothing more worked out. Most of a
+  // layer's strokes aren't: the world's aren't laid on the subject, nor
+  // its on the world.)
+  if (laid < 0.5) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    vLocal = vec2(0.0); vEnds = vec2(-1.0, 1.0); vColor = vec3(0.0); vRnd = 0.0; vDir = vec2(1.0, 0.0); vWid = 1.0; vGold = 0.0;
+    return;
+  }
+  vec2 rs3 = hash22(aCell * 0.71 + vec2(uLayer * 2.9, 1.3));
   vec2 t = dirAt(f);
   vec2 diag = vec2(0.8, 0.6);
   if (dot(t, diag) < 0.0) t = -t;
@@ -368,7 +376,7 @@ void main() {
   float side = 1.0 - 0.45 * max(off(c + n * wid * 0.5, c0, uTol), off(c - n * wid * 0.5, c0, uTol));
   float ax = position.x < 0.0 ? position.x * back : position.x * fwd;
   vec2 p = c + t * (ax * len * 0.5) + n * (position.y * wid * 0.5 * side + bend * ax * ax * len * 0.18);
-  gl_Position = laid > 0.5 ? vec4(p / uRes * 2.0 - 1.0, 0.0, 1.0) : vec4(2.0, 2.0, 2.0, 1.0);
+  gl_Position = vec4(p / uRes * 2.0 - 1.0, 0.0, 1.0);
   vLocal = vec2(ax, position.y);
   vEnds = vec2(-back, fwd);
   vec3 col = c0 * (1.0 + (rs3.y - 0.5) * uJitter + rb.x * uJitter * 0.3 * uBoil);
@@ -405,6 +413,12 @@ varying float vWid;
 varying float vGold;
 ${HASH}
 void main() {
+  // How much subject is round here (the flow's): the world's strokes stop
+  // short of it, and where they're clipped away entirely there's nothing
+  // to paint. (Only near it is there a piece's edge to keep to, below.)
+  float near = texture2D(tFlow, gl_FragCoord.xy / uRes).z;
+  float clip = uClip > 0.5 ? 1.0 - smoothstep(0.45, 0.85, near) : 1.0;
+  if (clip <= 0.0) discard;
   // u: 0 where the brush or knife came down, 1 where it lifted; y across.
   float u = (vLocal.x - vEnds.x) / max(vEnds.y - vEnds.x, 1e-3);
   float y = vLocal.y;
@@ -445,13 +459,16 @@ void main() {
   }
   // The pieces sit on top: a stroke stays on its own side of a piece's
   // edge, and that edge is cut anew, a little differently, with each
-  // painting (the rotoscoped line's boil).
-  vec2 ep = gl_FragCoord.xy + (vec2(vnoise(gl_FragCoord.xy / 9.0 + uSeed * 7.31), vnoise(gl_FragCoord.xy / 9.0 + uSeed * 3.17 + 41.0)) - 0.5) * 3.0 * uScale;
-  a *= 1.0 - abs(vPiece - smoothstep(0.85, 0.95, texture2D(tScene, ep / uRes).a));
+  // painting (the rotoscoped line's boil). (With no subject anywhere
+  // round, the flow's reach, there's no piece within the cut's wander: the
+  // same as it would come out, without the looking.)
+  if (near > 0.0) {
+    vec2 ep = gl_FragCoord.xy + (vec2(vnoise(gl_FragCoord.xy / 9.0 + uSeed * 7.31), vnoise(gl_FragCoord.xy / 9.0 + uSeed * 3.17 + 41.0)) - 0.5) * 3.0 * uScale;
+    a *= 1.0 - abs(vPiece - smoothstep(0.85, 0.95, texture2D(tScene, ep / uRes).a));
+  } else a *= 1.0 - vPiece;
   // (Cut out, there's no world round the piece to paint.)
   a *= mix(1.0, vPiece, uCut);
-  // The world's strokes stop short of the subject.
-  if (uClip > 0.5) a *= 1.0 - smoothstep(0.45, 0.85, texture2D(tFlow, gl_FragCoord.xy / uRes).z);
+  a *= clip;
   a *= uAlpha;
   gl_FragColor = vec4(col * a, a);
 }`;
@@ -548,15 +565,17 @@ uniform float uGlow;
 void main() { gl_FragColor = vec4(texture2D(tSrc, vUv).rgb * uGlow, 1.0); }`;
 
 // The layers (px, on a screen 900 px across its short side): the world's
-// three (knife, knife, brush), then the subject's two.
+// three (knife, knife, brush), then the subject's two. segs: the pieces
+// a stroke's bent along (its curve, bend: a stroke 40 px long bends under
+// a pixel, so the small ones are drawn straight, a quarter of the work).
 const LAYERS = [
-  { layer: 1, spacing: 52, size: [240, 72], detail: [-1, 0.5], keep: [-1, 0, 1], tol: 0.6, jitter: 0.2, diag: 0.6, accent: 0.18, boil: 0.08, knife: 1, clip: 1, alpha: 0.82, bend: 0.35, angle: 0.9 },
-  { layer: 2, spacing: 30, size: [110, 34], detail: [-1, 0.5], keep: [-1, 0, 0.85], tol: 0.45, jitter: 0.16, diag: 0.45, accent: 0.12, boil: 0.12, knife: 1, clip: 1, alpha: 0.82, bend: 0.35, angle: 0.9 },
-  { layer: 3, spacing: 26, size: [64, 16], detail: [-1, 0.55], keep: [0.35, 0, 0.45], tol: 0.3, jitter: 0.1, diag: 0.3, accent: 0.05, boil: 0.2, knife: 0, clip: 1, alpha: 0.85, bend: 0.25, angle: 0.5 },
+  { layer: 1, spacing: 52, size: [240, 72], detail: [-1, 0.5], keep: [-1, 0, 1], tol: 0.6, jitter: 0.2, diag: 0.6, accent: 0.18, boil: 0.08, knife: 1, clip: 1, alpha: 0.82, bend: 0.35, angle: 0.9, segs: 8 },
+  { layer: 2, spacing: 30, size: [110, 34], detail: [-1, 0.5], keep: [-1, 0, 0.85], tol: 0.45, jitter: 0.16, diag: 0.45, accent: 0.12, boil: 0.12, knife: 1, clip: 1, alpha: 0.82, bend: 0.35, angle: 0.9, segs: 8 },
+  { layer: 3, spacing: 26, size: [64, 16], detail: [-1, 0.55], keep: [0.35, 0, 0.45], tol: 0.3, jitter: 0.1, diag: 0.3, accent: 0.05, boil: 0.2, knife: 0, clip: 1, alpha: 0.85, bend: 0.25, angle: 0.5, segs: 4 },
   // The board and the pieces, painted as the rest is, in brush strokes
   // that keep to their edges (so the game still reads).
-  { layer: 4, spacing: 10, size: [36, 12], detail: [0.4, 2], keep: [-1, 0, 1], tol: 0.22, jitter: 0.13, diag: 0.12, accent: 0.06, boil: 0.3, knife: 0, clip: 0, alpha: 0.92, bend: 0.25, angle: 0.45 },
-  { layer: 5, spacing: 6, size: [17, 6], detail: [0.4, 2], keep: [0.12, 0, 0.9], tol: 0.15, jitter: 0.09, diag: 0, accent: 0.03, boil: 0.35, knife: 0, clip: 0, alpha: 0.9, bend: 0.15, angle: 0.35 },
+  { layer: 4, spacing: 10, size: [36, 12], detail: [0.4, 2], keep: [-1, 0, 1], tol: 0.22, jitter: 0.13, diag: 0.12, accent: 0.06, boil: 0.3, knife: 0, clip: 0, alpha: 0.92, bend: 0.25, angle: 0.45, segs: 2 },
+  { layer: 5, spacing: 6, size: [17, 6], detail: [0.4, 2], keep: [0.12, 0, 0.9], tol: 0.15, jitter: 0.09, diag: 0, accent: 0.03, boil: 0.35, knife: 0, clip: 0, alpha: 0.9, bend: 0.15, angle: 0.35, segs: 1 },
 ];
 
 // The board's brush, in CSS px per unit of stroke size (fit() below): a
@@ -565,10 +584,10 @@ const LAYERS = [
 let boardBrush = 0;
 
 /* The painter for one renderer. paint(r, scene, camera, beforeScene)
-   draws a frame through the passes (beforeScene(r) runs first, if
-   given); in stop mode a frame is only painted when its eighth of a
-   second is due, and the last one held between (paint() then returns
-   "hold").
+   draws a frame through the passes (beforeScene(r, w, h) runs first, if
+   given, with the size the scene's drawn at); in stop mode a frame is
+   only painted when its eighth of a second is due, and the last one held
+   between (paint() then returns "hold").
 
    cutout: the dock's piece (user: "should look like the pieces on the
    board"), painted on a canvas of its own over the page: only the
@@ -664,7 +683,7 @@ export function createPainter(renderer, { quality, mode = motionMode(), look, cu
       L.mat.uniforms.uSpacing.value = sp;
       if (cols === L.cols && rows === L.rows) return;
       L.cols = cols; L.rows = rows;
-      const quadGeo = new THREE.PlaneGeometry(2, 2, 8, 1);
+      const quadGeo = new THREE.PlaneGeometry(2, 2, L.def.segs, 1);
       const geo = new THREE.InstancedBufferGeometry();
       geo.setIndex(quadGeo.index);
       geo.setAttribute("position", quadGeo.attributes.position);
@@ -736,7 +755,7 @@ export function createPainter(renderer, { quality, mode = motionMode(), look, cu
       const prevTarget = r.getRenderTarget();
       const prevAuto = r.autoClear;
       const prevAlpha = r.getClearAlpha();
-      if (beforeScene) beforeScene(r);
+      if (beforeScene) beforeScene(r, sceneRT.width, sceneRT.height);
       // The footage: its alpha (the subject) cleared to 0.
       r.setRenderTarget(sceneRT);
       r.autoClear = true;

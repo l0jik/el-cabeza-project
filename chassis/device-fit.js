@@ -45,6 +45,9 @@ export { quality };
 
 const STORE = "el-cabeza:fit";
 const SLOW = 1000 / 42, FAST = 1000 / 56, CRAWL = 1000 / 24;
+// (A painting's longest wait: over two refreshes, a step down; a far bigger
+// step past five; under about one and a third, room to step back up.)
+const P_SLOW = 1000 / 28, P_FAST = 1000 / 45, P_CRAWL = 1000 / 12;
 const readAll = () => { try { return JSON.parse(window.localStorage.getItem(STORE) || "{}") || {}; } catch (e) { return {}; } };
 
 /* renderer, getSize() -> { w, h }; q: the tier's settings; opts:
@@ -52,6 +55,8 @@ const readAll = () => { try { return JSON.parse(window.localStorage.getItem(STOR
      stepDown, stepUp   its steps (0.2 down, 0.15 up)
      key          the world, for what's remembered
      light()      the light whose shadow map may be made smaller
+     paintings    a painted world (Parrish's): judged by its paintings (below)
+     pace         false: never held to 30 a second (no help to it)
      onChange({ pixelRatio, shadowMap, paced })   after any change */
 export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
   const floor = opts.floor ?? q.dprFloor, cap = opts.cap ?? q.dprCap;
@@ -64,6 +69,19 @@ export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
   let pr = renderer.getPixelRatio(), shadow = fullShadow, paced = false;
   const frames = [], busy = [], raw = [];
   let lastFrame = 0, lastRaw = 0, nextDue = 0, lastJudged = 0, lastEase = 0, lastRelief = -Infinity, settleUntil = 0, saveTimer = null, wasBusy = false, firstAt = 0, crawling = 0;
+  /* A painted world (opts.paintings: Parrish's) draws a new painting eight
+     times a second and holds it between, the held frames drawing nothing,
+     every one on time: judged by its frames, the paintings' cost was never
+     seen however slow they came, and nothing was stepped down on a weak
+     laptop (user: "Both Parrish boards graphically run very slowly on low
+     resource / power laptops"). There what's judged is each painting: the
+     longest wait for a frame from it to the next one (its cost lands on
+     whichever frame the browser can't draw until it's done, not always the
+     next), painted() called as each is drawn. Over two refreshes, a
+     painting is a stumble in everything moving on the page, eight times a
+     second. */
+  const paintings = !!opts.paintings;
+  let paintedNow = false, cycleOpen = false, cycleMax = 0;
 
   function changed() {
     if (opts.onChange) opts.onChange({ pixelRatio: pr, shadowMap: shadow, paced });
@@ -77,7 +95,7 @@ export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
   }
   function settle(ms = 1000) {
     settleUntil = performance.now() + ms;
-    frames.length = 0; busy.length = 0; raw.length = 0; wasBusy = false;
+    frames.length = 0; busy.length = 0; raw.length = 0; wasBusy = false; cycleOpen = false;
   }
   function setPixelRatio(v) {
     pr = Math.max(floor, Math.min(v, topRatio()));
@@ -110,7 +128,7 @@ export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
     if (was) {
       if (was.pr > 0) setPixelRatio(was.pr);
       if (was.shadow && was.shadow < fullShadow && was.shadow >= minShadow) shadow = was.shadow; // (put on the light at the first frame)
-      paced = !!was.paced;
+      paced = !!was.paced && opts.pace !== false; // (held to 30 before, where it no longer may be: no)
     }
   }
   let shadowPlaced = shadow === fullShadow;
@@ -119,12 +137,12 @@ export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
   const at = (s, k) => s[Math.min(s.length - 1, Math.floor(s.length * k))];
 
   // One step less to draw: the pixel ratio, then the shadow map, then 30 a second.
-  function relieve(median, motionOnly) {
+  function relieve(median, motionOnly, far = median > CRAWL) {
     lastRelief = performance.now();
-    if (!motionOnly && pr > floor + 0.01) { setPixelRatio(pr - (median > CRAWL ? stepDown * 1.5 : stepDown)); return; }
+    if (!motionOnly && pr > floor + 0.01) { setPixelRatio(pr - (far ? stepDown * 1.5 : stepDown)); return; }
     if (full && shadow > minShadow && setShadow(shadow / 2)) return;
     if (motionOnly && pr > floor + 0.01) { setPixelRatio(pr - stepDown); return; }
-    if (full && !paced) setPaced(true);
+    if (full && !paced && opts.pace !== false) setPaced(true);
   }
   // One step back up, the other way round.
   function ease(now) {
@@ -162,7 +180,24 @@ export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
       // (A frame's own cost shows in the time to the next one.)
       const after = wasBusy;
       wasBusy = isBusy;
+      const afterPainting = paintedNow;
+      paintedNow = false;
       if (document.hidden || now < settleUntil || dt <= 0) return; // tab away, or just changed
+      if (paintings) {
+        // Each painting's longest wait, from the frame after it to the one
+        // after the next (where the next's own begins).
+        if (afterPainting) {
+          if (cycleOpen) { frames.push(Math.min(cycleMax, 1000)); if (frames.length > 24) frames.shift(); }
+          cycleOpen = true; cycleMax = dt;
+        } else if (cycleOpen) cycleMax = Math.max(cycleMax, dt);
+        if (!afterPainting || now - lastJudged < 1000 || frames.length < 6) return;
+        lastJudged = now;
+        const all = sorted(frames), median = at(all, 0.5), p90 = at(all, 0.9);
+        if (paced) { if (raw.length >= 90) { const r = sorted(raw); if (at(r, 0.9) < 1000 / 55) ease(now); } return; }
+        if (median > P_SLOW) relieve(median, false, median > P_CRAWL);
+        else if (p90 < P_FAST) ease(now);
+        return;
+      }
       // A frame over a quarter of a second is a hitch, not counted; five
       // in a row is a device that slow (under 4 a second): a step down.
       if (dt > 250) { if (full && ++crawling >= 5) { crawling = 0; relieve(dt, false); } return; }
@@ -187,6 +222,8 @@ export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
       else if (moving && at(moving, 0.5) > SLOW) relieve(at(moving, 0.5), true);
       else if (p90 < FAST && (!moving || at(moving, 0.9) < FAST)) ease(now);
     },
+    // A painting drawn this frame (opts.paintings).
+    painted() { paintedNow = true; },
     setPixelRatio,
     state: () => ({ pixelRatio: pr, shadowMap: shadow, paced }),
   };

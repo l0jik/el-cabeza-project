@@ -6,6 +6,10 @@
    map first; with room again it gives them back one at a time, slowly;
    it remembers where it settled for the next visit, by tier and world;
    under the browser tests it only moves the pixel ratio unless asked.
+   A painted world (Parrish's: a new painting 8 times a second, the frames
+   between held, drawing nothing) is judged by its paintings, wherever
+   their cost lands (user: "Both Parrish boards graphically run very
+   slowly on low resource / power laptops").
 
    node tests/device-fit.smoke.mjs */
 let fails = 0, checks = 0;
@@ -26,7 +30,7 @@ const { createGovernor } = await import("../chassis/device-fit.js");
 const Q = { tier: "mid", dprCap: 1.75, dprFloor: 1, shadowMap: 2048 };
 
 function rig(opts = {}) {
-  const renderer = { pr: 1.75, getPixelRatio() { return this.pr; }, setPixelRatio(v) { this.pr = v; }, setSize() {} };
+  const renderer = { pr: opts.cap || 1.75, getPixelRatio() { return this.pr; }, setPixelRatio(v) { this.pr = v; }, setSize() {} };
   const light = { shadow: { mapSize: { x: 2048, y: 2048, set(a, b) { this.x = a; this.y = b; } }, map: { dispose() {} } } };
   const gov = createGovernor(renderer, () => ({ w: 400, h: 800 }), Q, { key: "test", light: () => light, ...opts });
   return { renderer, light, gov };
@@ -99,6 +103,75 @@ console.log("[slow only while something moves]");
   play(r, 9000, { cost: 12, busy: (t) => t % 1500 < 400, busyCost: 40 });
   const s = r.gov.state();
   check("the shadow map is what's halved, the pixel ratio kept", s.shadowMap < 2048 && r.renderer.pr === 1.75, JSON.stringify({ ...s, pr: r.renderer.pr }));
+}
+
+/* A painted world: a painting due every 125 ms (stop-motion, 8 a second)
+   costs `paint` ms at a pixel ratio of 1.5 (by the pixels: the square of
+   the ratio); the frames between draw nothing. late: its cost lands not
+   on the frame after it (on time) but the one after that, as a browser's
+   can that keeps a frame in flight. */
+function playPaint(r, ms, { paint = 120, refresh = 16.7, late = false } = {}) {
+  const end = clock + ms;
+  let slot = -1, owed = 0;
+  while (clock < end) {
+    const now = clock;
+    if (r.gov.skip(now)) { clock += refresh; runTimers(); continue; }
+    r.gov.govern(now, false);
+    let c = refresh;
+    if (Math.floor(now / 125) !== slot) {
+      slot = Math.floor(now / 125);
+      r.gov.painted();
+      const cost = paint * (r.renderer.pr / 1.5) ** 2;
+      if (late) owed = cost; else c = cost;
+    } else if (owed) { c = owed; owed = 0; }
+    clock += Math.max(refresh, Math.ceil(c / refresh) * refresh);
+    runTimers();
+  }
+}
+const PAINTED = { paintings: true, pace: false, floor: 0.6, cap: 1.5 };
+
+console.log("[a painted world: paintings of 120 ms]");
+{
+  clock = 400000; store.clear();
+  const old = rig({ floor: 0.6, cap: 1.5 });
+  playPaint(old, 15000, { paint: 60 });
+  check("(as it was) judged by its frames, the held ones on time, paintings of 60 ms were never stepped down", old.renderer.pr === 1.5, String(old.renderer.pr));
+  store.clear();
+  const r = rig(PAINTED);
+  check("(starts at its cap)", r.renderer.pr === 1.5);
+  playPaint(r, 3500);
+  check("judged by its paintings, the pixel ratio's lower within a few seconds", r.renderer.pr < 1.5, String(r.renderer.pr));
+  playPaint(r, 15000);
+  const cost = 120 * (r.renderer.pr / 1.5) ** 2;
+  check(`...down to where a painting's within two refreshes (${r.renderer.pr.toFixed(2)}: ${cost.toFixed(0)} ms), above the floor`, cost <= 34 && r.renderer.pr >= 0.6, String(r.renderer.pr));
+  check("...never held to 30 (no help where the frames between draw nothing)", !r.gov.state().paced, JSON.stringify(r.gov.state()));
+  store.clear();
+  const late = rig(PAINTED);
+  playPaint(late, 18500, { late: true });
+  check(`its cost landing a frame late, the same (${late.renderer.pr.toFixed(2)})`, Math.abs(late.renderer.pr - r.renderer.pr) < 0.01, String(late.renderer.pr));
+  store.clear();
+  const crawl = rig(PAINTED);
+  playPaint(crawl, 30000, { paint: 900 });
+  check("paintings far too slow even at the floor: the floor, the shadow map halved, still never held to 30", crawl.renderer.pr === 0.6 && crawl.gov.state().shadowMap === 512 && !crawl.gov.state().paced, JSON.stringify({ pr: crawl.renderer.pr, ...crawl.gov.state() }));
+}
+console.log("[a painted world: held to 30 on an earlier visit]");
+{
+  clock = 440000; store.clear();
+  // (As the old judging could leave it: held to 30, the pixel ratio at 1.)
+  store.set("el-cabeza:fit", JSON.stringify({ "mid|test": { pr: 1, shadow: 2048, paced: true } }));
+  const r = rig(PAINTED);
+  check("not held to 30 where it no longer may be", !r.gov.state().paced, JSON.stringify(r.gov.state()));
+  playPaint(r, 8000);
+  check(`...and its paintings still step it down (${r.renderer.pr.toFixed(2)})`, r.renderer.pr < 1, String(r.renderer.pr));
+}
+console.log("[a painted world: room again]");
+{
+  clock = 460000; store.clear();
+  const r = rig(PAINTED);
+  playPaint(r, 18500);
+  const low = r.renderer.pr;
+  playPaint(r, 90000, { paint: 12 });
+  check(`paintings of 12 ms: back up to the cap (from ${low.toFixed(2)})`, r.renderer.pr > 1.49 && r.gov.state().shadowMap === 2048, JSON.stringify({ pr: r.renderer.pr, ...r.gov.state() }));
 }
 
 console.log("[the browser tests]");

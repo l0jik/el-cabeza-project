@@ -80,3 +80,51 @@
     slow on every frame). tests/device-fit.smoke.mjs (made-up frame
     times) and tests/e2e-device-fit.mjs. The ?fps readout says "held to
     30" when it is.
+
+- **Parrish's painting on weak laptops (2026-10-29; user: "Both Parrish
+  boards graphically run very slowly on low resource / power laptops.
+  Can they be optimized on such devices?")**:
+  - The governor never saw the paintings. Stop-motion paints 8 times a
+    second and holds the painting between; the held frames draw nothing
+    and all came on time, so the median frame was always fine and
+    nothing was stepped down. And at the high tier (most laptops,
+    whatever their GPU: tienda-quality.js only names old Intel HD, some
+    Mali/Adreno and software renderers as weak) Parrish's floor was 1,
+    which is where a laptop's screen at devicePixelRatio 1 starts, so
+    there was no room anyway. Now `createGovernor(..., { paintings: true,
+    pace })`: Parrish calls `governor.painted()` when a painting is drawn
+    (not held), and what's judged is each painting's longest wait for a
+    frame, from the frame after it to the one after the next painting
+    (its cost lands on whichever frame the browser can't draw until it's
+    done, not always the next). Over 1000/28 ms a step down (×1.5 past
+    1000/12), p90 under 1000/45 a step up. The floor is 0.6 in every
+    tier; never held to 30 in stop mode (`pace: false`: nothing to spare
+    when the frames between draw nothing). Remembered as `high|parrish`
+    etc. Tests: device-fit.smoke.mjs ("a painted world"), e2e-device-fit
+    [parrish] (1366×768 at 1: down to 0.6 and shadows 512, kept, reload).
+  - The dome's noise (six five-octave fbm3 a pixel) moved out of the
+    scene pass into its own pass before each painting, at half the size
+    the scene's drawn at (parrish-scene.js SKY_SCALE, drawSky as the
+    painter's beforeScene(r, w, h)): each pixel's ray out to the sphere
+    of 900 in the dome's own space; the dome mesh just samples it at
+    gl_FragCoord. SwiftShader: scene + sky 86 → 44 ms. Same picture: raw
+    footage at one moment (test hook __PARRISH_SKY__ { scale, time })
+    full vs half differs by 0.37/255 on average outside the tumbling dock
+    piece.
+  - Strokes (parrish-paint.js): a stroke not laid returns at once in the
+    vertex stage (most of each layer: the world's aren't laid on the
+    subject, nor its on the world); the small layers bend along fewer
+    segments (LAYERS segs: 8, 8, 4, 2, 1; a 40 px stroke bends under a
+    pixel); world strokes discard where they're clipped away, and skip
+    the piece edge's wandering cut where the flow says no subject is
+    near (exact: the flow's reach is wider than the wander below 4K).
+    These are for GPUs; SwiftShader shows none of it: its instanced
+    draws cost about 11 µs an instance whatever the vertex count (layer
+    5's 40k instances: ~440 ms, scissored to 1 px), so its stroke pass
+    stays ~1.25 s a painting at 1366×768. Don't chase instance counts on
+    CI's numbers.
+  - Measuring a pass: wrap renderer.render with a 1-pixel readPixels
+    before and after (gl.finish() doesn't wait in Chrome: every pass read
+    ~0.1 ms). Scratch: parrish-perf/passes.mjs (per pass, per layer,
+    scissored), shot.mjs (a steady still: reduced motion, the governor
+    held at 1), sky-ab.mjs.

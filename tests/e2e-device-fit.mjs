@@ -7,8 +7,9 @@
    (the store) each come down to the pixel ratio's floor, the shadow map
    halved to 512 and the frames held to 30 a second (the ?fps readout
    says so); where they settled is kept in localStorage and a reload
-   starts there. The move markers' shaders are compiled before the first
-   piece is picked.
+   starts there. Parrish's painting, judged by its paintings, comes down
+   to its own floor. The move markers' shaders are compiled before the
+   first piece is picked.
 
    node tests/e2e-device-fit.mjs */
 import { chromium } from "playwright";
@@ -57,6 +58,43 @@ async function world(name, key) {
 }
 await world("futuris", "futuris");
 await world("tienda", "tienda");
+
+/* Parrish's painting (user: "Both Parrish boards graphically run very
+   slowly on low resource / power laptops"): a new painting 8 times a
+   second, the frames between held and drawing nothing, so judged by its
+   frames its paintings' cost was never seen. Judged by its paintings (each
+   about a second here), a laptop's screen comes down from 1 to its floor,
+   0.6, and the shadow map to 512; never held to 30 a second (no help when
+   the frames between draw nothing); kept for the next visit. */
+{
+  console.log("\n[parrish]");
+  const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, deviceScaleFactor: 1 });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_FIT__ = true; });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-parrish.html?look=orinoco&quality=high");
+  const state = () => page.evaluate(() => {
+    const t = window.__PARRISH_THREE__, g = t && t.governor, P = window.__PARRISH__ && window.__PARRISH__();
+    return g && P && P.painter ? { ...g.state(), canvas: t.renderer.getPixelRatio(), painted: P.painter.painted } : null;
+  });
+  let s = null;
+  for (let i = 0; i < 90; i++) { await page.waitForTimeout(1000); s = await state(); if (s && s.pixelRatio <= 0.601 && s.shadowMap === 512) break; }
+  check("slow paintings (the frames between them on time): down to its floor, 0.6, the shadow map 512", !!s && s.pixelRatio <= 0.601 && s.canvas <= 0.601 && s.shadowMap === 512, JSON.stringify(s));
+  check("...never held to 30", !!s && !s.paced, JSON.stringify(s));
+  const was = s ? s.painted : 0;
+  await page.waitForTimeout(4000);
+  const now = await state();
+  check("...still painting", !!now && now.painted > was, `${was} -> ${now && now.painted}`);
+  const kept = await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:fit") || "{}"));
+  check("...kept for the next visit", kept["high|parrish"] && kept["high|parrish"].pr <= 0.601 && kept["high|parrish"].shadow === 512 && !kept["high|parrish"].paced, JSON.stringify(kept));
+  await page.reload();
+  let again = null;
+  for (let i = 0; i < 30 && !(again = await state()); i++) await page.waitForTimeout(500);
+  check("a reload starts where it settled", !!again && again.canvas <= 0.601, JSON.stringify(again));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
 
 // The markers' shaders, compiled before they're needed.
 {
