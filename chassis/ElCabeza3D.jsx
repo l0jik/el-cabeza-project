@@ -2962,21 +2962,32 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   /* In play the title's badge, top right, clear of the corner menu's tab,
      top left (user, Cromo on a phone, its PARAMETERS plate over the "EL C":
      "the overlap on these items circled in red"): where the two would
-     meet, the badge steps down to just under the tab. Measured, not
-     guessed: the tab's width goes with the game (its laws, pieces, board)
-     and the world's face (Cromo's Michroma, very wide), the badge's with
-     the screen. */
-  const [mastheadDrop, setMastheadDrop] = useState(0);
+     meet, the badge stays up top and comes down in size to fit the room
+     beside the tab (user, of its stepping down under the tab instead: "I
+     don't like what you did with the masthead badge. Push it back up, but
+     just make it smaller when it's minimized to fit up there."). Measured,
+     not guessed: the tab's width goes with the game (its laws, pieces,
+     board) and the world's face (Cromo's Michroma, very wide), the
+     badge's with the screen. The size in px, or null for its own. (The
+     phone bar's title sits at the bar's left end, its own place.) */
+  const [mastheadFit, setMastheadFit] = useState(null);
   useEffect(() => {
-    if (mastheadPhase !== "relocated") { setMastheadDrop(0); return undefined; }
+    if (mastheadPhase !== "relocated" || shell) { setMastheadFit(null); return undefined; }
     const check = () => {
       const tab = document.querySelector('[data-testid="corner-menu-tab"]'), title = titleRef.current;
-      if (!tab || !title) { setMastheadDrop(0); return; }
+      const now = title && parseFloat(getComputedStyle(title).fontSize);
+      if (!tab || !title || !now) { setMastheadFit(null); return; }
       const a = tab.getBoundingClientRect(), b = title.getBoundingClientRect();
-      // (Side by side they'd meet when the tab reaches the badge's left,
-      // with a little room; the badge's own height at its own place, top 14.)
-      const meet = a.width > 0 && a.right + 10 > b.left && a.top < 14 + b.height;
-      setMastheadDrop(meet ? Math.ceil(a.bottom + 4 - 14) : 0);
+      // (At its own size, the clamp() below: its width and height go with
+      // the size. Its right edge where it comes to rest, 18 in from the
+      // screen's, whatever its move into the corner has reached.)
+      const own = Math.min(52, Math.max(16, window.innerWidth * 0.028)), k = own / now;
+      const wide = b.width * k, tall = b.height * k;
+      const room = document.documentElement.clientWidth - 18 - (a.right + 10);
+      // (They'd meet: the tab's band across the badge's, from its top at
+      // 14, and the tab reaching the badge's left, with a little room.)
+      const meet = a.width > 0 && a.top < 14 + tall && a.bottom > 14 && room < wide;
+      setMastheadFit(meet ? Math.max(8, Math.floor(((own * room) / wide) * 10) / 10) : null);
     };
     check();
     // (Again as the tab comes, changes, or the screen or the faces do.)
@@ -2984,7 +2995,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     window.addEventListener("resize", check);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(check).catch(() => {});
     return () => { clearInterval(iv); window.removeEventListener("resize", check); };
-  }, [mastheadPhase]);
+  }, [mastheadPhase, shell]);
 
   /* Pre-game framing: while awaiting Begin Game, the camera itself
      (not any DOM clipping — the render layer always stays full
@@ -11685,8 +11696,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           mastheadPhase === "relocated"
             ? {
                 position: "fixed",
-                // (Down under the corner menu's tab where they'd meet: mastheadDrop.)
-                top: 14 + mastheadDrop,
+                // (Up top always; smaller beside the corner menu's tab where they'd meet: mastheadFit.)
+                top: 14,
                 right: 18,
                 left: "auto",
                 // Several passes of "too small"/"too big" feedback (0.3
@@ -11807,6 +11818,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                much-larger pre-game floor; the vw slope and ceiling
                (2.8vw, 52px) still land at roughly 40% of the pre-game
                formula's own for a viewport wide enough to reach them.
+               (Where it would meet the corner menu's tab, a narrow
+               phone's, smaller still to fit beside it: mastheadFit.)
 
                theme.mastheadScale (see mastheadClamp) scales the
                REGULAR (non-relocated) formula's own numbers directly,
@@ -11822,7 +11835,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                `|| 1`). */
             fontSize:
               mastheadPhase === "relocated"
-                ? shell ? 21 : "clamp(16px, 2.8vw, 52px)"
+                ? shell ? 21 : mastheadFit != null ? mastheadFit : "clamp(16px, 2.8vw, 52px)"
                 : shellLandscape
                 ? "clamp(20px, 9vh, 40px)"
                 : mastheadPhase === "setup"

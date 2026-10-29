@@ -15,7 +15,9 @@
    - The dark side's Actions dots glow the dark pieces' gunmetal, not the
      old blue.
    - On a narrow phone the title's badge in play keeps clear of the corner
-     menu's tab (down under it where they'd meet); on a wider one, up top.
+     menu's tab, up top, smaller to fit beside it (user, of its stepping
+     down under the tab first: "Push it back up, but just make it smaller
+     when it's minimized to fit up there."); on a wider one, its own size.
 
    node tests/e2e-cromo.mjs */
 import { chromium } from "playwright";
@@ -155,11 +157,12 @@ async function badge(width, height) {
   await openRings(page);
   await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-primary"]').tap();
   await poll(async () => (await page.locator('[data-testid="corner-menu-tab"]').count()) > 0, 15000);
-  // (The badge moves into its corner 2 s in, then steps down if it must: 1.1 s.)
+  // (The badge moves into its corner 2 s in: 1.1 s; its size is fitted as it comes.)
   await page.waitForTimeout(5000);
   const s = await page.evaluate(() => {
     const box = (el) => { const b = el.getBoundingClientRect(); return { l: Math.round(b.left), r: Math.round(b.right), t: Math.round(b.top), b: Math.round(b.bottom) }; };
-    return { tab: box(document.querySelector('[data-testid="corner-menu-tab"]')), title: box(document.querySelector(".ec-title")) };
+    const ti = document.querySelector(".ec-title");
+    return { tab: box(document.querySelector('[data-testid="corner-menu-tab"]')), title: box(ti), size: parseFloat(getComputedStyle(ti).fontSize) };
   });
   await ctx.close();
   return { ...s, errs, apart: s.title.l >= s.tab.r + 4 || s.title.t >= s.tab.b };
@@ -167,9 +170,9 @@ async function badge(width, height) {
 {
   console.log("[the title's badge and the corner menu's tab]");
   const narrow = await badge(320, 700);
-  check(`a narrow phone (320): the badge clear of the tab, under it (${JSON.stringify(narrow)})`, narrow.apart && narrow.title.t >= narrow.tab.b);
+  check(`a narrow phone (320): the badge up top beside the tab, clear of it, smaller (${JSON.stringify(narrow)})`, narrow.title.l >= narrow.tab.r + 4 && narrow.title.t < narrow.tab.b && narrow.title.t < 40 && narrow.size < 16);
   const wide = await badge(430, 932);
-  check(`a wide one (430): clear, and still up top beside it (${JSON.stringify(wide)})`, wide.apart && wide.title.t < wide.tab.b);
+  check(`a wide one (430): up top beside it, clear, at its own size (${JSON.stringify(wide)})`, wide.apart && wide.title.t < wide.tab.b && wide.size === 16);
   check("no page errors", narrow.errs.length + wide.errs.length === 0, [...narrow.errs, ...wide.errs].slice(0, 3).join(" | "));
 }
 

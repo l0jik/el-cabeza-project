@@ -61,18 +61,25 @@
   inventing a new hook shape.
 
 
-- **The title's badge clears the corner menu's tab** (2026-10-28; user,
-  Cromo on a phone, the PARAMETERS plate over the "EL C": "the overlap on
-  these items circled in red"). In play the title is a faint badge top
-  right (top 14, right 18, clamp(16px, 2.8vw, 52px), no theme scale) and
-  the corner menu's tab sits top left; Cromo's Michroma (very wide) and a
-  long summary ("5 laws · 10 pieces · 13 × 14") made them meet on phones
-  under ~400 px. ElCabeza3D.jsx mastheadDrop: while the badge is
-  relocated it measures the tab and the title (each second, on resize and
-  once the faces are in) and, where the tab's right edge comes within
-  10 px of the title's left, puts the badge 4 px under the tab
-  (its top transition carries it). Every world, every width; the hold
-  zone over the title (unifiedTransition.jsx) tracks the title's live
-  rect, so it follows. Seen here only with Google's fonts routed in
+- **The title's badge clears the corner menu's tab, up top, by size**
+  (2026-10-28; user, Cromo on a phone, the PARAMETERS plate over the
+  "EL C": "the overlap on these items circled in red"). In play the title
+  is a faint badge top right (top 14, right 18, clamp(16px, 2.8vw, 52px),
+  no theme scale) and the corner menu's tab sits top left; Cromo's
+  Michroma (very wide) and a long summary ("5 laws · 10 pieces · 13 × 14")
+  made them meet on phones under ~400 px. It first stepped down under the
+  tab; the user turned that down (2026-10-29: "I don't like what you did
+  with the masthead badge. Push it back up, but just make it smaller when
+  it's minimized to fit up there."). So it never moves down: ElCabeza3D.jsx
+  mastheadFit, while the badge is relocated (not the phone bar's title),
+  measures the tab and the title (each second, on resize and once the
+  faces are in) and, where the tab's band crosses the badge's and its
+  right edge comes within 10 px of where the badge would start at its own
+  size, sets the badge's font size so it ends 10 px clear of the tab (its
+  right edge fixed 18 in; floor 8 px). Widths go with the font size, so
+  the fit is one division and holds steady. Every world, every width; the
+  hold zone over the title (unifiedTransition.jsx) tracks the title's
+  live rect, so it follows. Seen here only with Google's fonts routed in
   (scratchpad cromo/measure.mjs): the stand-in face is ~35% narrower.
-  Test: tests/e2e-cromo.mjs (a 320 px phone: under the tab; 430: beside).
+  Test: tests/e2e-cromo.mjs (320 px: up top, smaller, clear of the tab;
+  430: its own size).
