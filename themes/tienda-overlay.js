@@ -640,7 +640,13 @@ export function useSetupExtras(x) {
       const since = performance.now();
       card.dataset.since = String(since); // (tests: when it came up)
       const free = () => performance.now() - since >= TRY_IT_HOLD_MS;
-      const shake = (e) => { e.preventDefault(); e.stopPropagation(); sheet.classList.remove("nudge"); void sheet.offsetWidth; sheet.classList.add("nudge"); };
+      // (Tests: each shake counted as it's asked for, __TD_SHAKES__. Its
+      // animation's start event can come seconds late on a slow machine,
+      // and a shake restarted before then starts just once.)
+      const shake = (e) => {
+        e.preventDefault(); e.stopPropagation(); sheet.classList.remove("nudge"); void sheet.offsetWidth; sheet.classList.add("nudge");
+        if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__TD_SHAKES__ = (window.__TD_SHAKES__ || 0) + 1;
+      };
       // Only "Let's play!", once it's circled, puts it away (its loop's
       // span, .hit); any other tap on it shakes it, as one beside it does
       // (user). Decided as the finger comes down: a tap begun in the hold

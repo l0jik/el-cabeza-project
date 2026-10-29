@@ -56,3 +56,11 @@
   intercepts pointer events" on a dock button means the dock was shut.
   (run-e2e.mjs now also prints a thrown test's error, what it was waiting
   for and its own line, which a click's long call log used to push out.)
+- Don't count repeated CSS-animation moments (a shake, a pulse) by their
+  `animationstart` events: under load the event can come seconds late,
+  and an animation restarted before its start event fires starts just
+  once, so a count by events comes up short (GitHub's run 40811627534 on
+  e877fa5: e2e-try-it saw 5 of the flyer's 6 shakes). Count them at the
+  source behind `__EC_TEST_HOOKS__` (tienda-overlay.js's shake() bumps
+  `window.__TD_SHAKES__`) and check separately that the animation plays
+  at all.

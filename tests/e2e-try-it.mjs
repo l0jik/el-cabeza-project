@@ -47,15 +47,17 @@ await page.waitForSelector('[data-testid="tienda-try-it"]', { timeout: 3000 }).c
 const card = page.locator('[data-testid="tienda-try-it"]');
 check("a tap on it: the store's flyer (its demonstration game, $7.97)", (await card.count()) === 1 && /demonstration/i.test(await card.innerText()) && /\$?\s*7\s*\.?\s*97/.test(await card.innerText()));
 check("...without \"So you'd like to try it, eh?\" (user)", !/try it, eh/i.test(await card.innerText()));
-// (Each shake counted as it starts: the sheet's tdTryNudge.)
+// (Each shake counted as the flyer asks for it, __TD_SHAKES__: counted by
+// its animation's start, GitHub's run on e877fa5 lost one. The page can
+// stall seconds there, and a shake restarted before its start event
+// fires starts just once. That the sheet's tdTryNudge plays is checked
+// on its own, __NUDGES__.)
 await page.evaluate(() => {
-  window.__SHAKES__ = 0;
+  window.__TD_SHAKES__ = 0; window.__NUDGES__ = 0;
   const s = document.querySelector('[data-testid="tienda-try-it"] .sheet');
-  if (s) s.addEventListener("animationstart", (e) => { if (e.animationName === "tdTryNudge") window.__SHAKES__++; });
+  if (s) s.addEventListener("animationstart", (e) => { if (e.animationName === "tdTryNudge") window.__NUDGES__++; });
 });
-const shakes = () => page.evaluate(() => window.__SHAKES__);
-// (Counted as each starts, on the next frame drawn: this machine's frames
-// can come 250 ms apart with the store behind, so each is waited for.)
+const shakes = () => page.evaluate(() => window.__TD_SHAKES__);
 const shakesReach = async (n) => { const end = Date.now() + 2500; while ((await shakes()) < n && Date.now() < end) await page.waitForTimeout(50); return shakes(); };
 // (Tapped straight away, in the page: the test's own click waits for the
 // card's entrance to settle, which can take past the hold.)
@@ -127,6 +129,9 @@ const ringsOut = () => page.evaluate(() => !!document.querySelector('[data-testi
 for (let i = 0; i < 20 && !(await ringsOut()); i++) await page.waitForTimeout(150);
 check("then a press on \"Let's play!\": the menu, as the piece's tap opens it", (await card.count()) === 0 && (await ringsOut()) && !(await panelOpen()) && (await shakes()) === 6, `${await shakes()} shakes`);
 check("...Try a Game lit", await page.evaluate(() => document.documentElement.classList.contains("td-idle-nudge")) && (await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-primary"].td-try-game').count()) === 1 && /try a game/i.test(await page.locator('[data-testid="menu-fan-primary"]').innerText()));
+// (The shakes counted above as asked for; here, that the sheet really shook.)
+const nudges = await page.evaluate(() => window.__NUDGES__);
+check(`the shakes seen on the sheet (its tdTryNudge played ${nudges} times)`, nudges > 0);
 check("no page errors", errs.length === 0, errs.join(" | "));
 await browser.close();
 console.log(failures ? `${failures} failure(s)` : "all passed");
