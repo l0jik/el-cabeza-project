@@ -7,6 +7,8 @@
      the same log, all nine times over, and play carries on afterwards;
    - a switch asked for while a step is still animating waits for it;
    - the directions really differ (their tokens, fonts, HUD composition);
+   - the Actions counter's words read in every one, against their plate
+     or the page behind (Ultimate Fusion's on its own plate now);
    - every lab control works: the picker, previous/next (buttons and
      keys), number keys, random, hide interface, sound on/off, volume,
      reset presentation, return to game, Escape and an outside press;
@@ -44,6 +46,45 @@ const labId = (page) => page.evaluate(() => window.__LAB__.id);
 // after it starts), so the next one waits for it rather than a fixed pause.
 const pieceOf = (page, id) => page.evaluate((i) => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === i)), id);
 const landed = async (page, id, before, ms = 10000) => !!(await poll(async () => (await pieceOf(page, id)) !== before, ms));
+/* The Actions counter's words against what's behind them: its plate if
+   it has one, else the page under it (shot with the counter hidden, its
+   median). WCAG's contrast ratio. (Ultimate Fusion's bone words sat bare
+   on its light concrete and board, about 1.4 to 1, user: "fix the
+   Ultimate Fusion label".) */
+async function labelContrast(page) {
+  const r = await page.evaluate(() => {
+    const el = document.querySelector('[data-testid="points-counter"]');
+    const side = el && el.querySelector('[data-testid="points-side"]');
+    if (!side) return null;
+    const b = side.getBoundingClientRect();
+    return { rect: { x: Math.floor(b.left), y: Math.floor(b.top), width: Math.ceil(b.width), height: Math.ceil(b.height) }, color: getComputedStyle(side).color, plate: getComputedStyle(el).backgroundColor };
+  });
+  if (!r || !r.rect.width) return null;
+  const rgb = (css) => css.match(/[\d.]+/g).map(Number);
+  const plate = rgb(r.plate);
+  let behind = plate.length === 3 || plate[3] > 0.9 ? plate.slice(0, 3) : null;
+  if (!behind) {
+    await page.evaluate(() => { document.querySelector('[data-testid="points-counter"]').style.visibility = "hidden"; });
+    await page.waitForTimeout(100);
+    const shot = (await page.screenshot({ clip: r.rect })).toString("base64");
+    await page.evaluate(() => { document.querySelector('[data-testid="points-counter"]').style.visibility = ""; });
+    behind = await page.evaluate(async (b64) => {
+      const img = new Image();
+      img.src = "data:image/png;base64," + b64;
+      await img.decode();
+      const c = document.createElement("canvas");
+      c.width = img.width; c.height = img.height;
+      const g = c.getContext("2d");
+      g.drawImage(img, 0, 0);
+      const d = g.getImageData(0, 0, c.width, c.height).data, ch = [[], [], []];
+      for (let i = 0; i < d.length; i += 4) { ch[0].push(d[i]); ch[1].push(d[i + 1]); ch[2].push(d[i + 2]); }
+      return ch.map((a) => a.sort((x, y) => x - y)[a.length >> 1]);
+    }, shot);
+  }
+  const lum = (c) => { const [R, G, B] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * R + 0.7152 * G + 0.0722 * B; };
+  const a = lum(rgb(r.color).slice(0, 3)), b = lum(behind);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
 async function waitSwitched(page, id) {
   return poll(() => page.evaluate((i) => window.__LAB__.id === i && !window.__LAB__.busy() && !!document.querySelector(`[data-testid="lab-hud"][data-lab="${i}"]`), id), 15000);
 }
@@ -94,7 +135,7 @@ async function waitSwitched(page, id) {
   // Switch through every direction, several ways; nothing about the game moves.
   const ids = await page.evaluate(() => window.__LAB__.ids);
   check("nine directions, Elementarism not among them (user: \"Completely remove the Elementarism theme\")", ids.length === 9 && !ids.includes("elementarism"), ids.join(","));
-  const accents = new Set(), fonts = new Set(), huds = new Set();
+  const accents = new Set(), fonts = new Set(), huds = new Set(), unread = [];
   let intact = 0;
   for (let i = 1; i <= ids.length; i++) {
     const id = ids[i % ids.length];
@@ -116,9 +157,12 @@ async function waitSwitched(page, id) {
       return { accent: cs.getPropertyValue("--accent-primary").trim(), font: cs.getPropertyValue("--font-display").trim(), hud: sig, title: document.title };
     });
     accents.add(look.accent); fonts.add(look.font); huds.add(look.hud);
+    const cr = await labelContrast(page);
+    if (!(cr >= 4.5)) unread.push(`${id} ${cr && cr.toFixed(2)}`);
     if (!look.title.includes(id === "swiss" ? "Swiss" : "")) console.log("   title", look.title);
   }
   check(`the game is untouched by all nine switches (${intact}/${ids.length})`, intact === ids.length);
+  check("the Actions counter's words read in all nine (4.5 to 1 against their plate or the page behind)", unread.length === 0, unread.join(", "));
   check(`the directions differ: ${fonts.size} display faces, ${accents.size} accents, ${huds.size} HUD compositions`, fonts.size >= ids.length - 1 && accents.size >= 6 && huds.size === ids.length);
   check("back on the first direction, the address says so", (await labId(page)) === "swiss" && (await page.evaluate(() => new URLSearchParams(location.search).get("theme"))) === "swiss");
 

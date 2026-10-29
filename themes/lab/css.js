@@ -372,7 +372,18 @@ const CHROME = {
   // (The turn line's bar is the machine's near-black, so its words, and the
   // ring round the side's dot, in bone: in the panel's ink they were dark
   // on dark, user.)
-  ultimateFusion: `.ec-btn { border: 2px solid #2B2B2B !important; box-shadow: 3px 3px 0 #0A0A0A !important; text-transform: uppercase; } .ec-btn:active { transform: translate(3px, 3px) !important; box-shadow: none !important; } [data-testid="dock-panel"] { border-top: 8px solid var(--accent-primary) !important; } .ec-title { color: var(--surface) !important; } [data-testid="turn-status"] > span + span { color: #EAE6DF !important; } [data-testid="turn-status"] > span:first-child { border-color: rgba(234,230,223,0.75) !important; }`,
+  // (The Actions counter and the unused-actions note on the machine's own
+  // plate, as its read-out has: charcoal in a bone rule, a hard shadow.
+  // Bare, their bone and grey words were lost on the concrete and the
+  // board, user. The counter a little lower, clear of End turn and Undo
+  // above it; the note lifted clear of the counter, and on a phone over
+  // two lines, its wide type cut short on one.)
+  ultimateFusion: `.ec-btn { border: 2px solid #2B2B2B !important; box-shadow: 3px 3px 0 #0A0A0A !important; text-transform: uppercase; } .ec-btn:active { transform: translate(3px, 3px) !important; box-shadow: none !important; } [data-testid="dock-panel"] { border-top: 8px solid var(--accent-primary) !important; } .ec-title { color: var(--surface) !important; } [data-testid="turn-status"] > span + span { color: #EAE6DF !important; } [data-testid="turn-status"] > span:first-child { border-color: rgba(234,230,223,0.75) !important; }
+  [data-testid="points-counter"], [data-testid="unused-points-note"] { background: #1F1F1F; border: 2px solid #EAE6DF; box-shadow: 4px 4px 0 #0A0A0A; }
+  [data-testid="points-counter"] { padding: 4px 12px 4px 14px; bottom: 16px !important; }
+  [data-testid="unused-points-note"] { padding: 4px 12px; }
+  body:has([data-testid="points-counter"]) [data-testid="unused-points-note"] { bottom: 56px !important; }
+  @media (max-width: 600px) { [data-testid="unused-points-note"] { white-space: normal !important; text-wrap: balance; text-align: center; line-height: 1.45; width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; } }`,
 };
 
 export function styleSheetFor(spec) {

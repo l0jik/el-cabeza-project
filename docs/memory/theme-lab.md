@@ -90,5 +90,19 @@ slam, set, flap, pop, fade, machine).
 Test: `tests/e2e-lab.mjs` (state identical across all nine switches,
 mid-turn; play continues; switch during a step waits; the nine differ in
 faces/accents/HUD; every control; sound starts only after a gesture and
-releases its voices; phone compact HUD, no sideways scroll).
+releases its voices; phone compact HUD, no sideways scroll; the Actions
+counter's words at least 4.5 to 1 against their plate or the page behind
+them in all nine).
+
+The Actions counter's words take the direction's --text-primary, so a
+direction whose text is light over a light board loses them: Ultimate
+Fusion's bone on its concrete and composite (2026-10-29, user: "Yes, fix
+the Ultimate Fusion label"; about 3 to 1 in the test's view). Its counter
+and the unused-actions note now sit on the machine's own plate, as its
+read-out does (css.js CHROME.ultimateFusion: #1F1F1F, a 2px bone rule, a
+4px hard shadow), the counter at bottom 16 (clear of End turn / Undo,
+measured 8px on desktop, 18 on a phone), the note lifted to 56 over it,
+and on a phone the note over two balanced lines (its wide Martian Mono
+was cut short with an ellipsis on one). The other eight read at 8.8 to 1
+or better bare.
 
