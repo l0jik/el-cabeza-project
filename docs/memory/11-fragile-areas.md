@@ -46,3 +46,13 @@
   last ~0.7 s as per-2048-sample RMS by age (`env`), and e2e-hall-sound
   reads its windows from those (2026-10-29: run 40804464153 on 0ed78cb
   read no echo at all between 0.1 and 0.6 s with the old 43 ms meter).
+- A tap outside the dock panel folds the dock away too (its outside-tap
+  closer), so a test that taps out of something laid over it (the move
+  log sheet) must wait for the dock's `data-open` to go false before it
+  reopens it and clicks inside: read once after a fixed 600 ms, GitHub's
+  runner (run 40807614892, e2e-dock-moments) still saw it open, skipped
+  the reopen, and the New Game click landed on the board as it folded.
+  Playwright counts a faded-out panel's buttons as visible; "board-canvas
+  intercepts pointer events" on a dock button means the dock was shut.
+  (run-e2e.mjs now also prints a thrown test's error, what it was waiting
+  for and its own line, which a click's long call log used to push out.)

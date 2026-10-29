@@ -129,8 +129,10 @@ for (const t of list) {
     const tail = lines.slice(-25);
     // Every failed check too, with what it says about itself, however far
     // above the tail it is (GitHub's log of e2e-summon, #17, had only the
-    // passes after its miss).
-    const above = lines.slice(0, -25).filter((l) => /^\s*FAIL\b/.test(l));
+    // passes after its miss). And a test that threw: its error, what it was
+    // waiting for and the test's own line (e2e-dock-moments on 6974393: a
+    // click's long call log pushed all three out of the tail).
+    const above = lines.slice(0, -25).filter((l) => /^\s*FAIL\b|^\s*\w*Error\b|waiting for (locator|getBy|selector)|tests\/[\w-]+\.mjs:\d+/.test(l)).slice(0, 40);
     if (above.length) console.log([...above, "..."].map((l) => `    ${l}`).join("\n"));
     console.log(tail.map((l) => `    ${l}`).join("\n"));
   }

@@ -7,7 +7,7 @@
 
    node tests/e2e-dock-moments.mjs */
 import { chromium } from "playwright";
-import { openDockPanel, waitForDockCorner, reopenDockPanelFromCorner } from "./dock-helpers.mjs";
+import { openDockPanel, waitForDockCorner, reopenDockPanelFromCorner, waitForPanelSettled } from "./dock-helpers.mjs";
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--use-gl=swiftshader", "--enable-unsafe-swiftshader"] });
 let failures = 0;
@@ -57,9 +57,14 @@ for (const [name, opening, w] of PAGES) {
   await page.locator('[data-testid="move-log"]').click();
   await page.waitForTimeout(500);
   check("...the move log opens", await page.evaluate(() => { const el = document.querySelector('[data-testid="movelog-sheet"]'); return !!el && +getComputedStyle(el).opacity > 0.5; }));
-  await page.mouse.click(8, 8); // (a tap outside it puts it away)
-  await page.waitForTimeout(600);
-  if (!(await page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.open === "true"))) await openDockPanel(page);
+  await page.mouse.click(8, 8); // (a tap outside it puts it away, and the dock with it)
+  // (Waited for, not assumed done in 600 ms: GitHub's run on 6974393 read
+  // the dock still open then, didn't reopen it, and its New Game click
+  // landed on the board as the dock folded away.)
+  const end = Date.now() + 5000;
+  while (Date.now() < end && (await page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.open === "true"))) await page.waitForTimeout(100);
+  await openDockPanel(page);
+  await waitForPanelSettled(page);
   await page.locator('[data-testid="new-game"]').click();
   await page.waitForTimeout(800);
   check("...and the big button sets up the next game", await page.evaluate(() => !document.querySelector('[data-testid="new-game"]')));
