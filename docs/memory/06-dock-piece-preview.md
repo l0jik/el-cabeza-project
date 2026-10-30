@@ -275,3 +275,52 @@ data-dock-skip, which readDock's beside-Begin read passes over, so the
 setting isn't there twice. The phone bar's menu (MobileShell pageItems)
 has each world choice setting as a row, "Surface: Tungsten", "Change to
 Shungite". Test: tests/e2e-cromo.mjs.
+
+Rethinking Rings (2026-10-30; user: "Come up with some ways that we can
+make the menu more streamlined, more easy to understand, less busy, but
+yet maintain user-friendly and UI ease of use. I need some ideas to see,
+because it just seems like it's something is not right. So do some
+research into like what good UI and UX is, and let's bounce some ideas
+off what we currently have"). Nothing changed in the game; options on one
+page, https://claude.ai/artifact/D8ozrYD22pQJKGJ7MkBkxA, waiting on a pick.
+What Rings is now, measured: the store on a phone (390 x 844) has 15
+settings before a game with 7 in sight at once (in play 10 and 6, after
+13 and 7; the den's Standard page before a game 10 and 6); five layers
+open together (the big button, the read-out card, the turning ring, the
+inner ring of kinds, the blue line); names 9.5 px and values 8.5 px at
+.7 in spaced capitals, kinds 8.5 px on arcs (6.5 px at least, Spanish);
+‹ › 32 px, choice chips 34 px; the piece's bounce (260 ms) then the
+unfold (UNFOLD_MS 480 + 120 x 1.8 ms) before it settles; in play the
+side to move and who's who said four times (head, sub, read-out title
+and line, the You wedge) and the ring with its card over the lower half
+of the board; End game a wedge from You. The research behind the page:
+Hick–Hyman (fewer choices), Nielsen's progressive disclosure (two levels
+at most), NN/g's recognition over recall and hidden navigation (found
+about half as often), pie menus (Callahan et al. 1988) and marking menus
+(Kurtenbach & Buxton 1993: about 8 items, 2 levels, fixed directions the
+hand learns, which a turning ring loses), NN/g on carousels and Apple on
+pickers (wheels for predictable values), rotated text slower (Tinker via
+Wigdor & Balakrishnan 2005), touch targets about 1 cm (44 pt, 48 dp),
+Hoober's one-handed grip, game pause menus (Resume first, few items,
+destructive ones confirmed). The sorting every option shares: before a
+game up front Start, Opponent and level, Who starts, How pieces start and
+the world's own extra; in play View, Sound, Hints, End game (asks first);
+after Play again, Opponent, Move log, View, Replay; everything else once,
+in one plain grouped list (Game; Help on the board; Sound and language;
+Your games; Layout); who's playing said once, in one line on screen.
+Options: A Calm Rings (the half ring, five fixed wedges, More fifth, no
+turning, no inner ring, no read-out, no glow, a small card above a wedge
+with choices; recommended), B a corner fan in play (a quarter fan from
+the corner piece, View, Sound, More; the board in full view), C one card
+(a bottom sheet; a card beside the piece on a computer), D two doors (the
+piece for the game, a gear by the zoom buttons for the rest), E a pause
+screen, F just three buttons. Recommended: A, its More as the plain list,
+in play on a phone opening as B's fan; built in ?menulab first so it can
+be tried on a phone. For any pick: one status line outside the menu,
+straight sentence-case labels (14 / 12 px), 44 px targets, usable on the
+first tap, a menu that never turns, End game asking first at an edge.
+How the pictures were made (scratch, not kept): the real pages
+photographed with Rings out and its layer hidden (the piece small where
+Rings puts it, hub 195,726 on the phone and 640,682 in the den), the
+options as HTML laid over those screenshots in Libre Franklin with Rings'
+own icons, photographed at 2x (phone) and 1x (computer).
