@@ -465,40 +465,38 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   check("...the piece calling as it does after a game: lit, its light round it", await page.evaluate(() => document.querySelector("[data-dock-piece]").dataset.dockCall === "true" && !!document.querySelector('[data-testid="dock-call-aura"]')));
   const camMenu = await camOf(page);
   check("...the board left as the other side's move framed it", Math.abs(camMenu.radius - camFoe.radius) < 0.05 && Math.abs(camMenu.phi - camFoe.phi) < 0.01, JSON.stringify({ camFoe, camMenu }));
-  /* A tap on the piece: Rings, the dock's menu (user, of the menu lab's
-     fans: "I like rings", then "Replace the dock everywhere"), out round
-     it, and the card for how it turns; then its four kinds. */
+  /* A tap on the piece: the dock's menu (Rings, then, user: "A, with B in
+     play", Calm Rings), out of the corner piece as a quarter fan, and the
+     card for what's in it (the line over it, View, Sound, More); then More,
+     which holds the rest. */
   const ringsOut = () => page.evaluate(() => !!document.querySelector('[data-testid="dock-menu"][data-open="true"] [data-testid="menu-fan"]'));
-  const ringsStill = async () => { for (let i = 0; i < 40; i++) { if (await page.evaluate(() => { const s = document.querySelector('[data-testid="dock-menu"][data-open="true"] [data-testid="menu-fan"]'); return !!s && s.getAttribute("data-turning") === "false"; })) return true; await page.waitForTimeout(150); } return false; };
-  const focusOf = () => page.evaluate(() => { const f = document.querySelector('[data-testid="dock-menu"] [data-ml-item].mf-focus'); return f ? f.getAttribute("data-ml-item") : null; });
+  const ringsStill = async () => { for (let i = 0; i < 40; i++) { if (await page.evaluate(() => { const s = document.querySelector('[data-testid="dock-menu"][data-open="true"] [data-testid="menu-fan"]'); return !!s && getComputedStyle(s).opacity === "1"; })) return true; await page.waitForTimeout(150); } return false; };
   await tap(piece.x + piece.w / 2, piece.y + piece.h / 2);
   for (let i = 0; i < 25 && (await tourOf(page)).step !== "panel"; i++) await page.waitForTimeout(150);
   await ringsStill();
   t = await cardText(page);
   const rowText = (k) => page.evaluate((key) => { const e = document.querySelector(`[data-testid="tour-row-${key}"]`); return e ? e.textContent : ""; }, k);
-  check("a tap on it: Rings out round the piece (not the panel), its card 2 of 3 with it, the piece's light out", (await ringsOut()) && !(await dockOpen()) && (await tourOf(page)).step === "panel" && /Your menu turns\./.test(t) && /Your menu · 2 of 3/i.test(await page.locator('[data-testid="tour-band"]').innerText()) && (await page.locator('[data-testid="dock-call-aura"]').count()) === 0, t);
-  check("...turning it, reading it, changing it, each said", /Drag the ring round the piece, or tap ‹ ›\./.test(await rowText("turn-it")) && /The setting at the top is named above, with what it's set to and what it does\./.test(await rowText("read-it")) && /Tap a setting: a switch flips, a choice shows its options\./.test(await rowText("change-it")), t);
-  const how = await Promise.all([["turn", '[data-testid="dock-menu"] [data-mf-grip]'], ["read", '[data-testid="dock-menu"] [data-testid="menu-fan-read"]'], ["tap", '[data-testid="dock-menu"] .mf-w.mf-focus']].map(async ([k, sel]) => ({ k, ring: await ringRect(page, k), el: await boxOf(page, sel) })));
+  check("a tap on it: the menu out of the corner piece (not the panel), its card 2 of 3 with it, the piece's light out", (await ringsOut()) && !(await dockOpen()) && (await tourOf(page)).step === "panel" && /Your menu\./.test(t) && /Each one keeps its place\. Tap one with choices and they open above it\./.test(t) && /Your menu · 2 of 3/i.test(await page.locator('[data-testid="tour-band"]').innerText()) && (await page.locator('[data-testid="dock-call-aura"]').count()) === 0, t);
+  check("...the line over it, View, Sound and More, each said", /whose move it is, who you are, and the computer's level\./.test(await rowText("whose-move")) && /ready-made views of the board\./.test(await rowText("view")) && /The volume/.test(await rowText("sound")) && /Every setting, in one list\./.test(await rowText("more")), t);
+  const how = await Promise.all([["line", '[data-testid="dock-menu"] [data-testid="menu-fan-status"]'], ["view", '[data-testid="dock-menu"] g[data-ml-item="view"]'], ["sound", '[data-testid="dock-menu"] g[data-ml-item="sound"]'], ["more", '[data-testid="dock-menu"] g[data-ml-item="more"]']].map(async ([k, sel]) => ({ k, ring: await ringRect(page, k), el: await boxOf(page, sel) })));
   check("...each ringed on it", how.every((x) => around(x.ring, x.el)), JSON.stringify(how));
   const lines = await page.locator('[data-testid="tour-card"] [data-lit]').count();
   const round = await litRound(lines * 2.6 + 0.8);
-  check(`...lit one at a time, round all ${lines}: the ring on the menu and its line on the card together`, lines === 3 && round.seen === lines && round.both === 0 && round.apart === 0, JSON.stringify({ lines, round }));
-  const stackBox = await boxOf(page, '[data-testid="dock-menu"] [data-testid="menu-fan-stack"]');
+  check(`...lit one at a time, round all ${lines}: the ring on the menu and its line on the card together`, lines === 4 && round.seen === lines && round.both === 0 && round.apart === 0, JSON.stringify({ lines, round }));
+  const lineBox = await boxOf(page, '[data-testid="dock-menu"] [data-testid="menu-fan-status"]');
   cardBox = await card(page).boundingBox();
-  check("...the card above the menu, clear of it", !!stackBox && !!cardBox && cardBox.y + cardBox.height <= stackBox.y, JSON.stringify({ cardBox, stackBox }));
-  // Its four kinds.
+  check("...the card above the menu, clear of it", !!lineBox && !!cardBox && cardBox.y + cardBox.height <= lineBox.y, JSON.stringify({ cardBox, lineBox }));
+  // What More holds.
   await page.locator('[data-testid="tour-next"]').click();
   await page.waitForTimeout(700);
   t = await cardText(page);
-  check("Next: its four kinds, 3 of 3, each said", (await tourOf(page)).step === "foot" && (await ringsOut()) && /Four kinds of setting\./.test(t) && /On the inner ring: tap one to turn straight to it\./.test(t) && /Your turn and the game: end your turn, undo, end the game\./.test(await rowText("game")) && /ready-made views of the board\./.test(await rowText("board")) && /Check alert, Piece guide, Move costs, and Actions left: what the board shows to help you\./.test(await rowText("hints")) && /Sound, Language, and Control bar\./.test(await rowText("settings")), t);
+  check("Next: everything else is in More, 3 of 3, its groups said", (await tourOf(page)).step === "foot" && (await ringsOut()) && /Everything else is in More\./.test(t) && /Tap More for one plain list, in groups:/.test(t) && /End your turn, undo, and end the game \(it asks first\)\./.test(await rowText("game")) && /Check alert, Piece guide, Move costs, and Actions left\./.test(await rowText("help-on-the-board")) && /The volume, and the language the game speaks\./.test(await rowText("sound-and-language")) && /Replay a game, and save your progress\./.test(await rowText("your-games")) && /The control bar, in place of the piece\./.test(await rowText("layout")), t);
   check("...and the tour's end said: your move", /That's the tour\. Your move: tap any of your pieces to see what it does\. Good luck!/.test(t) && (await page.locator('[data-testid="tour-done"]').count()) === 1, t);
-  const kinds = await Promise.all(["game", "board", "hints", "settings"].map(async (k) => ({ k, ring: await ringRect(page, `kind-${k}`), el: await boxOf(page, `[data-testid="dock-menu"] [data-mf-kind="${k}"]`) })));
-  check("...each kind ringed on the inner ring", kinds.every((x) => around(x.ring, x.el)), JSON.stringify(kinds));
-  const kindRound = await litRound(3.2);
-  check("...lit one at a time with its line on the card", kindRound.seen >= 1 && kindRound.both === 0 && kindRound.apart === 0, JSON.stringify(kindRound));
+  const moreRing = await ringRect(page, "more"), moreEl = await boxOf(page, '[data-testid="dock-menu"] g[data-ml-item="more"]');
+  check("...More ringed on the fan", around(moreRing, moreEl), JSON.stringify({ moreRing, moreEl }));
   await page.locator('[data-testid="tour-back"]').click();
   await page.waitForTimeout(500);
-  check("‹ Back: how it turns again, still out", (await tourOf(page)).step === "panel" && (await ringsOut()));
+  check("‹ Back: what's in it again, still out", (await tourOf(page)).step === "panel" && (await ringsOut()));
   // A tap outside it: put away, and the piece's card again; the board
   // still picks nothing.
   cardBox = await card(page).boundingBox();
@@ -508,7 +506,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   check("a tap outside the menu: put away, the piece's card again, nothing picked", !(await ringsOut()) && (await tourOf(page)).step === "menu" && (await page.locator('[data-testid="piece-card"]').count()) === 0 && (await tourOf(page)).marks.arrows.length === 0);
   await page.locator('[data-testid="tour-next"]').click();
   for (let i = 0; i < 25 && (await tourOf(page)).step !== "panel"; i++) await page.waitForTimeout(150);
-  check("...Open it: Rings out, its card with it", (await ringsOut()) && (await tourOf(page)).step === "panel");
+  check("...Open it: the menu out, its card with it", (await ringsOut()) && (await tourOf(page)).step === "panel");
   await ringsStill();
   await page.locator('[data-testid="tour-next"]').click();
   await page.waitForTimeout(500);
@@ -517,24 +515,24 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
      should be a way back, or just to have it show it temporarily while
      you're doing the tutorial"): shown for now, not kept, its own card;
      Back to the tour, or the bar's own Use the classic dock, and the menu's
-     card again, the menu out. Pressed from Rings: Settings on the inner
-     ring, on to Control bar, a tap. */
+     card again, the menu out. Pressed from the menu: More, then its row. */
   const layoutKept = () => page.evaluate(() => localStorage.getItem("el-cabeza:nova-layout"));
   const keptBefore = await layoutKept();
   const barShown = () => page.evaluate(() => { const b = document.querySelector('[data-testid="shell-bar"]'); return !!b && b.getBoundingClientRect().height > 0; });
   const ringsBar = async () => {
-    const k = await boxOf(page, '[data-testid="dock-menu"] [data-mf-kind="settings"] path');
-    await tap(k.x + k.w / 2, k.y + k.h / 2);
-    await ringsStill();
-    for (let i = 0; i < 6 && (await focusOf()) !== "bar"; i++) { await page.locator('[data-testid="menu-fan-next"]').click(); await ringsStill(); }
-    const b = await boxOf(page, '[data-testid="dock-menu"] [data-ml-label="bar"]');
+    const m = await boxOf(page, '[data-testid="dock-menu"] [data-ml-label="more"]');
+    await tap(m.x + m.w / 2, m.y + m.h / 2);
+    for (let i = 0; i < 20 && !(await page.evaluate(() => !!document.querySelector('[data-testid="dock-menu"] [data-mf-row="bar"]'))); i++) await page.waitForTimeout(150);
+    await page.evaluate(() => { const n = document.querySelector('[data-testid="dock-menu"] [data-mf-row="bar"]'), list = n.closest('[data-testid="menu-fan-list"]'); const r = n.getBoundingClientRect(), lr = list.getBoundingClientRect(); list.scrollTop += r.top + r.height / 2 - (lr.top + lr.height / 2); });
+    await page.waitForTimeout(60);
+    const b = await boxOf(page, '[data-testid="dock-menu"] [data-mf-row="bar"]');
     await tap(b.x + b.w / 2, b.y + b.h / 2);
   };
   await ringsBar();
   for (let i = 0; i < 25 && (await tourOf(page)).step !== "bar"; i++) await page.waitForTimeout(150);
   await page.waitForTimeout(700);
   t = await cardText(page);
-  check("the control bar pressed in the tour (from Rings): the bar shown, the tour going on with a card of its own", (await tourOf(page)).step === "bar" && (await barShown()) && /The control bar\./.test(t) && /everything else behind ☰ at the top right\./.test(t) && /To have the spinning piece back any time: ☰, then Use the classic dock\./.test(t) && (await page.locator('[data-testid="tour-bar-back"]').count()) === 1, t);
+  check("the control bar pressed in the tour (from More): the bar shown, the tour going on with a card of its own", (await tourOf(page)).step === "bar" && (await barShown()) && /The control bar\./.test(t) && /everything else behind ☰ at the top right\./.test(t) && /To have the spinning piece back any time: ☰, then Use the classic dock\./.test(t) && (await page.locator('[data-testid="tour-bar-back"]').count()) === 1, t);
   check("...shown for now, not kept as the layout", (await layoutKept()) === keptBefore, String(await layoutKept()));
   const barRing = await ringRect(page, "shell-bar"), menuRing = await ringRect(page, "shell-menu");
   const barBox = await boxOf(page, '[data-testid="shell-bar"]'), menuBtn = await boxOf(page, '[data-testid="shell-menu-button"]');
@@ -545,7 +543,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   for (let i = 0; i < 25 && (await tourOf(page)).step !== "foot"; i++) await page.waitForTimeout(150);
   for (let i = 0; i < 25 && !(await ringsOut()); i++) await page.waitForTimeout(150);
   await page.waitForTimeout(600);
-  check("...Back to the tour: the classic dock, Rings out again, its card where it was", (await tourOf(page)).step === "foot" && !(await barShown()) && (await ringsOut()) && /Four kinds of setting\./.test(await cardText(page)) && (await layoutKept()) === keptBefore);
+  check("...Back to the tour: the classic dock, the menu out again, its card where it was", (await tourOf(page)).step === "foot" && !(await barShown()) && (await ringsOut()) && /Everything else is in More\./.test(await cardText(page)) && (await layoutKept()) === keptBefore);
   // The bar's own way back.
   await ringsStill();
   await ringsBar();
@@ -650,15 +648,16 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const mt = (await card(page).innerText()).replace(/\s+/g, " ");
   check("the menu's card on a desktop: a mouse's words", (await tourOf(page)).step === "menu" && /The spinning piece at the lower right opens it: the menu you started this game from\. Click it now\./.test(mt) && /Click anywhere outside the menu to put it away again\./.test(mt) && /click to open your menu/i.test(((await tagBox(page, "dock")) || {}).text || ""), mt);
   await go("tour-next", 2000);
-  const pb = await boxOf(page, '[data-testid="dock-menu"] [data-testid="menu-fan-stack"]'), rb = await boxOf(page, '[data-testid="dock-menu"] [data-mf-grip]'), cb = await card(page).boundingBox();
+  const pb = await boxOf(page, '[data-testid="dock-menu"] [data-testid="menu-fan-status"]'), rb = await boxOf(page, '[data-testid="dock-menu"] svg.cr-ring'), cb = await card(page).boundingBox();
   const cbox = cb && { x: cb.x, y: cb.y, w: cb.width, h: cb.height };
-  check("...Open it: Rings out, the card beside it, not over it", (await tourOf(page)).step === "panel" && !!pb && !!rb && !!cb && !overlap(cbox, pb) && !overlap(cbox, rb), JSON.stringify({ pb, rb, cb }));
-  // (its Control bar, from Rings: Settings on the inner ring, on to it, a click)
-  const kb = await boxOf(page, '[data-testid="dock-menu"] [data-mf-kind="settings"] path');
+  check("...Open it: the menu out, the card beside it, not over it (nor over the line above it)", (await tourOf(page)).step === "panel" && !!pb && !!rb && !!cb && !overlap(cbox, pb) && !overlap(cbox, rb), JSON.stringify({ pb, rb, cb }));
+  // (its Control bar, from the menu: More, then its row, a click)
+  const kb = await boxOf(page, '[data-testid="dock-menu"] [data-ml-label="more"]');
   await page.mouse.click(kb.x + kb.w / 2, kb.y + kb.h / 2);
-  await page.waitForTimeout(1200);
-  for (let i = 0; i < 6 && (await page.evaluate(() => { const f = document.querySelector('[data-testid="dock-menu"] [data-ml-item].mf-focus'); return f && f.getAttribute("data-ml-item"); })) !== "bar"; i++) { await page.locator('[data-testid="menu-fan-next"]').click(); await page.waitForTimeout(900); }
-  const lb = await boxOf(page, '[data-testid="dock-menu"] [data-ml-label="bar"]');
+  for (let i = 0; i < 20 && !(await page.evaluate(() => !!document.querySelector('[data-testid="dock-menu"] [data-mf-row="bar"]'))); i++) await page.waitForTimeout(150);
+  await page.evaluate(() => { const n = document.querySelector('[data-testid="dock-menu"] [data-mf-row="bar"]'), list = n.closest('[data-testid="menu-fan-list"]'); const r = n.getBoundingClientRect(), lr = list.getBoundingClientRect(); list.scrollTop += r.top + r.height / 2 - (lr.top + lr.height / 2); });
+  await page.waitForTimeout(100);
+  const lb = await boxOf(page, '[data-testid="dock-menu"] [data-mf-row="bar"]');
   await page.mouse.click(lb.x + lb.w / 2, lb.y + lb.h / 2);
   for (let i = 0; i < 25 && (await tourOf(page)).step !== "bar"; i++) await page.waitForTimeout(150);
   check("...its Control bar: the bar's card", (await tourOf(page)).step === "bar" && (await page.locator('[data-testid="tour-bar-keep"]').count()) === 1);

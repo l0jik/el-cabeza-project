@@ -324,3 +324,65 @@ photographed with Rings out and its layer hidden (the piece small where
 Rings puts it, hub 195,726 on the phone and 640,682 in the den), the
 options as HTML laid over those screenshots in Libre Franklin with Rings'
 own icons, photographed at 2x (phone) and 1x (computer).
+
+Calm Rings, the dock's menu (2026-10-30; user, of the six options: "A,
+with B in play. Make all appropriate recommended changes that the
+research indicates."). Built straight into the game rather than the lab
+first (the page offered the lab; "make all appropriate recommended
+changes" read as a go): chassis/menu-fan.js, version 4.6 "calm"
+(FAN_VERSIONS; export CALM, mountCalm), the dock's menu in every world;
+Rings itself stays in the lab beside it (?menulab=4.2, ?menulab=4.6 for
+Calm). fanMenu takes a version's own mount (v.mount || mountFan).
+Before a game and after one: the half ring round the piece (scaled 0.6
+where it rests; after a game brought from its corner to that place),
+r0 64 / r1 up to 188 on a phone (68 / 214 on a big screen), five wedges,
+More at the left end, the most wanted at the top, then right, left, far
+right (CALM_QUICK: before opponent, first, start, the world's extra
+(pieces, a world setting, the cart, nova); after opponent, movelog,
+view, replay; CALM_SPARE fills in). The big button (Begin, Try a Game,
+New game, the world's wood via dress()) above the ring; after a game how
+it ended in a dark line above that. In play (B): the piece stays in its
+corner, raised (z 15), a quarter fan out of it (-177° to -90°, r0 58,
+r1 206; 62 / 232 big): View, Sound, More; the line over it says once
+whose move and who's who ("Your move · You: Ash (light) · Computer:
+Easy", "Walnut (dark) to move · Two players"); the "you" item is gone
+from the menu. A wedge with choices (and Opponent, Starting position,
+View) opens a card above the ring and the big button (which stays in
+reach: Begin one tap away, a choice made or not; e2e-cromo caught it
+hidden), its choices as 44 px chips, with what
+goes with it (CALM_WITH: the level with the opponent, My half with the
+start, Focus and a world's own settings with the view: Cromo's Surface
+one tap from the fan in play); a switch flips where it is; Online opens
+the panel's own page; a held one says "Not available right now." in the
+line's place. More: every setting in one grouped list (Game; Board; Help
+on the board; Sound and language; Your games; Layout; End game last,
+alone, red, asking "End this game?" with Keep playing beside it), rows
+48 px, switches 46 x 28, choices opening inline under their row (two
+levels, never three); a sheet from the bottom on a phone (narrow < 640),
+a card at the lower right on a computer; the ring hidden while it's out,
+the game behind dimmed, the layer raised to z 32 over the title; its
+close puts the menu away
+(one tap back to the game), Escape shuts the card or the list first;
+the big button at its foot before and after a game. Words in the panel's
+own face (--ml-text from dress), sentence case, names 14 px (15 big),
+values 12 px (13), two lines at most, sized to the wedge's chord; no
+turning, no wheel, no unfold: out on the tap itself (triggerDockBounce
+toggles the dock's own menu first and bounces alongside; it opened
+260 ms on; the lab's menus and the panel still open as the bounce
+settles, since they open over the piece where the tap's own click lands,
+e2e-menu-lab caught it; Calm itself ignores a wedge's click in its first
+250 ms, the tap that brought it out), its fade 0.15 s, cards 0.15 s, the
+sheet 0.18 s. A card with no room above (a phone on its side) comes from
+the top of the screen. Keys: arrows round the wedges (from the most
+wanted), Enter, Escape; a card or the list opened by a key takes the
+focus, and gives it back to its wedge on closing. Its classes are cr-
+(chassis/corner-menu.js owns cm-: .cm-card collided); test hooks
+menu-fan, menu-fan-primary, menu-fan-status, menu-fan-note,
+menu-fan-card, menu-fan-ctl (data-mf-of), menu-fan-more, menu-fan-list,
+menu-fan-more-primary, menu-fan-ask, menu-fan-close, data-ml-item /
+data-ml-label (wedges), data-mf-choice, data-mf-row, data-mf-group,
+data-cr-at (a wedge's middle angle), svg data-ring "r0 r1 a0 a1 step".
+The first-game tour's menu cards: "Your menu." (the line, View, Sound,
+More, each ringed as its line lights: tourRingsHow) and "Everything else
+is in More." (its groups, More ringed). Tests: e2e-rings (rewritten for
+Calm), e2e-cromo, e2e-first-game-tour. es/vi lines added.

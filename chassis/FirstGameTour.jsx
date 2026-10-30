@@ -72,16 +72,20 @@ export function markTourDone() {
 // the piece in the corner, inside the menu, and the buttons along its foot.
 export const TOUR_CARDS = ["welcome", "ways", "goal", "crush", "blocks", "turn", "board"];
 export const TOUR_MENU = ["menu", "panel", "foot"];
-/* With Rings, the dock's menu (chassis/menu-fan.js; user: "Replace the
-   dock everywhere"), the two cards inside it are its own: how it turns
-   (the ring, the read-out above it, the setting at its point, each ringed
-   as its line is lit), then its four kinds on the inner ring. */
+/* With the dock's own menu (chassis/menu-fan.js; user: "Replace the dock
+   everywhere"), the two cards inside it are its own. Now Calm Rings (user:
+   "A, with B in play"): in a game the fan out of the corner piece, so
+   first the line over it and its wedges, each ringed as its line is lit
+   (View where the board has views, Sound where there's sound); then More,
+   its one list. */
 export const TOUR_RINGS_HOW = [
-  ["turn", '[data-testid="dock-menu"] [data-mf-grip]'],
-  ["read", '[data-testid="dock-menu"] [data-testid="menu-fan-read"]'],
-  ["tap", '[data-testid="dock-menu"] .mf-w.mf-focus'],
+  ["line", '[data-testid="dock-menu"] [data-testid="menu-fan-status"]'],
+  ["view", '[data-testid="dock-menu"] [data-ml-item="view"]'],
+  ["sound", '[data-testid="dock-menu"] [data-ml-item="sound"]'],
+  ["more", '[data-testid="dock-menu"] [data-ml-item="more"]'],
 ];
-export const TOUR_RINGS_KINDS = ["game", "board", "hints", "settings"];
+export const tourRingsHow = (has) => TOUR_RINGS_HOW.filter(([k]) => (k === "view" ? has.views : k === "sound" ? has.sound : true));
+export const TOUR_RINGS_MORE = '[data-testid="dock-menu"] [data-ml-item="more"]';
 // (The control bar shown for now from the menu's cards: its own card.)
 export const TOUR_BAR = "bar";
 
@@ -293,16 +297,18 @@ function cardText(t) {
           "To have the spinning piece back any time: ☰, then Use the classic dock.",
         ],
       };
-    // Inside it, top to bottom, in its own words. (Rings: how it turns.)
+    // Inside it, top to bottom, in its own words. (Calm Rings: the line
+    // over the fan, then its wedges, as tourRingsHow rings them.)
     case "panel": {
       if (t.rings) {
+        const rows = [["Whose move", "The line over it: whose move it is, who you are, and the computer's level."]];
+        if (t.views && t.views.length) rows.push(["View", say("{views}: ready-made views of the board.", { views: list(t.views) })]);
+        if (t.sound) rows.push(["Sound", t.channels ? "The volume, with the music and the other sounds each on or off." : "The volume."]);
+        rows.push(["More", "Every setting, in one list."]);
         return {
-          title: "Your menu turns.",
-          rows: [
-            ["Turn it", t.touch ? "Drag the ring round the piece, or tap ‹ ›." : "Drag the ring round the piece, roll the mouse wheel, or click ‹ ›."],
-            ["Read it", "The setting at the top is named above, with what it's set to and what it does."],
-            ["Change it", t.touch ? "Tap a setting: a switch flips, a choice shows its options." : "Click a setting: a switch flips, a choice shows its options."],
-          ],
+          title: "Your menu.",
+          body: [t.touch ? "Each one keeps its place. Tap one with choices and they open above it." : "Each one keeps its place. Click one with choices and they open above it."],
+          rows,
           lit: true,
         };
       }
@@ -313,22 +319,22 @@ function cardText(t) {
       if (t.endGame) rows.push([t.endGame, "Ends this game."]);
       return { title: "Inside your menu.", rows, lit: true };
     }
-    // Along its foot: each button drawn as the menu draws it. (Rings: its
-    // four kinds.)
+    // Along its foot: each button drawn as the menu draws it. (Calm Rings:
+    // what More holds, in its groups.)
     case "foot": {
       if (t.rings) {
         const hints = [t.check ? "Check alert" : null, "Piece guide", t.costs ? "Move costs" : null, "Actions left"].filter(Boolean).map(tr);
-        const settings = [t.sound ? "Sound" : null, "Language", t.layout ? "Control bar" : null].filter(Boolean).map(tr);
+        const rows = [
+          ["Game", "End your turn, undo, and end the game (it asks first)."],
+          ["Help on the board", say("{list}.", { list: list(hints) })],
+          ["Sound and language", t.sound ? "The volume, and the language the game speaks." : "The language the game speaks."],
+          ["Your games", "Replay a game, and save your progress."],
+        ];
+        if (t.layout) rows.push(["Layout", "The control bar, in place of the piece."]);
         return {
-          title: "Four kinds of setting.",
-          body: [t.touch ? "On the inner ring: tap one to turn straight to it." : "On the inner ring: click one to turn straight to it."],
-          rows: [
-            ["Game", "Your turn and the game: end your turn, undo, end the game."],
-            ["Board", t.views && t.views.length ? say("{views}: ready-made views of the board.", { views: list(t.views) }) : "Ready-made views of the board."],
-            ["Hints", say("{list}: what the board shows to help you.", { list: list(hints) })],
-            ["Settings", say("{list}.", { list: list(settings) })],
-          ],
-          lit: true,
+          title: "Everything else is in More.",
+          body: [t.touch ? "Tap More for one plain list, in groups:" : "Click More for one plain list, in groups:"],
+          rows,
           note: t.touch ? "That's the tour. Your move: tap any of your pieces to see what it does. Good luck!" : "That's the tour. Your move: click any of your pieces to see what it does. Good luck!",
         };
       }

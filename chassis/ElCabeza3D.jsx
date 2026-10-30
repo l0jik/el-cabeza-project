@@ -33,7 +33,7 @@ import {
   pieceName as setOutPieceName, SET_OUT_ACCENT,
 } from "./set-out.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo, pieceLesson } from "./RulesCards.jsx";
-import FirstGameTour, { TourMarks, tourDone, markTourDone, TOUR_CARDS, TOUR_MENU, TOUR_BAR, TOUR_TONES, TOUR_RINGS_HOW, TOUR_RINGS_KINDS } from "./FirstGameTour.jsx";
+import FirstGameTour, { TourMarks, tourDone, markTourDone, TOUR_CARDS, TOUR_MENU, TOUR_BAR, TOUR_TONES, tourRingsHow, TOUR_RINGS_MORE } from "./FirstGameTour.jsx";
 import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
 const FOCUS_EVENT = "el-cabeza:focus";
@@ -1842,15 +1842,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }, [dockView, awaitingBegin]);
 
   // Bounces the piece (a quick decaying squash/stretch on its group
-  // scale), then opens the panel once the bounce settles. Squashes
+  // scale), the menu opening with it. Squashes
   // around the piece's own base scale (see pieceBaseScale in the
   // mesh-building effect below) rather than 1 — every piece type is
   // normalized to a consistent apparent size in this tiny preview, so
   // bouncing back to a bare 1 would visibly snap a smaller/larger piece
   // to the wrong size for one frame.
-  // The piece tapped, its bounce done: with ?menulab the lab's menu, else
-  // Rings, the dock's menu (out, or away again), else (not for now, or not
-  // loaded) the panel.
+  // The piece tapped: with ?menulab the lab's menu, else Rings, the dock's
+  // menu (out, or away again), else (not for now, or not loaded) the panel.
   const openDockMenu = () => {
     // (Not while it's put aside: a bounce begun just before still lands.)
     if (dockAsideRef.current) return;
@@ -1872,9 +1871,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (lastMenuRef.current !== "panel" && !menuLabRef.current && !dockPanelWanted() && (ringsRef.current || ringsLoadRef.current)) { ringsAgainRef.current = true; return; }
     setDockView("panel");
   };
+  /* (The dock's own menu out on the tap itself, the bounce alongside:
+     usable on the first tap, nothing to wait through, the research behind
+     Calm Rings said; it opened as the bounce settled, 260 ms on. A tap
+     during the bounce, the menu away again. The lab's menus and the panel
+     as before, the bounce done: they open over the piece, where the tap's
+     own click would land.) */
   const triggerDockBounce = useCallback(() => {
     const state = dockPieceRef.current;
-    if (!state || state.bouncing || dockAsideRef.current) return;
+    if (!state || dockAsideRef.current) return;
+    const quick = !menuLabRef.current && !dockPanelWanted() && !!ringsRef.current && ringsRef.current.toggle();
+    if (state.bouncing) return;
     state.bouncing = true;
     const start = performance.now();
     const DUR = 260;
@@ -1888,7 +1895,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       } else {
         state.pieceGroup.scale.set(base, base, base);
         state.bouncing = false;
-        openDockMenu();
+        if (!quick) openDockMenu();
       }
     };
     requestAnimationFrame(tick);
@@ -4113,7 +4120,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      panel's own buttons, so the panel stays (out of sight) as the one
      place the game's settings live, and opens itself only for Online's
      own page. Its own chunk, fetched as the page starts. ringsOpen: for
-     the first-game tour's menu cards. */
+     the first-game tour's menu cards. Now Calm Rings (user, of the six
+     ways to streamline it: "A, with B in play. Make all appropriate
+     recommended changes that the research indicates."): a few wedges in
+     fixed places and More for all of it, in play a quarter fan from the
+     corner piece; Rings itself in the lab (?menulab=4.2). */
   const ringsStateRef = useRef(null);
   const [ringsOpen, setRingsOpen] = useState(false);
   useEffect(() => {
@@ -4121,11 +4132,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     ringsLoadRef.current = import("./menu-fan.js").then((m) => {
       if (gone) return;
       const r = m.fanMenu({ ...dockMenuHost(), onOpen: (open) => { if (open) lastMenuRef.current = "rings"; setRingsOpen(open); } }, { testid: "dock-menu" });
-      ringsRef.current = { ...r, toggle: () => r.toggle(m.RINGS), open: () => r.open(m.RINGS) };
+      ringsRef.current = { ...r, toggle: () => r.toggle(m.CALM), open: () => r.open(m.CALM) };
       const st = ringsStateRef.current;
       if (st) {
         r.update(st);
-        if (ringsAgainRef.current && st.ready) { ringsAgainRef.current = false; r.open(m.RINGS); }
+        if (ringsAgainRef.current && st.ready) { ringsAgainRef.current = false; r.open(m.CALM); }
       }
     }).catch(() => { /* (none: the panel as ever) */ });
     return () => {
@@ -5118,12 +5129,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       t2.boxes.push({ key: "dock", sel: "[data-dock-piece]", inset: 26, tone: "mine" });
       tag("dock", { el: "[data-dock-piece]", inset: 26 }, isCoarsePointer() ? t("Tap to open your menu") : t("Click to open your menu"), "mine", "above");
     } else if (tourStep === "panel" && ringsOpen) {
-      // Rings: turning it, reading it, a tap; each ringed in turn as its
-      // card lights its line.
-      TOUR_RINGS_HOW.forEach(([key, sel], i) => t2.boxes.push({ key, sel, tone: "mine", turn: i, of: TOUR_RINGS_HOW.length }));
+      // Calm Rings: the line over the corner fan, then its wedges; each
+      // ringed in turn as its card lights its line.
+      const how = tourRingsHow({ views: dockWords.views.length > 0, sound: tourMenuFoot.includes("sound") });
+      how.forEach(([key, sel], i) => t2.boxes.push({ key, sel, tone: "mine", turn: i, of: how.length }));
     } else if (tourStep === "foot" && ringsOpen) {
-      // Its four kinds on the inner ring, the same.
-      TOUR_RINGS_KINDS.forEach((k, i) => t2.boxes.push({ key: `kind-${k}`, sel: `[data-testid="dock-menu"] [data-mf-kind="${k}"]`, tone: "mine", turn: i, of: TOUR_RINGS_KINDS.length }));
+      // Its More, which the card says holds the rest.
+      t2.boxes.push({ key: "more", sel: TOUR_RINGS_MORE, tone: "mine" });
     } else if (tourStep === "panel") {
       // What's in it, each ringed in turn as its card lights its line.
       tourMenuRows.forEach(([key, sel], i) => t2.boxes.push({ key, sel: `[data-testid="dock-panel"] ${sel}`, tone: "mine", turn: i, of: tourMenuRows.length }));

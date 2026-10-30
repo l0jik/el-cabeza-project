@@ -8,10 +8,11 @@
    chromo, C-R-O-M-O, needs to reflect the color of pieces. I'm not sure
    why it's blue at this point.").
 
-   - Rings, the dock's menu, has Surface (Tungsten or Shungite) under
-     Board before a game and in play; a choice there re-dresses the board
-     where it is (the slab's top, its finish), Rings staying out, and the
-     setup's own switch says what it is ("Surface: ...") and follows.
+   - The dock's menu (Calm Rings now) has Surface (Tungsten or Shungite):
+     before a game on a wedge of its own, in play in View's card, one tap
+     from the corner fan; a choice there re-dresses the board where it is
+     (the slab's top, its finish), the menu staying out, and the setup's
+     own switch says what it is ("Surface: ...") and follows.
    - The dark side's Actions dots glow the dark pieces' gunmetal, not the
      old blue.
    - On a narrow phone the title's badge in play keeps clear of the corner
@@ -55,18 +56,19 @@ async function cromo({ width = 390, height = 844, stone = "tungsten" } = {}) {
   return { ctx, page, errs };
 }
 
-// Rings as it is: out and still, its settings, the one at its point, the read-out.
+// The dock's menu (Calm Rings) as it is: out and shown, its phase, its
+// wedges, what its wedges say, the card out.
 const rings = (page) => page.evaluate(() => {
   const layer = document.querySelector('[data-testid="dock-menu"][data-open="true"]');
   const stage = layer && layer.querySelector('[data-testid="menu-fan"]');
   if (!stage) return null;
-  const focus = layer.querySelector("[data-ml-item].mf-focus");
+  const card = layer.querySelector('[data-testid="menu-fan-card"]');
   return {
     phase: layer.getAttribute("data-phase"),
-    still: getComputedStyle(stage).opacity === "1" && stage.getAttribute("data-turning") === "false",
-    keys: [...layer.querySelectorAll("[data-ml-item]")].map((n) => n.getAttribute("data-ml-item")),
-    focus: focus ? focus.getAttribute("data-ml-item") : null,
-    read: (layer.querySelector('[data-testid="menu-fan-read"]') || {}).textContent || "",
+    still: getComputedStyle(stage).opacity === "1",
+    keys: [...layer.querySelectorAll("g[data-ml-item]")].map((n) => n.getAttribute("data-ml-item")),
+    labels: Object.fromEntries([...layer.querySelectorAll("[data-ml-label]")].map((n) => [n.getAttribute("data-ml-label"), n.textContent.replace(/\s+/g, " ").trim()])),
+    card: card ? card.getAttribute("data-mf-card") : null,
   };
 });
 const out = async (page) => { const r = await rings(page); return r && r.still ? r : null; };
@@ -79,20 +81,15 @@ async function openRings(page) {
   }
   return poll(() => out(page), 6000, 150);
 }
-// A setting's choices out in the read-out: Rings turned (›) till it's at
-// the point, then its name tapped once Rings is still.
+// A wedge's card out: the wedge tapped where its words are (before a game
+// Surface's own; in play View's, which holds the board's look too).
 async function choicesOf(page, key) {
-  let r = await poll(() => out(page), 4000, 100);
-  for (let i = 0; i < 16 && r && r.focus !== key; i++) {
-    await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-next"]').tap();
-    r = await poll(() => out(page), 3000, 100);
-  }
   for (let i = 0; i < 3; i++) {
     await poll(() => out(page), 4000, 100);
     const b = await page.evaluate((k) => { const n = document.querySelector(`[data-testid="dock-menu"] [data-ml-label="${k}"]`); if (!n) return null; const r = n.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, key);
     if (!b) continue;
     await page.touchscreen.tap(b.x, b.y);
-    const ok = await poll(async () => { const r = await rings(page); return !!r && r.focus === key && (await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-ctl"] [data-mf-choice]').count()) > 0; }, 3000, 100);
+    const ok = await poll(async () => { const r = await rings(page); return !!r && r.card === key && (await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-card"] [data-mf-choice]').count()) > 0; }, 3000, 100);
     if (ok) return true;
   }
   return false;
@@ -120,16 +117,16 @@ const setupSwitch = (page) => page.evaluate(() => (document.querySelector('[data
   const { ctx, page, errs } = await cromo();
   check(`the board in Tungsten to begin with (${JSON.stringify(await slabTop(page))})`, isStone(await slabTop(page), "tungsten"));
   const r = await openRings(page);
-  check(`Rings out from the piece before a game, Surface among its settings (${r && r.keys.join(",")})`, !!r && r.phase === "setup" && r.keys.includes("surface"));
+  check(`the menu out from the piece before a game, Surface on a wedge of its own (${r && r.keys.join(",")})`, !!r && r.phase === "setup" && r.keys.includes("surface"));
   check("...where the stone's own button was not read twice (no bare 'Tungsten' action)", !!r && !r.keys.includes("pieces"));
   check("...its choices: Tungsten and Shungite", (await choicesOf(page, "surface")) && (await page.locator('[data-testid="dock-menu"] [data-mf-choice="tungsten"]').count()) === 1 && (await page.locator('[data-testid="dock-menu"] [data-mf-choice="shungite"]').count()) === 1);
-  check("...it says what it is", /Surface/.test((await rings(page)).read) && /Tungsten/.test((await rings(page)).read), (await rings(page)).read);
+  check("...its wedge says what it is", /Surface/.test((await rings(page)).labels.surface) && /Tungsten/.test((await rings(page)).labels.surface), JSON.stringify((await rings(page)).labels));
   await choose(page, "shungite");
   const sh = await poll(async () => { const s = await slabTop(page); return isStone(s, "shungite") ? s : null; }, 5000, 150);
   check(`Shungite chosen: the board re-dressed where it is (${JSON.stringify(sh || await slabTop(page))})`, !!sh);
-  check("...Rings still out, saying so", !!(await poll(async () => { const x = await rings(page); return x && /Shungite/.test(x.read) ? x : null; }, 3000, 150)), (await rings(page) || {}).read);
+  check("...the menu still out, its wedge saying so", !!(await poll(async () => { const x = await rings(page); return x && /Shungite/.test(x.labels.surface || "") ? x : null; }, 3000, 150)), JSON.stringify((await rings(page) || {}).labels));
   check(`...and the setup's own switch says what it is, and follows ("${await setupSwitch(page)}")`, /^Surface: Shungite$/.test((await setupSwitch(page)) || ""));
-  // Begin (Rings' big button), dark to move first, to see its dots.
+  // Begin (the menu's big button), dark to move first, to see its dots.
   await page.evaluate(() => { const s = document.querySelector('[data-testid="turn-status"]'); if (s && s.getAttribute("data-side") !== "dark" && s.getAttribute("role") === "button") s.click(); });
   await page.waitForTimeout(300);
   await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-primary"]').tap();
@@ -139,14 +136,14 @@ const setupSwitch = (page) => page.evaluate(() => (document.querySelector('[data
   await page.waitForTimeout(800);
   const ember = await page.evaluate(() => { const c = document.querySelector('[data-testid="points-counter"]'); return c && { to: window.__EC_TEST_TO_MOVE__ && window.__EC_TEST_TO_MOVE__(), glow: c.style.getPropertyValue("--ec-ember").trim().toLowerCase() }; });
   check(`the Actions dots in the side's own colour: dark, the dark pieces' gunmetal (${JSON.stringify(ember)})`, !!ember && ember.to === "dark" && ember.glow === "#b7ad9c");
-  // In play: the corner piece brings Rings out; Surface there too.
+  // In play: the corner piece brings the corner fan out; Surface in View's card.
   const r2 = await openRings(page);
-  check(`in play: Rings from the corner piece, Surface there too (${r2 && r2.keys.join(",")})`, !!r2 && r2.phase === "play" && r2.keys.includes("surface"));
-  check("...its choices", await choicesOf(page, "surface"));
+  check(`in play: the corner fan from the corner piece (${r2 && r2.keys.join(",")})`, !!r2 && r2.phase === "play" && r2.keys.includes("view"));
+  check("...View's card holds the surface's choices, one tap from the fan", (await choicesOf(page, "view")) && (await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-card"] [data-mf-choice="tungsten"]').count()) === 1);
   await choose(page, "tungsten");
   const tu = await poll(async () => { const s = await slabTop(page); return isStone(s, "tungsten") ? s : null; }, 5000, 150);
   check(`Tungsten chosen mid-game: the board re-dressed under the game (${JSON.stringify(tu || await slabTop(page))})`, !!tu);
-  check("...the game going on (still in play, Rings out)", !!(await rings(page)) && (await page.locator('[data-testid="points-counter"]').count()) > 0);
+  check("...the game going on (still in play, the menu out)", !!(await rings(page)) && (await page.locator('[data-testid="points-counter"]').count()) > 0);
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

@@ -1,34 +1,29 @@
-/* Rings, the dock's menu (chassis/menu-fan.js; user, of the menu lab's
-   five turning fans: "I like rings", then, asked what next: "Replace the
-   dock everywhere"). With no lab: a tap on the piece brings Rings out
-   round it, not the panel, in every phase; its settings press the panel's
-   own buttons, and the panel opens only for Online's own page.
+/* The dock's menu (chassis/menu-fan.js): Rings, then (user, of the six
+   ways to streamline it: "A, with B in play. Make all appropriate
+   recommended changes that the research indicates.") Calm Rings. With no
+   lab, a tap on the piece brings it out round the piece, not the panel, in
+   every phase; its settings press the panel's own buttons, and the panel
+   opens only for Online's own page. (Rings itself, the turning one, is the
+   lab's now: ?menulab=4.2, e2e-menu-lab.)
 
-   On a phone in the store: out from the piece before a game (every
-   setting, Try a Game over it); Level's choices; Online opens the panel;
-   Try a Game begins the game. In play: the corner piece brings it out
-   (brought to the middle); a touch held on the corner piece opens it and
-   its lifting doesn't put it away again; End game asks twice. After the
-   game: the corner piece's call answered, New game over it. A new
-   player's first look holds back what the panel holds back. On a
-   desktop (Noir): a click, the mouse wheel, Escape, and the mouse
-   brought onto the corner piece in play.
+   What the research asked of it, checked here: a few wedges for the
+   moment, each in a place that stays put (More at an end, the most wanted
+   at the top), no turning; words set straight, in sentence case, 14 px
+   names and 12 px values, inside their wedges; every button 44 px or
+   more; out on the tap itself, its motion under 0.2 s; who's playing and
+   whose move said once, in one line, not inside the menu; End game asked
+   first, at the list's edge.
 
-   Then (user: "I'm still with the fans. I want to combine rings and
-   fans. make sure that the rings and all that can be scrolled by rolling
-   a mouse wheel too."): Rings opens like the lab's first Fan, its
-   settings and kinds folded at the top, opening out to their places; the
-   wheel turns it a setting a notch (a small smooth roll and a Firefox
-   line notch too), a quick spin as many, a kind a notch over the inner
-   ring, never with Ctrl (a pinch).
-
-   In play, who's who (user: "When I open this menu mid-game, I want to
-   know who I am... it has to be either dark or light... what level the
-   AI is set to... when you hit game... immediately shows you that
-   information"): the side to move with its colour, you and the
-   computer's level under it, You first and at the point; Game turns back
-   to it. Futuris's Anomaly from Rings keeps Rings out (user: "It should
-   just keep the menu open"), a new layout a tap.
+   On a phone in the store: before a game the half ring round the piece,
+   Try a Game over it; the opponent's card (its levels with it); Online
+   opens the panel; More, every setting in one list; Try a Game begins. In
+   play (B): the corner fan out of the corner piece, which stays in its
+   corner, the board in view; a touch held on it; View's card; End game
+   from More, asked first. After the game: the call answered, New game over
+   the ring. A new player's first look holds back what the panel holds
+   back. Futuris's Anomaly keeps the menu out. On a desktop (Noir): the
+   keys, the More card, the mouse brought onto the corner piece. In
+   Spanish: its words inside their wedges.
 
    node tests/e2e-rings.mjs */
 import { chromium } from "playwright";
@@ -69,230 +64,243 @@ async function store({ toured = true, lang = null } = {}) {
   return { ctx, page, errs };
 }
 
-// Rings as it is: out, still, its phase, its settings, the one at its
-// point, the read-out, the big button, whose move.
-const rings = (page) => page.evaluate(() => {
+// The menu as it is: out and shown, its phase, its wedges left to right
+// (by where each is drawn), the big button, the line, a word said, a card
+// or the list out.
+const menu = (page) => page.evaluate(() => {
   const layer = document.querySelector('[data-testid="dock-menu"][data-open="true"]');
   const stage = layer && layer.querySelector('[data-testid="menu-fan"]');
   if (!stage) return null;
-  const focus = layer.querySelector("[data-ml-item].mf-focus");
-  const primary = layer.querySelector('[data-testid="menu-fan-primary"]');
-  const head = layer.querySelector('[data-testid="menu-fan-head"]');
+  const shown = (n) => !!n && getComputedStyle(n).display !== "none";
+  const ws = [...layer.querySelectorAll("g[data-ml-item]")].map((g) => ({ key: g.getAttribute("data-ml-item"), at: +g.getAttribute("data-cr-at"), held: g.getAttribute("aria-disabled") === "true" }));
+  ws.sort((a, b) => a.at - b.at);
+  const primary = layer.querySelector('[data-testid="menu-fan-primary"]'), status = layer.querySelector('[data-testid="menu-fan-status"]');
+  const note = layer.querySelector('[data-testid="menu-fan-note"].cr-shown'), card = layer.querySelector('[data-testid="menu-fan-card"]');
   return {
     version: layer.getAttribute("data-version"), fan: stage.getAttribute("data-fan"), phase: layer.getAttribute("data-phase"),
-    still: getComputedStyle(stage).opacity === "1" && stage.getAttribute("data-turning") === "false",
-    keys: [...layer.querySelectorAll("[data-ml-item]")].map((n) => n.getAttribute("data-ml-item")),
-    focus: focus ? focus.getAttribute("data-ml-item") : null,
-    read: (layer.querySelector('[data-testid="menu-fan-read"]') || {}).textContent || "",
-    primary: primary && primary.style.display !== "none" ? primary.textContent.trim() : null,
-    head: head && head.style.display !== "none" ? head.textContent.trim() : "",
+    shown: getComputedStyle(stage).opacity === "1", turning: stage.getAttribute("data-turning"),
+    keys: ws.map((w) => w.key), at: Object.fromEntries(ws.map((w) => [w.key, w.at])), held: ws.filter((w) => w.held).map((w) => w.key),
+    primary: shown(primary) ? primary.textContent.trim() : null,
+    status: shown(status) ? status.textContent.trim() : "",
+    note: note ? note.textContent.trim() : "",
+    card: card ? card.getAttribute("data-mf-card") : null,
+    more: !!layer.querySelector('[data-testid="menu-fan-more"]'),
   };
 });
-const out = async (page) => { const r = await rings(page); return r && r.still ? r : null; };
-// The angle each of Rings' settings is drawn at, as Rings is first laid
-// out (watched from before the tap), and now.
-const watchOpening = (page) => page.evaluate(() => {
-  window.__ringsFirst = null;
-  const angles = () => [...document.querySelectorAll('[data-testid="dock-menu"] .mf-w')].map((g) => +((g.getAttribute("transform") || "").match(/rotate\((-?[\d.]+)/) || [0, NaN])[1]);
-  const mo = new MutationObserver(() => {
-    const a = angles();
-    if (!window.__ringsFirst && a.length && a.every((x) => !isNaN(x))) { window.__ringsFirst = a; mo.disconnect(); }
-  });
-  mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["transform"] });
-  window.__ringsAngles = angles;
-});
+const out = async (page) => { const m = await menu(page); return m && m.shown ? m : null; };
 const panelOpen = (page) => page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.open === "true");
 const pieceBox = (page) => page.locator('canvas[data-testid="dock-piece-canvas"]').boundingBox();
-// The piece tapped till Rings is out (a tap can land while it bounces).
-async function openRings(page, touch = true) {
+const tapAt = (page, x, y, touch) => (touch ? page.touchscreen.tap(x, y) : page.mouse.click(x, y));
+// The piece tapped till the menu's out.
+async function openMenu(page, touch = true) {
   for (let i = 0; i < 4; i++) {
-    if (await rings(page)) break;
+    if (await menu(page)) break;
     const b = await pieceBox(page);
-    if (touch) await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
-    else await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
-    if (await poll(() => rings(page), 2500, 100)) break;
+    await tapAt(page, b.x + b.width / 2, b.y + b.height / 2, touch);
+    if (await poll(() => menu(page), 2500, 100)) break;
   }
-  return poll(() => out(page), 6000, 150);
+  return poll(() => out(page), 6000, 100);
 }
 const away = (page) => poll(async () => !(await page.evaluate(() => !!document.querySelector('[data-testid="dock-menu"][data-open="true"]'))), 3000, 100);
-// A setting tapped where its name is (on the wedge under it).
-async function tapSetting(page, key, touch = true) {
+// A wedge tapped where its words are (on the wedge under them).
+async function tapWedge(page, key, touch = true) {
   const b = await page.evaluate((k) => { const n = document.querySelector(`[data-testid="dock-menu"] [data-ml-label="${k}"]`); if (!n) return null; const r = n.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, key);
   if (!b) return false;
-  if (touch) await page.touchscreen.tap(b.x, b.y); else await page.mouse.click(b.x, b.y);
+  await tapAt(page, b.x, b.y, touch);
   return true;
 }
-// A setting's choices out in the read-out: its name tapped once Rings is
-// still (again if the tap found it turning).
-async function choicesOf(page, key, touch = true) {
-  for (let i = 0; i < 3; i++) {
-    await poll(() => out(page), 4000, 100);
-    if (!(await tapSetting(page, key, touch))) continue;
-    const ok = await poll(async () => { const r = await rings(page); return !!r && r.focus === key && (await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-ctl"] [data-mf-choice]').count()) > 0; }, 3000, 100);
-    if (ok) return true;
-  }
-  return false;
+// Something in the menu (a choice, a row, a button) tapped at its middle;
+// one in More's list scrolled to the list's middle first (not under its
+// foot, where the big button is).
+async function tapIn(page, sel, touch = true) {
+  await page.evaluate((sel) => {
+    const n = document.querySelector(`[data-testid="dock-menu"] ${sel}`), list = n && n.closest('[data-testid="menu-fan-list"]');
+    if (!list) return;
+    const r = n.getBoundingClientRect(), lr = list.getBoundingClientRect();
+    list.scrollTop += r.top + r.height / 2 - (lr.top + lr.height / 2);
+  }, sel);
+  await page.waitForTimeout(60);
+  const b = await page.locator(`[data-testid="dock-menu"] ${sel}`).first().boundingBox().catch(() => null);
+  if (!b) return false;
+  await tapAt(page, b.x + b.width / 2, b.y + b.height / 2, touch);
+  return true;
 }
-// Rings' line over the lit kind: its kind and ends; the lit kind's
-// settings in sight and the others' (as drawn: 30° apart, each 28° wide,
-// the window -180° to 0°); whether it runs edge to edge over the lit
-// kind's and clear of every other's; its blue, the lit kind's edge, and
-// any of the old place-marks left.
-const groupLine = (page) => page.evaluate(() => {
+/* What the research asked of it, as drawn now: each wedge's words set
+   straight (no turn), in sentence case, names 14 px or more and values
+   12 px or more, every line of them inside its own wedge (between the
+   ring's edges, within the wedge's angles, a degree to spare); every
+   button 44 px or more each way. */
+const looks = (page) => page.evaluate(() => {
   const L = document.querySelector('[data-testid="dock-menu"][data-open="true"]');
-  const g = L && L.querySelector("[data-mf-group]");
-  if (!g || g.style.display === "none") return null;
-  const kind = g.getAttribute("data-mf-group"), a0 = +g.getAttribute("data-a0"), a1 = +g.getAttribute("data-a1");
-  const lit = L.querySelector(".mf-kind.mf-on");
-  const ws = [...L.querySelectorAll(".mf-w")]
-    .map((w) => ({ key: w.getAttribute("data-mf-key"), kind: w.getAttribute("data-mf-of"), a: +((w.getAttribute("transform") || "").match(/rotate\((-?[\d.]+)/) || [0, NaN])[1], op: +(w.getAttribute("opacity") || 1) }))
-    .filter((w) => w.op > 0.02 && w.a > -194 && w.a < 14);
-  const lo = (x) => Math.max(-180, x), hi = (x) => Math.min(0, x);
-  const mine = ws.filter((w) => w.kind === kind), others = ws.filter((w) => w.kind !== kind);
-  const exact = mine.length > 0 && Math.abs(a0 - lo(Math.min(...mine.map((w) => w.a - 14)))) < 0.3 && Math.abs(a1 - hi(Math.max(...mine.map((w) => w.a + 14)))) < 0.3;
-  const clear = others.every((w) => hi(w.a + 14) <= a0 + 0.3 || lo(w.a - 14) >= a1 - 0.3);
-  return {
-    kind, a0, a1, lit: lit && lit.getAttribute("data-mf-kind"), mine: mine.map((w) => w.key), exact, clear,
-    stroke: getComputedStyle(g.querySelector(".mf-group-line")).stroke, litStroke: lit ? getComputedStyle(lit.querySelector("path")).stroke : null,
-    marks: L.querySelectorAll("[data-mf-track], [data-mf-thumb]").length,
-  };
-});
-// Rings' kind names: each laid along its own piece of the inner ring, its
-// first letter to its last inside the piece (by angle round the hub, and
-// between the ring's edges, 62 to 100 px out), bold.
-const kindNames = (page) => page.evaluate(() => {
-  const L = document.querySelector('[data-testid="dock-menu"][data-open="true"]');
-  const svg = L && L.querySelector("svg.mf-ring");
+  const svg = L && L.querySelector("svg.cr-ring");
   if (!svg) return null;
   const [cx, cy] = svg.getAttribute("data-hub").split(" ").map(Number);
-  const at = (p) => ({ a: (Math.atan2(p.y - cy, p.x - cx) * 180) / Math.PI, r: Math.hypot(p.x - cx, p.y - cy) });
-  return [...L.querySelectorAll(".mf-kind")].map((g) => {
-    const txt = g.querySelector("text"), n = txt.getNumberOfChars();
-    const s = at(txt.getStartPositionOfChar(0)), e = at(txt.getEndPositionOfChar(n - 1));
-    const a0 = +g.getAttribute("data-a0"), a1 = +g.getAttribute("data-a1");
-    const inside = s.a >= a0 + 0.5 && e.a <= a1 - 0.5 && [s.r, e.r].every((r) => r > 62 && r < 100);
-    return { kind: g.getAttribute("data-mf-kind"), name: txt.textContent, onArc: !!txt.querySelector("textPath"), inside, bold: +getComputedStyle(txt).fontWeight >= 700, from: Math.round(s.a), to: Math.round(e.a), piece: `${a0}..${a1}` };
-  });
+  const [r0, r1, , , step] = svg.getAttribute("data-ring").split(" ").map(Number);
+  const bad = [], small = [];
+  for (const lab of L.querySelectorAll("[data-ml-label]")) {
+    const key = lab.getAttribute("data-ml-label"), g = L.querySelector(`g[data-ml-item="${key}"]`), mid = +g.getAttribute("data-cr-at");
+    const m = new DOMMatrix(getComputedStyle(lab).transform);
+    const nm = lab.querySelector(".cr-nm"), vals = [...lab.querySelectorAll(".cr-val")];
+    if (Math.abs(m.b) > 0.001 || Math.abs(m.c) > 0.001) bad.push(`${key}: turned`);
+    if (getComputedStyle(nm).textTransform !== "none") bad.push(`${key}: ${getComputedStyle(nm).textTransform}`);
+    if (parseFloat(getComputedStyle(nm).fontSize) < 14) bad.push(`${key}: name ${getComputedStyle(nm).fontSize}`);
+    for (const v of vals) if (parseFloat(getComputedStyle(v).fontSize) < 12) bad.push(`${key}: value ${getComputedStyle(v).fontSize}`);
+    const range = document.createRange();
+    for (const el of [nm, ...vals]) {
+      range.selectNodeContents(el);
+      for (const r of range.getClientRects()) {
+        for (const [x, y] of [[r.left, r.top], [r.right, r.top], [r.left, r.bottom], [r.right, r.bottom]]) {
+          const a = (Math.atan2(y - cy, x - cx) * 180) / Math.PI, d = Math.hypot(x - cx, y - cy);
+          if (d < r0 - 1 || d > r1 + 1 || a < mid - step / 2 - 1 || a > mid + step / 2 + 1) { bad.push(`${key}: "${el.textContent}" out at ${Math.round(a)}° ${Math.round(d)}px (wedge ${Math.round(mid - step / 2)}..${Math.round(mid + step / 2)}°, ${r0}..${r1}px)`); break; }
+        }
+      }
+    }
+  }
+  for (const n of L.querySelectorAll("g[data-ml-item], .cr-chip, .cr-row, .cr-x, .cr-primary")) {
+    const r = n.getBoundingClientRect();
+    if (r.width && r.height && (r.width < 44 || r.height < 44)) small.push(`${n.getAttribute("data-ml-item") || n.getAttribute("data-mf-choice") || n.getAttribute("data-mf-row") || n.getAttribute("data-testid") || "?"} ${Math.round(r.width)}x${Math.round(r.height)}`);
+  }
+  const quick = (n) => { if (!n) return 0; const cs = getComputedStyle(n); return Math.max(...cs.transitionDuration.split(",").map(parseFloat), ...cs.animationDuration.split(",").map(parseFloat)); };
+  return { bad, small, motion: Math.max(quick(L.querySelector(".cr-stage")), quick(L.querySelector(".cr-card")), quick(L.querySelector(".cr-more"))) };
 });
 const SETUP = ["first", "opponent", "level", "start", "pieces", "cart", "check", "points", "costs", "guide", "sound", "language", "replay", "saves", "bar"];
+const rows = (page) => page.evaluate(() => [...document.querySelectorAll('[data-testid="dock-menu"] [data-testid="menu-fan-more"] [data-mf-row]')].map((n) => n.getAttribute("data-mf-row")));
+const groups = (page) => page.evaluate(() => [...document.querySelectorAll('[data-testid="dock-menu"] [data-testid="menu-fan-more"] [data-mf-group]')].map((n) => n.getAttribute("data-mf-group")));
 
-console.log("The store, on a phone: Rings is the menu");
+console.log("The store, on a phone: Calm Rings is the menu");
 {
   const { ctx, page, errs } = await store();
-  await watchOpening(page);
-  let r = await openRings(page);
-  check("a tap on the piece: Rings out round it, not the panel", !!r && r.fan === "rings" && r.version === "4.2" && r.phase === "setup" && !(await panelOpen(page)), JSON.stringify(r));
-  const [first, settled] = await page.evaluate(() => [window.__ringsFirst, window.__ringsAngles()]);
-  const span = (a) => (a && a.length ? Math.max(...a) - Math.min(...a) : NaN);
-  check("...it opens like a fan: its settings folded at the top, then open out to their places", !!first && first.every((a) => Math.abs(a + 90) < 2) && span(settled) > 170, `${first && first.map(Math.round).join()} → ${settled.map(Math.round).join()}`);
-  check("...every setting the panel has before a game", !!r && SETUP.every((k) => r.keys.includes(k)), r && r.keys.join());
-  check("...Try a Game over it, the first move at its point, named and said", !!r && /try a game/i.test(r.primary || "") && r.focus === "first" && /First move/i.test(r.read) && /Which side makes the first move/.test(r.read), JSON.stringify(r));
-  // The line over the lit kind's settings (user, of the place-marks, which
-  // ran on over the next kind's: "It needs to only span the specific
-  // wedges that pertain to that piece ... maybe give it that blue glow
-  // outline"): edge to edge over those and clear of the rest, in the
-  // Singularity's blue, the lit kind outlined in it; turned on into
-  // another kind, it goes over that kind's.
-  {
-    let g = await groupLine(page);
-    // The kinds' names (user, of SETTINGS set straight across and sticking
-  // out of its piece: "can be arced or arched to where they fit into the
-  // button better ... Maybe make those in bold"): along their pieces,
-  // inside them, bold.
-  {
-    const names = await kindNames(page);
-    check(`the inner ring's names run along their pieces, inside them, bold (${names && names.map((x) => `${x.name} ${x.from}..${x.to} in ${x.piece}`).join("; ")})`, !!names && names.length === 4 && names.every((x) => x.onArc && x.inside && x.bold), JSON.stringify(names));
-  }
-  check(`the lit kind's line: over Game's settings only, edge to edge (${g && `${g.mine.join()} ${g.a0}..${g.a1}`})`, !!g && g.kind === "game" && g.lit === "game" && g.exact && g.clear && g.mine.includes("first") && !g.mine.includes("start"), JSON.stringify(g));
-    check("...in the Singularity's blue, the lit kind outlined in it, no place-marks", !!g && g.stroke === "rgb(180, 240, 255)" && g.litStroke === "rgb(155, 233, 255)" && g.marks === 0, JSON.stringify(g));
-    for (let i = 0; i < 8 && (await rings(page) || {}).focus !== "start"; i++) {
-      await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-next"]').tap();
-      await poll(() => out(page), 3000, 100);
-    }
-    g = await poll(async () => { const x = await groupLine(page); return x && x.kind === "board" ? x : null; }, 3000, 100);
-    check(`...turned to Start: over Board's settings, from Start on, and no others (${g && `${g.mine.join()} ${g.a0}..${g.a1}`})`, !!g && g.lit === "board" && g.exact && g.clear && g.mine[0] === "start" && g.mine.includes("pieces") && !g.mine.includes("level") && !g.mine.includes("check"), JSON.stringify(g));
-  }
-  // Level: its choices, Medium.
-  check("a tap on Level: turned to it, its choices in the read-out", (await choicesOf(page, "level")) && (await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-ctl"] [data-mf-choice]').count()) === 3);
-  const medium = await page.locator('[data-testid="dock-menu"] [data-mf-choice="medium"]').boundingBox();
-  await page.touchscreen.tap(medium.x + medium.width / 2, medium.y + medium.height / 2);
-  check("...Medium chosen is the panel's Medium, Rings still out", !!(await poll(() => page.evaluate(() => document.querySelector('[data-ec-diff="medium"]').getAttribute("aria-pressed") === "true"), 3000, 100)) && !!(await rings(page)));
+  const b = await pieceBox(page);
+  await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+  // Out on the tap itself, not after the piece's bounce (260 ms) and an
+  // unfolding: there within a moment of it.
+  const soon = await poll(() => page.evaluate(() => document.querySelectorAll('[data-testid="dock-menu"][data-open="true"] g[data-ml-item]').length > 0), 400, 25);
+  let m = await openMenu(page);
+  check("a tap on the piece: the calm menu out round it at once, not the panel", !!soon && !!m && m.fan === "calm" && m.version === "4.6" && m.phase === "setup" && !(await panelOpen(page)), JSON.stringify(m));
+  check("...five wedges in their places: More at the left end, Opponent at the top, First move and Starting position beside it, See the pieces", !!m && m.keys.join() === "more,start,opponent,first,pieces" && Math.abs(m.at.opponent + 90) < 0.5, JSON.stringify(m && [m.keys, m.at]));
+  check("...Try a Game over it; nothing said in a line before a game", !!m && /try a game/i.test(m.primary || "") && m.status === "", JSON.stringify(m));
+  let l = await looks(page);
+  check(`...its words straight, in sentence case, 14 px names and 12 px values, inside their wedges${l && l.bad.length ? ` (${l.bad.join("; ")})` : ""}`, !!l && !l.bad.length, JSON.stringify(l));
+  check("...every button 44 px or more; its motion under 0.2 s", !!l && !l.small.length && l.motion <= 0.2, JSON.stringify(l));
+  const at0 = m && m.at;
+  // First move: a switch, flipped where it is.
+  const was = await page.evaluate(() => document.querySelector('[data-testid="turn-status"]').getAttribute("data-side"));
+  await tapWedge(page, "first");
+  check("First move tapped: flipped in the panel, the menu still out, nothing moved", !!(await poll(async () => (await page.evaluate(() => document.querySelector('[data-testid="turn-status"]').getAttribute("data-side"))) !== was && !!(await out(page)), 3000, 100)) && JSON.stringify((await menu(page)).at) === JSON.stringify(at0));
+  await tapWedge(page, "first");
+  await poll(async () => (await page.evaluate(() => document.querySelector('[data-testid="turn-status"]').getAttribute("data-side"))) === was, 3000, 100);
+  // The opponent's card: who you play, and the computer's level with it.
+  await tapWedge(page, "opponent");
+  m = await poll(async () => { const x = await out(page); return x && x.card === "opponent" ? x : null; }, 3000, 100);
+  const opts = await page.evaluate(() => [...document.querySelectorAll('[data-testid="menu-fan-card"] [data-mf-choice]')].map((n) => n.getAttribute("data-mf-choice")));
+  check("Opponent tapped: its card above the ring, who to play and the level in it", !!m && ["human", "ai-dark", "ai-light", "online", "easy", "medium", "hard"].every((k) => opts.includes(k)), opts.join());
+  l = await looks(page);
+  check("...its buttons 44 px or more", !!l && !l.small.length, JSON.stringify(l && l.small));
+  await tapIn(page, '[data-testid="menu-fan-card"] [data-mf-choice="medium"]');
+  check("...Medium chosen is the panel's Medium; the card still out, the wedge saying it, nothing moved", !!(await poll(async () => (await page.evaluate(() => document.querySelector('[data-ec-diff="medium"]').getAttribute("aria-pressed") === "true")) && (await page.evaluate(() => /Medium/.test(document.querySelector('[data-testid="dock-menu"] [data-ml-label="opponent"]').textContent))) && ((await out(page)) || {}).card === "opponent", 3000, 100)) && JSON.stringify((await menu(page)).at) === JSON.stringify(at0));
+  await tapIn(page, '[data-testid="menu-fan-card"] [data-testid="menu-fan-close"]');
+  check("...its close puts the card away, the ring still out", !!(await poll(async () => { const x = await out(page); return x && !x.card; }, 3000, 100)));
   // A tap outside puts it away; the piece back where it rests.
   await page.touchscreen.tap(12, 300);
   check("a tap outside puts it away", !!(await away(page)));
   check("...the piece back where it rests", !!(await poll(() => page.evaluate(() => document.querySelector("[data-dock-piece]").style.transform === "translateX(-50%) scale(1)"), 3000, 100)));
   await page.waitForTimeout(800);
   // Online: its own page is the panel's.
-  r = await openRings(page);
-  await choicesOf(page, "opponent");
-  const on = await page.locator('[data-testid="dock-menu"] [data-mf-choice="online"]').boundingBox();
-  await page.touchscreen.tap(on.x + on.width / 2, on.y + on.height / 2);
-  check("Opponent, Online: Rings away, the panel open on Online's own page", !!(await poll(async () => (await panelOpen(page)) && !(await rings(page)), 5000, 100)));
-  // (Put away by a tap outside; again if the tap came before the panel,
-  // just open, was listening for it.)
+  await openMenu(page);
+  await tapWedge(page, "opponent");
+  await poll(async () => ((await out(page)) || {}).card === "opponent", 3000, 100);
+  await tapIn(page, '[data-testid="menu-fan-card"] [data-mf-choice="online"]');
+  check("Opponent, Online: the menu away, the panel open on Online's own page", !!(await poll(async () => (await panelOpen(page)) && !(await menu(page)), 5000, 100)));
   for (let i = 0; i < 3 && (await panelOpen(page)); i++) {
     await page.waitForTimeout(400);
     await page.touchscreen.tap(12, 300);
     await poll(async () => !(await panelOpen(page)), 2000, 100);
   }
   await page.waitForTimeout(800);
-  // Online's page left in the panel: Rings still has who to play, and
-  // takes the player back to the computer from there.
-  r = await openRings(page);
-  const opp = await choicesOf(page, "opponent");
-  check("...put away, Rings still has the opponent, Online's page left in the panel", opp && !!(await page.evaluate(() => !!document.querySelector('[data-testid="online-panel"]'))), JSON.stringify(await rings(page)));
-  const ai = opp && (await page.locator('[data-testid="dock-menu"] [data-mf-choice="ai-dark"]').boundingBox());
-  if (ai) await page.touchscreen.tap(ai.x + ai.width / 2, ai.y + ai.height / 2);
-  check("...the computer picked from Rings: Online's page gone, the computer's levels in the panel, Rings says so", !!ai && !!(await poll(async () => (await page.evaluate(() => !document.querySelector('[data-testid="online-panel"]') && !!document.querySelector("[data-ec-diff]"))) && /AI · /.test((await rings(page) || {}).read || ""), 4000, 100)), JSON.stringify(await rings(page)));
+  await openMenu(page);
+  await tapWedge(page, "opponent");
+  const card = await poll(async () => ((await out(page)) || {}).card === "opponent", 3000, 100);
+  check("...put away, the opponent's card still there with Online's page left in the panel", !!card && !!(await page.evaluate(() => !!document.querySelector('[data-testid="online-panel"]'))));
+  await tapIn(page, '[data-testid="menu-fan-card"] [data-mf-choice="ai-dark"]');
+  check("...the computer picked from it: Online's page gone, the computer's levels back in the card", !!(await poll(async () => (await page.evaluate(() => !document.querySelector('[data-testid="online-panel"]') && !!document.querySelector("[data-ec-diff]") && !!document.querySelector('[data-testid="menu-fan-card"] [data-mf-choice="easy"]'))), 4000, 100)));
+  // More: every setting, in one list, in groups.
+  await tapWedge(page, "more");
+  m = await poll(async () => { const x = await out(page); return x && x.more ? x : null; }, 3000, 100);
+  const listed = await rows(page);
+  check("More: one list with every setting the panel has before a game, in its groups", !!m && SETUP.every((k) => listed.includes(k)) && (await groups(page)).slice(0, 4).join() === "game,board,hints,sound", `${listed.join()} | ${(await groups(page)).join()}`);
+  check("...who's playing not in it (said in the line, in play)", !listed.includes("you"));
+  l = await looks(page);
+  check("...its rows, switches and close 44 px or more", !!l && !l.small.length, JSON.stringify(l && l.small));
+  const costs = () => page.evaluate(() => document.querySelector('[data-testid="costs-toggle"]').getAttribute("aria-pressed"));
+  const c0 = await costs();
+  await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-row="costs"]');
+  check("...Move costs, a switch: flipped in the panel, the list still out, its switch saying so", !!(await poll(async () => (await costs()) !== c0 && (await page.evaluate((v) => document.querySelector('[data-testid="menu-fan-more"] [data-mf-row="costs"]').getAttribute("aria-checked") === v, await costs())), 3000, 100)) && !!(await out(page)));
+  await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-row="costs"]');
+  await poll(async () => (await costs()) === c0, 3000, 100);
+  await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-row="language"]');
+  check("...Language opens its choices in the list itself, not another page", !!(await poll(() => page.evaluate(() => document.querySelectorAll('[data-testid="menu-fan-more"] [data-mf-of="language"] [data-mf-choice]').length >= 3), 3000, 100)));
+  await tapIn(page, '[data-testid="menu-fan-more"] [data-testid="menu-fan-close"]');
+  check("...its close: back to the game in one tap", !!(await away(page)));
   await page.waitForTimeout(800);
-  if (!(await rings(page))) r = await openRings(page);
-  await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-primary"]').tap();
+  await openMenu(page);
+  await tapIn(page, '[data-testid="menu-fan-primary"]');
   const corner = await waitForDockCorner(page, { timeoutMs: 15000 });
-  check("Try a Game from Rings: the game begun, the piece in its corner, Rings away", !!corner && !(await rings(page)) && (await page.evaluate(() => document.querySelector("[data-dock-piece]").style.left === "calc(100% - 108px)")), JSON.stringify(corner));
+  check("Try a Game from it: the game begun, the piece in its corner, the menu away", !!corner && !(await menu(page)) && (await page.evaluate(() => document.querySelector("[data-dock-piece]").style.left === "calc(100% - 108px)")), JSON.stringify(corner));
   await page.waitForTimeout(1500);
-  // In play: the corner piece; a touch held on it.
+  // In play: the corner fan, out of the corner piece; a touch held on it.
   const cdp = await ctx.newCDPSession(page);
   const cb = await pieceBox(page);
-  const at = { x: cb.x + cb.width / 2, y: cb.y + cb.height / 2 };
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [at] });
+  const pt = { x: cb.x + cb.width / 2, y: cb.y + cb.height / 2 };
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [pt] });
   await page.waitForTimeout(1300);
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-  r = await poll(() => out(page), 6000, 150);
-  check("in play, a touch held on the corner piece: Rings out (the piece brought to the middle), and its lifting doesn't put it away", !!r && r.phase === "play" && (await page.evaluate(() => /translate\(calc\(-50% \+ 0px\)/.test(document.querySelector("[data-dock-piece]").style.transform) || document.querySelector("[data-dock-piece]").style.left !== "calc(100% - 108px)")), JSON.stringify(r));
+  m = await poll(() => out(page), 6000, 150);
+  const piece = await page.evaluate(() => { const d = document.querySelector("[data-dock-piece]"); return { left: d.style.left, z: getComputedStyle(d).zIndex, op: getComputedStyle(d).opacity }; });
+  check("in play, a touch held on the corner piece: the corner fan out of it, the piece kept in its corner, raised", !!m && m.phase === "play" && m.keys.join() === "view,sound,more" && piece.left === "calc(100% - 108px)" && piece.z === "15", `${JSON.stringify(m)} ${JSON.stringify(piece)}`);
   await page.waitForTimeout(1200);
-  check("...still out a moment on", !!(await rings(page)));
-  check("...in play's own: End game, the view, the hints, whose move on top", !!r && ["endgame", "view", "check", "language"].every((k) => r.keys.includes(k)) && !r.keys.includes("first") && /to move/i.test(r.head), JSON.stringify(r));
-  // Who's who: the side to move with its colour, you and the computer's
-  // level under it, and You first, at the point as it opens.
-  check("...who you are first, at its point: You, Ash (light), the computer and its level said", !!r && r.keys[0] === "you" && r.focus === "you" && /You\s*Ash \(light\)/.test(r.read) && /You play Ash \(light\)\. The computer plays Walnut \(dark\), on (Easy|Medium|Hard)\./.test(r.read) && /Ash \(light\) to move/.test(r.head) && /You: Ash \(light\) · Computer: (Easy|Medium|Hard)/.test(r.head), JSON.stringify(r));
-  for (let i = 0; i < 2; i++) { await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-next"]').tap(); await page.waitForTimeout(350); }
-  await poll(async () => { const x = await out(page); return x && x.focus !== "you" ? x : null; }, 3000, 100);
-  const gameKind = await page.evaluate(() => { const n = document.querySelector('[data-testid="dock-menu"] [data-mf-kind="game"] path'); const b = n.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; });
-  await page.touchscreen.tap(gameKind.x, gameKind.y);
-  r = await poll(async () => { const x = await out(page); return x && x.focus === "you" ? x : null; }, 4000, 150);
-  check("...turned away, a tap on Game: back to You, said in the read-out", !!r && /The computer plays Walnut \(dark\), on (Easy|Medium|Hard)\./.test(r.read), JSON.stringify(r));
-  await page.touchscreen.tap(12, 300);
-  await away(page);
-  await page.waitForTimeout(1000);
-  // End game, twice.
-  r = await openRings(page);
-  // (turned to it with ›: a tap off the point turns to it and presses it at once; You is first now)
-  for (let i = 0; i < 12 && r && r.focus !== "endgame"; i++) { await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-next"]').tap(); r = await poll(() => out(page), 3000, 100); }
-  await tapSetting(page, "endgame");
-  check("End game asks first", !!(await poll(async () => /again to be sure/i.test((await rings(page)).read), 3000, 100)));
-  await tapSetting(page, "endgame");
-  check("...the second tap ends it, Rings away", !!(await poll(async () => !(await rings(page)) && (await page.evaluate(() => !!document.querySelector('[data-testid="new-game"]'))), 6000, 100)));
+  check("...its lifting doesn't put it away: still out a moment on", !!(await menu(page)));
+  check("...whose move and who's who said once, in one line over it: Your move · You: Ash (light) · Computer: level", !!m && /^Your move · You: Ash \(light\) · Computer: (Easy|Medium|Hard)$/.test(m.status), JSON.stringify(m && m.status));
+  const box = await page.evaluate(() => { const s = document.querySelector('[data-testid="dock-menu"] svg.cr-ring').getBoundingClientRect(); return { left: s.left, top: s.top, vw: innerWidth, vh: innerHeight }; });
+  check("...the board's middle in view: the fan keeps to the lower right", box.left > box.vw * 0.25 && box.top > box.vh * 0.5, JSON.stringify(box));
+  l = await looks(page);
+  check(`...its words straight, sentence case, readable, inside their wedges; its buttons 44 px or more${l && l.bad.length ? ` (${l.bad.join("; ")})` : ""}`, !!l && !l.bad.length && !l.small.length, JSON.stringify(l));
+  // View: its card; a pick puts the menu away, the view taken.
+  await tapWedge(page, "view");
+  m = await poll(async () => { const x = await out(page); return x && x.card === "view" ? x : null; }, 3000, 100);
+  const views = await page.evaluate(() => [...document.querySelectorAll('[data-testid="menu-fan-card"] [data-mf-choice]')].map((n) => n.getAttribute("data-mf-choice")));
+  check("View tapped: its card, the board's views in it", !!m && views.length >= 2, views.join());
+  const other = await page.evaluate(() => { const b = [...document.querySelectorAll('[data-testid="menu-fan-card"] [data-mf-choice]')].find((n) => n.getAttribute("aria-pressed") !== "true"); return b && b.getAttribute("data-mf-choice"); });
+  await tapIn(page, `[data-testid="menu-fan-card"] [data-mf-choice="${other}"]`);
+  check("...another view picked: the panel's own pressed, the menu away", !!(await poll(async () => !(await menu(page)) && (await page.evaluate((k) => document.querySelector(`[data-testid="${k}"]`).getAttribute("aria-pressed") === "true", other)), 4000, 100)), other);
+  await page.waitForTimeout(800);
+  // End game: in More, at its edge, asked first.
+  await openMenu(page);
+  await tapWedge(page, "more");
+  await poll(async () => ((await out(page)) || {}).more, 3000, 100);
+  const inPlay = await rows(page);
+  check("More in play: End game last, at the list's edge, on its own", inPlay[inPlay.length - 1] === "endgame" && (await groups(page)).slice(-1)[0] === "end", inPlay.join());
+  await page.evaluate(() => { const l = document.querySelector('[data-testid="menu-fan-list"]'); l.scrollTop = l.scrollHeight; });
+  await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-row="endgame"]');
+  check("...a tap asks first: Keep playing beside it, the game still on", !!(await poll(() => page.evaluate(() => !!document.querySelector('[data-testid="menu-fan-ask"] [data-mf-choice="keep"]')), 3000, 100)) && !(await page.evaluate(() => !!document.querySelector('[data-testid="new-game"]'))));
+  await tapIn(page, '[data-testid="menu-fan-ask"] [data-mf-choice="keep"]');
+  check("...Keep playing: no question, the game on", !!(await poll(() => page.evaluate(() => !document.querySelector('[data-testid="menu-fan-ask"]')), 3000, 100)) && !(await page.evaluate(() => !!document.querySelector('[data-testid="new-game"]'))));
+  await page.evaluate(() => { const l = document.querySelector('[data-testid="menu-fan-list"]'); l.scrollTop = l.scrollHeight; });
+  await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-row="endgame"]');
+  await poll(() => page.evaluate(() => !!document.querySelector('[data-testid="menu-fan-ask"]')), 3000, 100);
+  await page.evaluate(() => { const l = document.querySelector('[data-testid="menu-fan-list"]'); l.scrollTop = l.scrollHeight; });
+  await tapIn(page, '[data-testid="menu-fan-ask"] [data-mf-choice="end"]');
+  check("...asked again and answered: the game ended, the menu away", !!(await poll(async () => !(await menu(page)) && (await page.evaluate(() => !!document.querySelector('[data-testid="new-game"]'))), 6000, 100)));
   await page.waitForTimeout(2500);
   // After: the call answered.
   check("after the game, the corner piece calls", await page.evaluate(() => document.querySelector("[data-dock-piece]").dataset.dockCall === "true"));
-  r = await openRings(page);
+  m = await openMenu(page);
   const ng = await page.evaluate(() => document.querySelector('[data-testid="new-game"]').textContent.replace(/[^a-z]/gi, "").toLowerCase());
-  check("...Rings out from it: New game over it (the store's own words), who to play next, the call answered", !!r && r.phase === "over" && !!r.primary && r.primary.replace(/[^a-z]/gi, "").toLowerCase() === ng && r.keys.includes("opponent") && (await page.evaluate(() => document.querySelector("[data-dock-piece]").dataset.dockCall !== "true")), JSON.stringify(r));
+  check("...the half ring out from it: New game over it (the store's own words), who to play next on it, the call answered", !!m && m.phase === "over" && !!m.primary && m.primary.replace(/[^a-z]/gi, "").toLowerCase() === ng && m.keys.includes("opponent") && m.keys[0] === "more" && (await page.evaluate(() => document.querySelector("[data-dock-piece]").dataset.dockCall !== "true")), JSON.stringify(m));
   check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }
 
-console.log("Futuris, on a phone: Anomaly from Rings");
+console.log("Futuris, on a phone: Anomaly from the menu");
 {
   // (user: "when you click anomaly, it closes the menu and immediately
   // starts... It should just keep the menu open.")
@@ -304,20 +312,19 @@ console.log("Futuris, on a phone: Anomaly from Rings");
   await page.goto(FUTURIS);
   await page.waitForSelector('canvas[data-testid="dock-piece-canvas"]', { timeout: 60000 });
   await page.waitForTimeout(2500);
-  let r = await openRings(page);
-  const named = await page.evaluate(() => { const n = document.querySelector('[data-testid="dock-menu"] [data-ml-item="pieces"]'); return n && n.getAttribute("aria-label"); });
-  for (let i = 0; i < 12 && r && r.focus !== "pieces"; i++) { await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-next"]').tap(); r = await poll(() => out(page), 3000, 100); }
-  check("Rings out, Anomaly among the board's settings, turned to", !!r && named === "Anomaly" && r.focus === "pieces", `${named} ${JSON.stringify(r)}`);
+  let m = await openMenu(page);
+  const named = await page.evaluate(() => { const n = document.querySelector('[data-testid="dock-menu"] g[data-ml-item="pieces"]'); return n && n.getAttribute("aria-label"); });
+  check("the menu out, Anomaly on its own wedge", !!m && m.keys.includes("pieces") && named === "Anomaly", `${named} ${JSON.stringify(m)}`);
   const layout = () => page.evaluate(() => JSON.stringify((window.__EC_TEST_PIECES__ || []).map((p) => [p.id, p.row, p.col])));
   let was = await layout();
-  await tapSetting(page, "pieces");
-  r = await poll(async () => { const x = await rings(page); return x && /new layout/i.test(x.read) ? x : null; }, 4000, 100);
-  check("...a tap: a new layout, Rings still out, saying so", !!r && (await layout()) !== was, JSON.stringify(r));
+  await tapWedge(page, "pieces");
+  m = await poll(async () => { const x = await menu(page); return x && /new layout/i.test(x.note) ? x : null; }, 4000, 100);
+  check("...a tap: a new layout, the menu still out, saying so", !!m && (await layout()) !== was, JSON.stringify(m));
   was = await layout();
   await page.waitForTimeout(600);
-  await tapSetting(page, "pieces");
-  check("...and again: another, still out", !!(await poll(async () => (await layout()) !== was && !!(await rings(page)), 4000, 100)));
-  check("...the game not begun", ((await rings(page)) || {}).phase === "setup");
+  await tapWedge(page, "pieces");
+  check("...and again: another, still out", !!(await poll(async () => (await layout()) !== was && !!(await menu(page)), 4000, 100)));
+  check("...the game not begun", ((await menu(page)) || {}).phase === "setup");
   check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }
@@ -325,12 +332,24 @@ console.log("Futuris, on a phone: Anomaly from Rings");
 console.log("A new player's first look");
 {
   const { ctx, page, errs } = await store({ toured: false });
-  const r = await openRings(page);
-  const held = (k) => page.evaluate((k) => { const n = document.querySelector(`[data-testid="dock-menu"] [data-ml-item="${k}"]`); return n ? n.getAttribute("aria-disabled") === "true" : null; }, k);
-  check("Rings out, Try a Game and See the pieces pressable", !!r && (await held("pieces")) === false && /try a game/i.test(r.primary || ""));
-  check("...the level and the cart held back, as in the panel", (await held("level")) === true && (await held("cart")) === true);
-  await tapSetting(page, "level");
-  check("...a tap on the level: not now, said so, nothing changed", !!(await poll(async () => /Not available right now/.test((await rings(page)).read), 3000, 100)) && (await page.evaluate(() => document.querySelector('[data-ec-diff="easy"]').getAttribute("aria-pressed") === "true")));
+  const m = await openMenu(page);
+  const held = (k) => page.evaluate((k) => { const n = document.querySelector(`[data-testid="dock-menu"] g[data-ml-item="${k}"]`); return n ? n.getAttribute("aria-disabled") === "true" : null; }, k);
+  check("the menu out, Try a Game and See the pieces pressable", !!m && (await held("pieces")) === false && /try a game/i.test(m.primary || ""), JSON.stringify(m));
+  // Who to play held back as the panel holds it back: a tap says so,
+  // nothing changes (or, its card out, the level's buttons held back).
+  await tapWedge(page, "opponent");
+  const said = await poll(async () => {
+    const x = await menu(page);
+    if (x && /Not available right now/.test(x.note)) return "said";
+    if (x && x.card === "opponent" && (await page.evaluate(() => [...document.querySelectorAll('[data-testid="menu-fan-card"] [data-mf-choice="medium"], [data-testid="menu-fan-card"] [data-mf-choice="hard"]')].every((n) => n.getAttribute("aria-disabled") === "true")))) return "held";
+    return null;
+  }, 3000, 100);
+  check("...who to play and the level held back, as in the panel", !!said, String(said));
+  if (said === "held") await tapIn(page, '[data-testid="menu-fan-card"] [data-mf-choice="hard"]');
+  check("...nothing changed: Easy still", await page.evaluate(() => document.querySelector('[data-ec-diff="easy"]').getAttribute("aria-pressed") === "true"));
+  await tapWedge(page, "more");
+  await poll(async () => ((await out(page)) || {}).more, 3000, 100);
+  check("...in More the cart held back too", await page.evaluate(() => { const r = document.querySelector('[data-testid="menu-fan-more"] [data-mf-row="cart"]'); return !r || r.getAttribute("aria-disabled") === "true"; }));
   check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }
@@ -345,71 +364,56 @@ console.log("Noir, on a desktop");
   await page.goto(NOIR);
   await page.waitForSelector('canvas[data-testid="dock-piece-canvas"]', { timeout: 60000 });
   await page.waitForTimeout(2500);
-  let r = await openRings(page, false);
-  check("a click on the piece: Rings out", !!r && r.fan === "rings" && !(await panelOpen(page)), JSON.stringify(r));
-  // The wheel: how many settings along it went (round the ring).
-  const along = (a, b) => { const n = r.keys.length, i = r.keys.indexOf(a), j = r.keys.indexOf(b); return (((j - i) % n) + n + Math.floor(n / 2)) % n - Math.floor(n / 2); };
-  const wheeled = async (fn) => {
-    const a = (await poll(() => out(page), 4000, 100)) || {};
-    await fn();
-    await page.waitForTimeout(400);
-    const b = (await poll(() => out(page), 4000, 100)) || {};
-    return { n: a.focus && b.focus ? along(a.focus, b.focus) : NaN, from: a.focus, to: b.focus, kind: await page.evaluate(() => (document.querySelector('[data-testid="dock-menu"] .mf-kind.mf-on') || { getAttribute: () => null }).getAttribute("data-mf-kind")) };
-  };
-  const at = (x, y, o) => page.evaluate(({ x, y, o }) => { const t = document.elementFromPoint(x, y); for (const d of [].concat(o)) t.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, clientX: x, clientY: y, ...d })); }, { x, y, o });
-  await page.mouse.move(640, 560);
-  let w = await wheeled(() => page.mouse.wheel(0, 100));
-  check("...the mouse wheel: a notch turns it one setting", w.n === 1, JSON.stringify(w));
-  w = await wheeled(() => page.mouse.wheel(0, -100));
-  check("...a notch back, one back", w.n === -1, JSON.stringify(w));
-  w = await wheeled(() => page.mouse.wheel(0, 4));
-  check("...a small smooth roll (a Mac's wheel) still turns one", w.n === 1, JSON.stringify(w));
-  w = await wheeled(() => at(640, 560, { deltaY: 3, deltaMode: 1 }));
-  check("...a line notch (Firefox's) turns one", w.n === 1, JSON.stringify(w));
-  w = await wheeled(() => at(640, 560, [{ deltaY: 100 }, { deltaY: 100 }, { deltaY: 100 }]));
-  check("...a quick spin of three notches, three", w.n === 3, JSON.stringify(w));
-  w = await wheeled(() => at(640, 560, Array.from({ length: 20 }, () => ({ deltaY: 10 }))));
-  check("...a trackpad's stream (200 px), two", w.n === 2, JSON.stringify(w));
-  w = await wheeled(async () => { await page.keyboard.down("Control"); await page.mouse.wheel(0, 100); await page.keyboard.up("Control"); });
-  check("...with Ctrl (a pinch) it stays", w.n === 0, JSON.stringify(w));
-  const kindAt = (k) => page.evaluate((k) => { const n = document.querySelector(`[data-testid="dock-menu"] [data-mf-kind="${k}"] path`); const b = n.getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; }, k);
-  const [kx, ky] = await kindAt("board");
-  await page.mouse.move(kx, ky);
-  // (the setting at the point, its kind, and whether it's its kind's first)
-  const firstOf = () => page.evaluate(() => {
-    const ws = [...document.querySelectorAll('[data-testid="dock-menu"] .mf-w')], f = ws.findIndex((g) => g.classList.contains("mf-focus"));
-    if (f < 0) return "none";
-    const k = ws[f].getAttribute("data-mf-of"), lit = (document.querySelector('[data-testid="dock-menu"] .mf-kind.mf-on') || { getAttribute: () => "" }).getAttribute("data-mf-kind");
-    return `${k}${k === lit ? "" : "(lit " + lit + ")"}${ws[(f - 1 + ws.length) % ws.length].getAttribute("data-mf-of") !== k ? "" : " (not its first)"}`;
-  });
-  const kinds = [];
-  for (let i = 0; i < 4; i++) { await wheeled(() => page.mouse.wheel(0, 100)); kinds.push(await firstOf()); }
-  check("...over the inner ring, a notch a kind, each kind's first setting", new Set(kinds).size === 4 && kinds.every((x) => /^(game|board|hints|settings)$/.test(x)), kinds.join(" → "));
+  let m = await openMenu(page, false);
+  check("a click on the piece: the calm menu out, the More wedge at its left end", !!m && m.fan === "calm" && m.keys[0] === "more" && !(await panelOpen(page)), JSON.stringify(m));
+  const l = await looks(page);
+  check(`...its words straight and readable, inside their wedges${l && l.bad.length ? ` (${l.bad.join("; ")})` : ""}`, !!l && !l.bad.length && !l.small.length, JSON.stringify(l));
+  // The wheel turns nothing: each wedge where it was.
+  const at0 = JSON.stringify(m.at);
+  await page.mouse.move(640, 600);
+  await page.mouse.wheel(0, 300);
+  await page.waitForTimeout(400);
+  check("...the mouse wheel turns nothing: every wedge where it was", JSON.stringify(((await menu(page)) || {}).at) === at0);
+  // The keys: round the wedges, Enter, Escape.
+  await page.keyboard.press("ArrowRight");
+  const f1 = await page.evaluate(() => (document.activeElement && document.activeElement.getAttribute("data-ml-item")) || null);
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
+  const f2 = await page.evaluate(() => (document.activeElement && document.activeElement.getAttribute("data-ml-item")) || null);
+  check("...the arrow keys go round the wedges, from the most wanted", f1 === "opponent" && !!f2 && f2 !== f1, `${f1} → ${f2}`);
+  await page.evaluate(() => document.querySelector('[data-testid="dock-menu"] g[data-ml-item="more"]').focus());
+  await page.keyboard.press("Enter");
+  m = await poll(async () => { const x = await out(page); return x && x.more ? x : null; }, 3000, 100);
+  const sheet = await page.evaluate(() => { const r = document.querySelector('[data-testid="menu-fan-more"]').getBoundingClientRect(); return { w: r.width, right: innerWidth - r.right }; });
+  check("...Enter on More: the list, a card at the side (not a sheet across the screen)", !!m && sheet.w <= 400 && sheet.right < 40, JSON.stringify(sheet));
   await page.keyboard.press("Escape");
-  check("Escape puts it away", !!(await away(page)));
+  m = await poll(async () => { const x = await out(page); return x && !x.more ? x : null; }, 3000, 100);
+  check("...Escape: the list away, the ring back", !!m && m.keys.length === 5);
+  await page.keyboard.press("Escape");
+  check("...Escape again puts it away", !!(await away(page)));
   await page.waitForTimeout(800);
-  // Begin from Rings (its primary), then the mouse onto the corner piece.
-  r = await openRings(page, false);
-  await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-primary"]').click();
+  m = await openMenu(page, false);
+  await tapIn(page, '[data-testid="menu-fan-primary"]', false);
   const corner = await waitForDockCorner(page, { timeoutMs: 15000 });
-  check("Begin Game from Rings: the piece in its corner", !!corner);
+  check("Begin Game from it: the piece in its corner", !!corner);
   await page.waitForTimeout(1200);
   if (corner) {
     await page.mouse.move(corner.x + corner.width / 2 + 60, corner.y + corner.height / 2 + 60);
     await page.mouse.move(corner.x + corner.width / 2, corner.y + corner.height / 2, { steps: 4 });
   }
-  r = await poll(() => out(page), 5000, 150);
-  check("...the mouse brought onto the corner piece: Rings out, in play", !!r && r.phase === "play", JSON.stringify(r));
+  m = await poll(() => out(page), 5000, 150);
+  check("...the mouse brought onto the corner piece: the corner fan out, in play, whose move said over it", !!m && m.phase === "play" && m.keys.includes("more") && /to move|Your move/.test(m.status), JSON.stringify(m));
   check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }
 
-console.log("The store in Spanish, on a phone: the inner ring's names fit");
+console.log("The store in Spanish, on a phone: its words inside their wedges");
 {
   const { ctx, page, errs } = await store({ lang: "es" });
-  await openRings(page);
-  const names = await kindNames(page);
-  check(`...Partida, Tablero, Ayudas, Configuración, each inside its piece (${names && names.map((x) => `${x.name} ${x.from}..${x.to} in ${x.piece}`).join("; ")})`, !!names && names.map((x) => x.name).join() === "Partida,Tablero,Ayudas,Configuración" && names.every((x) => x.onArc && x.inside && x.bold), JSON.stringify(names));
+  const m = await openMenu(page);
+  const words = await page.evaluate(() => document.querySelector('[data-testid="dock-menu"] [data-ml-label="more"]').textContent);
+  const l = await looks(page);
+  check(`...Más, Todas las opciones; every word inside its wedge${l && l.bad.length ? ` (${l.bad.join("; ")})` : ""}`, !!m && /Más/.test(words) && /Todas las opciones/.test(words) && !!l && !l.bad.length, `${words} ${JSON.stringify(l)}`);
   check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

@@ -109,6 +109,14 @@ const ICON = {
   plainrules: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M20 4.5v4.2h-4.2"/>',
   spark: '<path d="M12 3.5v4.5M12 16v4.5M3.5 12H8M16 12h4.5M6 6l3 3M15 15l3 3M18 6l-3 3M9 15l-3 3"/>',
   surface: '<path d="M3.5 9.5L12 5l8.5 4.5L12 14z"/><path d="M3.5 9.5v4.2L12 18.2l8.5-4.5V9.5"/><path d="M7.8 7.2l8.4 4.6M16.2 7.2l-8.4 4.6"/>',
+  // (Calm Rings: More, a row's way on, a choice's list open or shut, a
+  // switch between two, the card's close.)
+  more: '<circle cx="5.5" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.7" fill="currentColor" stroke="none"/>',
+  chev: '<path d="M9.5 6l6 6-6 6"/>',
+  down: '<path d="M6 9.5l6 6 6-6"/>',
+  up: '<path d="M6 14.5l6-6 6 6"/>',
+  swap: '<path d="M7 7.5h11M15 4.5l3 3-3 3M17 16.5H6M9 13.5l-3 3 3 3"/>',
+  close: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
 };
 const bars = (n) => [[4.5, 13.5, 6], [10, 9.5, 10], [15.5, 5.5, 14]]
   .map(([x, y, h], i) => `<rect x="${x}" y="${y}" width="4" height="${h}" rx="1"${i < n ? ' fill="currentColor"' : ""}/>`).join("");
@@ -131,7 +139,7 @@ const KIND_OF = {
   sound: "settings", language: "settings", replay: "settings", saves: "settings", bar: "settings",
 };
 const NAMES = {
-  you: "You", first: "First move", opponent: "Opponent", level: "Level", check: "Check alert", start: "Start", half: "My half", cart: "Cart",
+  you: "You", first: "First move", opponent: "Opponent", level: "Level", check: "Check alert", start: "Starting position", half: "My half", cart: "Cart",
   sound: "Sound", language: "Language", replay: "Replay", saves: "Saves", points: "Actions left", costs: "Move costs",
   guide: "Piece guide", bar: "Control bar", view: "View", focus: "Focus", endturn: "End turn", undomove: "Undo move",
   undoturn: "Undo turn", endgame: "End game", movelog: "Move log", plainrules: "Plain rules",
@@ -198,11 +206,16 @@ export function readDock(host, phase) {
      it you and the computer's level, and first among the game's
      settings (where Rings opens, where Game turns to) You, saying it
      whole. */
+  // (toMove: the line says only whose move it is; side, me: whose, and
+  // yours, for Calm Rings' "Your move".)
+  let toMove = false, sideNow = null, me = null;
   if (phase === "play" && host.sideLabel) {
     const full = (s) => host.sideLabel(s), norm = (x) => x.replace(/\s+/g, " ").trim();
     const s = status && status.getAttribute("data-side");
-    if (s && header === norm(t("{side} to move", { side: side(s) }))) header = t("{side} to move", { side: full(s) });
-    const me = host.you ? host.you() : null, ai = host.ai(), level = host.level ? host.level() : "";
+    sideNow = s || null;
+    if (s && header === norm(t("{side} to move", { side: side(s) }))) { header = t("{side} to move", { side: full(s) }); toMove = true; }
+    me = host.you ? host.you() : null;
+    const ai = host.ai(), level = host.level ? host.level() : "";
     if (me) {
       const them = me === "dark" ? "light" : "dark";
       sub = ai ? t("You: {you} · Computer: {level}", { you: full(me), level }) : t("You: {you} · Online", { you: full(me) });
@@ -212,6 +225,7 @@ export function readDock(host, phase) {
           : t("You play {you}. Your opponent online plays {them}.", { you: full(me), them: full(them) }),
       });
     } else {
+      sub = t("Two players");
       add("you", {
         type: "info", name: t("Players"), value: t("Two players"), icon: "human", wrap: true,
         tip: t("Two players, one screen: {dark} and {light}.", { dark: full("dark"), light: full("light") }),
@@ -307,7 +321,7 @@ export function readDock(host, phase) {
      playing surface. It's not obvious. So if I want to switch it
      mid-game, I should be able to do that somehow."). Each as the rest
      are read: { key, kind, type, name, value, tip, icon, choices }. */
-  for (const it of (host.worldSettings ? host.worldSettings(phase) : []) || []) add(it.key, it);
+  for (const it of (host.worldSettings ? host.worldSettings(phase) : []) || []) add(it.key, { ...it, world: true });
   const buy = one('[data-testid="story-purchase"], [data-testid="story-go-home-confused"]');
   if (buy) {
     const [what, price] = words(buy).split(" · "), empty = buy.getAttribute("data-cart") === "empty";
@@ -354,7 +368,7 @@ export function readDock(host, phase) {
 
   const order = KINDS.map((k) => k.key);
   items.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
-  return { phase, header, sub, primary, items };
+  return { phase, header, sub, primary, items, toMove, side: sideNow, me };
 }
 
 /* Before a fan reads the dock: after a game the next game's opponent is
@@ -422,6 +436,18 @@ export const FAN_VERSIONS = [
     },
     geometry: (vw, vh, c) => { const r1 = clamp(Math.min(178, vw - 120, c.y - 236), 120, 178); return { r0: 62, r1, win: [-180, -90], focus: -135, step: 28, layout: "uniform" }; },
   },
+  /* 4.6 Calm Rings (mountCalm, below), the dock's menu: before a game the
+     piece where it is, smaller, the half ring round it; after one, brought
+     from its corner to that place; in play raised in its corner, the
+     quarter fan out of it. */
+  {
+    n: "4.6", id: "calm", name: "Calm Rings", fan: true, calm: true,
+    about: "A few settings in fixed places round the piece, and More for all of them in one list. In play, a quarter fan from the corner.",
+    place: (phase, vw, vh, rest, home) => (phase === "play" ? { shift: { raise: true }, center: rest }
+      : phase === "setup" ? { shift: { x: 0, y: 0, scale: 0.6 }, center: rest }
+        : { shift: { centre: true, x: 0, y: 0, scale: 0.6 }, center: home }),
+    mount: (v, env) => mountCalm(v, env),
+  },
 ];
 
 /* ---------------------------------------------------------------- style */
@@ -433,6 +459,7 @@ const CSS = `
 .ml-item{appearance:none;-webkit-appearance:none;box-sizing:border-box;border:0;margin:0;padding:0;font:inherit;color:var(--ml-ink);cursor:pointer;pointer-events:auto;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 .ml-item:focus{outline:none}.ml-item:focus-visible{outline:2px solid var(--ml-ink);outline-offset:3px}
 .ml-on .ml-item[aria-disabled="true"]{opacity:.4;cursor:default}
+.ml-layer.cr-above{z-index:32}
 .ml-ico{display:flex;align-items:center;justify-content:center}.ml-ico svg{display:block;width:100%;height:100%}
 .ml-item.ml-primary{background-color:var(--ml-pbg,var(--ml-ink));background-image:var(--ml-pimg,none);background-size:cover;background-position:center;color:var(--ml-pink,var(--ml-paper));text-shadow:var(--ml-pshadow,none)}
 .ml-nudge{animation:mlNudge .36s ease}
@@ -506,6 +533,84 @@ body.mf-quiet [data-testid="toggle-hint"]{display:none!important}
 .mf-pulse{animation:mfPulse .42s ease}
 @keyframes mfPulse{35%{opacity:.55}}
 @media (prefers-reduced-motion: reduce){.mf-stack{transition:none}}
+.cr-stage{--cr-ink2:color-mix(in srgb,var(--ml-ink) 66%,var(--ml-paper));--cr-rule:color-mix(in srgb,var(--ml-ink) 13%,transparent);--cr-red:color-mix(in srgb,#c0392b 78%,var(--ml-ink));position:fixed;inset:0;pointer-events:none;opacity:0;transform:translateY(6px);transition:opacity .15s ease-out,transform .15s ease-out;font-family:var(--ml-text,'IBM Plex Sans',system-ui,sans-serif);text-transform:none;letter-spacing:0;color:var(--ml-ink);-webkit-font-smoothing:antialiased}
+.ml-on .cr-stage{opacity:1;transform:none}
+.ml-off .cr-stage{opacity:0;transition-duration:.12s}
+.ml-still .cr-stage{transition:none}
+.cr-ring{position:fixed;overflow:visible;pointer-events:none;filter:drop-shadow(0 6px 10px rgba(0,0,0,.26))}
+.cr-pad{fill:transparent;pointer-events:all}
+.cr-w{pointer-events:auto;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.cr-w path{fill:var(--ml-paper);stroke:var(--cr-rule);stroke-width:1;transition:fill .1s ease}
+@media (hover:hover){.cr-w:hover path{fill:color-mix(in srgb,var(--ml-ink) 7%,var(--ml-paper))}}
+.cr-w:active path{fill:color-mix(in srgb,var(--ml-ink) 14%,var(--ml-paper))}
+.cr-w.cr-open path{fill:var(--ml-ink);stroke:var(--ml-ink)}
+.cr-w:focus-visible path{stroke:var(--ml-ink);stroke-width:2.6}
+.cr-w[aria-disabled="true"]{cursor:default}
+.cr-labs{position:fixed;inset:0;pointer-events:none}
+.cr-lab{position:fixed;width:var(--w,88px);display:flex;flex-direction:column;align-items:center;text-align:center;transform:translate(-50%,-50%);pointer-events:none;color:var(--ml-ink)}
+.cr-lab .cr-ico{width:20px;height:20px;margin-bottom:3px;display:block}.cr-lab .cr-ico svg{display:block;width:100%;height:100%}
+.cr-lab .cr-nm{font-size:14px;font-weight:600;line-height:1.15;max-width:100%;overflow-wrap:break-word}
+.cr-lab .cr-val{font-size:12px;line-height:1.25;color:var(--cr-ink2);max-width:100%;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:break-word;margin-top:1px}
+.cr-big .cr-lab .cr-nm{font-size:15px}.cr-big .cr-lab .cr-val{font-size:13px}.cr-big .cr-lab .cr-ico{width:22px;height:22px}
+.cr-lab.cr-open{color:var(--ml-paper)}.cr-lab.cr-open .cr-val{color:color-mix(in srgb,var(--ml-paper) 78%,var(--ml-ink))}
+.cr-lab.cr-held{opacity:.42}
+.cr-pulse{animation:mfPulse .32s ease}
+.cr-primary{position:fixed;pointer-events:auto;height:52px;padding:0 26px 0 8px;border-radius:999px;display:inline-flex;align-items:center;gap:12px;font-family:var(--ml-font);font-size:17px;font-weight:600;letter-spacing:.03em;text-transform:var(--ml-case);white-space:nowrap;transform:translateX(-50%);box-shadow:0 0 0 1px rgba(0,0,0,.16),0 10px 24px rgba(0,0,0,.3)}
+.cr-primary .cr-pi{width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.14);display:flex;align-items:center;justify-content:center;flex:none}
+.cr-primary .cr-pi svg{width:17px;height:17px}
+.cr-primary[aria-disabled="true"]{opacity:.5;cursor:default}
+.cr-carded .cr-status,.cr-more-open .cr-ring,.cr-more-open .cr-labs,.cr-more-open > .cr-primary,.cr-more-open .cr-status{display:none!important}
+.cr-line{position:fixed;box-sizing:border-box;max-width:calc(100vw - 24px);padding:8px 14px;border-radius:18px;background:rgba(26,19,11,.82);color:#fff;font-size:13.5px;line-height:1.35;font-weight:500;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none}
+.cr-line b{font-weight:700}
+.cr-line.cr-mid{transform:translateX(-50%);text-align:center;width:max-content}
+.cr-line.cr-right{text-align:right}
+.cr-note{display:none}.cr-note.cr-shown{display:block}.cr-note.cr-warn{background:rgba(120,30,22,.9)}
+.cr-note.cr-top{top:12px;left:50%;right:auto;bottom:auto;transform:translateX(-50%);z-index:2;width:max-content}
+.cr-noting .cr-status{visibility:hidden}
+.cr-card{position:fixed;pointer-events:auto;box-sizing:border-box;padding:10px 14px 14px;border-radius:18px;background:var(--ml-paper);color:var(--ml-ink);box-shadow:0 14px 34px rgba(0,0,0,.32),0 0 0 1px var(--cr-rule);overflow-y:auto;overscroll-behavior:contain}
+.cr-in{animation:crIn .15s ease-out}
+@keyframes crIn{from{opacity:0;translate:0 6px}}
+.cr-ch{display:flex;align-items:center;gap:10px;min-height:44px}
+.cr-ct{flex:1;min-width:0;font-size:17px;font-weight:700;line-height:1.25}
+.cr-x{width:48px;height:48px;margin:-6px -10px -6px 0;border-radius:50%;border:0;padding:0;background:transparent;color:inherit;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;-webkit-tap-highlight-color:transparent}
+.cr-x span{width:32px;height:32px;border-radius:50%;background:color-mix(in srgb,var(--ml-ink) 8%,transparent);display:flex;align-items:center;justify-content:center}
+.cr-x svg{width:16px;height:16px;display:block}
+.cr-tip{font-size:13px;line-height:1.4;color:var(--cr-ink2);margin:0 0 10px}
+.cr-sub{font-size:13px;font-weight:600;line-height:1.35;margin:14px 0 8px}
+.cr-chips{display:flex;flex-wrap:wrap;gap:8px}
+.cr-chip{flex:1 1 auto;min-width:72px;min-height:44px;padding:8px 14px;border-radius:22px;border:1px solid color-mix(in srgb,var(--ml-ink) 30%,transparent);background:transparent;color:inherit;font:inherit;font-size:15px;line-height:1.2;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cr-chip[aria-pressed="true"]{background:var(--ml-ink);color:var(--ml-paper);border-color:var(--ml-ink);font-weight:600}
+.cr-chip[aria-disabled="true"]{opacity:.4;cursor:default}
+.cr-chip.cr-stop{background:var(--cr-red);border-color:var(--cr-red);color:#fff;font-weight:600}
+.cr-chip:focus-visible,.cr-row:focus-visible,.cr-x:focus-visible,.cr-primary:focus-visible{outline:2px solid var(--ml-ink);outline-offset:2px}
+.cr-rows{margin-top:6px}.cr-rows .cr-row{border-bottom:0}
+.cr-more{position:fixed;pointer-events:auto;box-sizing:border-box;display:flex;flex-direction:column;background:var(--ml-paper);color:var(--ml-ink);box-shadow:0 -10px 34px rgba(0,0,0,.28),0 0 0 1px var(--cr-rule)}
+.cr-more.cr-in{animation:crUp .18s ease-out}
+@keyframes crUp{from{opacity:0;translate:0 18px}}
+.cr-sheet{left:0;right:0;bottom:0;max-height:calc(100% - 52px - env(safe-area-inset-top,0px));border-radius:20px 20px 0 0;padding-bottom:env(safe-area-inset-bottom,0px)}
+.cr-panel{right:24px;bottom:24px;width:min(390px,calc(100vw - 48px));max-height:calc(100% - 48px);border-radius:18px}
+.cr-handle{width:40px;height:5px;border-radius:3px;background:color-mix(in srgb,var(--ml-ink) 22%,transparent);margin:8px auto 0;flex:none}
+.cr-mh{padding:4px 14px 2px 18px;flex:none}.cr-mh .cr-ct{font-size:19px}
+.cr-list{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding:0 16px 16px;min-height:0}
+.cr-gh{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--cr-ink2);margin:16px 2px 2px}
+.cr-row{appearance:none;-webkit-appearance:none;display:flex;align-items:center;gap:12px;box-sizing:border-box;width:100%;min-height:48px;padding:6px 2px;margin:0;border:0;border-bottom:1px solid var(--cr-rule);border-radius:0;background:transparent;color:inherit;font:inherit;font-size:16px;line-height:1.3;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cr-row .cr-ico{width:22px;height:22px;flex:none;color:var(--cr-ink2);display:block}.cr-row .cr-ico svg{display:block;width:100%;height:100%}
+.cr-row .cr-rn{flex:1;min-width:0}
+.cr-row .cr-rv{color:var(--cr-ink2);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48%}
+.cr-row .cr-chev{width:18px;height:18px;flex:none;color:var(--cr-ink2);display:block}.cr-row .cr-chev svg{display:block;width:100%;height:100%}
+.cr-row[aria-disabled="true"]{opacity:.42;cursor:default}
+.cr-sw{width:46px;height:28px;border-radius:14px;background:color-mix(in srgb,var(--ml-ink) 25%,transparent);position:relative;flex:none;transition:background .12s ease}
+.cr-sw::after{content:"";position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .12s ease}
+.cr-row[aria-checked="true"] .cr-sw{background:#3d7049}
+.cr-row[aria-checked="true"] .cr-sw::after{transform:translateX(18px)}
+.cr-opts{padding:8px 0 12px;border-bottom:1px solid var(--cr-rule)}
+.cr-end{margin-top:22px;border-top:1px solid var(--cr-rule)}
+.cr-row.cr-red{color:var(--cr-red);font-weight:600;border-bottom:0}.cr-row.cr-red .cr-ico{color:var(--cr-red)}
+.cr-ask{padding:2px 0 6px}
+.cr-foot{flex:none;padding:10px 16px 14px;border-top:1px solid var(--cr-rule)}
+.cr-primary.cr-wide{position:relative;transform:none;width:100%;justify-content:center;padding:0 18px}
+.cr-primary.cr-wide .cr-pi{position:absolute;left:8px}
+@media (prefers-reduced-motion: reduce){.cr-stage,.cr-sw,.cr-sw::after{transition:none}.cr-in,.cr-more.cr-in{animation:none}}
 `;
 function addStyle() {
   if (document.getElementById("mf-style")) return;
@@ -1290,10 +1395,512 @@ export function mountFan(v, env) {
   };
 }
 
+/* ---------------------------------------------------- Calm Rings (4.6) */
+
+/* Calm Rings (user, of the six ways to streamline the menu on the page
+   "Rethinking Rings", 2026-10-30: "A, with B in play. Make all
+   appropriate recommended changes that the research indicates."): Rings
+   without the noise. A few wedges for the moment, each in a place that
+   stays put, and More for all of it in one plain list; no turning, no
+   inner ring, no read-out, no glow. Before a game and after one a half
+   ring round the piece with the big button above it; in play (B) a
+   quarter fan out of the corner piece, which stays where it is, so the
+   board stays in view. A wedge with choices opens a small card above the
+   ring; a switch flips where it is. And what the research asked of any of
+   them: who's playing and whose move said once, in one line on the
+   screen, not inside the menu; plain words set straight, in sentence case
+   (14 px names, 12 px values); every button 44 px or more; usable on the
+   first tap, its motion under 0.2 s; End game asking first, at the list's
+   edge. */
+
+// Up front, by the moment, the most wanted first ("extra": the world's
+// own beside Begin, its settings, the store's cart); then what fills in
+// for one a world lacks.
+const CALM_QUICK = {
+  setup: ["opponent", "first", "start", "extra"],
+  play: ["view", "sound"],
+  over: ["opponent", "movelog", "view", "replay"],
+};
+const CALM_SPARE = { setup: ["sound", "language"], play: ["focus", "movelog"], over: ["plainrules", "sound"] };
+// More's list in its groups, each setting once (one not named: Board).
+const CALM_GROUPS = [
+  { key: "game", name: "Game", of: ["opponent", "level", "first", "start", "half", "endturn", "undomove", "undoturn", "plainrules"] },
+  { key: "board", name: "Board", of: ["pieces", "cart", "nova", "view", "focus", "movelog"] },
+  { key: "hints", name: "Help on the board", of: ["check", "points", "costs", "guide"] },
+  { key: "sound", name: "Sound and language", of: ["sound", "language"] },
+  { key: "saves", name: "Your games", of: ["replay", "saves"] },
+  { key: "layout", name: "Layout", of: ["bar"] },
+];
+// A wedge's card holds what goes with it: the computer's level with who
+// you play, your half with how the pieces start; with the view, Focus and
+// a world's own look of the board (Cromo's surface: in a game, one tap
+// from the fan, as the user asked of it, "if I want to switch it
+// mid-game, I should be able to do that somehow").
+const CALM_WITH = { opponent: ["level"], start: ["half"], view: ["focus", "@world"] };
+
+// The wedges for the moment, most wanted first.
+function calmPick(items, phase) {
+  const by = (k) => items.find((i) => i.key === k);
+  const extra = () => by("pieces") || items.find((i) => i.world) || by("cart") || by("nova") || items.find((i) => /^extra\d/.test(i.key));
+  const picked = [];
+  for (const k of CALM_QUICK[phase] || []) {
+    const it = k === "extra" ? extra() : by(k);
+    if (it && it.type !== "info" && !picked.includes(it)) picked.push(it);
+  }
+  const room = phase === "play" ? 2 : 4;
+  for (const k of CALM_SPARE[phase] || []) {
+    const it = by(k);
+    if (picked.length < room && it && !picked.includes(it)) picked.push(it);
+  }
+  return picked;
+}
+
+/* The calm menu on the layer (env as mountFan's). Gives back key(e),
+   refresh(), turnNow() (what's open, kept over a re-lay) and dispose(). */
+export function mountCalm(v, env) {
+  addStyle();
+  const { host, layer, back, phase } = env;
+  const c = env.center, vw = env.vw, vh = env.vh;
+  const corner = phase === "play", narrow = vw < 640;
+  let data = readDock(host, phase) || { header: "", sub: "", primary: null, items: [] };
+  let geo = null, ringKeys = "", wedges = [], gone = false, noteTimer = 0, ringBack = "";
+  const born = performance.now();
+  // (open: a wedge's card, its key; more: the list out, with the choice
+  // open in it and End game asked)
+  let cardKey = null, cardNode = null, moreOpen = false, moreNode = null, listNode = null, openRow = null, asking = false;
+  const MORE = () => ({ key: "more", type: "more", name: t("More"), value: t("All settings"), icon: "more", tip: "" });
+  const find = (key) => (key === "more" ? MORE() : data.items.find((i) => i.key === key) || null);
+
+  const stage = el("div", { className: "cr-stage", "data-testid": "menu-fan", "data-fan": v.id, "data-turning": "false", "data-cr": corner ? "corner" : "half" });
+  const svg = svgEl("svg", { class: "cr-ring" });
+  const labs = el("div", { className: "cr-labs" });
+  const status = el("div", { className: "cr-line cr-status", "data-testid": "menu-fan-status" });
+  const note = el("div", { className: "cr-line cr-note", "data-testid": "menu-fan-note", role: "status", "aria-live": "polite" });
+  const primary = el("button", { type: "button", className: "ml-item ml-primary cr-primary", "data-testid": "menu-fan-primary" });
+  stage.append(svg, labs, status, note, primary);
+  layer.append(stage);
+  const hold = (node) => node.addEventListener("pointerdown", (e) => e.stopPropagation());
+  hold(primary);
+  primary.addEventListener("click", () => go(data.primary, primary));
+  // The big button (Begin, the store's Try a Game, New game): the menu away
+  // and the game on; one held back nudges.
+  function go(p, node) {
+    if (!p || p.disabled) { flash(node, "ml-nudge", 380); return; }
+    env.close();
+    p.press();
+  }
+
+  /* ---- the ring ---- */
+  function measure(n) {
+    const big = vw >= 900 && vh >= 620;
+    geo = corner
+      ? { big, r0: big ? 62 : 58, r1: clamp(Math.min(big ? 232 : 206, c.x - 12, c.y - 150), 150, 232), a0: -177, a1: -90, at: 0.6 }
+      : { big, r0: big ? 68 : 64, r1: clamp(Math.min(big ? 214 : 188, vw / 2 - 8, c.y - 96), 132, 214), a0: -180, a1: 0, at: 0.58 };
+    geo.step = (geo.a1 - geo.a0) / n;
+    geo.top = c.y - geo.r1;
+  }
+  /* The wedges in their places: More at an end (the half ring's left, the
+     corner fan's top), the most wanted at the top of the half ring, the
+     next beside it, right then left; in the corner, out from the bottom. */
+  function arrange(picked) {
+    const n = picked.length + 1, out = new Array(n);
+    if (corner) { picked.forEach((it, i) => { out[i] = it; }); out[n - 1] = MORE(); return out; }
+    out[0] = MORE();
+    const step = 180 / n, off = (i) => Math.abs(-180 + (i + 0.5) * step + 90);
+    const places = [...Array(n).keys()].slice(1).sort((i, j) => (Math.abs(off(i) - off(j)) > 0.01 ? off(i) - off(j) : j - i));
+    picked.forEach((it, k) => { out[places[k]] = it; });
+    return out;
+  }
+  function buildRing() {
+    const list = arrange(calmPick(data.items, phase));
+    ringKeys = list.map((x) => x.key).join();
+    measure(list.length);
+    const { r0, r1, a0, step } = geo;
+    // (The drawing only as big as the ring, its shadow round it.)
+    const pad = 26, bx = Math.floor(c.x - r1 - pad), by = Math.floor(c.y - r1 - pad);
+    const bw = Math.ceil(corner ? r1 + 2 * pad : 2 * (r1 + pad)), bh = Math.ceil(r1 + pad + 30);
+    Object.assign(svg.style, { left: `${bx}px`, top: `${by}px` });
+    svg.setAttribute("width", bw);
+    svg.setAttribute("height", bh);
+    svg.setAttribute("viewBox", `${bx} ${by} ${bw} ${bh}`);
+    svg.setAttribute("data-hub", `${r1d(c.x)} ${r1d(c.y)}`);
+    // (its band and span, for the tests: r0 r1 a0 a1 step)
+    svg.setAttribute("data-ring", [r0, r1, geo.a0, geo.a1, step].map(r1d).join(" "));
+    svg.replaceChildren();
+    labs.replaceChildren();
+    // (A tap in a gap between wedges does nothing, rather than put it away.)
+    const under = svgEl("path", { class: "cr-pad", d: sector(c, r0 - 2, r1 + 3, geo.a0, geo.a1) });
+    hold(under);
+    svg.append(under);
+    wedges = list.map((it, i) => {
+      const s = a0 + i * step, e = s + step, mid = (s + e) / 2, gap = 1.4;
+      const g = svgEl("g", { class: "cr-w", role: "button", tabindex: "0", "data-ml-item": it.key, "data-cr-at": r1d(mid) });
+      g.append(svgEl("path", { d: sector(c, r0, r1, s + gap / 2, e - gap / 2) }));
+      svg.append(g);
+      const rl = r0 + (r1 - r0) * geo.at, p = polar(c, rl, mid);
+      const room = Math.min(2 * rl * Math.sin(rad(step / 2)) - 2, r1 - r0 + 6);
+      const lab = el("div", { className: "cr-lab", "data-ml-label": it.key });
+      Object.assign(lab.style, { left: `${r1d(p.x)}px`, top: `${r1d(p.y)}px` });
+      lab.style.setProperty("--w", `${Math.round(clamp(room, 66, 124))}px`);
+      labs.append(lab);
+      const w = { key: it.key, it, g, lab };
+      hold(g);
+      // (Not the click of the tap on the piece that brought it out: a
+      // wedge under that finger as the menu appears.)
+      g.addEventListener("click", (ev) => { ev.stopPropagation(); if (performance.now() - born > 250) tap(w); });
+      g.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); ev.stopPropagation(); tap(w); } });
+      return w;
+    });
+    stage.classList.toggle("cr-big", geo.big);
+    ringBack = corner
+      ? `radial-gradient(circle at ${c.x}px ${c.y}px, rgba(12,9,6,.30) 0, rgba(12,9,6,.2) ${r1 + 24}px, rgba(12,9,6,0) ${r1 + 230}px)`
+      : `radial-gradient(circle at ${c.x}px ${c.y}px, rgba(12,9,6,.06) 0, rgba(12,9,6,.06) ${r0}px, rgba(12,9,6,.3) ${r1 + 40}px, rgba(12,9,6,.36) ${r1 + 320}px)`;
+    if (!moreOpen) back.style.background = ringBack;
+    paint();
+  }
+  // What a wedge says it's set to: who you play with the computer's level
+  // under it; a switch's On or Off.
+  const linesOf = (it) => {
+    if (it.key === "opponent") { const lv = find("level"); return [it.value, lv && lv.value].filter(Boolean); }
+    return it.value ? [it.value] : [];
+  };
+  function paintWedge(w) {
+    const it = w.key === "more" ? MORE() : find(w.key) || w.it;
+    w.it = it;
+    const lines = linesOf(it);
+    w.g.setAttribute("aria-label", `${it.name}${lines.length ? `: ${lines.join(", ")}` : ""}`);
+    w.g.setAttribute("aria-disabled", it.disabled ? "true" : "false");
+    if (it.type === "toggle" && !it.alt) w.g.setAttribute("aria-pressed", String(!!it.on)); else w.g.removeAttribute("aria-pressed");
+    if (it.type === "choice" || it.type === "more" || it.confirm) w.g.setAttribute("aria-haspopup", "dialog");
+    w.lab.innerHTML = `<span class="cr-ico">${iconOf(it.icon, it.level)}</span><span class="cr-nm">${escapeHtml(it.name)}</span>${lines.map((l) => `<span class="cr-val">${escapeHtml(l)}</span>`).join("")}`;
+    w.lab.classList.toggle("cr-held", !!it.disabled);
+    const open = w.key === "more" ? moreOpen : cardKey === w.key;
+    w.g.classList.toggle("cr-open", open);
+    w.lab.classList.toggle("cr-open", open);
+  }
+
+  /* ---- the line on the screen, the big button, a word after a tap ---- */
+  // In play, whose move and who's who, said once (yours: Your move); after
+  // a game, how it ended. Above the corner fan, or over the big button.
+  function lineText() {
+    if (phase === "setup") return "";
+    let head = data.header || "";
+    if (corner && data.toMove && data.me && data.side === data.me) head = t("Your move");
+    const sub = corner ? data.sub || "" : "";
+    return head || sub ? `<b>${escapeHtml(head)}</b>${head && sub ? " · " : ""}${escapeHtml(sub)}` : "";
+  }
+  function paintTop() {
+    const p = data.primary;
+    primary.style.display = p && !corner ? "" : "none";
+    primary.classList.toggle("td-try-game", !!(p && p.lit));
+    if (p) {
+      primary.innerHTML = `<span class="cr-pi">${iconOf("play")}</span><span>${escapeHtml(p.label)}</span>`;
+      primary.setAttribute("aria-disabled", p.disabled ? "true" : "false");
+    }
+    const line = lineText();
+    status.innerHTML = line;
+    status.style.display = line ? "" : "none";
+  }
+  // Where each sits: over the ring's top (the corner fan's, at the right).
+  function place() {
+    const above = (gapPx) => `${Math.round(vh - geo.top + gapPx)}px`;
+    const p = !corner && data.primary;
+    Object.assign(primary.style, { left: `${Math.round(c.x)}px`, bottom: above(16) });
+    for (const n of [status, note]) {
+      n.classList.toggle("cr-right", corner);
+      n.classList.toggle("cr-mid", !corner);
+      if (moreOpen || cardKey) Object.assign(n.style, { left: "", right: "", top: "", bottom: "" });
+      else if (corner) Object.assign(n.style, { left: "", right: "12px", top: "", bottom: above(12) });
+      else Object.assign(n.style, { left: `${Math.round(c.x)}px`, right: "", top: "", bottom: above(p ? 16 + 52 + 10 : 16) });
+    }
+    note.classList.toggle("cr-top", moreOpen || !!cardKey);
+  }
+  // A word after a tap (held back, done, how to): in the line's place a
+  // moment; over the list, at the top.
+  function say(text, warn = false) {
+    clearTimeout(noteTimer);
+    if (!text) return;
+    note.textContent = text;
+    note.classList.toggle("cr-warn", !!warn);
+    note.classList.add("cr-shown");
+    stage.classList.add("cr-noting");
+    noteTimer = setTimeout(() => { note.classList.remove("cr-shown"); stage.classList.remove("cr-noting"); }, 2600);
+  }
+  function paint() {
+    wedges.forEach(paintWedge);
+    paintTop();
+    place();
+    stage.classList.toggle("cr-carded", !!cardKey);
+  }
+  const pulse = (node) => flash(node, "cr-pulse", 320);
+
+  /* ---- a wedge tapped ---- */
+  function tap(w) {
+    const it = w.key === "more" ? MORE() : find(w.key);
+    if (!it) return;
+    if (it.key === "more") { if (moreOpen) closeMore(); else openMore(); return; }
+    if (it.disabled) { pulse(w.lab); say(t("Not available right now."), true); return; }
+    if (cardKey === it.key) { closeCard(); return; }
+    if (it.type === "choice" || it.confirm || withOf(it).length) { openCard(it.key); return; }
+    closeCard();
+    act(it, w.lab);
+  }
+  // A setting acted on: one that opens its own page, or an action that's
+  // done with the menu, puts it away first; a switch, or an action that
+  // changes things where they are (Futuris's Anomaly), keeps it out, read
+  // again, with its word after.
+  function act(it, node) {
+    if (it.type === "info") return;
+    if (it.type === "open" || (it.type === "action" && !it.keepOpen)) { env.close(); it.press(); return; }
+    it.press();
+    if (node) pulse(node);
+    frames(2).then(() => { refresh(); if (it.said) say(it.said); });
+  }
+
+  /* ---- a wedge's card ---- */
+  // (What goes with a wedge, there now: "@world", a world's own settings
+  // not on a wedge of their own.)
+  const withOf = (it) => (CALM_WITH[it.key] || [])
+    .flatMap((k) => (k === "@world" ? data.items.filter((i) => i.world && !wedges.some((w) => w.key === i.key)) : [find(k)]))
+    .filter(Boolean);
+  const head = (title, onClose, cls = "cr-ch") => {
+    const x = el("button", { type: "button", className: "cr-x", "aria-label": t("Close"), "data-testid": "menu-fan-close" });
+    x.innerHTML = `<span>${iconOf("close")}</span>`;
+    x.addEventListener("click", (e) => { e.stopPropagation(); onClose(); });
+    return el("div", { className: cls }, el("div", { className: "cr-ct" }, title), x);
+  };
+  function openCard(key) {
+    closeMore(true);
+    cardKey = key;
+    renderCard(true);
+    paint();
+  }
+  function closeCard() {
+    if (!cardKey) return;
+    const w = wedges.find((x) => x.key === cardKey), had = cardNode && cardNode.contains(document.activeElement);
+    cardKey = null;
+    if (cardNode) { cardNode.remove(); cardNode = null; }
+    paint();
+    if (had && w) w.g.focus();
+  }
+  function renderCard(first = false) {
+    const it = find(cardKey);
+    if (!it) { closeCard(); return; }
+    const node = el("div", { className: `cr-card${first ? " cr-in" : ""}`, "data-testid": "menu-fan-card", "data-mf-card": it.key, role: "dialog", "aria-label": it.name });
+    hold(node);
+    if (it.confirm) node.append(head(t("End this game?"), closeCard), askBox(it, closeCard));
+    else {
+      node.append(head(it.name, closeCard));
+      if (it.tip) node.append(el("div", { className: "cr-tip" }, it.tip));
+      if (it.type === "choice") node.append(chips(it));
+      for (const x of withOf(it)) {
+        if (x.type === "choice") node.append(el("div", { className: "cr-sub" }, x.world ? x.name : x.tip || x.name), chips(x));
+        else if (x.type === "toggle") node.append(el("div", { className: "cr-rows" }, row(x)));
+      }
+    }
+    const w = Math.min(vw - 24, corner ? 360 : 400);
+    Object.assign(node.style, corner ? { right: "12px", width: `${w}px` } : { left: `${Math.round(clamp(c.x - w / 2, 12, vw - 12 - w))}px`, width: `${w}px` });
+    // Over the ring, and over the big button, which stays in reach (Begin
+    // one tap away, a choice made or not); on a screen too short for that
+    // (a phone on its side), from the top of the screen, over them if it
+    // must be.
+    const floor = !corner && data.primary ? geo.top - 16 - 52 - 10 : geo.top - 12;
+    const room = floor - 8;
+    if (room >= 200) Object.assign(node.style, { bottom: `${Math.round(vh - floor)}px`, maxHeight: `${Math.round(room)}px` });
+    else Object.assign(node.style, { top: "8px", maxHeight: `${vh - 16}px` });
+    const had = cardNode && cardNode.contains(document.activeElement);
+    if (cardNode) cardNode.replaceWith(node); else stage.append(node);
+    cardNode = node;
+    // (A key brought it out, or was in it: the keys go on in it.)
+    if (had || (first && wedges.some((x) => x.g === document.activeElement))) { const f = node.querySelector('.cr-chip[aria-pressed="true"]') || node.querySelector(".cr-chip, .cr-row") || node.querySelector(".cr-x"); if (f) f.focus(); }
+  }
+  // A setting's choices, each a button (the one it's on, pressed).
+  function chips(it) {
+    const box = el("div", { className: "cr-chips", role: "group", "aria-label": it.name, "data-testid": "menu-fan-ctl", "data-mf-of": it.key });
+    for (const ch of it.choices || []) {
+      const held = !!(ch.disabled || it.disabled);
+      const b = el("button", { type: "button", className: "cr-chip", "aria-pressed": String(!!ch.on), "aria-disabled": held ? "true" : null, "data-mf-choice": ch.key }, ch.label);
+      b.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (held) { flash(b, "ml-nudge", 380); say(t("Not available right now."), true); return; }
+        box.querySelectorAll(".cr-chip").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+        await ch.pick();
+        if (ch.opens) { env.close(); host.openPanel(); return; }
+        if (ch.closes) { env.close(); return; }
+        await frames(2);
+        refresh();
+      });
+      box.append(b);
+    }
+    return box;
+  }
+  // End game: asked first, Keep playing beside it.
+  function askBox(it, cancel) {
+    const keep = el("button", { type: "button", className: "cr-chip", "data-mf-choice": "keep" }, t("Keep playing"));
+    const end = el("button", { type: "button", className: "cr-chip cr-stop", "data-mf-choice": "end" }, it.name);
+    keep.addEventListener("click", (e) => { e.stopPropagation(); cancel(); });
+    end.addEventListener("click", (e) => { e.stopPropagation(); env.close(); it.press(); });
+    return el("div", { className: "cr-ask", "data-testid": "menu-fan-ask" }, el("div", { className: "cr-tip" }, it.tip || ""), el("div", { className: "cr-chips" }, keep, end));
+  }
+
+  /* ---- More: everything, in one list ---- */
+  function openMore() {
+    closeCard();
+    const fromKeys = wedges.some((x) => x.g === document.activeElement);
+    moreOpen = true;
+    stage.classList.add("cr-more-open");
+    // (Over the title and the rest of the page's own, as a sheet is; the
+    // game behind it dimmed.)
+    layer.classList.add("cr-above");
+    back.style.background = "rgba(12,9,6,.42)";
+    renderMore(true);
+    paint();
+    if (fromKeys) { const f = moreNode.querySelector(".cr-row") || moreNode.querySelector(".cr-x"); if (f) f.focus(); }
+  }
+  function closeMore(quiet = false) {
+    if (!moreOpen) return;
+    moreOpen = false;
+    openRow = null;
+    asking = false;
+    stage.classList.remove("cr-more-open");
+    layer.classList.remove("cr-above");
+    back.style.background = ringBack;
+    const had = moreNode && moreNode.contains(document.activeElement);
+    if (moreNode) { moreNode.remove(); moreNode = null; listNode = null; }
+    if (!quiet) paint();
+    if (had) { const w = wedges.find((x) => x.key === "more"); if (w) w.g.focus(); }
+  }
+  // A row: its name and what it's set to, then a switch, the way on, or
+  // (a choice) its list, opening under it.
+  function row(it) {
+    const sw = it.type === "toggle" && !it.alt;
+    const attrs = { type: "button", className: `cr-row${it.confirm ? " cr-red" : ""}`, "data-mf-row": it.key, "aria-disabled": it.disabled ? "true" : null };
+    if (sw) { attrs.role = "switch"; attrs["aria-checked"] = String(!!it.on); }
+    if (it.type === "choice") attrs["aria-expanded"] = String(openRow === it.key);
+    const b = el("button", attrs);
+    const val = sw ? "" : it.value || "";
+    const tail = sw ? '<span class="cr-sw" aria-hidden="true"></span>'
+      : it.type === "toggle" ? `<span class="cr-chev">${iconOf("swap")}</span>`
+        : it.type === "choice" ? `<span class="cr-chev">${iconOf(openRow === it.key ? "up" : "down")}</span>`
+          : it.type === "open" ? `<span class="cr-chev">${iconOf("chev")}</span>` : "";
+    b.innerHTML = `<span class="cr-ico">${iconOf(it.icon, it.level)}</span><span class="cr-rn">${escapeHtml(it.name)}</span>${val ? `<span class="cr-rv">${escapeHtml(val)}</span>` : ""}${tail}`;
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (it.disabled) { flash(b, "ml-nudge", 380); say(t("Not available right now."), true); return; }
+      if (it.confirm) { asking = !asking; renderMore(); return; }
+      if (it.type === "choice") { openRow = openRow === it.key ? null : it.key; renderMore(); return; }
+      act(it, null);
+    });
+    return b;
+  }
+  function renderMore(first = false) {
+    const keep = listNode ? listNode.scrollTop : 0;
+    const node = el("div", { className: `cr-more ${narrow ? "cr-sheet" : "cr-panel"}${first ? " cr-in" : ""}`, "data-testid": "menu-fan-more", role: "dialog", "aria-label": t("All settings") });
+    hold(node);
+    if (narrow) node.append(el("div", { className: "cr-handle" }));
+    // (Its close puts the menu away: back to the game in one tap.)
+    node.append(head(t("All settings"), () => env.close(), "cr-ch cr-mh"));
+    const list = el("div", { className: "cr-list", "data-testid": "menu-fan-list" });
+    const groups = CALM_GROUPS.map((g) => ({ ...g, its: [] }));
+    const board = groups.find((g) => g.key === "board");
+    let end = null;
+    for (const it of data.items) {
+      if (it.type === "info") continue;
+      if (it.confirm) { end = it; continue; }
+      (groups.find((g) => g.of.includes(it.key)) || board).its.push(it);
+    }
+    const rank = (g, it) => { const i = g.of.indexOf(it.key); return i < 0 ? 99 : i; };
+    for (const g of groups) {
+      if (!g.its.length) continue;
+      g.its.sort((a, b) => rank(g, a) - rank(g, b));
+      const sec = el("div", { className: "cr-group", "data-mf-group": g.key }, el("div", { className: "cr-gh" }, t(g.name)));
+      for (const it of g.its) {
+        sec.append(row(it));
+        if (it.type === "choice" && openRow === it.key) sec.append(el("div", { className: "cr-opts" }, chips(it)));
+      }
+      list.append(sec);
+    }
+    // End game last, at the edge, on its own; asked first.
+    if (end) {
+      const sec = el("div", { className: "cr-group cr-end", "data-mf-group": "end" }, row(end));
+      if (asking) sec.append(askBox(end, () => { asking = false; renderMore(); }));
+      list.append(sec);
+    }
+    node.append(list);
+    // (Before a game and after one, the big button at its foot too.)
+    if (data.primary) {
+      const p = el("button", { type: "button", className: "ml-item ml-primary cr-primary cr-wide", "data-testid": "menu-fan-more-primary", "aria-disabled": data.primary.disabled ? "true" : "false" });
+      p.innerHTML = `<span class="cr-pi">${iconOf("play")}</span><span>${escapeHtml(data.primary.label)}</span>`;
+      p.classList.toggle("td-try-game", !!data.primary.lit);
+      p.addEventListener("click", (e) => { e.stopPropagation(); go(data.primary, p); });
+      node.append(el("div", { className: "cr-foot" }, p));
+    }
+    if (moreNode) moreNode.replaceWith(node); else stage.append(node);
+    moreNode = node;
+    listNode = list;
+    list.scrollTop = keep;
+  }
+
+  /* ---- the dock read again (after a tap; a language chosen) ---- */
+  function refresh() {
+    if (gone) return;
+    const fresh = readDock(host, phase);
+    if (!fresh) return;
+    data = fresh;
+    if (arrange(calmPick(data.items, phase)).map((x) => x.key).join() !== ringKeys) buildRing();
+    else paint();
+    if (cardKey) renderCard();
+    if (moreOpen) renderMore();
+  }
+  const onLanguage = () => frames(2).then(refresh);
+  window.addEventListener("el-cabeza:language-changed", onLanguage);
+
+  buildRing();
+  // (Laid out again over a resize: what was open, open again.)
+  const keep = env.keep && typeof env.keep === "object" ? env.keep : null;
+  if (keep && keep.more) openMore();
+  else if (keep && keep.card && find(keep.card)) openCard(keep.card);
+
+  // Arrow keys go round the wedges (from the most wanted first); Escape
+  // shuts the card or the list, then the menu (fanMenu's).
+  const focusAt = (i) => { const w = wedges[((i % wedges.length) + wedges.length) % wedges.length]; if (w) w.g.focus(); };
+  return {
+    key(e) {
+      const k = e.key;
+      if (k === "Escape") {
+        if (cardKey) { closeCard(); return true; }
+        if (moreOpen) { closeMore(); return true; }
+        return false;
+      }
+      if (moreOpen || cardKey) return false;
+      const at = wedges.findIndex((w) => w.g === document.activeElement);
+      if (k === "ArrowLeft" || k === "ArrowDown" || k === "ArrowRight" || k === "ArrowUp") {
+        const dir = k === "ArrowLeft" || k === "ArrowDown" ? -1 : 1;
+        if (at < 0) {
+          const first = wedges.find((w) => w.key !== "more" && w.key === (calmPick(data.items, phase)[0] || {}).key) || wedges[0];
+          if (first) first.g.focus();
+        } else focusAt(at + dir);
+        return true;
+      }
+      return false;
+    },
+    refresh,
+    turnNow: () => ({ more: moreOpen, card: cardKey }),
+    dispose() {
+      gone = true;
+      clearTimeout(noteTimer);
+      window.removeEventListener("el-cabeza:language-changed", onLanguage);
+    },
+  };
+}
+
 /* ------------------------------------------------ the fan, on the page */
 
-// The one the dock opens (the user's pick of the five: 4.2 Rings).
+// The one the dock opened (the user's pick of the five: 4.2 Rings), and
+// the one it opens now (4.6 Calm Rings: "A, with B in play"; Rings kept
+// in the lab, ?menulab=4.2, to set beside it).
 export const RINGS = FAN_VERSIONS.find((v) => v.id === "rings");
+export const CALM = FAN_VERSIONS.find((v) => v.id === "calm");
 
 const reduced = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } };
 
@@ -1305,6 +1912,8 @@ export function dress(layer, host) {
   const set = (k, v) => { if (v) layer.style.setProperty(k, v); };
   set("--ml-paper", c.paper); set("--ml-ink", c.ink); set("--ml-line", c.line);
   const panel = host.panel(), begin = panel && panel.querySelector('[data-dock-role="begin"]');
+  // (Calm Rings' words in the panel's own face, its reading face.)
+  if (panel) set("--ml-text", getComputedStyle(panel).fontFamily);
   if (!begin) return;
   const cs = getComputedStyle(begin);
   set("--ml-font", cs.fontFamily); set("--ml-case", cs.textTransform);
@@ -1376,7 +1985,7 @@ export function fanMenu(host, { testid = "dock-menu" } = {}) {
     const lead = shift && !shift.raise && !still ? 300 : 0;
     prepareDock(host, phase).then(() => {
       if (menu !== m) return;
-      m.fan = mountFan(v, { host, layer, back, center, vw, vh, phase, still, keep, lead, close: () => close() });
+      m.fan = (v.mount || mountFan)(v, { host, layer, back, center, vw, vh, phase, still, keep, lead, close: () => close() });
       void layer.offsetWidth;
       requestAnimationFrame(() => { if (menu === m) layer.classList.add("ml-on"); });
     });
