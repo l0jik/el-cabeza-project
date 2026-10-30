@@ -386,3 +386,15 @@ The first-game tour's menu cards: "Your menu." (the line, View, Sound,
 More, each ringed as its line lights: tourRingsHow) and "Everything else
 is in More." (its groups, More ringed). Tests: e2e-rings (rewritten for
 Calm), e2e-cromo, e2e-first-game-tour. es/vi lines added.
+Labels fitted by measure (CI 41132593828 shard 7: the corner fan's More
+said "All settings" 2° past its wedge in CI's face, though not here): a
+29° wedge narrows toward the hub, and a label's lowest line sits ~28 px
+nearer the hub than its middle. So fit(w), on every change of a label's
+words and when a face finishes loading: its lines (and icon) measured
+about its middle, then the place along its wedge nearest the ring's own
+(geo.at) where every corner is 3 px in from each side and 4 px from each
+arc; failing all, narrowed 8 px at a time (no narrower than its name) so
+a value wraps; the least-bad place if nothing fits. Not while More's list
+hides the labels (closeMore's paint fits them). Checked with DejaVu Sans
+forced on the menu (the widest common face): e2e-rings 58/58, More at
+r 163, "All / settings" wrapped.

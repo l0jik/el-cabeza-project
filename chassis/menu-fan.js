@@ -1537,13 +1537,12 @@ export function mountCalm(v, env) {
       const g = svgEl("g", { class: "cr-w", role: "button", tabindex: "0", "data-ml-item": it.key, "data-cr-at": r1d(mid) });
       g.append(svgEl("path", { d: sector(c, r0, r1, s + gap / 2, e - gap / 2) }));
       svg.append(g);
-      const rl = r0 + (r1 - r0) * geo.at, p = polar(c, rl, mid);
+      // (Its words where the band is wide enough for them, then fitted.)
+      const rl = r0 + (r1 - r0) * geo.at;
       const room = Math.min(2 * rl * Math.sin(rad(step / 2)) - 2, r1 - r0 + 6);
       const lab = el("div", { className: "cr-lab", "data-ml-label": it.key });
-      Object.assign(lab.style, { left: `${r1d(p.x)}px`, top: `${r1d(p.y)}px` });
-      lab.style.setProperty("--w", `${Math.round(clamp(room, 66, 124))}px`);
       labs.append(lab);
-      const w = { key: it.key, it, g, lab };
+      const w = { key: it.key, it, g, lab, mid, rl, wd: Math.round(clamp(room, 66, 124)) };
       hold(g);
       // (Not the click of the tap on the piece that brought it out: a
       // wedge under that finger as the menu appears.)
@@ -1564,6 +1563,57 @@ export function mountCalm(v, env) {
     if (it.key === "opponent") { const lv = find("level"); return [it.value, lv && lv.value].filter(Boolean); }
     return it.value ? [it.value] : [];
   };
+  /* A label kept inside its wedge, whatever face draws its words (the
+     wedge narrows toward the hub, and a line under the middle can be
+     wider than the band there): its lines measured, then the place along
+     the wedge nearest the ring's own where every one fits, 3 px in from
+     each edge; failing any, narrowed so a value wraps, to no narrower
+     than its name. False while it isn't shown (More's list over it). */
+  const span = document.createRange();
+  function fit(w) {
+    const { lab, mid } = w, { r0, r1, step } = geo;
+    const put = (rl, wd) => {
+      const p = polar(c, rl, mid);
+      Object.assign(lab.style, { left: `${r1d(p.x)}px`, top: `${r1d(p.y)}px` });
+      lab.style.setProperty("--w", `${wd}px`);
+    };
+    put(w.rl, w.wd);
+    if (!lab.offsetWidth) return false;
+    const miss = (boxes, rl) => {
+      const p = polar(c, rl, mid);
+      let worst = -Infinity;
+      for (const [l, t, r, b] of boxes) for (const [x, y] of [[l, t], [r, t], [l, b], [r, b]]) {
+        const dx = p.x + x - c.x, dy = p.y + y - c.y, d = Math.hypot(dx, dy);
+        let a = deg(Math.atan2(dy, dx));
+        if (a - mid > 180) a -= 360; else if (mid - a > 180) a += 360;
+        const side = Math.min(a - (mid - step / 2), mid + step / 2 - a);
+        worst = Math.max(worst, r0 + 4 - d, d - (r1 - 4), 3 - d * Math.sin(rad(side)));
+      }
+      return worst;
+    };
+    const along = [w.rl];
+    for (let k = 2; w.rl - k > r0 + 8 || w.rl + k < r1 - 8; k += 2) along.push(w.rl + k, w.rl - k);
+    let best = null, floor = 0;
+    for (let wd = w.wd; ; wd -= 8) {
+      if (wd !== w.wd) lab.style.setProperty("--w", `${wd}px`);
+      const L = lab.getBoundingClientRect(), ox = L.left + L.width / 2, oy = L.top + L.height / 2, boxes = [];
+      const add = (r) => boxes.push([r.left - ox, r.top - oy, r.right - ox, r.bottom - oy]);
+      for (const n of lab.children) {
+        if (n.classList.contains("cr-ico")) { add(n.getBoundingClientRect()); continue; }
+        span.selectNodeContents(n);
+        for (const r of span.getClientRects()) { add(r); if (n.classList.contains("cr-nm") && wd === w.wd) floor = Math.max(floor, r.width); }
+      }
+      for (const rl of along) {
+        if (rl <= r0 + 8 || rl >= r1 - 8) continue;
+        const m = miss(boxes, rl);
+        if (m <= 0) { put(rl, wd); return true; }
+        if (!best || m < best.m) best = { m, rl, wd };
+      }
+      if (wd - 8 < Math.max(52, Math.ceil(floor) + 2)) break;
+    }
+    if (best) put(best.rl, best.wd);
+    return true;
+  }
   function paintWedge(w) {
     const it = w.key === "more" ? MORE() : find(w.key) || w.it;
     w.it = it;
@@ -1572,7 +1622,8 @@ export function mountCalm(v, env) {
     w.g.setAttribute("aria-disabled", it.disabled ? "true" : "false");
     if (it.type === "toggle" && !it.alt) w.g.setAttribute("aria-pressed", String(!!it.on)); else w.g.removeAttribute("aria-pressed");
     if (it.type === "choice" || it.type === "more" || it.confirm) w.g.setAttribute("aria-haspopup", "dialog");
-    w.lab.innerHTML = `<span class="cr-ico">${iconOf(it.icon, it.level)}</span><span class="cr-nm">${escapeHtml(it.name)}</span>${lines.map((l) => `<span class="cr-val">${escapeHtml(l)}</span>`).join("")}`;
+    const html = `<span class="cr-ico">${iconOf(it.icon, it.level)}</span><span class="cr-nm">${escapeHtml(it.name)}</span>${lines.map((l) => `<span class="cr-val">${escapeHtml(l)}</span>`).join("")}`;
+    if (html !== w.html || !w.fitted) { w.lab.innerHTML = html; w.html = html; w.fitted = fit(w); }
     w.lab.classList.toggle("cr-held", !!it.disabled);
     const open = w.key === "more" ? moreOpen : cardKey === w.key;
     w.g.classList.toggle("cr-open", open);
@@ -1854,6 +1905,9 @@ export function mountCalm(v, env) {
   }
   const onLanguage = () => frames(2).then(refresh);
   window.addEventListener("el-cabeza:language-changed", onLanguage);
+  // (A face that arrives after the menu, its words fitted again.)
+  const onFonts = () => { if (!gone && !moreOpen) wedges.forEach((w) => { w.fitted = fit(w); }); };
+  if (document.fonts) document.fonts.addEventListener("loadingdone", onFonts);
 
   buildRing();
   // (Laid out again over a resize: what was open, open again.)
@@ -1890,6 +1944,7 @@ export function mountCalm(v, env) {
       gone = true;
       clearTimeout(noteTimer);
       window.removeEventListener("el-cabeza:language-changed", onLanguage);
+      if (document.fonts) document.fonts.removeEventListener("loadingdone", onFonts);
     },
   };
 }

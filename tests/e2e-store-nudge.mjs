@@ -303,11 +303,21 @@ const MOVE_TRIES = [["light-flaco", "N"], ["light-chato", "N"], ["light-turrito"
   ["light-flaco", "E"], ["light-flaco", "W"], ["light-chato", "E"], ["light-chato", "W"], ["light-turrito", "E"], ["light-turrito", "W"]];
 const logLen = (page) => page.evaluate(() => (window.__EC_TEST_LOG__ || []).length);
 const placeOf = (page, id) => page.evaluate((i) => { const p = (window.__EC_TEST_PIECES__ || []).find((x) => x.id === i); return p ? [p.row, p.col, p.w, p.h, p.z].join(",") : null; }, id);
+// Why the last turn didn't go, for a failure's line (CI 41132593828: the
+// third move once went unanswered, the log at 6, not seen here): whose
+// move, the player's pieces where they stand, the last two turns.
+let whyNot = "";
+const stateOf = (page) => page.evaluate(() => JSON.stringify({
+  toMove: window.__EC_TEST_TO_MOVE__ && window.__EC_TEST_TO_MOVE__(),
+  light: (window.__EC_TEST_PIECES__ || []).filter((p) => /^light-/.test(p.id)).map((p) => `${p.id}@${p.row},${p.col}`).join(" "),
+  turns: (window.__EC_TEST_TURNS__ || []).slice(-2),
+}));
 // One of the player's turns through the moves' own path, a step at a
 // time (each piece and way tried till one moves), till the turn passes;
 // then the computer's, till it's the player's again.
 async function playTurn(page) {
   const n0 = await logLen(page);
+  whyNot = "";
   for (let step = 0; step < 6 && (await logLen(page)) === n0; step++) {
     let moved = false;
     for (const [id, dir] of MOVE_TRIES) {
@@ -321,10 +331,12 @@ async function playTurn(page) {
       }
       if (moved) break;
     }
-    if (!moved) return false;
+    if (!moved) { whyNot = `nothing moved at step ${step}: ${await stateOf(page)}`; return false; }
     await page.waitForTimeout(500);
   }
-  return !!(await poll(async () => (await logLen(page)) >= n0 + 2 && (await page.evaluate(() => window.__EC_TEST_TO_MOVE__())) === "light", 60000, 250));
+  const ok = !!(await poll(async () => (await logLen(page)) >= n0 + 2 && (await page.evaluate(() => window.__EC_TEST_TO_MOVE__())) === "light", 60000, 250));
+  if (!ok) whyNot = `the turn not answered: ${await stateOf(page)}`;
+  return ok;
 }
 console.log("\nthree moves after the walkthrough: asked to take it to the register and leave");
 {
@@ -367,18 +379,18 @@ console.log("\nthree moves after the walkthrough: asked to take it to the regist
   await q(page, "tour-done").click();
   check("Got it: the walkthrough's over", await poll(async () => (await step()) === null, 6000));
 
-  check("the first move after it, answered", await playTurn(page), `log ${await logLen(page)}`);
+  check("the first move after it, answered", await playTurn(page), `log ${await logLen(page)} ${whyNot}`);
   const stock = await poll(async () => (await said()).find((s) => s.id === "tienda-pa-instock"), 8000, 100);
   check("...the PA: in stock, once the computer had answered", !!stock && stock.log === 4 && stock.toMove === "light" && (await shop()).moves === 1, JSON.stringify({ stock, shop: await shop() }));
   check("...and nothing more yet", (await said()).length === 1 && !(await shop()).said.closing);
 
-  check("the second move, answered", await playTurn(page), `log ${await logLen(page)}`);
+  check("the second move, answered", await playTurn(page), `log ${await logLen(page)} ${whyNot}`);
   const closing = await poll(async () => (await said()).find((s) => s.id === "tienda-pa-closing"), 20000, 100);
   const goneAt = await page.evaluate(() => window.__PA_GONE_AT__["tienda-pa-instock"]);
   check("...closing time, the in-stock words down first", !!closing && closing.log >= 6 && closing.toMove === "light" && !!goneAt && goneAt <= closing.at, JSON.stringify({ closing, goneAt }));
   check("...the lights down a step, and no notice yet", (await poll(() => page.evaluate(() => window.__TIENDA_SHOP__().dim), 3000)) && !(await has(page, "tienda-closing-notice")) && (await shop()).moves === 2);
 
-  check("the third move, answered", await playTurn(page), `log ${await logLen(page)}`);
+  check("the third move, answered", await playTurn(page), `log ${await logLen(page)} ${whyNot}`);
   const notice = await poll(async () => (await said()).find((s) => s.id === "tienda-closing-notice"), 25000, 100);
   check("...Big Glutts' notice, the player to move (the closing words down first)", !!notice && notice.log >= 8 && notice.toMove === "light" && (await page.evaluate(() => window.__PA_GONE_AT__["tienda-pa-closing"])) <= notice.at && (await shop()).asked === "now", JSON.stringify({ notice, shop: await shop() }));
   const text = notice ? (await q(page, "tienda-closing-notice").innerText()).replace(/\s+/g, " ") : "";
