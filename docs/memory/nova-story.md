@@ -594,6 +594,22 @@ in; leaving Singularity, back in the den as the set switches off.
   the glass works; Room view first, then the slip or a pick-up: down to
   the board; the phone bar's menu row greyed, saying why). (The tap away
   mid-call no longer leaves the phone: next note.)
+- **No full-screen switch on the phone** (2026-10-30; user: "When on the
+  phone in your den, you should not be able to click the unmaximize
+  button. That should be grayed out. In fact, just remove it during that
+  scene."). While the call is on (html.ec-den-call: picked up till the
+  "Free pieces?! Nice!" card goes, den-call.js onCall), the chassis's
+  cut-scene stylesheet takes away the corner's full-screen button
+  ([data-fullscreen-toggle]) and the control bar menu's Full screen row
+  (shell-menu-fullscreen), display none; and toggleFullscreen does
+  nothing then, so its hidden ways in (two-finger double tap, double
+  right-click) can't take the page out of full screen mid-call either.
+  Back after the call. tests/e2e-den-phone.mjs: before the call the
+  button's there and a double right-click asks (counted, refused: the
+  game's first tap may have taken the page full screen already, so a
+  toggle may be an exit); on the line, no button and the same double
+  right-click asks nothing; the bar menu's row gone on the line; the
+  button back after. The old build failed both on-the-line checks.
 - **On the line, the camera stays with the phone** (2026-10-23; user, a
   phone screenshot mid-call, "YOU: Okay. I'll be there." under the board
   with the Opa's card up: "During the phone call, I'm not sure where I

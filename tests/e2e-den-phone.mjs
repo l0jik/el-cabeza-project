@@ -23,6 +23,12 @@
      over to the phone too, the receiver lifting to you there.
    - A phone with the control bar: the menu's Room view greyed, saying
      why, while it rings.
+   - On the phone, the full-screen switch is gone (user: "When on the
+     phone in your den, you should not be able to click the unmaximize
+     button. That should be grayed out. In fact, just remove it during
+     that scene."): the corner's button, and the bar menu's row; its
+     double right-click, which works before the call, does nothing on
+     it; and after the call the button's back.
 
    node tests/e2e-den-phone.mjs */
 import { chromium } from "playwright";
@@ -114,6 +120,34 @@ const awayClick = async (page) => {
   await page.mouse.click(at && at.x > 640 ? 160 : 1120, 300);
 };
 const pieceCard = (page) => page.locator('[data-testid="piece-card"]').count();
+// The corner's full-screen button there to press; how many times the page
+// has asked to go into full screen or out of it (counted, and refused: the
+// first tap of the game may have taken it full screen already).
+const fsShown = (page) => page.evaluate(() => { const b = document.querySelector("[data-fullscreen-toggle]"); return !!b && getComputedStyle(b).display !== "none" && b.getBoundingClientRect().width > 0; });
+const fsCount = (page) => page.evaluate(() => {
+  if (!window.__FS_ASKED__) {
+    window.__FS_ASKED__ = { n: 0 };
+    const asked = () => { window.__FS_ASKED__.n++; return Promise.reject(new Error("test")); };
+    document.documentElement.requestFullscreen = asked;
+    document.exitFullscreen = asked;
+  }
+  return window.__FS_ASKED__.n;
+});
+// The double right-click (chassis onContextMenu), on the board's canvas
+// wherever it's uncovered; false if it's covered everywhere tried.
+const doubleRight = async (page) => {
+  const p = await page.evaluate(() => {
+    for (const [x, y] of [[1120, 300], [160, 300], [640, 160], [1120, 560], [160, 560]]) {
+      const e = document.elementFromPoint(x, y);
+      if (e && e.getAttribute("data-testid") === "board-canvas") return { x, y };
+    }
+    return null;
+  });
+  if (!p) return false;
+  await page.mouse.click(p.x, p.y, { button: "right", clickCount: 2 });
+  await page.waitForTimeout(400);
+  return true;
+};
 // The receiver's cord end (its +z, the mouthpiece's) against its middle,
 // each frame from the tap till it's back on the cradle (user: "make sure
 // that the cord is always on the bottom when it's picked up and brought
@@ -145,6 +179,9 @@ console.log("\ndesktop: the phone rings, and you take it");
   check("a game under way", await begin(page));
   let s = await where(page);
   check("before it rings, the glass works", !!s.glass && !s.glass.off, JSON.stringify(s.glass));
+  const fs0 = await fsCount(page);
+  const onBoard0 = await doubleRight(page);
+  check("...and the full-screen button's there; a double right-click asks for full screen", onBoard0 && (await fsShown(page)) && (await fsCount(page)) === fs0 + 1, `on the board ${onBoard0}, asked ${(await fsCount(page)) - fs0}`);
   check("the phone rings", await ring(page));
   // (Ghosted over its half-second fade.)
   s = (await poll(page, async () => { const w = await where(page); return w.glass && w.glass.op < 0.5 ? w : null; }, 2500)) || (await where(page));
@@ -170,6 +207,11 @@ console.log("\ndesktop: the phone rings, and you take it");
   s = await where(page);
   check(`on the line, a click away and Escape: the view stays with the phone, not back at the table (camera y ${s.camY})`, s.stage === "call" && s.visit > 0.97 && !s.up && s.camY < 40, JSON.stringify(s));
   check(`...the receiver at your ear (${s.handToCam} away, y ${s.handY}), nothing picked on the board`, s.hs === "held" && s.handToCam < 15 && s.handY < 40 && (await pieceCard(page)) === 0, JSON.stringify(s));
+  {
+    const n = await fsCount(page);
+    const onBoard = await doubleRight(page);
+    check("on the phone: no full-screen button, and a double right-click asks for nothing", onBoard && !(await fsShown(page)) && (await fsCount(page)) === n, `on the board ${onBoard}, shown ${await fsShown(page)}, asked ${(await fsCount(page)) - n}`);
+  }
   check("they hang up", !!(await poll(page, () => page.evaluate(() => window.__DEN_CALL__().stage === "done"), 60000)));
   check("...and the view's back on the board", !!(await poll(page, async () => (await where(page)).visit < 0.03, 5000)));
   const cord = await cordRead(page), moving = cord.filter((c) => c.hs !== "rest"), atEar = cord.filter((c) => c.hs === "held");
@@ -179,6 +221,7 @@ console.log("\ndesktop: the phone rings, and you take it");
   check("hung up: the glass and the dock's Room view work again", !!s.glass && !s.glass.off && s.dockRoom === false, JSON.stringify(s));
   await pressGlass(page);
   check("...and up over the room it goes", !!(await poll(page, async () => (await where(page)).up, 4000)));
+  check("off the phone, the full-screen button's back", !!(await poll(page, async () => !(await page.evaluate(() => document.documentElement.classList.contains("ec-den-call"))) && (await fsShown(page)), 15000)));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
@@ -234,6 +277,8 @@ console.log("\nphone, with the control bar: the menu's Room view");
   const menu = page.locator('[data-testid="shell-menu-button"]');
   await menu.click();
   check("before it rings, the menu's Room view works", (await row.count()) > 0 && !(await row.isDisabled()));
+  const fsRow = page.locator('[data-testid="shell-menu-fullscreen"]');
+  const hadFsRow = await fsRow.isVisible().catch(() => false);
   await menu.click().catch(() => {});
   await page.waitForTimeout(500);
   check("the phone rings", await ring(page));
@@ -243,6 +288,17 @@ console.log("\nphone, with the control bar: the menu's Room view");
   await row.click({ force: true, timeout: 3000 }).catch(() => {});
   await page.waitForTimeout(1500);
   check("...and a tap on it does nothing", !(await where(page)).up);
+  // Picked up: the menu's Full screen row gone, as the corner's button is.
+  if (await row.isVisible().catch(() => false)) await menu.click({ timeout: 3000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  // (Still ringing, or rung again if it's given up meanwhile: 48 s.)
+  if ((await page.evaluate(() => window.__DEN_CALL__().stage)) !== "ringing") await ring(page);
+  const took = await page.evaluate(() => ({ before: window.__DEN_CALL__().stage, took: window.__DEN_CALL_PICKUP__() }));
+  check("picked up", !!(await poll(page, () => page.evaluate(() => window.__DEN_CALL__().stage === "call" && document.documentElement.classList.contains("ec-den-call")), 6000)), JSON.stringify({ ...took, now: await page.evaluate(() => ({ stage: window.__DEN_CALL__().stage, flag: document.documentElement.classList.contains("ec-den-call") })) }));
+  await menu.click({ timeout: 3000 }).catch(() => {});
+  await page.waitForTimeout(500);
+  if (hadFsRow) check("on the phone: the menu's Full screen row is gone (it was there before)", (await row.isVisible().catch(() => false)) && !(await fsRow.isVisible().catch(() => false)), JSON.stringify({ menuOpen: await row.isVisible().catch(() => false), fsRow: await fsRow.isVisible().catch(() => false) }));
+  else console.log("  (no Full screen row in this browser's menu: nothing to take away)");
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

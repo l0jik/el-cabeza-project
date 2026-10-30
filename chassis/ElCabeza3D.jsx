@@ -2963,6 +2963,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }, []);
 
   function toggleFullscreen() {
+    // (Not on the den's phone: its switch is gone then, and the two-finger
+    // double tap and the double right-click do nothing either.)
+    if (document.documentElement.classList.contains("ec-den-call")) return;
     if (document.fullscreenElement) {
       fullscreenDeclined = true;
       document.exitFullscreen && document.exitFullscreen().catch(() => {});
@@ -12027,14 +12030,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           commercial played with the points still showing). The story's
           scenes flag themselves on the page (the TV visit, the hall, the
           summons, the trip, the ending, the store's clerk); Futuris's
-          Singularity through its phase. Their own sheets hide the rest. */}
+          Singularity through its phase. Their own sheets hide the rest.
+          On the den's phone the full-screen switch goes altogether, the
+          corner's and the bar menu's (user: "When on the phone in your
+          den, you should not be able to click the unmaximize button ...
+          just remove it during that scene"; toggleFullscreen holds its
+          shortcuts meanwhile). */}
       <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
 html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
 html.ec-hall-scene :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
 body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
 html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-recall"]) {
   opacity: 0 !important; pointer-events: none !important; transition: opacity 0.4s ease !important;
-}`}</style>
+}
+html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscreen"]) { display: none !important; }`}</style>
       {!shell && showPoints && !awaitingBegin && (isPlaying || pointsFinal) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle") && (() => {
         const budget = turnBudget();
         const final = isPlaying ? null : pointsFinal;
