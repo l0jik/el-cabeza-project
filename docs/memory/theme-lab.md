@@ -106,3 +106,23 @@ and on a phone the note over two balanced lines (its wide Martian Mono
 was cut short with an ellipsis on one). The other eight read at 8.8 to 1
 or better bare.
 
+
+The read-out's parts keep their own card's room (2026-10-31, user, with a
+crop of Neo-Brutalism's move log, 12 down to 07, each number against the
+card's thick left border: "the numbers in Neo-Brutalist are sitting on the
+border; there should be buffer b/t the two."). HUD_BASE reset the move
+log's list margins and indent as `.lab-hud .lab-log { margin: 0; padding:
+0 }` and the stats' as `.lab-hud .lab-stats { ...; margin: 0 }`, both at
+(0,2,0), above the (0,1,0) of a direction's `.lab-hud > *`, the rule that
+makes each part a card with its padding and the space under it. So in the
+five directions that draw cards (Neo-Brutalism, Brutalism, De Stijl,
+Corporate Swiss, Ultimate Fusion) the log had no inner padding at all, its
+numbers 0.5 to 2 px inside the border, and in the two Brutalisms the stats
+card sat straight on the log card. The resets are at no weight now
+(`.lab-hud :where(.lab-log)`, `.lab-hud :where(.lab-stats)`), so a
+direction's own card rule wins and the others still lose the list's
+defaults. A direction setting a part's spacing on purpose does it at
+(0,2,0), as Bauhaus's log does (its 10px bar, 10px in). Test: e2e-lab's
+desktop walk through the nine (the log's numbers at least 6 CSS px inside
+an edged card, at least 4 between the stats card and the log card when
+both are bordered). Shots before and after in the scratchpad lablog/.

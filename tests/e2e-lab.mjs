@@ -135,7 +135,7 @@ async function waitSwitched(page, id) {
   // Switch through every direction, several ways; nothing about the game moves.
   const ids = await page.evaluate(() => window.__LAB__.ids);
   check("nine directions, Elementarism not among them (user: \"Completely remove the Elementarism theme\")", ids.length === 9 && !ids.includes("elementarism"), ids.join(","));
-  const accents = new Set(), fonts = new Set(), huds = new Set(), unread = [];
+  const accents = new Set(), fonts = new Set(), huds = new Set(), unread = [], cramped = [], roomy = [];
   let intact = 0;
   for (let i = 1; i <= ids.length; i++) {
     const id = ids[i % ids.length];
@@ -159,10 +159,29 @@ async function waitSwitched(page, id) {
     accents.add(look.accent); fonts.add(look.font); huds.add(look.hud);
     const cr = await labelContrast(page);
     if (!(cr >= 4.5)) unread.push(`${id} ${cr && cr.toFixed(2)}`);
+    // The move log's numbers clear of their card's edge, and the room below
+    // the stats card kept (user: "the numbers in Neo-Brutalist are sitting
+    // on the border; there should be buffer b/t the two."). In CSS px,
+    // whatever the read-out's scale.
+    const room = await page.evaluate(() => {
+      const hud = document.querySelector('[data-testid="lab-hud"]');
+      const log = hud.querySelector(".lab-log"), n = log && log.querySelector("li .n");
+      if (!log || !n) return null;
+      const cs = getComputedStyle(log), lb = log.getBoundingClientRect(), nb = n.getBoundingClientRect();
+      const k = lb.width / log.offsetWidth || 1;
+      const edged = parseFloat(cs.borderLeftWidth) > 0 || !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(cs.backgroundColor);
+      const stats = hud.querySelector(".lab-stats"), ss = getComputedStyle(stats), sb = stats.getBoundingClientRect();
+      const cards = parseFloat(ss.borderBottomWidth) > 0 && parseFloat(cs.borderTopWidth) > 0 && sb.bottom <= lb.top + 1;
+      return { edged, inset: +((nb.left - lb.left) / k - parseFloat(cs.borderLeftWidth)).toFixed(1), cards, between: cards ? +((lb.top - sb.bottom) / k).toFixed(1) : null };
+    });
+    if (!room) cramped.push(`${id}: no log`);
+    else if ((room.edged && room.inset < 6) || (room.cards && room.between < 4)) cramped.push(`${id} ${JSON.stringify(room)}`);
+    else roomy.push(`${id} ${room.edged ? room.inset : "-"}/${room.cards ? room.between : "-"}`);
     if (!look.title.includes(id === "swiss" ? "Swiss" : "")) console.log("   title", look.title);
   }
   check(`the game is untouched by all nine switches (${intact}/${ids.length})`, intact === ids.length);
   check("the Actions counter's words read in all nine (4.5 to 1 against their plate or the page behind)", unread.length === 0, unread.join(", "));
+  check(`the move log's numbers clear of their card's edge, a card's room below the stats, in all nine (${roomy.join(", ")})`, cramped.length === 0, cramped.join(" | "));
   check(`the directions differ: ${fonts.size} display faces, ${accents.size} accents, ${huds.size} HUD compositions`, fonts.size >= ids.length - 1 && accents.size >= 6 && huds.size === ids.length);
   check("back on the first direction, the address says so", (await labId(page)) === "swiss" && (await page.evaluate(() => new URLSearchParams(location.search).get("theme"))) === "swiss");
 

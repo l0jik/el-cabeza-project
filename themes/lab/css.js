@@ -88,14 +88,22 @@ const HUD_BASE = `
     transition: opacity var(--transition-speed) var(--ease); }
   .lab-hud * { box-sizing: border-box; }
   .lab-hud .lab-label { font-size: 10.5px; letter-spacing: var(--label-tracking); text-transform: var(--label-case); color: var(--text-secondary); }
-  .lab-hud .lab-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin: 0; }
+  /* (The list's own margins and indent reset at no weight, :where(), so a
+     look that draws each part as a card, .lab-hud > * with its padding
+     and the space below it, keeps them on these too: Brutalism and
+     Neo-Brutalism, De Stijl, Corporate Swiss, Ultimate Fusion. At full
+     weight the reset won, and the log's numbers sat on its card's border
+     (user: "the numbers in Neo-Brutalist are sitting on the border; there
+     should be buffer b/t the two."), the stats card butting onto it.) */
+  .lab-hud :where(.lab-stats) { margin: 0; }
+  .lab-hud .lab-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
   .lab-hud .lab-stats div { min-width: 0; }
   .lab-hud .lab-stats dt { margin: 0; }
   .lab-hud .lab-stats dd { margin: 2px 0 0; font-size: 20px; line-height: 1.05; font-weight: 700; white-space: nowrap; }
   /* (The theme's name: a row of its own across the numbers, any grid.) */
   .lab-hud .lab-stats .wide { grid-column: 1 / -1; }
   .lab-hud .lab-stats .wide dd { white-space: normal; }
-  .lab-hud .lab-log { list-style: none; margin: 0; padding: 0; }
+  .lab-hud :where(.lab-log) { list-style: none; margin: 0; padding: 0; }
   .lab-hud .lab-log li { display: grid; grid-template-columns: 2.2em 1fr; gap: 6px; align-items: baseline; font-size: 13px; }
   .lab-hud .lab-log .n { font-weight: 700; }
   .lab-hud .lab-log .p { display: inline-block; width: 0.7em; height: 0.7em; margin-right: 6px; vertical-align: 0; }
