@@ -35,6 +35,23 @@
     developer account, signing, a store listing;
   - a word on the online relay (RELAY_URL) and the saves server, which
     work the same either way.
+  Revisited 2026-10-31 (user, having found Chrome's Install app: "When did
+  you create the app install version? ... that's where I'm wanting to
+  head, but how is this an actual app that could be uploaded to the Google
+  Play Store or something?"). Answered: the installable web app came with
+  the manifest of 2026-10-20 (3446171, for "Need the splash screen to
+  automatically go full screen"); no service worker yet, so not offline.
+  `npm run size -- --android` now: 154 files, 38.3 MB, 35.3 MB zipped
+  (Opus only; about 38-40 MB with a Capacitor shell). Recommended the
+  bundled app (Capacitor: offline, the same project later for the App
+  Store, which won't take a TWA). Play as of now: a $25 account; personal
+  accounts made after 13 Nov 2023 need a closed test, 12 testers opted in
+  14 days straight, before production (organization accounts with a
+  D-U-N-S number don't); new apps and updates target Android 16 (API 36)
+  since 31 Aug 2026; a privacy policy, the Data safety form, a content
+  rating. Still before any public listing: the standard rules (above),
+  the rights (the Orinoco Flow clips, the people in the videos), and the
+  relay deployed (RELAY_URL is still the placeholder).
 
 - **Done 2026-10-14** (at the foot of ABOUT, every world: chassis/ElCabeza3D.jsx
   info-disclaimer; the user: "put the disclaimer at the bottom of the About
