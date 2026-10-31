@@ -508,20 +508,59 @@ export function buildTelevision(yF, RZ, X = -40) {
   }, { scale: false });
   const ghostTexs = [ghostTex(1975), ghostTex(4411), ghostTex(9001)];
   ghostTexs.forEach((t) => disposables.push(t));
-  // The pieces of light that come out of the screen.
-  const phantomMat = (color) => { const m = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: true }); disposables.push(m); return m; };
+  /* The pieces of light that come out of the screen: each one body of
+     light in its piece's own shape, smooth (user: "The glowing pieces that
+     come out of the television, they need to not be segmented. They need
+     to have smooth body."). They were a wire outline of every cube, each
+     cube's seams showing; now a single surface, the cubes' outer faces
+     only (none where one cube meets the next), its normals averaged at the
+     corners so it rounds off softly, lit from within: dim face-on,
+     brightest at the rim where the surface turns away. */
+  const PHANTOM_VS = "varying vec3 vN; varying vec3 vV; void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }";
+  const PHANTOM_FS = "uniform vec3 uColor; uniform float uOpacity; varying vec3 vN; varying vec3 vV; void main() { float f = 1.0 - abs(dot(normalize(vN), normalize(vV))); float glow = 0.3 + 0.7 * pow(f, 1.5); gl_FragColor = vec4(uColor * (0.6 + 1.1 * glow), uOpacity * glow); }";
+  const phantomMat = (color) => {
+    const m = new THREE.ShaderMaterial({ uniforms: { uColor: { value: new THREE.Color(color) }, uOpacity: { value: 0 } }, vertexShader: PHANTOM_VS, fragmentShader: PHANTOM_FS, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    disposables.push(m);
+    return m;
+  };
   const PHANTOM_SHAPES = [[[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]], [[0, 0, 0], [0, 1, 0], [1, 0, 0]], [[0, 0, 0], [1, 0, 0], [1, 1, 0], [2, 1, 0]], [[0, 0, 0], [0, 1, 0], [0, 2, 0]], [[0, 0, 0], [2, 0, 0], [0, 1, 0], [1, 1, 0], [2, 1, 0]]];
+  // A piece's cubes as one surface: every face of every cube but those
+  // against another cube of the piece (each face's corners counter-
+  // clockwise from outside).
+  const CUBE_FACES = [
+    [[1, 0, 0], [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]]],
+    [[-1, 0, 0], [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0]]],
+    [[0, 1, 0], [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]]],
+    [[0, -1, 0], [[0, 0, 1], [0, 0, 0], [1, 0, 0], [1, 0, 1]]],
+    [[0, 0, 1], [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]]],
+    [[0, 0, -1], [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]]],
+  ];
+  function phantomBody(shape, size) {
+    const has = new Set(shape.map((c) => c.join(",")));
+    const pos = [];
+    for (const [x, y, z] of shape) {
+      for (const [[dx, dy, dz], quad] of CUBE_FACES) {
+        if (has.has(`${x + dx},${y + dy},${z + dz}`)) continue;
+        const v = quad.map(([a, b, c]) => [(x + a) * size, (y + b) * size, (z + c) * size]);
+        pos.push(...v[0], ...v[1], ...v[2], ...v[0], ...v[2], ...v[3]);
+      }
+    }
+    const raw = new THREE.BufferGeometry();
+    raw.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    const body = BufferGeometryUtils.mergeVertices(raw, 1e-4);
+    raw.dispose();
+    body.computeVertexNormals();
+    body.center();
+    return body;
+  }
   function makePhantom(shape, color) {
-    const geos = shape.map(([x, y, z]) => new THREE.EdgesGeometry(new THREE.BoxGeometry(1.3, 1.3, 1.3).translate(x * 1.3, y * 1.3, z * 1.3)));
-    const merged = BufferGeometryUtils.mergeBufferGeometries(geos, false);
-    geos.forEach((gg) => gg.dispose());
-    merged.center();
-    disposables.push(merged);
-    const lines = new THREE.LineSegments(merged, phantomMat(color));
-    lines.visible = false;
-    lines.renderOrder = 4;
-    group.add(lines);
-    return { lines, born: 0, life: 0, from: new THREE.Vector3(), to: new THREE.Vector3(), spin: new THREE.Vector3(), peak: 0 };
+    const geo = phantomBody(shape, 1.3);
+    disposables.push(geo);
+    const body = new THREE.Mesh(geo, phantomMat(color));
+    body.visible = false;
+    body.renderOrder = 4;
+    group.add(body);
+    return { body, born: 0, life: 0, from: new THREE.Vector3(), to: new THREE.Vector3(), spin: new THREE.Vector3(), peak: 0 };
   }
   const phantoms = PHANTOM_SHAPES.map((sh, i) => makePhantom(sh, [0x5ad8ff, 0xff5aa8, 0x9dffcf, 0xb89bff, 0x5ad8ff][i]));
   let haunt = null; // the event on the tube now: { kind, at, dur, strength, tex }
@@ -547,27 +586,27 @@ export function buildTelevision(yF, RZ, X = -40) {
     return { on: true, b, cone, reach, white };
   }
   function spawnPhantom(now, strength) {
-    const p = phantoms.find((x) => !x.lines.visible);
+    const p = phantoms.find((x) => !x.body.visible);
     if (!p) return;
     p.born = now; p.life = 1800 + Math.random() * 1400; p.peak = 0.3 + 0.55 * strength;
     p.from.set(SX + (Math.random() - 0.5) * 9, SY + (Math.random() - 0.5) * 6, FRONT - 0.8);
     p.to.set(p.from.x + (Math.random() - 0.5) * 10, p.from.y + (Math.random() - 0.3) * 6, FRONT - 7 - Math.random() * 9);
     p.spin.set((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3);
-    p.lines.position.copy(p.from);
-    p.lines.visible = true;
+    p.body.position.copy(p.from);
+    p.body.visible = true;
   }
   function stepPhantoms(now) {
     for (const p of phantoms) {
-      if (!p.lines.visible) continue;
+      if (!p.body.visible) continue;
       const k = (now - p.born) / p.life;
-      if (k >= 1) { p.lines.visible = false; p.lines.material.opacity = 0; continue; }
+      if (k >= 1) { p.body.visible = false; p.body.material.uniforms.uOpacity.value = 0; continue; }
       const e = 1 - (1 - k) * (1 - k);
-      p.lines.position.lerpVectors(p.from, p.to, e);
-      p.lines.rotation.set(p.spin.x * k * 2, p.spin.y * k * 2, p.spin.z * k * 2);
-      p.lines.scale.setScalar(0.5 + 1.1 * e);
+      p.body.position.lerpVectors(p.from, p.to, e);
+      p.body.rotation.set(p.spin.x * k * 2, p.spin.y * k * 2, p.spin.z * k * 2);
+      p.body.scale.setScalar(0.5 + 1.1 * e);
       // In fast, out slowly, with a flicker.
       const env = Math.min(1, k / 0.12) * (1 - Math.max(0, (k - 0.35) / 0.65));
-      p.lines.material.opacity = p.peak * env * (0.75 + 0.25 * Math.random());
+      p.body.material.uniforms.uOpacity.value = p.peak * env * (0.75 + 0.25 * Math.random());
     }
   }
   // Pick the next event, weighted by how far the lure has come (and never

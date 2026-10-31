@@ -2214,7 +2214,7 @@ export default {
   "Where the camera looks from.": "Góc máy nhìn từ đâu.",
   "The room dims and the board stays lit.": "Căn phòng tối đi, bàn cờ vẫn sáng.",
   "Finish your turn now, actions left or not.": "Kết thúc lượt ngay, dù còn hành động hay không.",
-  "Take back your last move this turn.": "Lấy lại nước đi vừa rồi trong lượt này.",
+  "Take back your last move.": "Lấy lại nước đi vừa rồi.",
   "Take back the last turn.": "Lấy lại lượt vừa rồi.",
   "Stop this game here.": "Dừng ván này tại đây.",
   "Every move of the game, in order.": "Mọi nước đi của ván, theo thứ tự.",

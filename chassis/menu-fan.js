@@ -164,7 +164,7 @@ const TIPS = {
   view: "Where the camera looks from.",
   focus: "The room dims and the board stays lit.",
   endturn: "Finish your turn now, actions left or not.",
-  undomove: "Take back your last move this turn.",
+  undomove: "Take back your last move.",
   undoturn: "Take back the last turn.",
   endgame: "Stop this game here.",
   movelog: "Every move of the game, in order.",

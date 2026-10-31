@@ -194,7 +194,16 @@ check("...the controls still away", await page.evaluate(() => document.documentE
   await page.evaluate((ms) => window.__DEN_ENDING_SKIP__(ms), Math.max(0, st2.crawlAt - st2.t + 6000));
   check("then the crawl, on the black", !!(await poll(async () => (await page.evaluate(() => window.__DEN_ENDING__().crawl)) > 0.1, 4000)));
   const txt = await page.locator('[data-testid="den-ending-crawl"]').innerText();
-  check("...its words: \"The story's over.\" ... \"It always has been.\"", /^The story's over\./.test(txt.trim()) && /stay in the den, because\.\.\./.test(txt) && /El Cabeza will always be with you/.test(txt) && /It always has been\.$/.test(txt.trim()), txt.slice(0, 80));
+  check("...its words: \"The story's over.\" ... \"It always has been.\"", /^The story's over\./.test(txt.trim()) && /stay in the den, because\.\.\./.test(txt) && /El\sCabeza will always be with you/.test(txt) && /It always has been\.$/.test(txt.trim()), txt.slice(0, 80));
+  // (User: "El needs to be on the next line next to Cabeza": the name one
+  // unbreakable unit, a no-break space between, in every language; in the
+  // crawl, and in the lines before it.)
+  const nameWhole = await page.evaluate(() => {
+    const em = [...document.querySelectorAll('[data-testid="den-ending-crawl"] .text > p em')].find((e) => /El.Cabeza/.test(e.textContent));
+    const lines = [7, 8].map((n) => document.querySelector(`[data-testid="den-ending-line-${n}"]`)).map((w) => w && [...w.querySelectorAll(".ph")].some((p) => p.textContent === "El\u00a0Cabeza"));
+    return { crawl: em ? em.textContent : null, crawlRects: em ? em.getClientRects().length : null, lines };
+  });
+  check(`...the name on one line: "El" with "Cabeza", a no-break space between (${JSON.stringify(nameWhole)})`, nameWhole.crawl === "El\u00a0Cabeza" && nameWhole.crawlRects === 1 && nameWhole.lines.every(Boolean));
   check("...in neon blue, tilted away", await page.evaluate(() => { const t = document.querySelector('[data-testid="den-ending-crawl"] .text'); const pl = t.parentElement; return getComputedStyle(t).color === "rgb(111, 214, 255)" && /matrix3d/.test(getComputedStyle(pl).transform); }));
   await shot(page, "end-3b-crawl");
   check("...no switcher while it rolls", (await page.locator('[data-testid="realities"]').count()) === 0);

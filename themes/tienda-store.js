@@ -799,6 +799,11 @@ function buildCart() {
   // Frame down to the wheels.
   [[-L / 2 + 1, -W / 2 + 1], [-L / 2 + 1, W / 2 - 1], [L / 2 - 1, -W / 2 + 1], [L / 2 - 1, W / 2 - 1]].forEach(([x, z]) => { bar(0.35, H0 - 1.4, 0.35, x, H0 / 2 + 0.7, z); });
   bar(L - 1, 0.35, 0.35, 0, 1.6, -W / 2 + 1); bar(L - 1, 0.35, 0.35, 0, 1.6, W / 2 - 1);
+  // The crossbar between those two rails, at the front casters (user: "a
+  // crossbar at the bottom between the two parallel bars that hold the
+  // wheels to make it look more realistic"): a hair thinner than the
+  // rails, so where it meets them no faces lie in the same plane.
+  bar(0.3, 0.3, W - 2, -L / 2 + 1, 1.6, 0);
   // Handle posts.
   bar(0.35, 4, 0.35, L / 2 + 0.6, H1 + 1.8, -W / 2 + 0.5); bar(0.35, 4, 0.35, L / 2 + 0.6, H1 + 1.8, W / 2 - 0.5);
   const wire = new THREE.Mesh(merge(bars), new THREE.MeshBasicMaterial({ vertexColors: true, color: 0xc9c8c2, toneMapped: false, fog: true }));

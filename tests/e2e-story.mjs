@@ -186,6 +186,9 @@ console.log("\ndesktop: the store, the purchase, home");
   check("...its button: Put one in the cart", /Put one in the cart/i.test(await q(page, "story-purchase").innerText()));
   await q(page, "story-purchase").click();
   check("...one's in the cart: the button's Check out, and the cart at the top left", await poll(async () => /Check out/i.test(await q(page, "story-purchase").innerText()) && (await has(page, "tienda-cart")) && /Check out/i.test(await q(page, "tienda-cart-checkout").innerText()), 5000));
+  // (Glowing, to draw the eye to it, user: "That needs to glow to direct
+  // the user's attention to it.")
+  check("...the cart glowing", await poll(async () => /tdCartGlow/.test(await q(page, "tienda-cart").evaluate((e) => getComputedStyle(e).animationName)), 3000));
   await openDockPanel(page);
   await q(page, "story-purchase").click();
   check("Check out starts the scene", await poll(() => has(page, "story-cut"), 5000, 100));

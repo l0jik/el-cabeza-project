@@ -147,7 +147,11 @@ export function createSummonSound(out, { mix = "full" } = {}) {
 
   /* ---- the hum (10G at -7 semitones) ---- */
   const hum = G(0), humOut = G(dB(-9.5));
+  // (The hum's voices and the thunder's bed, stopped once they've faded at
+  // the end: see end.)
+  const bedSrcs = [];
   function startHum(t) {
+    const first = srcs.length;
     const r = Math.pow(2, -7 / 12), notes = [41.2, 61.74, 82.41, 98, 123.47].map((f) => f * r), gains = [0, 0, 0, -6, -6];
     const src = G(1), n = notes.length * 3;
     notes.forEach((f, ni) => {
@@ -161,13 +165,15 @@ export function createSummonSound(out, { mix = "full" } = {}) {
       }
     });
     chain(src, F("lowpass", 380 * r), hum, humOut, whole);
+    bedSrcs.push(...srcs.slice(first));
   }
 
   /* ---- the thunder (9H) ---- */
   const thBed = G(0.08), thOut = G(dB(10)), thVerb = G(1);
   function startThunder(t) {
     chain(thOut, thWhole);
-    chain(loop(brown, t), F("lowpass", 80), thBed, G(dB(10)), whole);
+    const bed = loop(brown, t); bedSrcs.push(bed);
+    chain(bed, F("lowpass", 80), thBed, G(dB(10)), whole);
     const cv = ctx.createConvolver(); cv.buffer = makeImpulse(ctx, light ? 3.5 : 5, 2.2, light ? 1 : 2);
     chain(thVerb, cv, F("lowpass", 1200), G(0.9), thOut);
   }
@@ -234,6 +240,13 @@ export function createSummonSound(out, { mix = "full" } = {}) {
       const clap = last && started && thWhole.gain.value > 0.01;
       if (clap) { const g = thWhole.gain; g.cancelScheduledValues(now); g.setValueAtTime(Math.max(g.value, 0.5), now); lastClap(now + 0.02); }
       else out(thWhole.gain);
+      /* The hum's voices (fifteen saws, each with two LFOs) and the
+         thunder's bed, faded out with the whole, stopped once they're
+         silent, not computed silently on under the toll and the fall for
+         as long as the last clap's tail rings (user, on a laptop: the
+         sound dropped out from the tap on; an audio thread that can't
+         keep up plays silence). The last clap's own sounds go on. */
+      bedSrcs.forEach((s) => { try { s.stop(now + fade + 0.4); } catch (e) {} });
       // The reverbs ring out, then it all goes.
       setTimeout(() => {
         srcs.forEach((s) => { try { s.stop(); } catch (e) {} });

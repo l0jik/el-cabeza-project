@@ -4946,7 +4946,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // (Stop here above the points row; see its button. Kept up through a
   // move's own animation, when the markers are briefly gone.)
   const stopHereFloat = !shell && isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && (stepsRemaining > 0 || busy) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
-  const undoMoveFloat = !shell && isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
+  /* Undo move (handleUndoMove): mid-turn, or between turns while the turn
+     before can be opened again (not online, where a turn's gone down the
+     line; and against the computer only once there's a turn of yours to
+     reach back to). */
+  const undoMoveBack = isPlaying && !turnLocked && !replaying && !online && !awaitingBegin && turnHistory.length > 0 && currentPlayer !== foeSide && (!foeSide || turnHistory.some((e) => e.currentPlayer !== foeSide));
+  const canUndoMoveNow = isPlaying && !replaying && currentPlayer !== foeSide && (turnLocked || undoMoveBack);
+  // (Out of the way of the note that a turn's actions went unused, a turn's end.)
+  const undoMoveFloat = !shell && canUndoMoveNow && !unusedNote && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
   /* On a phone the corner's column (How to play, Room view, Focus, the
      theme's action) climbs behind the turn buttons, which sit centred at
      the foot and span most of the width: while they show, the column
@@ -5825,7 +5832,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     });
     window.__EC_TEST_TO_MOVE__ = () => currentPlayer; // (whose turn it is: "dark" or "light")
   }
-  const cornerColumnUnderFloats = cornerStack && (stopHereFloat || undoMoveFloat) && showPoints;
+  const cornerColumnUnderFloats = cornerStack && ((stopHereFloat && showPoints) || undoMoveFloat);
   const cornerColumnCovered = cornerControlsCovered || cornerColumnUnderFloats;
   // (The piece card's place, measured below everything at the lower left.)
   useLayoutEffect(() => {
@@ -8063,6 +8070,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       dirs: notation,
       steps: turnSteps,
       crushedPiece: null,
+      // (Where the turn stood before each of its moves, so Undo move can
+      // open it again just short of its last: handleUndoMove.)
+      trail: turnTrailRef.current,
     });
   }
 
@@ -10769,6 +10779,60 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
     run(pendingSteps.length - 1);
   }
+  /* Undo move (user: "what do we have for an easy access to an undo move?
+     ... I think we do need it, because sometimes a piece will have been
+     moved and you don't know what it is, so you can't necessarily grab
+     the piece and move it back"): the last move alone, played backwards,
+     and the turn left where it stood just before it, its actions, its
+     steps and the piece it was on (the turn's trail: the same record a
+     move back onto an earlier board rewinds to). Mid-turn that's this
+     turn's last move. Between turns it's the last move of the turn before
+     (the computer's reply taken back first, as Undo turn walks back past
+     it), that turn open again just short of it. A turn's only move taken
+     back, it's at its start, as Undo turn leaves it. Undo turn still
+     takes a whole turn. */
+  function handleUndoMove() {
+    if (busy || anim.current || awaitingBegin || replayingRef.current) return;
+    if (!turnSnapshot) { handleUndoLastTurn({ lastMoveOnly: true }); return; }
+    if (currentPlayer === foeSide) return;
+    const trail = turnTrailRef.current;
+    if (checkHoldRef.current) setCheckHold(null);
+    if (pendingSteps.length <= 1 || trail.length !== pendingSteps.length) { handleUndoTurn(); return; }
+    pendingIntentRef.current = null;
+    const e = trail[trail.length - 1];
+    const t = three.current;
+    setBusy(true);
+    while (t.ghostGroup.children.length) t.ghostGroup.children.pop();
+    setHoverShadow(null);
+    const stateOf = new Map(pieces.map((p) => [p.id, p]));
+    reverseStep(pendingSteps[pendingSteps.length - 1], stateOf, () => {
+      turnTrailRef.current = trail.slice(0, -1);
+      setPieces(e.board);
+      setStepsUsed(e.used);
+      setMovedPieceIds(e.moved);
+      setPendingSteps(e.steps);
+      setPendingNotation(e.notation);
+      setSelectedId(e.selected);
+      setHoveredId(e.selected);
+      setPointsPulse((n) => n + 1); // (the action given back, as a move back onto an earlier board does)
+      setBusy(false);
+    });
+  }
+  const undoMoveRef = useRef(null);
+  undoMoveRef.current = canUndoMoveNow ? handleUndoMove : null;
+  // (On a keyboard, Ctrl+Z or Cmd+Z: the same Undo move.)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.defaultPrevented || e.altKey || e.shiftKey || !(e.ctrlKey || e.metaKey) || (e.key !== "z" && e.key !== "Z")) return;
+      const el = e.target;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)) return;
+      if (!undoMoveRef.current) return;
+      e.preventDefault();
+      undoMoveRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   // The held turn (checkHold): ended as it stands, or taken back whole.
   function endHeldTurn() {
     const held = checkHoldRef.current;
@@ -10788,6 +10852,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // ({ fromReplay: true }); the buttons can't while a replay plays.
   function handleUndoLastTurn(opts) {
     const fromReplay = !!(opts && opts.fromReplay === true);
+    // (Undo move between turns: the turn it lands on left open just short
+    // of its last move, when the turn kept its trail; handleUndoMove.)
+    const lastMoveOnly = !!(opts && opts.lastMoveOnly === true) && !fromReplay;
     if (turnHistory.length === 0 || busy || aiThinking || turnLocked || anim.current || awaitingBegin) return;
     if (onlineRef.current && !fromReplay) return; // (a turn sent down the line stays)
     if (replayingRef.current && !fromReplay) return;
@@ -10813,6 +10880,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     }
     if (batch.length === 0) return;
     const target = batch[batch.length - 1]; // oldest entry in the batch — final restore target
+    // Where that turn stood before its last move, for Undo move (a turn of
+    // two moves or more, whose trail lines up with its steps).
+    const shortOf = lastMoveOnly && target.status === "playing" && target.trail && target.steps && target.steps.length >= 2 && target.trail.length === target.steps.length
+      ? target.trail[target.trail.length - 1]
+      : null;
 
     const t = three.current;
     setBusy(true);
@@ -10832,6 +10904,28 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         // through — this caller needs the opposite default.
         audioRef.current.resetWindDown(true);
         ambientRef.current && ambientRef.current.restart();
+      }
+      if (shortOf) {
+        // The turn open again, one move short: mid-turn, its piece chosen.
+        setPieces(shortOf.board);
+        setCurrentPlayer(target.currentPlayer);
+        setLog(target.log);
+        setStatus(target.status);
+        setWinner(target.winner);
+        setWinReason(target.winReason);
+        setShowVictoryPlacard(false);
+        setTurnSnapshot(target.pieces);
+        setStepsUsed(shortOf.used);
+        setMovedPieceIds(shortOf.moved);
+        setPendingSteps(shortOf.steps);
+        setPendingNotation(shortOf.notation);
+        setSelectedId(shortOf.selected);
+        setHoveredId(shortOf.selected);
+        turnTrailRef.current = target.trail.slice(0, -1);
+        aiDirsRef.current = null;
+        setTurnHistory(stack);
+        setBusy(false);
+        return;
       }
       setPieces(target.pieces);
       setCurrentPlayer(target.currentPlayer);
@@ -10875,8 +10969,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         // current pose — walked newest-first. Per-piece live state lives in
         // stateOf so two pieces' reversals don't clobber each other.
         const stateOf = new Map(basePieces.map((p) => [p.id, p]));
+        // (Undo move: the turn it lands on, its last move only.)
+        const upTo = shortOf && idx === batch.length - 1 ? entrySteps.length - 1 : 0;
         const runStep = (i) => {
-          if (i < 0) {
+          if (i < upTo) {
             processEntry(idx + 1, basePieces.map((p) => stateOf.get(p.id) || p));
             return;
           }
@@ -12159,16 +12255,18 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
           only with the points showing, an aid for whoever uses them.) */}
       {/* With it, Undo move (user: "add the undo move button beside end
           turn"): the step taken back, as the dock panel's does. */}
-      {(stopHereFloat || undoMoveFloat) && showPoints && (
+      {/* (Undo move whether the points show or not, and between turns too:
+          the last move, easy to reach, user.) */}
+      {((stopHereFloat && showPoints) || undoMoveFloat) && (
         <div
           data-testid="turn-buttons-float"
           /* (On a phone 10 px higher, clear of the full screen button at
               the foot of the corner's column: a world's wide buttons, the
               Parrish looks' brush strokes, reach it there.) */
-          style={{ position: "fixed", left: "50%", bottom: cornerStack ? 60 : 50, transform: "translateX(-50%)", zIndex: 12, display: "flex", gap: 10, alignItems: "center", whiteSpace: "nowrap" }}
+          style={{ position: "fixed", left: "50%", bottom: showPoints ? (cornerStack ? 60 : 50) : (cornerStack ? 30 : 20), transform: "translateX(-50%)", zIndex: 12, display: "flex", gap: 10, alignItems: "center", whiteSpace: "nowrap" }}
         >
           {undoMoveFloat && (
-            <button type="button" className="ec-btn" data-testid="undo-move-float" onClick={handleUndoTurn} style={{ ...playerButtonStyle(currentPlayer), whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 7 }}>
+            <button type="button" className="ec-btn" data-testid="undo-move-float" onClick={handleUndoMove} disabled={!!(busy || aiThinking)} style={{ ...playerButtonStyle(currentPlayer), whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 7 }}>
               {/* (The same side's colour as End turn, user; told apart by
                   their marks: a curving arrow back, a green tick.) */}
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -12177,7 +12275,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
               Undo move
             </button>
           )}
-          {stopHereFloat && (
+          {stopHereFloat && showPoints && (
             <button type="button" className="ec-btn" data-testid="stop-here-float" onClick={handleEndTurnClick} style={{ ...playerButtonStyle(currentPlayer), whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 7 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3FAE5A" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ filter: "drop-shadow(0 1px 0 rgba(0,0,0,0.35))" }}>
                 <path d="M4.5 12.5 9.5 17.5 19.5 6.5" />
@@ -13549,7 +13647,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
                 : isPlaying && turnLocked && currentPlayer !== foeSide
                 ? 186
                 : !turnLocked && turnHistory.length > 0
-                ? 104
+                ? (undoMoveBack ? 214 : 104)
                 : 0,
               justifyContent: "flex-end",
               marginLeft: "auto",
@@ -13560,8 +13658,8 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
                 End turn
               </button>
             )}
-            {isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && (
-              <button className="ec-btn" data-testid="undo-move-dock" onClick={handleUndoTurn} style={ghostButtonStyle()}>
+            {canUndoMoveNow && (
+              <button className="ec-btn" data-testid="undo-move-dock" onClick={handleUndoMove} disabled={!!(busy || aiThinking)} style={ghostButtonStyle()}>
                 Undo move
               </button>
             )}
@@ -14563,14 +14661,14 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             words: dockWords,
             noGame: !!(setupExtras && setupExtras.noGame),
             // Play
-            canUndoMove: isPlaying && turnLocked && currentPlayer !== foeSide && !replaying,
+            canUndoMove: canUndoMoveNow,
             canStopHere: isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && shadowEntries.length > 0,
             canUndoTurn: isPlaying && !turnLocked && !replaying && turnHistory.length > 0 && !online,
             // After a game ends its last turn can still be taken back (the
             // desktop dock's Undo turn does the same), from the menu.
             canUndoAfter: !isPlaying && !awaitingBegin && !replaying && turnHistory.length > 0 && !online,
             undoTurnBusy: !!(busy || aiThinking || anim.current),
-            onUndoMove: handleUndoTurn,
+            onUndoMove: handleUndoMove,
             onStopHere: handleEndTurnClick,
             onUndoTurn: handleUndoLastTurn,
             points: showPoints && isPlaying ? { left: Math.max(0, turnBudget() - stepsUsed), budget: turnBudget(), glow: pointsGlowOf(currentPlayer) } : null,

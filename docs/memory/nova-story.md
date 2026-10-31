@@ -775,3 +775,35 @@ in; leaving Singularity, back in the den as the set switches off.
   three languages. Test: tests/e2e-ending.mjs (state() everyAt, every,
   everyOut, armsFwd, elbows; every frame sampled in the page from before
   the word: up and bent first, then out and straight).
+- **The captions between scenes, bold** (2026-10-31; user: "The font used
+  in the interstitials during the story, like Home Again Confused, all
+  those, it's hard to read. Maybe make it bold or something, or make it,
+  we need to see about some other choices for fonts, because it's kind of
+  difficult to read."). The StoryCut captions (apps/novaStory.jsx
+  .ns-caption, .ns-sub; "EC Caption", Bodoni Moda from themes/faces.js)
+  were weight 500, and at 24 to 44 px the browser picked Bodoni's display
+  cut (its opsz axis, 6 to 96, follows the size): hairlines so thin on
+  black that the H lost its stems ("IIome"). Now 700 and the text cut
+  (font-variation-settings 'opsz' 11), the second line italic 500 in the
+  same cut. Shown to the user beside seven other faces on a page (an
+  Artifact, "Story Caption Faces": Libre Baskerville, Fraunces soft,
+  Young Serif, Courier Prime, Libre Franklin, Bitter, Caprasimo), waiting
+  on a pick; whichever is picked ships as a file beside the page, like
+  the Bodoni (faces.js), never a stand-in while it loads.
+- **"El Cabeza" never split across lines at the end** (2026-10-31; user:
+  "On the scroll at the very end, it says no matter where you are, El
+  Cabeza will always be with you. El needs to be on the next line next to
+  Cabeza."). den-ending.js oneName(): a no-break space between "El" and
+  "Cabeza", put in after the translation (tr), so every language keeps
+  it; in the crawl, and in the revelation's lines (phrases() keeps "El
+  Cabeza" one word, its own span: GAP, any space but the no-break one).
+  Test: e2e-ending (the crawl's "El Cabeza" one line box; lines 7 and 8
+  each have it as one unit).
+- **The TV's glowing pieces, smooth** (2026-10-31; user: "The glowing
+  pieces that come out of the television, they need to not be segmented.
+  They need to have smooth body."). The lure's phantoms (den-tv.js
+  makePhantom) were wireframe outlines of each cube; now one solid body
+  per piece (phantomBody: only the outer faces of its cubes, the shared
+  inner ones dropped, vertices merged), drawn with a fresnel glow
+  (PHANTOM_VS/FS: brighter at the rim, additive, no depth write), opacity
+  through its uOpacity uniform.

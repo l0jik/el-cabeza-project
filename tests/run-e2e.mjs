@@ -91,6 +91,10 @@ const E2E = [
   ["e2e-hidden-marker.mjs"],
   // The floors' seams closed (the store's aisles, the den's carpet): no corner of one piece partway along another's edge, where light lines flickered.
   ["e2e-floor-seams.mjs"],
+  // Undo move: the last move alone, mid-turn or once the turn's over (the computer's reply with it), the button always to hand, Ctrl+Z.
+  ["e2e-undo-move.mjs"],
+  // The way into the Singularity on a slow machine: the collapse made ready during the toll; a 4 s freeze as it begins doesn't skip the fall or its sound.
+  ["e2e-singularity-stall.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

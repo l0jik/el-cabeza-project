@@ -636,3 +636,19 @@ choice).
   shadows under the text, so the scrolling part now stops short of the
   rule and fades into it (user report: text scrolled into the margin).
 
+- **Undo move, one move at a time and always to hand** (2026-10-31; user:
+  "what do we have for undo move? We have undo turn, but what do we have
+  for an easy access to an undo move? Do we need that? Actually, I think
+  we do need it, because sometimes a piece will have been moved and you
+  don't know what it is, so you can't necessarily grab the piece and move
+  it back."). chassis handleUndoMove: mid-turn, the last move alone
+  (turnTrailRef, the states before each step; reverseStep animates it
+  back); once a turn's over, its last move, the turn open again just short
+  of it (handleUndoLastTurn lastMoveOnly: each history entry keeps its
+  trail), and against the computer its reply taken back first. The button
+  floats at the foot of the screen whenever there's a move to take back
+  (undo-move-float, beside End turn mid-turn, alone after), in the dock
+  and the phone's play panel too, and Ctrl+Z / Cmd+Z does the same. Undo
+  turn still takes a whole turn. Not online. Test: tests/e2e-undo-move.mjs
+  (a person and the computer: the button's there when it should be,
+  takes back one move, then Ctrl+Z the one before).

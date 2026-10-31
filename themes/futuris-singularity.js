@@ -67,6 +67,18 @@ export const PHASES = { IDLE: "idle", TOLLING: "tolling", COLLAPSING: "collapsin
 const SINGULARITY_TOLL_MS = 2000;
 
 const COLLAPSE_DURATION_MS = 3600;
+/* The most one frame moves the collapse on (user, on a laptop: "The sound
+   drops out, and then the next thing you actually hear is the ringing
+   when you see the sphere"). The collapse ran on the wall clock, so a
+   frame that took seconds (its first, building the whole fall and
+   compiling its shaders, on a slow machine's graphics) found it over on
+   the next one: straight to the black and the hard cut, the fall and its
+   sound never there. Now a long frame moves it on by this much at most:
+   the fall, and its sound, always play out. (A quarter of a second: at
+   four frames a second or better it keeps the wall clock's time, so a
+   slow machine's fall isn't stretched; a stall of seconds moves it on by
+   no more than that.) */
+const COLLAPSE_STEP_MAX_MS = 250;
 // Progress fraction where the palette starts cooling toward uniform
 // blue ("deeper collapse" in the design doc) — no separate phase, just
 // a second curve read off the same progress value.
@@ -1446,10 +1458,11 @@ function updateCollapseCamera(t, u, now) {
   const s = t.singularity;
   if (!camera || !s) return;
   const V3 = THREE.Vector3;
-  if (!s.diveCam || s.diveCam.at !== s.collapseStartedAt) {
+  // (Once per collapse: its start slides on over long frames.)
+  if (!s.diveCam || s.diveCam.at !== s.collapseRun) {
     const p = camera.position;
     const r0 = Math.max(1, p.length());
-    s.diveCam = { at: s.collapseStartedAt, r0, az0: Math.atan2(p.x, p.z), el0: Math.asin(Math.max(-1, Math.min(1, p.y / r0))) };
+    s.diveCam = { at: s.collapseRun, r0, az0: Math.atan2(p.x, p.z), el0: Math.asin(Math.max(-1, Math.min(1, p.y / r0))) };
   }
   const c = s.diveCam;
   const smooth = (k) => k * k * (3 - 2 * k);
@@ -1800,6 +1813,11 @@ export function advanceSingularityScene(t, now, chromeRefs) {
     case PHASES.COLLAPSING: {
       // (Test-only: held at a given point, for pictures of the way in.)
       const held = typeof window !== "undefined" && window.__EC_TEST_HOOKS__ && typeof window.__EC_TEST_COLLAPSE_U__ === "number" ? window.__EC_TEST_COLLAPSE_U__ : null;
+      // (A long frame moves it on by COLLAPSE_STEP_MAX_MS at most: the
+      // start slides forward by the rest, and everything that reads the
+      // time since the start reads the fall's own clock.)
+      if (s.collapseTickAt != null && now - s.collapseTickAt > COLLAPSE_STEP_MAX_MS) s.collapseStartedAt += now - s.collapseTickAt - COLLAPSE_STEP_MAX_MS;
+      s.collapseTickAt = now;
       const u = held != null ? held : Math.min(1, (now - s.collapseStartedAt) / COLLAPSE_DURATION_MS);
       updateCollapseVisuals(t, u, dt, now);
       updateScreenChaos(s, u);
@@ -4297,6 +4315,22 @@ export function useSingularityPhase({
       requestAnimationFrame(humStep);
     }
     setPhase(PHASES.TOLLING);
+    /* The collapse made ready while the bell tolls and the curtain comes
+       down, not on its own first frame: its objects built and its shaders
+       compiled now (renderer.compile), so the fall doesn't open on a frame
+       that takes seconds on a slow machine's graphics (see
+       COLLAPSE_STEP_MAX_MS). The toll's sound is the audio thread's,
+       already playing, and the curtain's fade the compositor's: a long
+       frame here is neither heard nor seen. (Two frames on, past React's
+       commit of the overlay.) */
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const tt = three && three.current;
+      if (!tt || !tt.singularity || tt.singularity.phase !== PHASES.TOLLING) return;
+      try {
+        ensureSingularityObjects(tt);
+        if (tt.renderer && tt.scene && tt.camera) tt.renderer.compile(tt.scene, tt.camera);
+      } catch (e) { /* built on the collapse's first frame, as before */ }
+    }));
     // The black curtain only exists once the overlay has mounted for the
     // TOLLING phase — wait a frame (two, to be safe past React's commit)
     // before driving its fade so the transition actually takes.
@@ -4319,6 +4353,8 @@ export function useSingularityPhase({
     t.singularity = t.singularity || {};
     t.singularity.phase = PHASES.COLLAPSING;
     t.singularity.collapseStartedAt = performance.now();
+    t.singularity.collapseTickAt = t.singularity.collapseStartedAt;
+    t.singularity.collapseRun = (t.singularity.collapseRun || 0) + 1;
     // If we arrived from the toll the curtain is fully black — fade it
     // back out so the collapsing board re-emerges from the dark rather
     // than the whole warp happening unseen behind an opaque curtain.

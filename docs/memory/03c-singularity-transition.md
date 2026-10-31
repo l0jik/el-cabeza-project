@@ -166,3 +166,45 @@ to-black → draggable Fresnel-glow sphere sequence, in a new module,
   ease). Measured (scratchpad flyer-go sphere-probe.mjs): before 41.2%
   down on arrival and with the card; after 50.0% on arrival, 43.2% with
   the card (its top at 633 of 1000).
+- **A slow frame can't skip the fall, or its sound** (2026-10-31; user, on
+  a laptop: "When you click on the word singularity on a desktop version,
+  it's still not keeping this. It loses the sound for some reason. The
+  sound drops out, and then the next thing you actually hear is the
+  ringing when you see the sphere. So there's still an issue with the
+  audio on laptop, desktop."). Measured first (scratchpad sing/: bands,
+  stress, hog, laptop, frames). Not too bassy for a laptop: weighted as a
+  laptop speaker (a 400 Hz high-pass) the toll measures -40 to -50 dB, the
+  fall -31 to -39, the ring -41 to -46, so a laptop plays the toll and the
+  fall as loud as the ring; the sound wasn't being made. Not the audio
+  thread here: Chrome's AudioContext.playoutStats (fallbackFramesDuration,
+  silence played for late frames; behind
+  --enable-experimental-web-platform-features) counted no dropped audio
+  on four cores, one core, or one core with a busy process taking 60% of
+  it, full reverbs or light. The main thread froze instead: 3 to 6.5 s
+  after the tap on a starved core. The collapse ran on the wall clock
+  (u = (now - collapseStartedAt) / 3600) and its first frame built the
+  whole fall (ensureSingularityObjects) and compiled its shaders: a frame
+  of seconds (a slow machine's graphics) found the fall over on the next
+  one, straight to the black and the hard cut, the fall and its sound
+  never there; the ring, after the cut and outside master, played. That's
+  the user's account. tests/e2e-singularity-stall.mjs reproduces it (the
+  page frozen 4 s as the collapse begins): before, 0.4 s after the thaw,
+  blackout and master 0. Now: (1) COLLAPSE_STEP_MAX_MS = 250: no frame
+  moves the fall on by more than a quarter second (collapseStartedAt
+  slides forward by the rest; everything reading the time since the start
+  reads the fall's own clock; the dive camera keyed by collapseRun, once a
+  collapse); 4 fps or better keeps the wall clock's time, so a slow
+  machine's fall isn't stretched. (2) The toll makes the collapse ready,
+  two frames in: ensureSingularityObjects and renderer.compile (r128's
+  compile traverses every object, visible or not), under the curtain and
+  the bell (the bell is on the audio clock, the curtain's fade the
+  compositor's). (3) Futuris's AudioContext at the device's rate, up to
+  48 kHz (themes/audio-context.js makeAudioContext; tests/
+  audio-context.smoke.mjs): a sound card set to 96 or 192 kHz, as some
+  laptops come, runs every node two or four times over, the long reverbs
+  most (a 10 s stereo convolver costs 7% of a core here at 48 kHz), and
+  late audio plays as silence. (4) The summons' hum voices (fifteen saws,
+  thirty LFOs) and the thunder's bed stopped once they've faded at the
+  tap (futuris-summon-audio.js bedSrcs), not computed silently on for the
+  last clap's 11 s. After: the stall test plays 3.3 s of the fall after
+  the thaw, sound on, then the black and the cut there.

@@ -643,3 +643,16 @@ box art and an ad standee (assets/tienda/*.jpg).
   Test: e2e-first-game-tour (yours #ffd23f at the actions card; Walnut's
   #ff5470 as soon as the counter names it after End turn).
 
+- **The cart card glows** (2026-10-31; user: "When you put one in your
+  cart, in the upper left-hand corner, you have a cart that shows the red
+  button that says one's in your cart, and then checkout. That needs to
+  glow to direct the user's attention to it."). tienda-shopping.js .td-cart:
+  tdCartGlow, a slow blue glow (2.4 s, after its arrival bump), still for
+  reduced motion. Test: e2e-story (its animation is tdCartGlow once one's
+  in the cart).
+- **The shopping cart's crossbar** (2026-10-31; user: "The shopping cart
+  in the tienda needs to have like a crossbar at the bottom between the
+  two parallel bars that hold the wheels to make it look more
+  realistic."). tienda-store.js buildCart: a bar across the two wheel
+  rails at the front casters, a hair thinner than the rails (0.3 against
+  0.35) so where it meets them no faces share a plane.

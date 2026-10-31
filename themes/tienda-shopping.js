@@ -172,8 +172,18 @@ const CSS = `
   .td-cart svg { flex: none; }
   .td-cart button { all: unset; cursor: pointer; padding: 8px 10px; background: ${RED}; color: #FFF4E2; border-radius: 2px; font: 800 11px/1 ${FRANKLIN}; letter-spacing: 0.14em; }
   .td-cart button:focus-visible { outline: 2px solid ${PAPER}; outline-offset: 2px; }
-  .td-cart[data-bump="true"] { animation: tdCartIn 0.5s cubic-bezier(.2,1.5,.4,1) both; }
+  /* Glowing till it's checked out, in the blue the store's other next
+     steps glow in (Try a Game, the special-orders note; user: "When you
+     put one in your cart, in the upper left-hand corner, you have a cart
+     that shows the red button that says one's in your cart, and then
+     checkout. That needs to glow to direct the user's attention to it."). */
+  .td-cart { animation: tdCartGlow 2.4s ease-in-out infinite; }
+  .td-cart[data-bump="true"] { animation: tdCartIn 0.5s cubic-bezier(.2,1.5,.4,1) both, tdCartGlow 2.4s ease-in-out 0.5s infinite; }
   @keyframes tdCartIn { from { transform: translateY(-8px) scale(0.92); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes tdCartGlow {
+    0%, 100% { box-shadow: 0 0 0 1.5px rgba(102,217,255,0.75), 0 0 10px 2px rgba(102,217,255,0.45), 0 0 26px 6px rgba(140,110,255,0.22), 0 4px 10px rgba(20,12,6,0.4); }
+    50% { box-shadow: 0 0 0 2.5px rgba(170,236,255,1), 0 0 20px 6px rgba(102,217,255,0.8), 0 0 46px 14px rgba(140,110,255,0.4), 0 4px 10px rgba(20,12,6,0.4); }
+  }
   /* The PA's words, lettered as the clerk scene's PA is; a tap acts on them. */
   .td-pa { all: unset; box-sizing: border-box; position: fixed; z-index: 41; left: 50%; top: max(64px, calc(env(safe-area-inset-top) + 56px)); transform: translateX(-50%) rotate(-0.6deg);
     width: min(440px, calc(100vw - 28px)); padding: 9px 12px 8px 40px; background: #F3D85A; color: #17110D; border: 2px solid #17110D; box-shadow: 3px 3px 0 rgba(23,17,13,0.85);
@@ -184,7 +194,8 @@ const CSS = `
   .td-pa small { display: block; margin-top: 4px; font: 700 10.5px/1 ${COURIER}; letter-spacing: 0.06em; text-transform: none; text-decoration: underline; }
   .td-pa[data-going="true"] { transition: opacity 0.6s ease; opacity: 0; }
   @keyframes tdPaIn { from { opacity: 0; transform: translateX(-50%) translateY(-8px) rotate(-0.6deg); } to { opacity: 1; transform: translateX(-50%) rotate(-0.6deg); } }
-  @media (prefers-reduced-motion: reduce) { .td-pa, .td-cart[data-bump="true"] { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .td-pa, .td-cart, .td-cart[data-bump="true"] { animation: none; }
+    .td-cart { box-shadow: 0 0 0 2px rgba(150,232,255,0.9), 0 0 16px 4px rgba(102,217,255,0.55), 0 4px 10px rgba(20,12,6,0.4); } }
 `;
 const cartIcon = () => h("svg", { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true" },
   h("path", { d: "M3 4h2l2.4 10.2a1.5 1.5 0 0 0 1.5 1.1h8.6a1.5 1.5 0 0 0 1.4-1l1.6-6.3H6.2" }), h("circle", { cx: 9.5, cy: 19.5, r: 1.4 }), h("circle", { cx: 17, cy: 19.5, r: 1.4 }));

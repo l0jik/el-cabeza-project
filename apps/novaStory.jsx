@@ -168,9 +168,14 @@ const CSS = `
   .ns-black.on { animation: ns-in 0.95s ease both; }
   .ns-black.off { animation: ns-out 1.1s ease both; }
   .ns-caption { position: absolute; left: 16px; right: 16px; top: 50%; transform: translateY(-50%); text-align: center; color: #EFE4CB;
-    font: 500 clamp(24px, 4.6vw, 44px)/1.2 'EC Caption', 'Didot', 'Bodoni 72', Georgia, serif; letter-spacing: 0.02em; opacity: 0; text-wrap: balance; }
+    font: 700 clamp(24px, 4.6vw, 44px)/1.2 'EC Caption', 'Didot', 'Bodoni 72', Georgia, serif; letter-spacing: 0.02em; opacity: 0; text-wrap: balance;
+    font-variation-settings: 'opsz' 11; }
   .ns-caption.on { animation: ns-in 0.6s ease both; }
-  .ns-sub { display: block; max-width: 30em; margin: 0.9em auto 0; font: italic 400 clamp(14px, 2.2vw, 19px)/1.45 'EC Caption', 'Didot', Georgia, serif; color: #CDBF9E; letter-spacing: 0.01em; }
+  /* (Bold, and Bodoni's text cut, opsz 11, not its display cut: user, "it's
+     hard to read. Maybe make it bold or something". At these sizes the
+     browser picked the display cut, whose hairlines all but vanish on
+     black; the text cut's are heavier. The second line likewise.) */
+  .ns-sub { display: block; max-width: 30em; margin: 0.9em auto 0; font: italic 500 clamp(14px, 2.2vw, 19px)/1.45 'EC Caption', 'Didot', Georgia, serif; color: #CDBF9E; letter-spacing: 0.01em; font-variation-settings: 'opsz' 11; }
   .ns-caption.off { animation: ns-out 0.5s ease both; }
   /* (The second line comes up on its own, two seconds after the first, user.) */
   .ns-caption.on .ns-sub { animation: ns-in 0.8s ease 2s both; }

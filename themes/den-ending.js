@@ -48,6 +48,13 @@ export const REVELATION = [
 ];
 const md = (line) => line.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c])
   .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*(.+?)\*/g, "<em>$1</em>");
+/* The name on one line, never "El" at a line's end and "Cabeza" on the next
+   (user, the crawl: "El needs to be on the next line next to Cabeza"): a
+   no-break space between them, put in after the translation, so it holds
+   in every language. (phrases() keeps "El Cabeza" one word, too.) */
+const oneName = (line) => line.replace(/\bEl Cabeza\b/g, "El\u00a0Cabeza");
+// Spaces a line breaks at (not the no-break one).
+const GAP = /[^\S\u00a0]/;
 
 /* How a line comes in (user: more dramatic, but not gauche): not all at
    once, but as it would be said, a phrase at a time. Each word condenses
@@ -63,7 +70,7 @@ function phrases(line) {
     if (line.startsWith("**", i)) { strong = !strong; i += 2; continue; }
     if (line[i] === "*") { em = !em; i++; continue; }
     const c = line[i];
-    if (/\s/.test(c)) { let j = i; while (j < line.length && /\s/.test(line[j])) j++; units.push({ space: line.slice(i, j) }); i = j; continue; }
+    if (GAP.test(c)) { let j = i; while (j < line.length && GAP.test(line[j])) j++; units.push({ space: line.slice(i, j) }); i = j; continue; }
     if (c === "." || c === "\u2026") {
       // A run of dots: each its own, then the pause (a lone "." ends a sentence).
       let j = i; while (j < line.length && (line[j] === "." || line[j] === "\u2026")) j++;
@@ -71,7 +78,7 @@ function phrases(line) {
       if (j - i > 1 || c === "\u2026") t += 240;
       i = j; continue;
     }
-    let j = i; while (j < line.length && !/[\s.\u2026*]/.test(line[j])) j++;
+    let j = i; while (j < line.length && !GAP.test(line[j]) && !/[.\u2026*]/.test(line[j])) j++;
     const w = line.slice(i, j);
     units.push({ text: w, at: t, em, strong }); t += 80;
     if (/[!,]$/.test(w) && /\s/.test(line[j] || "")) t += w.endsWith("!") ? 320 : 200;
@@ -923,14 +930,14 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     style();
     root = doc.createElement("div"); root.className = "den-ending"; root.setAttribute("data-testid", "den-ending");
     canvas = doc.createElement("canvas"); root.appendChild(canvas);
-    REVELATION.forEach((line, i) => { const w = doc.createElement("div"); w.className = "word"; w.setAttribute("data-testid", `den-ending-line-${i + 1}`); w.setAttribute("role", "status"); w.setAttribute("data-said", ""); w.innerHTML = reveal(tr(line)); root.appendChild(w); words.push(w); });
+    REVELATION.forEach((line, i) => { const w = doc.createElement("div"); w.className = "word"; w.setAttribute("data-testid", `den-ending-line-${i + 1}`); w.setAttribute("role", "status"); w.setAttribute("data-said", ""); w.innerHTML = reveal(oneName(tr(line))); root.appendChild(w); words.push(w); });
     // (When "everything" comes in its line, in the language it's in.)
     everyAt = afterDots(tr(REVELATION[EVERY_LINE])) ?? afterDots(REVELATION[EVERY_LINE]) ?? 1200;
     dark = doc.createElement("div"); dark.className = "dark"; root.appendChild(dark);
     crawl = doc.createElement("div"); crawl.className = "crawl"; crawl.setAttribute("data-testid", "den-ending-crawl"); crawl.setAttribute("aria-live", "polite");
     crawlText = doc.createElement("div"); crawlText.className = "text";
     crawlText.setAttribute("data-said", "");
-    crawlText.innerHTML = CRAWL_TEXT.map((t, i) => `<p${i === CRAWL_TEXT.length - 1 ? ' class="last"' : ""}>${md(tr(t))}</p>`).join("");
+    crawlText.innerHTML = CRAWL_TEXT.map((t, i) => `<p${i === CRAWL_TEXT.length - 1 ? ' class="last"' : ""}>${md(oneName(tr(t)))}</p>`).join("");
     const plane = doc.createElement("div"); plane.className = "plane"; plane.appendChild(crawlText); crawl.appendChild(plane); root.appendChild(crawl);
     crawlLast = crawlText.querySelector("p.last");
     const mistWrap = doc.createElement("div"); mistWrap.className = "mist-wrap"; mistWrap.setAttribute("aria-hidden", "true"); mistWrap.setAttribute("data-said", "");

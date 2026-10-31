@@ -25,6 +25,7 @@ import { PIECE_ORIENTATIONS, shuffledIndices, generateAnomalySetup } from "../en
 export { PIECE_ORIENTATIONS, shuffledIndices, generateAnomalySetup };
 import { advanceSingularityScene, useSingularityPhase, renderSingularityOverlay } from "./futuris-singularity.js";
 import { lightReverbsFor } from "./futuris-summon-audio.js";
+import { makeAudioContext } from "./audio-context.js";
 
 /* Everything visual in this experimental skin lives in these two
    objects (COLORS for the DOM/CSS layer, HEX for the Three.js scene
@@ -5814,8 +5815,10 @@ export function createSoundscape() {
   function ensureGraph() {
     if (ctx) return;
     try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      ctx = new AC();
+      // (At the device's rate, up to 48 kHz: a sound card set to 96 or
+      // 192 kHz doubles or quadruples every reverb's cost; audio-context.js.)
+      ctx = makeAudioContext();
+      if (!ctx) throw new Error("no Web Audio");
       // Defensive: some browsers create a context suspended even inside
       // a user gesture. Harmless to call when already running.
       unlockIosAudio();

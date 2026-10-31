@@ -2201,7 +2201,7 @@ export default {
   "Where the camera looks from.": "Desde dónde mira la cámara.",
   "The room dims and the board stays lit.": "El ambiente se oscurece y el tablero sigue iluminado.",
   "Finish your turn now, actions left or not.": "Terminá tu turno ya, te queden acciones o no.",
-  "Take back your last move this turn.": "Deshacé tu última jugada de este turno.",
+  "Take back your last move.": "Deshacé tu última jugada.",
   "Take back the last turn.": "Deshacé el último turno.",
   "Stop this game here.": "Terminá esta partida acá.",
   "Every move of the game, in order.": "Todas las jugadas de la partida, en orden.",
