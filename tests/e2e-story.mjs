@@ -40,6 +40,14 @@ const place = (page) => page.evaluate(() => {
   return t && /Chakra/.test(getComputedStyle(t).fontFamily) ? "futuris" : null;
 });
 const owned = (page) => page.evaluate(() => { try { return JSON.parse(localStorage.getItem("el-cabeza:story") || "null"); } catch (e) { return "bad"; } });
+// The title's badge in play (chassis/ElCabeza3D.jsx, titleBadge): where it
+// is, and whether it can be seen or pressed.
+const badge = (page) => page.evaluate(() => {
+  const w = document.querySelector("[data-masthead]"), t = document.querySelector(".ec-title");
+  if (!w || !t) return null;
+  const r = t.getBoundingClientRect(), cs = getComputedStyle(w);
+  return { relocated: w.classList.contains("ec-masthead-relocated"), opacity: +cs.opacity, events: cs.pointerEvents, top: Math.round(r.top), bottom: Math.round(r.bottom) };
+});
 // The board's plate, width over depth, from the live slab.
 const plate = (page) => page.evaluate(() => {
   const t = window.__TIENDA_THREE__ || window.__DEN_THREE__;
@@ -147,6 +155,12 @@ console.log("\ndesktop: the store, the purchase, home");
   await q(page, "tour-skip").click();
   await poll(async () => !(await has(page, "tour-card")), 5000);
   check("a game begins", await poll(() => has(page, "end-game"), 10000));
+  // No title badge in play, top right, the whole first time through (user:
+  // "In the story mode, for a new player, the miniature masthead that
+  // floats off to the top right, keep that off, out of off screen for the
+  // entire duration of the tutorial and first playthrough."): it fades
+  // out, and its corner is above the screen, nothing to see or press.
+  check("...and no title badge in play: faded out, above the screen, nothing to press", !!(await poll(async () => { const b = await badge(page); return b && b.relocated && b.opacity === 0 && b.events === "none" && b.bottom < 0; }, 6000)), JSON.stringify(await badge(page)));
   // (Nothing at the top left over it: no price tag, user: "Maybe this
   // price tag up here can be done away with ... there's other
   // opportunities to purchase it"; and not the rules menu.)

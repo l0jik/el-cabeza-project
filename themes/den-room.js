@@ -321,12 +321,14 @@ export function buildDen(boardSpan) {
   const yP = PIT_FLOOR, yF = FLOOR, yC = CEIL;
 
   /* ---- floors ---- */
-  // The room's floor, round the pit.
+  // The room's floor, round the pit: the eight cells of a 3 x 3 grid with
+  // the pit in its middle, so neighbours share whole edges, cut alike (as
+  // four strips each piece's own cuts met the next one's partway along
+  // its edge, and a GPU left hairline gaps there; the store's floor,
+  // themes/tienda-store.js).
   const floorRect = (x0, x1, z0, z1) => B.add(M.shagRoom, rect(x1 - x0, z1 - z0, "+y", (x0 + x1) / 2, yF, (z0 + z1) / 2, 6), { tile: TX.SHAG_TILE });
-  floorRect(-RX, RX, -RZ, -PH);
-  floorRect(-RX, RX, PH, RZ);
-  floorRect(-RX, -PH, -PH, PH);
-  floorRect(PH, RX, -PH, PH);
+  const fxs = [-RX, -PH, PH, RX], fzs = [-RZ, -PH, PH, RZ];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) if (i !== 1 || j !== 1) floorRect(fxs[i], fxs[i + 1], fzs[j], fzs[j + 1]);
   // The pit's floor, and its walls up to the room's floor.
   B.add(M.shagPit, rect(PH * 2, PH * 2, "+y", 0, yP, 0, 5), { tile: TX.SHAG_TILE });
   B.add(M.panel, rect(PH * 2, PIT_DEPTH, "+z", 0, yP + PIT_DEPTH / 2, -PH, 4), { tile: TX.PANEL_TILE });

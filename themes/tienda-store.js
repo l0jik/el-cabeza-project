@@ -157,14 +157,22 @@ export function buildStore() {
      big plane with two aisle bands laid on top of it, held apart only by
      a depth offset; the two bands overlapped each other where they cross
      (under the display table) with the same offset, and fought there,
-     tiles flickering in patches as the view moved. */
+     tiles flickering in patches as the view moved. And every seam meets
+     corner to corner, a 3 x 3 grid with the aisles' cross down its middle
+     row and column (user: "the floor has some Z fighting where there's
+     some light lines with on the floor ... If you move the screen around,
+     you'll kind of see it flicker too."): the band across the store was
+     one long piece, the tile areas' corners lying partway along its
+     edges, and a GPU, snapping those corners to its pixel grid, left
+     hairline gaps along the seams where the two floors meet, the
+     background showing through in light lines that moved with the view. */
   const A = AISLE;
   add(merge([
     [-XW, -A, -ZB, -A], [A, XW, -ZB, -A], [-XW, -A, A, ZF], [A, XW, A, ZF],
   ].map(([x0, x1, z0, z1]) => bake(floorRect(x0, x1, z0, z1, FLOOR, repPer), { top: 0.96 }))), flat(tileMain), "tienda-floor");
   add(merge([
-    [-XW, XW, -A, A], [-A, A, -ZB, -A], [-A, A, A, ZF],
-  ].map(([x0, x1, z0, z1]) => bake(floorRect(x0, x1, z0, z1, FLOOR, repPer), { top: 0.96 }))), flat(tileAisle));
+    [-XW, -A, -A, A], [-A, A, -A, A], [A, XW, -A, A], [-A, A, -ZB, -A], [-A, A, A, ZF],
+  ].map(([x0, x1, z0, z1]) => bake(floorRect(x0, x1, z0, z1, FLOOR, repPer), { top: 0.96 }))), flat(tileAisle), "tienda-floor-aisles");
   disposables.push(tileMain, tileAisle);
 
   /* ---- ceiling, troffers, and their sheen on the waxed floor ---- */

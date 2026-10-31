@@ -15,6 +15,14 @@ const check = (name, ok, extra = "") => { console.log(`  ${ok ? "ok  " : "FAIL"}
 const poll = async (fn, ms = 20000, step = 200) => { const end = Date.now() + ms; for (;;) { const v = await fn().catch(() => null); if (v) return v; if (Date.now() > end) return null; await new Promise((r) => setTimeout(r, step)); } };
 const SHOTS = process.env.EC_SHOTS || null;
 const shot = async (page, name) => { if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
+// The title's badge in play (chassis/ElCabeza3D.jsx, titleBadge): where it
+// is, and whether it can be seen or pressed.
+const badge = (page) => page.evaluate(() => {
+  const w = document.querySelector("[data-masthead]"), t = document.querySelector(".ec-title");
+  if (!w || !t) return null;
+  const r = t.getBoundingClientRect(), cs = getComputedStyle(w);
+  return { relocated: w.classList.contains("ec-masthead-relocated"), opacity: +cs.opacity, events: cs.pointerEvents, top: Math.round(r.top), bottom: Math.round(r.bottom) };
+});
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--autoplay-policy=no-user-gesture-required", "--allow-file-access-from-files"] });
 const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
@@ -45,6 +53,9 @@ if (await human.count()) { await human.click(); await page.waitForTimeout(300); 
 await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game/ }).first().click();
 await page.waitForTimeout(2500);
 check("...and stays quiet before the moves are made", (await page.evaluate(() => window.__DEN_HALL__().state)) === "armed");
+// (No title badge in play till the story's over, user: "keep that off ...
+// for the entire duration of the tutorial and first playthrough".)
+check("...no title badge in play, the story still on", !!(await poll(async () => { const b = await badge(page); return b && b.relocated && b.opacity === 0 && b.events === "none" && b.bottom < 0; }, 4000)), JSON.stringify(await badge(page)));
 
 await page.evaluate(() => window.__DEN_HALL_NOW__());
 check("it starts up: the camera to the doorway", !!(await poll(async () => (await page.evaluate(() => window.__DEN_HALL__().cam)) > 0.97, 6000)));
@@ -234,6 +245,7 @@ check("...its own sound straight through again, back up", !!(await poll(async ()
 check("...the game's placard there now", !!(await poll(() => page.evaluate(() => { const b = document.querySelector('[data-testid="victory-backdrop"]'); const cs = getComputedStyle(b); return b.dataset.open === "true" && cs.pointerEvents === "auto" && Number(cs.opacity) > 0.9; }), 4000)));
 await page.mouse.click(12, 400);
 check("...and a tap outside it puts it away", !!(await poll(async () => (await page.locator('[data-testid="victory-backdrop"]').getAttribute("data-open")) === "false", 3000)));
+check("the story's over: the title's badge back, faint, top right", !!(await poll(async () => { const b = await badge(page); return b && b.relocated && b.top >= 0 && b.top < 60 && b.opacity > 0.15 && b.events !== "none"; }, 5000)), JSON.stringify(await badge(page)));
 await page.waitForTimeout(500);
 
 console.log("after the story");

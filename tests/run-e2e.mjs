@@ -89,6 +89,8 @@ const E2E = [
   ["e2e-arrow-lab.mjs"],
   // A press on a piece wins over a marker hidden behind it (a tilted view); a click on a crush target still crushes.
   ["e2e-hidden-marker.mjs"],
+  // The floors' seams closed (the store's aisles, the den's carpet): no corner of one piece partway along another's edge, where light lines flickered.
+  ["e2e-floor-seams.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

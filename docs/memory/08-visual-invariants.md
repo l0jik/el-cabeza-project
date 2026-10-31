@@ -111,3 +111,9 @@
   (scratchpad cromo/measure.mjs): the stand-in face is ~35% narrower.
   Test: tests/e2e-cromo.mjs (320 px: up top, smaller, clear of the tab;
   430: its own size).
+
+**Floors laid from pieces meet corner to corner** (2026-10-31): no corner
+of one piece partway along another piece's edge (a T-junction), or a GPU
+leaves hairline cracks there that flicker with the camera (the store's
+aisles, the den's carpet; 10-solved-bugs.md). Split the pieces where
+their lines cross. Test: tests/e2e-floor-seams.mjs.

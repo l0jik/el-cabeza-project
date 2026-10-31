@@ -63,3 +63,26 @@
   again after each seek ("seeked"). Any other held or paused video on a
   texture needs the same. Seen only by reading the canvas back
   (gl.readPixels in a rAF after the app's render, tests/e2e-den-spot.mjs).
+- **Light lines along the store's floor, flickering as the camera moved**
+  (2026-10-31; user: "the floor has some Z fighting where there's some
+  light lines with on the floor. You can see like there's a different.
+  Yeah, check that. You'll see what I'm talking about. If you move the
+  screen around, you'll kind of see it flicker too."). Not z-fighting:
+  nothing solid overlapped (every opaque floor piece clipped against every
+  other, exactly; the decals draw over with depthWrite off and a polygon
+  offset, so they can't fight). They were cracks at T-junctions: in
+  themes/tienda-store.js the tan aisle cross was two long strips laid over
+  the gap between four tiled squares, so at the cross's four inner
+  corners a corner of one piece lay partway along another piece's edge.
+  The GPU rounds those two edges a little differently and leaves hairline
+  gaps, the light fog-coloured background showing through, moving with
+  the camera. SwiftShader (the tests' renderer) closes them, so no
+  screenshot here showed it; the geometry did. The den's carpet round the
+  pit (themes/den-room.js) was four strips the same way (84 T-junctions).
+  Both are grids now, each piece meeting the next corner to corner: the
+  aisle cross as five cells of the 3 x 3 grid its lines make (the
+  "tienda-floor-aisles" mesh), the carpet as the eight cells round the
+  pit. Test: tests/e2e-floor-seams.mjs (every wide, mostly covered, upward
+  solid surface in the store and the den; no corner inside an edge only
+  one triangle has; it found the old floors' 4 and 84). Any floor or wall
+  laid from pieces wants the same: split them where their lines cross.

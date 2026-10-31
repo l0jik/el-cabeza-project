@@ -528,7 +528,7 @@ function glowShows(glow, ground) {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
-export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTilt = false, titleInfo = true }) {
+export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTilt = false, titleInfo = true, titleBadge = true }) {
   // Drawn again, every word in it, when the player changes the language
   // (chassis/i18n.js; the game itself goes on as it was).
   useLanguage();
@@ -2999,6 +2999,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return () => clearTimeout(t);
   }, [awaitingBegin]);
   const mastheadPhase = awaitingBegin && !beginNextRef.current ? "setup" : titleRelocated ? "relocated" : "fading";
+  /* No badge in play while titleBadge is off (Nova's page, till the story's
+     been played through; user: "In the story mode, for a new player, the
+     miniature masthead that floats off to the top right, keep that off,
+     out of off screen for the entire duration of the tutorial and first
+     playthrough."): after Begin the title fades right out, and its corner
+     is above the top of the screen, where nothing can tap or hold it (the
+     den's hold into Futuris goes where the title goes). Before a game it's
+     the full title as ever; the phone bar's title is the bar's own. */
+  const badgeAway = !titleBadge && !shell;
+  // (Away, it doesn't glide: up and back down out of sight, only fading, so
+  // the full title comes back for the next game where it stands.)
+  const mastheadMoves = badgeAway ? "" : ", transform 1.1s ease, top 1.1s ease, right 1.1s ease";
   /* In play the title's badge, top right, clear of the corner menu's tab,
      top left (user, Cromo on a phone, its PARAMETERS plate over the "EL C":
      "the overlap on these items circled in red"): where the two would
@@ -11817,7 +11829,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             ? {
                 position: "fixed",
                 // (Up top always; smaller beside the corner menu's tab where they'd meet: mastheadFit.)
-                top: 14,
+                top: badgeAway ? -400 : 14,
                 right: 18,
                 left: "auto",
                 // Several passes of "too small"/"too big" feedback (0.3
@@ -11844,7 +11856,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 // fades back at the usual pace.
                 // (theme.mastheadBadgeOpacity: a world's own, e.g.
                 // Parrish's 20% stronger, user.)
-                opacity: infoBtnVisible ? 0.9 : theme.mastheadBadgeOpacity != null ? theme.mastheadBadgeOpacity : 0.22,
+                opacity: badgeAway ? 0 : infoBtnVisible ? 0.9 : theme.mastheadBadgeOpacity != null ? theme.mastheadBadgeOpacity : 0.22,
+                ...(badgeAway ? { pointerEvents: "none" } : null),
                 /* "Behind the board" in spirit, not literal z-order —
                    the 3D canvas paints as one flat layer, so nothing
                    can sit behind its meshes while staying in front of
@@ -11854,7 +11867,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                    board reads as sitting in front of, rather than a
                    truly occluded logo. */
                 zIndex: 1,
-                transition: `opacity ${infoBtnVisible ? 0.3 : 1.1}s ease, transform 1.1s ease, top 1.1s ease, right 1.1s ease`,
+                transition: `opacity ${infoBtnVisible ? 0.3 : 1.1}s ease${mastheadMoves}`,
                 textAlign: "center",
               }
             : {
@@ -11864,9 +11877,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 right: "auto",
                 transform: "translateX(-50%) scale(1)",
                 transformOrigin: "top center",
-                opacity: mastheadPhase === "setup" || infoBtnVisible ? 1 : 0.16,
+                opacity: mastheadPhase === "setup" || infoBtnVisible ? 1 : badgeAway ? 0 : 0.16,
+                ...(badgeAway && mastheadPhase !== "setup" ? { pointerEvents: "none" } : null),
                 zIndex: 20,
-                transition: `opacity ${infoBtnVisible ? 0.3 : 1.1}s ease, transform 1.1s ease, top 1.1s ease, right 1.1s ease`,
+                transition: `opacity ${infoBtnVisible ? 0.3 : 1.1}s ease${mastheadMoves}`,
                 textAlign: "center",
               }), ...shellMastheadStyle, ...(setOut ? { opacity: 0, pointerEvents: "none" } : {}) }}
       >

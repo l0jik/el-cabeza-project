@@ -346,6 +346,27 @@ in; leaving Singularity, back in the den as the set switches off.
   summons by its link, fresh and from a finished story, INFO stays at 0;
   Nova ?world=futuris after the story and Futuris's own page, at 1.
 
+- **No title badge in play till the story's been played through**
+  (2026-10-31; user: "In the story mode, for a new player, the miniature
+  masthead that floats off to the top right, keep that off, out of off
+  screen for the entire duration of the tutorial and first playthrough.").
+  The chassis takes a `titleBadge` prop (default on); Nova's page passes
+  the story's end (unified.jsx `titleBadge={ended}`, beside titleInfo).
+  Off, in play the title fades right out after Begin (0, not the usual
+  0.16) and its relocated corner sits at top -400 with no pointer events
+  (ElCabeza3D `badgeAway`), so the den's hold into Futuris, which follows
+  the title's rect (MastheadHoldZone), goes above the screen with it.
+  Away it doesn't glide (`mastheadMoves`: opacity only), so the full
+  title comes back for the next game where it stands, fading in. Before
+  a game the full title is there as ever; the phone bar's title (shell)
+  is the bar's own and stays. Covers the store's tutorial, the den, the
+  summons and Futuris while the story's on, and a restarted story
+  (forgetStoryEnd). When the story ends (finishStory, as the realities
+  menu opens) the badge slides back down to its faint top-right place.
+  Tests: e2e-story (the store's first game: relocated, opacity 0, no
+  events, above the screen), e2e-ending (the den's game with the story
+  on, away; back in the den after the story, back at the top right).
+
 - **Restart the story leaves nothing of the switcher behind**
   (2026-10-21; user, with a phone screenshot of the store's Standard
   Cabeza / Cabeza Nova card over the box: "Selecting Restart the Story at

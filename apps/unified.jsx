@@ -861,6 +861,10 @@ function UnifiedApp() {
             // of the summons: "remove the info button or disable it on the
             // story".)
             titleInfo={ended}
+            // (No title badge in play till then either, user: "keep that
+            // off ... for the entire duration of the tutorial and first
+            // playthrough".)
+            titleBadge={ended}
             initialMuted={muted}
             onMutedChange={(m) => {
               setMuted(m);
