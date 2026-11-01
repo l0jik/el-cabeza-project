@@ -790,6 +790,29 @@ in; leaving Singularity, back in the den as the set switches off.
   Young Serif, Courier Prime, Libre Franklin, Bitter, Caprasimo), waiting
   on a pick; whichever is picked ships as a file beside the page, like
   the Bodoni (faces.js), never a stand-in while it loads.
+- **The captions in Fraunces, soft** (2026-11-01; user: "go with option
+  C, Fraunces soft, for the captions"). Option C of the page above, as it
+  showed it: the line Fraunces 600 at optical size 40, the second line
+  italic 400 at optical size 14, both SOFT 100 (Google's WONK default).
+  The files are Google's own (the same request as the page's), cut at
+  those two settings by tools/caption_face.py (fontTools instancer): four
+  files, upright and italic, latin and Vietnamese (Google's split, each
+  given its unicode-range in themes/faces.js), 55 KB together against
+  344 KB variable and the Bodoni pair's 100 KB. Drawn beside the variable
+  font in Chromium (en, es, vi, 44 and 24 px) they differ in a few edge
+  pixels (rounding), the Vietnamese one not at all; the Vietnamese
+  letters are its own now (Bodoni's file had none: the vi captions' ở, đ,
+  ầ came from a stand-in). apps/novaStory.jsx: .ns-caption 600, .ns-sub
+  italic 400, both 'EC Caption', Georgia, serif; no
+  font-variation-settings (the files are fixed: another weight means a new
+  cut). build.js FACE_FILES: el-cabeza-face-fraunces[-italic][-vietnamese]
+  .woff2; the Bodoni caption files gone from assets/fonts (its OFL moved
+  to tools/fonts, beside the splash tools' Bodoni italic); OFL-Fraunces.txt
+  added. Test: e2e-story (all four files loaded before the caption comes
+  up, the line at 600; every caption and second line in apps/unified.jsx,
+  in English, Spanish and Vietnamese through chassis/i18n.js tr, in the
+  face's own letters: each letter as wide with a monospace stand-in named
+  after the face as with a serif one).
 - **"El Cabeza" never split across lines at the end** (2026-10-31; user:
   "On the scroll at the very end, it says no matter where you are, El
   Cabeza will always be with you. El needs to be on the next line next to

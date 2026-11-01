@@ -168,14 +168,15 @@ const CSS = `
   .ns-black.on { animation: ns-in 0.95s ease both; }
   .ns-black.off { animation: ns-out 1.1s ease both; }
   .ns-caption { position: absolute; left: 16px; right: 16px; top: 50%; transform: translateY(-50%); text-align: center; color: #EFE4CB;
-    font: 700 clamp(24px, 4.6vw, 44px)/1.2 'EC Caption', 'Didot', 'Bodoni 72', Georgia, serif; letter-spacing: 0.02em; opacity: 0; text-wrap: balance;
-    font-variation-settings: 'opsz' 11; }
+    font: 600 clamp(24px, 4.6vw, 44px)/1.2 'EC Caption', Georgia, serif; letter-spacing: 0.02em; opacity: 0; text-wrap: balance; }
   .ns-caption.on { animation: ns-in 0.6s ease both; }
-  /* (Bold, and Bodoni's text cut, opsz 11, not its display cut: user, "it's
-     hard to read. Maybe make it bold or something". At these sizes the
-     browser picked the display cut, whose hairlines all but vanish on
-     black; the text cut's are heavier. The second line likewise.) */
-  .ns-sub { display: block; max-width: 30em; margin: 0.9em auto 0; font: italic 500 clamp(14px, 2.2vw, 19px)/1.45 'EC Caption', 'Didot', Georgia, serif; color: #CDBF9E; letter-spacing: 0.01em; font-variation-settings: 'opsz' 11; }
+  /* (Fraunces at its softest, option C of the faces offered: user, "go
+     with option C, Fraunces soft, for the captions", after Bodoni's
+     hairlines on black: "it's hard to read". The line at 600 and optical
+     size 40, the second line italic at 400 and optical size 14: the files
+     are cut at exactly those (themes/faces.js), so a change of weight here
+     needs them cut again (tools/caption_face.py).) */
+  .ns-sub { display: block; max-width: 30em; margin: 0.9em auto 0; font: italic 400 clamp(14px, 2.2vw, 19px)/1.45 'EC Caption', Georgia, serif; color: #CDBF9E; letter-spacing: 0.01em; }
   .ns-caption.off { animation: ns-out 0.5s ease both; }
   /* (The second line comes up on its own, two seconds after the first, user.) */
   .ns-caption.on .ns-sub { animation: ns-in 0.8s ease 2s both; }
@@ -195,11 +196,11 @@ const CSS = `
    and calls onDone. The tape prints to its end: taps do nothing while
    it does (user: "taps shouldn't be allowed during the time that it's so
    it can complete the animation"; a tap used to go straight to the
-   black). The caption's face is the page's own (themes/faces.js: Bodoni
-   Moda, fetched as the cut begins), and the caption waits for it, a
-   moment at most, so it's in its face from its first frame to its last
-   (user: "it starts as a certain font, and then ... it changes like to a
-   different font"). */
+   black). The caption's face is the page's own (themes/faces.js:
+   Fraunces, soft, fetched as the cut begins), and the caption waits for
+   it, a moment at most, so it's in its face from its first frame to its
+   last (user: "it starts as a certain font, and then ... it changes like
+   to a different font"). */
 export function StoryCut({ cut, onSwap, onDone, sfx }) {
   const reduced = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const purchase = cut.kind === "purchase";

@@ -60,13 +60,16 @@ const SPHERE_FILES = { "el-cabeza-futuris-sphere-drone.mp3": "assets/futuris/sph
 DEN_RECORDS["el-cabeza-futuris-sphere-drone.mp3"] = SPHERE_FILES["el-cabeza-futuris-sphere-drone.mp3"];
 
 // Beside every page: ABOUT's original-game cue (chassis ORIGINAL_CUE_URL),
-// and the faces of the lines between scenes (themes/faces.js: Bodoni Moda,
-// Comic Neue Bold and Bangers, their latin letters, SIL Open Font License,
+// and the faces of the lines between scenes (themes/faces.js: Fraunces,
+// soft, its latin and Vietnamese letters, cut by tools/caption_face.py;
+// Comic Neue Bold and Bangers, their latin letters; SIL Open Font License,
 // assets/fonts/OFL-*.txt), kept with the pages so a change of place can't
 // take them away mid-fade.
 const FACE_FILES = {
-  "el-cabeza-face-bodoni.woff2": "assets/fonts/bodoni-moda.woff2",
-  "el-cabeza-face-bodoni-italic.woff2": "assets/fonts/bodoni-moda-italic.woff2",
+  "el-cabeza-face-fraunces.woff2": "assets/fonts/fraunces-soft.woff2",
+  "el-cabeza-face-fraunces-vietnamese.woff2": "assets/fonts/fraunces-soft-vietnamese.woff2",
+  "el-cabeza-face-fraunces-italic.woff2": "assets/fonts/fraunces-soft-italic.woff2",
+  "el-cabeza-face-fraunces-italic-vietnamese.woff2": "assets/fonts/fraunces-soft-italic-vietnamese.woff2",
   "el-cabeza-face-comic-neue-bold.woff2": "assets/fonts/comic-neue-bold.woff2",
   "el-cabeza-face-bangers.woff2": "assets/fonts/bangers.woff2",
 };

@@ -14,7 +14,28 @@
    fresh start clears the purchase and puts the lid back on. On a phone
    with the control bar, the same choices are in the bar and its menu. */
 import { chromium } from "playwright";
+import { readFileSync } from "fs";
 import { openDockPanel, waitForDockCorner, reopenDockPanelFromCorner } from "./dock-helpers.mjs";
+import { setLanguage, tr } from "../chassis/i18n.js";
+
+// Every line the story's cuts put up (apps/unified.jsx: each startCut's
+// caption and second line, and CUT_CAPTIONS), in each of the game's
+// languages, with the weight and slant the caption gives it.
+const CAPTION_TEXT = await (async () => {
+  const src = readFileSync(new globalThis.URL("../apps/unified.jsx", import.meta.url), "utf8"); // (URL: the page's, below)
+  const unq = (s) => JSON.parse(`"${s}"`);
+  const caps = [...src.matchAll(/\bcaption: "((?:[^"\\]|\\.)*)"/g)].map((m) => unq(m[1]));
+  const cutCaps = (src.match(/const CUT_CAPTIONS = \{([^}]*)\}/) || ["", ""])[1];
+  caps.push(...[...cutCaps.matchAll(/:\s*"((?:[^"\\]|\\.)*)"/g)].map((m) => unq(m[1])));
+  const subs = [...src.matchAll(/\bsub: "((?:[^"\\]|\\.)*)"/g)].map((m) => unq(m[1]));
+  const out = [];
+  for (const code of ["en", "es", "vi"]) {
+    await setLanguage(code, { keep: false });
+    for (const l of caps) out.push(["normal", "600", tr(l)]);
+    for (const l of subs) out.push(["italic", "400", tr(l)]);
+  }
+  return out;
+})();
 
 const URL = "file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html";
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--autoplay-policy=no-user-gesture-required"] });
@@ -203,7 +224,7 @@ console.log("\ndesktop: the store, the purchase, home");
       rec.maxLines = Math.max(rec.maxLines, r ? +r.getAttribute("data-lines") : 0);
       if (rec.linesAtDark == null && cut.getAttribute("data-stage") !== "tape") rec.linesAtDark = rec.maxLines;
       const c = cut.querySelector('[data-testid="story-caption"]');
-      if (!rec.caption && c && c.classList.contains("on")) rec.caption = { faces: window.__EC_FACES__ ? window.__EC_FACES__().caption : null, family: getComputedStyle(c).fontFamily };
+      if (!rec.caption && c && c.classList.contains("on")) rec.caption = { faces: window.__EC_FACES__ ? window.__EC_FACES__().caption : null, family: getComputedStyle(c).fontFamily, weight: getComputedStyle(c).fontWeight };
     };
     new MutationObserver(look).observe(cut, { subtree: true, attributes: true, attributeFilter: ["data-lines", "data-stage", "class"] });
     look();
@@ -225,8 +246,24 @@ console.log("\ndesktop: the store, the purchase, home");
   check(`...only once all twelve lines had printed (${rec.linesAtDark})`, rec.linesAtDark === 12);
   // In its own face from its first frame (user: "it starts as a certain
   // font, and then ... it changes like to a different font"): the page's
-  // Bodoni Moda (themes/faces.js), in before the line comes up.
-  check(`...in its own face, in before it comes up (${JSON.stringify(rec.caption)})`, !!rec.caption && /^"?EC Caption"?,/.test(rec.caption.family) && rec.caption.faces === "loaded loaded");
+  // Fraunces, soft (themes/faces.js; user: "go with option C, Fraunces
+  // soft, for the captions"), all four files in before the line comes up,
+  // the line at 600.
+  check(`...in its own face, in before it comes up (${JSON.stringify(rec.caption)})`, !!rec.caption && /^"?EC Caption"?,/.test(rec.caption.family) && rec.caption.faces === "loaded loaded loaded loaded" && rec.caption.weight === "600");
+  // Every caption, in every language, in that face's own letters: one it
+  // lacked would come from a stand-in, a line in two faces. (A letter the
+  // face draws is as wide whatever stand-in is named after it.)
+  const stray = await page.evaluate((lines) => {
+    const g = document.createElement("canvas").getContext("2d");
+    const width = (font, ch) => { g.font = font; return g.measureText(ch).width; };
+    const out = new Set();
+    for (const [style, weight, text] of lines) for (const ch of text.replace(/\s/g, "")) {
+      const f = `${style} ${weight} 40px 'EC Caption'`;
+      if (width(`${f}, monospace`, ch) !== width(`${f}, serif`, ch)) out.add(ch);
+    }
+    return [...out].join(" ");
+  }, CAPTION_TEXT);
+  check(`...and every caption, in English, Spanish and Vietnamese (${CAPTION_TEXT.length} lines), in its letters${stray ? ": not " + stray : ""}`, CAPTION_TEXT.length >= 30 && stray === "");
   const arrived = await throughCut(page, "home");
   check("...then the den", arrived.gone && arrived.there, JSON.stringify(arrived));
   // Its first look (user's screenshot: "the perspective they should see
