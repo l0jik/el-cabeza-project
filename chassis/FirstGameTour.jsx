@@ -340,7 +340,7 @@ function cardText(t) {
       }
       const icons = [];
       if (t.layout) icons.push({ icon: "layout", name: "Control bar", text: "moves the menu to a bar along the foot of the screen." });
-      icons.push({ icon: "guide", name: "Piece guide", text: "a card that tells you what the piece you pick does." });
+      icons.push({ icon: "guide", name: "Piece guide", text: "a card that tells you what the piece you pick does, and why a move can't be made." });
       if (t.costs) icons.push({ icon: "costs", name: "Move costs", text: "how many actions each move takes, on its marker." });
       icons.push({ icon: "points", name: "Actions left", text: "the lights at the foot of the screen that count them." });
       if (t.sound) icons.push({ icon: "sound", name: "Sound", text: t.channels ? "the volume, with the music and the other sounds each on or off." : "the volume." });

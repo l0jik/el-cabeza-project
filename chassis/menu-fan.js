@@ -159,7 +159,7 @@ const TIPS = {
   saves: "Save your progress and settings to a file or the cloud, or bring them back.",
   points: "Dots that count the actions left in your turn.",
   costs: "Each move marker shows what the move costs.",
-  guide: "A card that says what the chosen piece does.",
+  guide: "A card that says what the chosen piece does, and why a move can't be made.",
   bar: "Swap the floating piece for a bar of controls along the bottom.",
   view: "Where the camera looks from.",
   focus: "The room dims and the board stays lit.",

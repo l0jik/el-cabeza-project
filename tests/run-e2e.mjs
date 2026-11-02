@@ -95,6 +95,8 @@ const E2E = [
   ["e2e-undo-move.mjs"],
   // The way into the Singularity on a slow machine: the collapse made ready during the toll; a 4 s freeze as it begins doesn't skip the fall or its sound.
   ["e2e-singularity-stall.mjs"],
+  // A refused move says why (the Piece guide's X on the square aimed at and its note): the user's clip, too heavy to push and then not enough actions; a boxed-in piece; off with the guide; a phone; Spanish.
+  ["e2e-why-not.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

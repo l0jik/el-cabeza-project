@@ -237,7 +237,15 @@ const cabezas = [P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cab
   await page.waitForTimeout(1200);
   let ps = await page.evaluate(() => window.__EC_TEST_PIECES__);
   check("...and letting go moves nothing", ps.find((p) => p.id === "dark-chato").col === 3 && ps.find((p) => p.id === "light-turrito").col === 4, JSON.stringify(ps));
-  check("...the X is gone again", !(await cues()).x);
+  // The Piece guide (on by default) says why, the X kept on the square
+  // while its note is up (user's pick, A1); the next click puts both away.
+  const why = await page.evaluate(() => { const n = document.querySelector('[data-testid="why-not"]'); return n && n.dataset.code; });
+  check("...the Piece guide's note says why (no pushing on a diagonal), the X kept", why === "diagonalPush" && (await cues()).x, String(why));
+  await page.mouse.click(4, 450);
+  await page.waitForTimeout(300);
+  check("...the X is gone again at the next click, with the note", !(await cues()).x && !(await page.locator('[data-testid="why-not"]').count()));
+  // (Chosen again if that click let it go: its card says it's chosen.)
+  if (!(await page.locator('[data-testid="piece-card"]').count())) { await page.mouse.click(from.x, from.y); await page.waitForTimeout(400); }
   // The other diagonal on that side (south-east) is open: the arrow, no X.
   const se = await page.evaluate(() => { const a = window.__EC_TEST_CUBE_POS__(4, 3), b = window.__EC_TEST_CUBE_POS__(5, 4); return { x: b.x - a.x, y: b.y - a.y }; });
   await drag(from.x + se.x, from.y + se.y);

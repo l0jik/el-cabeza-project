@@ -50,12 +50,14 @@ function chromeCss(spec) {
   .ec-btn { border-radius: var(--radius) !important; letter-spacing: var(--label-tracking) !important; font-family: var(--font-body) !important;
     transition: transform var(--transition-speed) var(--ease), box-shadow var(--transition-speed) var(--ease), background-color var(--transition-speed) var(--ease) !important; }
   .ec-btn:focus-visible, [data-testid="how-to-play"]:focus-visible, .lab-ctl:focus-visible { outline: 2px solid var(--accent-primary) !important; outline-offset: 2px; }
-  [data-testid="piece-card"], [data-testid="new-game-choice"], [data-testid="victory-placard"], [data-testid="movelog-sheet"] {
+  [data-testid="piece-card"], [data-testid="why-not"], [data-testid="new-game-choice"], [data-testid="victory-placard"], [data-testid="movelog-sheet"] {
     background: var(--surface) !important; color: var(--panel-ink) !important;
     border: var(--border-width) solid var(--border-color) !important; border-radius: var(--radius) !important;
     box-shadow: var(--shadow) !important; backdrop-filter: none !important;
   }
-  [data-testid="piece-card"] span:first-child { font-family: var(--font-display) !important; font-weight: var(--display-weight) !important; letter-spacing: var(--tracking); }
+  [data-testid="piece-card"] span:first-child, [data-testid="why-not-title"] { font-family: var(--font-display) !important; font-weight: var(--display-weight) !important; letter-spacing: var(--tracking); }
+  /* The refused move's note (the Piece guide's): its tag in the accent, as the dock's big button. */
+  [data-testid="why-not-tag"] { background: var(--accent-primary) !important; color: var(--surface) !important; }
   [data-testid="info-overlay"] > div {
     background: var(--surface) !important; color: var(--panel-ink) !important;
     border: var(--border-width) solid var(--border-color) !important; border-radius: var(--radius) !important;

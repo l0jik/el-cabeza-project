@@ -330,11 +330,11 @@ export const styleSheet = `
   }
   .ec-btn { border-radius: 2px !important; letter-spacing: 0.08em; }
   .ec-btn:active { transform: translateY(1px); }
-  [data-testid="piece-card"], [data-testid="info-overlay"] > div, [data-testid="new-game-choice"] {
+  [data-testid="piece-card"], [data-testid="why-not"], [data-testid="info-overlay"] > div, [data-testid="new-game-choice"] {
     background-image: var(--tienda-paper) !important;
     border-radius: 3px !important;
   }
-  [data-testid="piece-card"] { border: 1px solid rgba(46,33,24,0.5) !important; }
+  [data-testid="piece-card"], [data-testid="why-not"] { border: 1px solid rgba(46,33,24,0.5) !important; }
   /* The first game's tour (chassis/FirstGameTour.jsx): the store's
      printed card, with the circular's red band across its head and the
      price-tag red on its button. */

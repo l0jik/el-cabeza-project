@@ -22,6 +22,8 @@ import {
 } from "../engine/geometry.js";
 import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmPoint, maskAt, pressOffsets } from "../engine/shapes.js";
 import { buildSlidePath, dispose as disposeSlidePath } from "./slide-path.js";
+import { whyNotSlide, whyNoMove } from "../engine/why-not.js";
+import { whyNotWords } from "./why-not.js";
 import {
   startSetOut, place as setOutPlace, putBack as setOutPutBack, turn as setOutTurn, setHalf as setOutSetHalf, turnsWhileSettingOut,
   readiness as setOutReadiness, keep as setOutKeep, restore as setOutRestore, canRestore as setOutCanRestore,
@@ -1553,6 +1555,67 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const id = setTimeout(() => setHoldHint(null), 4000);
     return () => clearTimeout(id);
   }, [holdHint]);
+  /* The Piece guide's note on a refused move (user, of a Cruce that
+     wouldn't slide: "when attempting to make a move that's not allowed,
+     for whatever reason, a pop-up should appear with an explanation";
+     the pick, A1): an X on the square aimed at (the board's
+     slideBlockGroup, the diagonal shove's X) and a bubble beside it
+     saying why, tagged with the setting it belongs to. engine/why-not.js
+     says which rule refused the move, chassis/why-not.js puts it in
+     words. Only with the Piece guide on, on your own turn; gone after
+     WHY_NOT_MS, or at the next touch. `at` is where the bubble points, in
+     the board's own space (the X's middle, or the piece's top). */
+  const [whyNot, setWhyNot] = useState(null);
+  const whyNotTimerRef = useRef(0);
+  const whyNotXRef = useRef(false); // the X is the note's (not a drag's)
+  const whyNotCardRef = useRef(null);
+  const whyNotLineRef = useRef(null);
+  const WHY_NOT_MS = 4400;
+  // The X over board squares `cells`, `top` cube levels up: a square
+  // across, on their middle (the diagonal shove's X too, while dragged).
+  const placeBoardX = (cells, top) => {
+    const x = three.current && three.current.slideBlockGroup;
+    if (!x || !cells || !cells.length) return false;
+    const rs = cells.map(([r]) => r), cs = cells.map(([, c]) => c);
+    const r0 = Math.min(...rs), r1 = Math.max(...rs) + 1, c0 = Math.min(...cs), c1 = Math.max(...cs) + 1;
+    x.position.set(((c0 + c1) / 2) * SQUARE_SIZE - OFF_X, (top || 0) * PIECE_SCALE + 0.08, ((r0 + r1) / 2) * SQUARE_SIZE - OFF_Z);
+    x.scale.setScalar(Math.min(r1 - r0, c1 - c0) * SQUARE_SIZE * 0.8);
+    x.visible = true;
+    return true;
+  };
+  const hideWhyNot = () => {
+    clearTimeout(whyNotTimerRef.current);
+    if (whyNotXRef.current) {
+      whyNotXRef.current = false;
+      const x = three.current && three.current.slideBlockGroup;
+      if (x) x.visible = false;
+    }
+    setWhyNot(null);
+  };
+  // A refused move's reason (engine/why-not.js) for `piece`: shown, if the
+  // guide's on and it's a moment for it. True when shown.
+  const showWhyNot = (reason, piece) => {
+    if (!reason || !piece || !showGuide || !isPlaying || tourStep || replaying || currentPlayer === foeSide || piece.owner !== currentPlayer) return false;
+    const words = whyNotWords(reason, { mover: piece, sideName });
+    clearTimeout(whyNotTimerRef.current);
+    const placed = placeBoardX(reason.cells, reason.top);
+    whyNotXRef.current = placed;
+    let at;
+    if (placed) {
+      const p = three.current.slideBlockGroup.position;
+      at = { x: p.x, y: p.y, z: p.z };
+    } else {
+      const c = pieceCenter(piece);
+      at = { x: c.x, y: (piece.z || 1) * PIECE_SCALE + 0.1, z: c.z };
+    }
+    setWhyNot({ key: Date.now(), code: reason.code, pieceId: piece.id, title: words.title, body: words.body, at });
+    whyNotTimerRef.current = setTimeout(hideWhyNot, WHY_NOT_MS);
+    if (audioRef.current && audioRef.current.playBlocked) audioRef.current.playBlocked();
+    return true;
+  };
+  // (For the pointer handlers, bound less often than this renders.)
+  const whyNotRef = useRef(null);
+  whyNotRef.current = { show: showWhyNot, hide: hideWhyNot, placeX: placeBoardX, guide: showGuide };
   // Switched off from the banner itself: a moment's note where it was.
   const [checkOffNote, setCheckOffNote] = useState(0);
   useEffect(() => {
@@ -4887,6 +4950,67 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      away, until another piece is picked or the turn moves on. */
   const [pieceCardDismissed, setPieceCardDismissed] = useState(false);
   useEffect(() => { setPieceCardDismissed(false); }, [selectedId, currentPlayer]);
+  /* The refused move's note (showWhyNot): put away when it no longer
+     fits (another piece chosen, the turn over, a move made, the game
+     done, the guide switched off), at the next touch anywhere, or
+     Escape. While it's up, each frame keeps the bubble beside its X
+     (the board may still be turning) and its pointer on it: on a
+     computer to the X's right (left, if there's no room), on a phone
+     above it, clear of the finger. */
+  useEffect(() => {
+    if (whyNot && (whyNot.pieceId !== selectedId || !isPlaying || !showGuide)) hideWhyNot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, currentPlayer, pieces, isPlaying, showGuide]);
+  useEffect(() => {
+    if (!whyNot) return undefined;
+    const t3 = three.current;
+    const off = () => hideWhyNot();
+    const key = (e) => { if (e.key === "Escape") hideWhyNot(); };
+    document.addEventListener("pointerdown", off, true);
+    document.addEventListener("keydown", key, true);
+    const v = new THREE.Vector3();
+    const coarse = isCoarsePointer();
+    const frame = () => {
+      const card = whyNotCardRef.current, line = whyNotLineRef.current;
+      if (!card || !t3 || !t3.camera || !t3.renderer || !t3.boardGroup) return;
+      v.set(whyNot.at.x, whyNot.at.y, whyNot.at.z);
+      t3.boardGroup.localToWorld(v);
+      v.project(t3.camera);
+      const rect = t3.renderer.domElement.getBoundingClientRect();
+      const ax = rect.left + (v.x * 0.5 + 0.5) * rect.width, ay = rect.top + (-v.y * 0.5 + 0.5) * rect.height;
+      const w = card.offsetWidth, h = card.offsetHeight, vw = window.innerWidth, vh = window.innerHeight, gap = coarse ? 52 : 46;
+      let left, top;
+      if (coarse) {
+        left = ax - w / 2;
+        top = ay - gap - h;
+        if (top < 10) top = ay + gap;
+      } else {
+        left = ax + gap;
+        if (left + w > vw - 10) left = ax - gap - w;
+        top = ay - h / 2;
+      }
+      left = Math.max(10, Math.min(vw - w - 10, left));
+      top = Math.max(10, Math.min(vh - h - 10, top));
+      card.style.left = `${Math.round(left)}px`;
+      card.style.top = `${Math.round(top)}px`;
+      card.style.visibility = "visible";
+      if (line) {
+        // From the card's nearest edge to the X.
+        const px = Math.max(left + 12, Math.min(left + w - 12, ax)), py = Math.max(top + 12, Math.min(top + h - 12, ay));
+        line.setAttribute("x1", px); line.setAttribute("y1", py); line.setAttribute("x2", ax); line.setAttribute("y2", ay);
+        const dot = line.nextSibling;
+        if (dot) { dot.setAttribute("cx", ax); dot.setAttribute("cy", ay); }
+      }
+    };
+    if (t3 && t3.frameHooks) t3.frameHooks.add(frame);
+    frame();
+    return () => {
+      document.removeEventListener("pointerdown", off, true);
+      document.removeEventListener("keydown", key, true);
+      if (t3 && t3.frameHooks) t3.frameHooks.delete(frame);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [whyNot]);
   const pieceCardShown = showGuide && isPlaying && !!selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== foeSide && !replaying && dockView !== "panel" && !pieceCardDismissed && !tourStep;
   /* The card sits above whatever corner buttons a theme stacks at the
      lower left (the den's lamp, room view and full screen; user: the card
@@ -9384,19 +9508,30 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 ...Object.entries(moves).filter(([, m]) => m.isSlide),
                 ...blockedDiag.map((b) => [slideKey(b.dir), { blocked: b }]),
               ];
-              if (piece && slideEntries.length) {
+              // With the Piece guide on, every other way a slide could go
+              // here, refused, and why (engine/why-not.js): the X while the
+              // drag points that way, the note when it's let go there. (A
+              // way the rules allow always wins the drag, as before.)
+              const refused = piece && piece.type !== "cabeza" && whyNotRef.current.guide
+                ? Object.keys(STEP_DIRS)
+                  .filter((dir) => !slideEntries.some(([key]) => baseDirOfSlideKey(key) === dir))
+                  .map((dir) => ({ dir, reason: whyNotSlide(pieces, piece, dir, slideRemaining) }))
+                  .filter((x) => x.reason)
+                : [];
+              if (piece && (slideEntries.length || refused.length)) {
                 const pc = pieceCenter(piece);
                 const originScreen = worldToScreen(pc.x, pc.z);
-                const dirs = slideEntries.map(([key, m]) => {
-                  const [dr, dc] = STEP_DIRS[baseDirOfSlideKey(key)];
+                const toward = (dir) => {
+                  const [dr, dc] = STEP_DIRS[dir];
                   const adj = pieceCenter({ ...piece, row: piece.row + dr, col: piece.col + dc });
                   const a = worldToScreen(adj.x, adj.z);
                   const vx = a.x - originScreen.x;
                   const vy = a.y - originScreen.y;
                   const len = Math.hypot(vx, vy) || 1;
-                  return { key, dirX: vx / len, dirY: vy / len, blocked: m.blocked || null, candidate: m.candidate || null };
-                });
-                slideDrag = { dirs, chosen: null };
+                  return { dirX: vx / len, dirY: vy / len };
+                };
+                const dirs = slideEntries.map(([key, m]) => ({ key, ...toward(baseDirOfSlideKey(key)), blocked: m.blocked || null, candidate: m.candidate || null }));
+                slideDrag = { dirs, refused: refused.map((x) => ({ ...x, ...toward(x.dir) })), chosen: null, refusedPick: null, blockedKey: null, remaining: slideRemaining };
                 slideDownX = ev.clientX;
                 slideDownY = ev.clientY;
               }
@@ -9446,7 +9581,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 downY: ev.clientY,
                 chosen: null,
                 claimed: false,
-                preferred: !slideDrag || nearArm,
+                // (A drag armed only for the refused ways' note doesn't
+                // stand in a pivot's way.)
+                preferred: !slideDrag || !slideDrag.dirs.length || nearArm,
               };
             }
           }
@@ -9637,16 +9774,30 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           const totalLen = Math.hypot(totalDx, totalDy);
           let chosen = null;
           let blocked = null;
+          let refusedPick = null;
           if (totalLen > DRAG_DEAD_ZONE_PX) {
             let bestDot = 0.5; // require ~60deg alignment before claiming a direction
             for (const d of slideDrag.dirs) {
               const dot = (totalDx / totalLen) * d.dirX + (totalDy / totalLen) * d.dirY;
               if (dot > bestDot) { bestDot = dot; chosen = d.key; blocked = d.blocked; }
             }
+            // Nothing the rules allow that way: the nearest way they
+            // refuse (the Piece guide's), its X on the square.
+            if (!chosen) {
+              let best = 0.5;
+              for (const d of slideDrag.refused) {
+                const dot = (totalDx / totalLen) * d.dirX + (totalDy / totalLen) * d.dirY;
+                if (dot > best) { best = dot; refusedPick = d; }
+              }
+            }
           }
-          // A blocked diagonal shows its X and commits nothing.
+          // A blocked diagonal shows its X and commits nothing; so does a
+          // refused way, its note said when it's let go (onUp).
           slideDrag.chosen = blocked ? null : chosen;
+          slideDrag.blockedKey = blocked ? chosen : null;
+          slideDrag.refusedPick = refusedPick;
           updateSlideArrow(chosen, blocked);
+          if (refusedPick) whyNotRef.current.placeX(refusedPick.reason.cells, refusedPick.reason.top);
           return;
         }
 
@@ -9908,12 +10059,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         }
       }
       if (slideDrag) {
-        const chosen = slideDrag.chosen;
+        const { chosen, refusedPick, blockedKey, remaining } = slideDrag;
         slideDrag = null;
         updateSlideArrow(null);
         if (chosen && activePieceRef.current && !busy && !anim.current) {
           beginMove(activePieceRef.current, chosen);
           return;
+        }
+        // Let go toward a way the rules refuse (a diagonal shove's too):
+        // the Piece guide says why, the X kept on the square.
+        const piece = activePieceRef.current;
+        if (piece && (refusedPick || blockedKey) && !busy && !anim.current) {
+          const reason = refusedPick ? refusedPick.reason : whyNotSlide(pieces, piece, baseDirOfSlideKey(blockedKey), remaining);
+          if (whyNotRef.current.show(reason, piece)) return;
         }
       }
 
@@ -10029,6 +10187,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           const willSelect = selectedId !== p.id;
           willSelect ? audioRef.current.playSelect(cubeCount(p)) : audioRef.current.playDeselect(cubeCount(p));
           setSelectedId((prev) => (prev === p.id ? null : p.id));
+          // A piece of yours with no move at all: the Piece guide says why.
+          if (willSelect) whyNotRef.current.show(whyNoMove(pieces, p, maxStepsFor(p.type)), p);
         }
       } else if (!hit && !turnLocked) {
         setSelectedId(null);
@@ -12158,10 +12318,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           den, you should not be able to click the unmaximize button ...
           just remove it during that scene"; toggleFullscreen holds its
           shortcuts meanwhile). */}
-      <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
-html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
-html.ec-hall-scene :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
-body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
+      <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="why-not"], [data-testid="why-not-pointer"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
+html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="why-not"], [data-testid="why-not-pointer"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
+html.ec-hall-scene :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="why-not"], [data-testid="why-not-pointer"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
+body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="why-not"], [data-testid="why-not-pointer"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
 html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-recall"]) {
   opacity: 0 !important; pointer-events: none !important; transition: opacity 0.4s ease !important;
 }
@@ -12472,6 +12632,50 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
           </div>
         );
       })()}
+      {/* The Piece guide's note on a refused move (showWhyNot): the
+         bubble by the X, tagged with the setting it belongs to, and its
+         pointer to the X. Placed at each frame (the effect by the piece
+         card's); hidden until then. Taps go through it. */}
+      {whyNot && (
+        <>
+          <svg aria-hidden="true" data-testid="why-not-pointer" style={{ position: "fixed", left: 0, top: 0, width: "100vw", height: "100vh", pointerEvents: "none", zIndex: 13, overflow: "visible" }}>
+            <line ref={whyNotLineRef} x1="0" y1="0" x2="0" y2="0" stroke={COLORS.charcoal} strokeWidth="2.5" strokeLinecap="round" />
+            <circle cx="-20" cy="-20" r="4.5" fill={COLORS.charcoal} />
+          </svg>
+          <div
+            key={whyNot.key}
+            ref={whyNotCardRef}
+            data-testid="why-not"
+            data-code={whyNot.code}
+            role="status"
+            style={{
+              position: "fixed",
+              left: 0,
+              top: 0,
+              visibility: "hidden",
+              zIndex: 14,
+              width: "min(270px, calc(100vw - 32px))",
+              boxSizing: "border-box",
+              padding: "9px 12px 10px",
+              borderRadius: 8,
+              background: COLORS.cream,
+              border: `1px solid ${COLORS.slateSoft}`,
+              boxShadow: "0 8px 22px rgba(0,0,0,0.24)",
+              color: COLORS.charcoal,
+              fontFamily: "'IBM Plex Sans', sans-serif",
+              fontSize: 12.5,
+              lineHeight: 1.45,
+              pointerEvents: "none",
+              animation: "ecWhyNotIn 160ms ease both",
+            }}
+          >
+            <style>{"@keyframes ecWhyNotIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:none}}"}</style>
+            <div data-testid="why-not-tag" style={{ display: "inline-block", marginBottom: 5, padding: "2px 6px 1px", borderRadius: 4, background: COLORS.charcoal, color: COLORS.cream, font: "700 9.5px/1.4 'IBM Plex Sans', sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Piece guide</div>
+            <div data-testid="why-not-title" style={{ fontFamily: titleFontFamily, fontSize: 15, fontWeight: 600, lineHeight: 1.25, marginBottom: 2 }}>{whyNot.title}</div>
+            <div data-testid="why-not-body">{whyNot.body}</div>
+          </div>
+        </>
+      )}
       {/* ...and what a tap on it says instead of ending the turn. */}
       {holdHint && isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && (() => {
         const left = Math.max(0, turnBudget() - stepsUsed);
@@ -14338,7 +14542,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
           aria-pressed={showGuide}
           disabled={firstLook}
           {...firstLockIcon}
-          onClick={(e) => { showToggleHint(e, showGuide ? "Piece guide: off." : "Piece guide: on. A card says what the chosen piece does."); togglePieceGuide(); }}
+          onClick={(e) => { showToggleHint(e, showGuide ? "Piece guide: off." : "Piece guide: on. A card says what the chosen piece does, and why a move can't be made."); togglePieceGuide(); }}
           aria-label={showGuide ? "Hide the piece guide" : "Show the piece guide"}
           title={showGuide ? "Hide the piece guide" : "Show the piece guide"}
           style={{

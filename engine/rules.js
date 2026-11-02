@@ -123,7 +123,7 @@ export function inBounds(piece) {
    blackHoleAt/holeExits are trivial when empty — .find on [] is always
    undefined — which is what keeps every caller below a no-op with the
    law off. */
-function blackHoleAt(row, col) {
+export function blackHoleAt(row, col) {
   return BLACK_HOLES.find((b) => b.row === row && b.col === col) || null;
 }
 function otherBlackHole(square) {
@@ -168,7 +168,7 @@ function missingSquareAt(row, col) {
 /* Only the squares a piece actually stands on count — an odd-shaped
    piece's overhang may hang over a Missing Square (see engine/shapes.js).
    For a box that's its whole footprint, as always. */
-function overlapsMissingSquare(candidate) {
+export function overlapsMissingSquare(candidate) {
   if (!MISSING_SQUARES.length) return false; // the common case, checked at every node of an AI search
   if (!MISSING_SQUARES.some((m) => m.row >= candidate.row && m.row < candidate.row + candidate.h && m.col >= candidate.col && m.col < candidate.col + candidate.w)) return false;
   return groundCellsOf(candidate).some(([r, c]) => missingSquareAt(r, c));
@@ -183,7 +183,7 @@ function overlapsMissingSquare(candidate) {
    cash out to: any overlap at all with a hole cell blocks a >1-cell
    footprint outright, since such a footprint can never coincide with a
    single hole-cell exactly, so it can never legally "enter." */
-function blackHoleVerdict(candidate) {
+export function blackHoleVerdict(candidate) {
   // As with Missing Squares, only squares the piece stands on count: an
   // overhang may hang over a hole. And only a one-square piece can ever
   // enter — an odd-shaped piece never is one, even balanced on a single

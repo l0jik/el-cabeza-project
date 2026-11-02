@@ -324,3 +324,28 @@ immediately.
   casting rays as pick() does, a marker behind it; the press arms the
   slide, the click plays nothing; a marker in the open still plays; a
   click on the enemy Cabeza where the roll lands crushes).
+
+## A refused move's note: the slide drag armed for the refused ways (2026-11-02)
+
+- User's pick A1: with the Piece guide on, a press on the chosen piece
+  arms the slide drag (slideDrag) for every way a slide could go, not
+  only the legal ones: `dirs` (legal, and the diagonal shoves the rules
+  refuse, as before) and `refused` (every other way the laws allow, each
+  with its reason from engine/why-not.js whyNotSlide). onMove: a legal way
+  within ~60° still wins, exactly as before; only when none does, the
+  nearest refused way within ~60° shows its X (slideBlockGroup, placed by
+  placeBoardX on the reason's `cells`, over `top` cube levels). onUp: let
+  go there, nothing moves and showWhyNot puts up the note (the X kept).
+- So with the guide on, a drag starting on the chosen piece is a slide
+  gesture even when no slide is legal (it used to orbit the camera when
+  nothing was armed). With the guide off nothing changed. A Cabeza is
+  never armed (it steps by markers). A pivot's preference ignores a drag
+  armed only for refused ways (`preferred: !slideDrag ||
+  !slideDrag.dirs.length || nearArm`).
+- The note: whyNot state, placed every frame by a frame hook (beside the
+  X on a computer, above it on a phone), put away by any pointerdown
+  (capture; the touch still acts on the board), Escape, 4.4 s, another
+  piece chosen, a move, the turn, the guide off. A press of an own piece
+  with no move (whyNoMove) shows it at the piece, with no X.
+- Tests: tests/e2e-why-not.mjs; tests/e2e-shoving.mjs section 5 (the
+  diagonal X now stays with its note until the next click).

@@ -360,7 +360,7 @@ const GOLD = (a) => `rgba(${rgbOf(MENU.gold)}, ${a})`;
 const PAINT = (a) => `rgba(${rgbOf(MENU.paint)}, ${a})`;
 const PANELS = [
   '[data-testid="dock-panel"]', '[data-testid="sound-menu"]', '[data-testid="music-panel"]', '[data-testid="info-overlay"] > div',
-  '[data-testid="movelog-sheet"]', '[data-testid="victory-placard"]', '[data-testid="new-game-choice"]', '[data-testid="piece-card"]',
+  '[data-testid="movelog-sheet"]', '[data-testid="victory-placard"]', '[data-testid="new-game-choice"]', '[data-testid="piece-card"]', '[data-testid="why-not"]',
   ".rg-choose", ".rg-sheet", ".rg-pick-box",
 ].join(", ");
 
@@ -591,7 +591,7 @@ export const styleSheet = `
   [data-testid="info-overlay"] [role="tab"][aria-selected="true"] { color: ${MENU.ink} !important; border-color: ${GOLD(0.9)} !important; }
 
   /* The piece card: a small swatch, its fillet closer to the edge. */
-  [data-testid="piece-card"] { padding: 12px 18px 13px !important; outline-offset: -6px !important; }
+  [data-testid="piece-card"], [data-testid="why-not"] { padding: 12px 18px 13px !important; outline-offset: -6px !important; }
   /* Little scraps of the same paint over the painting. */
   [data-testid="points-counter"], [data-testid="unused-points-note"] {
     color: ${MENU.ink} !important; background: url(${PAPER}) 0 0 / 512px, ${MENU.paper} !important; padding: 6px 24px !important; border-radius: 0 !important;
