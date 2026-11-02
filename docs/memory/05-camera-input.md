@@ -327,6 +327,8 @@ immediately.
 
 ## A refused move's note: the slide drag armed for the refused ways (2026-11-02)
 
+- (Since 2026-11-02 the note is its own setting, Why not, not the Piece
+  guide's: read "Why not" for "the Piece guide" below; docs/memory/piece-guide.md.)
 - User's pick A1: with the Piece guide on, a press on the chosen piece
   arms the slide drag (slideDrag) for every way a slide could go, not
   only the legal ones: `dirs` (legal, and the diagonal shoves the rules

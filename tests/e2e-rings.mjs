@@ -163,7 +163,7 @@ const looks = (page) => page.evaluate(() => {
   const quick = (n) => { if (!n) return 0; const cs = getComputedStyle(n); return Math.max(...cs.transitionDuration.split(",").map(parseFloat), ...cs.animationDuration.split(",").map(parseFloat)); };
   return { bad, small, motion: Math.max(quick(L.querySelector(".cr-stage")), quick(L.querySelector(".cr-card")), quick(L.querySelector(".cr-more"))) };
 });
-const SETUP = ["first", "opponent", "level", "start", "pieces", "cart", "check", "points", "costs", "guide", "sound", "language", "replay", "saves", "bar"];
+const SETUP = ["first", "opponent", "level", "start", "pieces", "cart", "check", "points", "costs", "guide", "whynot", "sound", "language", "replay", "saves", "bar"];
 const rows = (page) => page.evaluate(() => [...document.querySelectorAll('[data-testid="dock-menu"] [data-testid="menu-fan-more"] [data-mf-row]')].map((n) => n.getAttribute("data-mf-row")));
 const groups = (page) => page.evaluate(() => [...document.querySelectorAll('[data-testid="dock-menu"] [data-testid="menu-fan-more"] [data-mf-group]')].map((n) => n.getAttribute("data-mf-group")));
 
@@ -237,6 +237,30 @@ console.log("The store, on a phone: Calm Rings is the menu");
   check("...Move costs, a switch: flipped in the panel, the list still out, its switch saying so", !!(await poll(async () => (await costs()) !== c0 && (await page.evaluate((v) => document.querySelector('[data-testid="menu-fan-more"] [data-mf-row="costs"]').getAttribute("aria-checked") === v, await costs())), 3000, 100)) && !!(await out(page)));
   await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-row="costs"]');
   await poll(async () => (await costs()) === c0, 3000, 100);
+  // Why not, its own switch beside the Piece guide (user: "they need to be
+  // separated out"); a row's icon says what it does (user: "Clicking on
+  // their icons should give you a brief overview as to what they do").
+  check("...Why not its own row in Help on the board, after the Piece guide", listed.indexOf("whynot") === listed.indexOf("guide") + 1, listed.join());
+  const whyNot = () => page.evaluate(() => document.querySelector('[data-testid="why-not-toggle"]').getAttribute("aria-pressed"));
+  const w0 = await whyNot();
+  const about = () => page.evaluate(() => [...document.querySelectorAll('[data-testid="dock-menu"] [data-testid="menu-fan-about"]')].map((n) => ({ key: n.dataset.mfAbout, text: n.textContent })));
+  await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-about-b="whynot"]');
+  let ab = await poll(async () => { const a = await about(); return a.length ? a : null; }, 3000, 100);
+  check("...a tap on Why not's icon: what it does, in a line under its row", !!ab && ab.length === 1 && ab[0].key === "whynot" && /When a move can't be made, an X on the square and a note saying why\./.test(ab[0].text), JSON.stringify(ab));
+  check("...its switch left as it was", (await whyNot()) === w0);
+  const under = await page.evaluate(() => { const r = document.querySelector('[data-testid="dock-menu"] [data-mf-rowwrap="whynot"]').getBoundingClientRect(), a = document.querySelector('[data-testid="dock-menu"] [data-testid="menu-fan-about"]').getBoundingClientRect(); return a.top >= r.bottom - 6 && a.top - r.bottom < 12; });
+  check("...the line right under the row", under);
+  await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-about-b="guide"]');
+  ab = await poll(async () => { const a = await about(); return a.length && a[0].key === "guide" ? a : null; }, 3000, 100);
+  check("...the Piece guide's icon: its own line (one at a time), the card and nothing of why a move can't be made", !!ab && ab.length === 1 && /A card that says what the chosen piece does\./.test(ab[0].text) && !/can't be made/.test(ab[0].text), JSON.stringify(ab));
+  await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-about-b="guide"]');
+  check("...a second tap on the icon puts the line away", !!(await poll(async () => (await about()).length === 0, 3000, 100)));
+  await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-row="whynot"]');
+  check("...Why not's row flips its own switch, the guide's left alone", !!(await poll(async () => (await whyNot()) !== w0, 3000, 100)) && (await page.evaluate(() => document.querySelector('[data-testid="guide-toggle"]').getAttribute("aria-pressed"))) === "true");
+  await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-row="whynot"]');
+  await poll(async () => (await whyNot()) === w0, 3000, 100);
+  l = await looks(page);
+  check("...the icons' buttons 44 px or more too", !!l && !l.small.length, JSON.stringify(l && l.small));
   await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-row="language"]');
   check("...Language opens its choices in the list itself, not another page", !!(await poll(() => page.evaluate(() => document.querySelectorAll('[data-testid="menu-fan-more"] [data-mf-of="language"] [data-mf-choice]').length >= 3), 3000, 100)));
   await tapIn(page, '[data-testid="menu-fan-more"] [data-testid="menu-fan-close"]');

@@ -117,6 +117,13 @@ const FOOT_ICONS = {
       <path d="M8 9h8M8 12h5" />
     </svg>
   ),
+  "why-not": (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.6 9.6a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.7" />
+      <path d="M12 17.1v.1" />
+    </svg>
+  ),
   costs: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="9" />
@@ -323,7 +330,7 @@ function cardText(t) {
     // what More holds, in its groups.)
     case "foot": {
       if (t.rings) {
-        const hints = [t.check ? "Check alert" : null, "Piece guide", t.costs ? "Move costs" : null, "Actions left"].filter(Boolean).map(tr);
+        const hints = [t.check ? "Check alert" : null, "Piece guide", "Why not", t.costs ? "Move costs" : null, "Actions left"].filter(Boolean).map(tr);
         const rows = [
           ["Game", "End your turn, undo, and end the game (it asks first)."],
           ["Help on the board", say("{list}.", { list: list(hints) })],
@@ -340,7 +347,8 @@ function cardText(t) {
       }
       const icons = [];
       if (t.layout) icons.push({ icon: "layout", name: "Control bar", text: "moves the menu to a bar along the foot of the screen." });
-      icons.push({ icon: "guide", name: "Piece guide", text: "a card that tells you what the piece you pick does, and why a move can't be made." });
+      icons.push({ icon: "why-not", name: "Why not", text: "when a move can't be made, an X on the square and a note that says why." });
+      icons.push({ icon: "guide", name: "Piece guide", text: "a card that tells you what the piece you pick does." });
       if (t.costs) icons.push({ icon: "costs", name: "Move costs", text: "how many actions each move takes, on its marker." });
       icons.push({ icon: "points", name: "Actions left", text: "the lights at the foot of the screen that count them." });
       if (t.sound) icons.push({ icon: "sound", name: "Sound", text: t.channels ? "the volume, with the music and the other sounds each on or off." : "the volume." });

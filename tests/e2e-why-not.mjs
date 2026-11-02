@@ -1,17 +1,24 @@
 /* A refused move says why (user, with a clip of a yellow Cruce that
    wouldn't slide: "when attempting to make a move that's not allowed, for
    whatever reason, a pop-up should appear with an explanation"; the pick,
-   A1: the Piece guide's, an X on the square aimed at with a bubble beside
-   it saying why, tagged with the setting). On the user's own position in
-   the Lab (Neo-Brutalism; slides, shoving on slides, only opponents):
+   A1: an X on the square aimed at with a bubble beside it saying why,
+   tagged with the setting; its own setting, Why not, since the user's
+   "they need to be separated out" from the Piece guide). On the user's
+   own position in the Lab (Neo-Brutalism; slides, shoving on slides,
+   only opponents):
    1. Desktop: dragging the yellow Cruce toward the pink one shows the X
       while it points there; let go, nothing moves and the note, tagged
-      Piece guide, says it's too heavy to push (4 cubes against 4), the X
-      kept. The next click puts both away. A stray tap on an empty square
-      says nothing. A press of a boxed-in Turrito says what's in its way.
-      After a roll a row down, the same drag: not enough actions, 3 (slide
-      2, push 1), 1 left; gone by itself after a few seconds.
-   2. The Piece guide switched off: the same drag, no note and no X.
+      Why not, says it's too heavy to push (4 cubes against 4), the X
+      kept, clear of the Cruce; the piece card put away while it's up
+      (one thing to read at a time). The next click puts both away. A
+      stray tap on an empty square says nothing. A press of a boxed-in
+      Turrito says what's in its way. After a roll a row down, the same
+      drag: not enough actions, 3 (slide 2, push 1), 1 left; gone by
+      itself after a few seconds.
+   2. Why not switched off: the same drag, no note and no X, the piece
+      card still there. The Piece guide off and Why not on: the note, and
+      no card. A player who'd switched the guide off before this (no
+      Why not saved yet): no note, as then.
    3. A phone, by touch: the note above the X, clear of the finger.
    4. In Spanish: the note, and its tag, in Spanish.
      node tests/e2e-why-not.mjs */
@@ -38,16 +45,20 @@ const LAWS = { slide: true, shoving: true, shoveOnRolls: false, shoveOwn: false,
 const DESK = { viewport: { width: 1366, height: 768 } };
 const PHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
 
-async function open({ phone = false, guide = true, lang = null } = {}) {
+// guide: the Piece guide's switch; whyNot: Why not's (null: never set).
+async function open({ phone = false, guide = true, whyNot = null, lang = null } = {}) {
   const ctx = await browser.newContext(phone ? PHONE : DESK);
-  await ctx.addInitScript(({ laws, guide }) => {
+  await ctx.addInitScript(({ laws, guide, whyNot }) => {
     window.__EC_TEST_HOOKS__ = true;
     window.__EC_LAWS__ = laws;
     try {
+      if (sessionStorage.getItem("seeded")) return;
+      sessionStorage.setItem("seeded", "1");
       localStorage.setItem("el-cabeza:lab-theme", "neoBrutalist");
       if (!guide) localStorage.setItem("el-cabeza:piece-guide", "0");
+      if (whyNot !== null) localStorage.setItem("el-cabeza:why-not", whyNot ? "1" : "0");
     } catch (e) { /* none */ }
-  }, { laws: LAWS, guide });
+  }, { laws: LAWS, guide, whyNot });
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
@@ -137,7 +148,10 @@ const pieceAt = (page, id) => page.evaluate((i) => window.__EC_TEST_PIECES__.fin
   let mid = await dragEast(s, from, [5, 5]);
   check("dragging the yellow Cruce toward the pink one: the X, no arrow", mid.x && !mid.arrow, JSON.stringify(mid));
   let n = await note(page);
-  check("let go: the Piece guide's note, too heavy to push", n.up && n.code === "heavy" && n.visible && n.tag === "Piece guide", JSON.stringify(n));
+  check("let go: Why not's note, too heavy to push", n.up && n.code === "heavy" && n.visible && n.tag === "Why not", JSON.stringify(n));
+  check("...the piece card put away while it's up", (await chosen(page)) === 0);
+  const cruceBox = await page.evaluate(() => { const r = window.__EC_TEST_PIECE_RECT__("light-cruce"); return r && { l: r.left, t: r.top, r: r.right, b: r.bottom }; });
+  check("...the note clear of the chosen Cruce", !!cruceBox && (n.box.right <= cruceBox.l || n.box.left >= cruceBox.r || n.box.bottom <= cruceBox.t || n.box.top >= cruceBox.b), JSON.stringify({ note: n.box, cruce: cruceBox }));
   check("...\"Can't push the Pink Cruce\": 4 cubes, as many as yours", n.title === "Can't push the Pink Cruce" && /4 cubes, as many as your Cruce/.test(n.body) && /fewer cubes/.test(n.body), `${n.title} | ${n.body}`);
   check("...beside the X, on the screen, the X kept", n.x && n.inView && n.box.left > n.xAt.x, JSON.stringify(n));
   const c1 = await pieceAt(page, "light-cruce");
@@ -181,9 +195,39 @@ const pieceAt = (page, id) => page.evaluate((i) => window.__EC_TEST_PIECES__.fin
   await s.ctx.close();
 }
 
-// ---- 2. The Piece guide off: nothing said ----
+// ---- 2. Why not, its own switch ----
 {
-  console.log("[guide off]");
+  console.log("[why not off]");
+  const s = await open({ whyNot: false });
+  const { page, errs } = s;
+  await aim(page, false, [5.2, 5.4]);
+  const from = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-cruce"));
+  await tap(s, from.x, from.y);
+  check("with Why not off, the Piece guide's card for the chosen Cruce still there", (await chosen(page)) === 1);
+  const mid = await dragEast(s, from, [5, 5]);
+  const n = await note(page);
+  check("...the same drag: no X, no note", !mid.x && !n.up && !n.x, JSON.stringify({ mid, n }));
+  const c1 = await pieceAt(page, "light-cruce");
+  check("...and nothing moved", c1.row === 4 && c1.col === 3, JSON.stringify(c1));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await s.ctx.close();
+}
+{
+  console.log("[guide off, why not on]");
+  const s = await open({ guide: false, whyNot: true });
+  const { page, errs } = s;
+  await aim(page, false, [5.2, 5.4]);
+  const from = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-cruce"));
+  await tap(s, from.x, from.y);
+  check("with the Piece guide off, no card for the chosen Cruce", (await chosen(page)) === 0);
+  const mid = await dragEast(s, from, [5, 5]);
+  const n = await note(page);
+  check("...Why not still on: the X, then its note", mid.x && n.up && n.code === "heavy" && n.tag === "Why not", JSON.stringify({ mid, n }));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await s.ctx.close();
+}
+{
+  console.log("[guide off before, why not never set]");
   const s = await open({ guide: false });
   const { page, errs } = s;
   await aim(page, false, [5.2, 5.4]);
@@ -191,9 +235,7 @@ const pieceAt = (page, id) => page.evaluate((i) => window.__EC_TEST_PIECES__.fin
   await tap(s, from.x, from.y);
   const mid = await dragEast(s, from, [5, 5]);
   const n = await note(page);
-  check("with the Piece guide off, the same drag: no X, no note", !mid.x && !n.up && !n.x, JSON.stringify({ mid, n }));
-  const c1 = await pieceAt(page, "light-cruce");
-  check("...and nothing moved", c1.row === 4 && c1.col === 3, JSON.stringify(c1));
+  check("a player who'd switched the guide off (when it held the note): no X, no note, as then", !mid.x && !n.up && !n.x, JSON.stringify({ mid, n }));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await s.ctx.close();
 }
@@ -224,7 +266,7 @@ const pieceAt = (page, id) => page.evaluate((i) => window.__EC_TEST_PIECES__.fin
   await tap(s, from.x, from.y);
   await dragEast(s, from, [5, 5]);
   const n = await note(page);
-  check("in Spanish: the tag and the note", n.up && n.tag === "Guía de piezas" && n.title === "No se puede empujar el Cruce de Rosa" && /Tiene 4 cubos, tantos como tu Cruce\./.test(n.body), JSON.stringify(n));
+  check("in Spanish: the tag and the note", n.up && n.tag === "Por qué no" && n.title === "No se puede empujar el Cruce de Rosa" && /Tiene 4 cubos, tantos como tu Cruce\./.test(n.body), JSON.stringify(n));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await s.ctx.close();
 }

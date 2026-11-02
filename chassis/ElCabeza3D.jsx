@@ -359,6 +359,21 @@ function loadPieceGuide() {
 function savePieceGuide(on) {
   try { window.localStorage.setItem(PIECE_GUIDE_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
 }
+/* Why not: the note on a refused move (the X and its bubble), its own
+   switch since 2026-11-02 (user: "the why it won't work should be its own
+   separate setting, because if it's folded into Piece Guide, There's too
+   much on the screen at one time"); it was the Piece guide's. On unless
+   switched off; a player who'd switched the guide off, with it then, keeps
+   it off. */
+const WHY_NOT_KEY = "el-cabeza:why-not";
+function loadWhyNot() {
+  try { const v = window.localStorage.getItem(WHY_NOT_KEY); return v == null ? loadPieceGuide() : v !== "0"; } catch (e) { return true; }
+}
+function saveWhyNot(on) {
+  try { window.localStorage.setItem(WHY_NOT_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
+}
+/* How much two screen boxes ({ left, top, right, bottom }) overlap, px². */
+const overlapArea = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
 const SHOW_COSTS_KEY = "el-cabeza:show-move-costs";
 function loadShowCosts() {
   try { return window.localStorage.getItem(SHOW_COSTS_KEY) !== "0"; } catch (e) { return true; }
@@ -1125,6 +1140,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       t.ghostGroup.traverse((o) => { if (o.userData.costBadge) out.push({ dir: o.parent && o.parent.userData.dir, text: o.userData.costBadge }); });
       return out;
     };
+    // A piece's box on the screen (pieceScreenRect: the card and the note
+    // keep off the chosen piece's).
+    window.__EC_TEST_PIECE_RECT__ = (id) => pieceScreenRect(id);
     window.__EC_TEST_SCREEN_POS__ = (id) => {
       const t = three.current;
       const mesh = t.pieceGroup && t.pieceGroup.children.find((c) => c.userData.pieceId === id && c.userData.kind === "piece");
@@ -1532,6 +1550,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [showCosts, setShowCosts] = useState(loadShowCosts);
   const [showGuide, setShowGuide] = useState(loadPieceGuide);
   const togglePieceGuide = () => { const next = !showGuide; setShowGuide(next); savePieceGuide(next); };
+  // Why not, its own switch (loadWhyNot): the note on a refused move.
+  const [whyNotOn, setWhyNotOn] = useState(loadWhyNot);
+  const toggleWhyNot = () => { const next = !whyNotOn; setWhyNotOn(next); saveWhyNot(next); };
   const [checkAlert, setCheckAlert] = useState(loadCheckAlert);
   const toggleCheckAlert = () => { const next = !checkAlert; setCheckAlert(next); saveCheckAlert(next); };
   // The check alert's switch in the dock (setup, and in play beside Focus):
@@ -1574,16 +1595,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const id = setTimeout(() => setHoldHint(null), 4000);
     return () => clearTimeout(id);
   }, [holdHint]);
-  /* The Piece guide's note on a refused move (user, of a Cruce that
+  /* The note on a refused move, Why not's (user, of a Cruce that
      wouldn't slide: "when attempting to make a move that's not allowed,
      for whatever reason, a pop-up should appear with an explanation";
      the pick, A1): an X on the square aimed at (the board's
      slideBlockGroup, the diagonal shove's X) and a bubble beside it
      saying why, tagged with the setting it belongs to. engine/why-not.js
      says which rule refused the move, chassis/why-not.js puts it in
-     words. Only with the Piece guide on, on your own turn; gone after
-     WHY_NOT_MS, or at the next touch. `at` is where the bubble points, in
-     the board's own space (the X's middle, or the piece's top). */
+     words. Only with Why not on (its own switch since the user's "they
+     need to be separated out"; it was the Piece guide's), on your own
+     turn; gone after WHY_NOT_MS, or at the next touch. `at` is where the
+     bubble points, in the board's own space (the X's middle, or the
+     piece's top). */
   const [whyNot, setWhyNot] = useState(null);
   const whyNotTimerRef = useRef(0);
   const whyNotXRef = useRef(false); // the X is the note's (not a drag's)
@@ -1611,10 +1634,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     }
     setWhyNot(null);
   };
-  // A refused move's reason (engine/why-not.js) for `piece`: shown, if the
-  // guide's on and it's a moment for it. True when shown.
+  // A refused move's reason (engine/why-not.js) for `piece`: shown, if
+  // Why not is on and it's a moment for it. True when shown.
   const showWhyNot = (reason, piece) => {
-    if (!reason || !piece || !showGuide || !isPlaying || tourStep || replaying || currentPlayer === foeSide || piece.owner !== currentPlayer) return false;
+    if (!reason || !piece || !whyNotOn || !isPlaying || tourStep || replaying || currentPlayer === foeSide || piece.owner !== currentPlayer) return false;
     const words = whyNotWords(reason, { mover: piece, sideName });
     clearTimeout(whyNotTimerRef.current);
     const placed = placeBoardX(reason.cells, reason.top);
@@ -1634,7 +1657,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   };
   // (For the pointer handlers, bound less often than this renders.)
   const whyNotRef = useRef(null);
-  whyNotRef.current = { show: showWhyNot, hide: hideWhyNot, placeX: placeBoardX, guide: showGuide };
+  whyNotRef.current = { show: showWhyNot, hide: hideWhyNot, placeX: placeBoardX, on: whyNotOn };
   // Switched off from the banner itself: a moment's note where it was.
   const [checkOffNote, setCheckOffNote] = useState(0);
   useEffect(() => {
@@ -4973,17 +4996,55 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      away, until another piece is picked or the turn moves on. */
   const [pieceCardDismissed, setPieceCardDismissed] = useState(false);
   useEffect(() => { setPieceCardDismissed(false); }, [selectedId, currentPlayer]);
+  /* Where a piece is on the screen: its box, children and all (a City
+     building rides on its piece), projected; null when it isn't there.
+     The box, in the piece's own frame, kept per mesh (a new mesh comes
+     with a piece that's changed). For the piece card and the refused
+     move's note, which keep off the chosen piece. */
+  const pieceBoxesRef = useRef(new WeakMap());
+  const pieceScreenRect = (id) => {
+    const t3 = three.current;
+    if (!id || !t3 || !t3.pieceGroup || !t3.camera || !t3.renderer) return null;
+    const mesh = t3.pieceGroup.children.find((c) => c.userData && c.userData.pieceId === id && c.userData.kind === "piece");
+    if (!mesh) return null;
+    let box = pieceBoxesRef.current.get(mesh);
+    if (!box) {
+      box = new THREE.Box3();
+      mesh.updateWorldMatrix(true, true);
+      const inv = new THREE.Matrix4().copy(mesh.matrixWorld).invert(), m = new THREE.Matrix4(), part = new THREE.Box3();
+      mesh.traverse((o) => {
+        const g = o.geometry;
+        if (!g) return;
+        if (!g.boundingBox) g.computeBoundingBox();
+        if (!g.boundingBox || g.boundingBox.isEmpty()) return;
+        box.union(part.copy(g.boundingBox).applyMatrix4(m.multiplyMatrices(inv, o.matrixWorld)));
+      });
+      if (box.isEmpty()) return null;
+      pieceBoxesRef.current.set(mesh, box);
+    }
+    const r = t3.renderer.domElement.getBoundingClientRect(), v = new THREE.Vector3();
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = 0; i < 8; i++) {
+      v.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).applyMatrix4(mesh.matrixWorld).project(t3.camera);
+      if (v.z > 1) continue; // (behind the camera)
+      const sx = r.left + (v.x * 0.5 + 0.5) * r.width, sy = r.top + (-v.y * 0.5 + 0.5) * r.height;
+      x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy);
+    }
+    return x1 > x0 && y1 > y0 ? { left: x0, top: y0, right: x1, bottom: y1 } : null;
+  };
   /* The refused move's note (showWhyNot): put away when it no longer
      fits (another piece chosen, the turn over, a move made, the game
-     done, the guide switched off), at the next touch anywhere, or
-     Escape. While it's up, each frame keeps the bubble beside its X
-     (the board may still be turning) and its pointer on it: on a
-     computer to the X's right (left, if there's no room), on a phone
-     above it, clear of the finger. */
+     done, Why not switched off), at the next touch anywhere, or Escape.
+     While it's up, each frame keeps the bubble beside its X (the board
+     may still be turning) and its pointer on it: on a computer to the
+     X's right (left, if there's no room), on a phone above it, clear of
+     the finger; and off the chosen piece (user: the guide's cards
+     mustn't "cover up the piece that is currently selected"): where that
+     side would cover it, the next side that doesn't. */
   useEffect(() => {
-    if (whyNot && (whyNot.pieceId !== selectedId || !isPlaying || !showGuide)) hideWhyNot();
+    if (whyNot && (whyNot.pieceId !== selectedId || !isPlaying || !whyNotOn)) hideWhyNot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, currentPlayer, pieces, isPlaying, showGuide]);
+  }, [selectedId, currentPlayer, pieces, isPlaying, whyNotOn]);
   useEffect(() => {
     if (!whyNot) return undefined;
     const t3 = three.current;
@@ -5002,18 +5063,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       const rect = t3.renderer.domElement.getBoundingClientRect();
       const ax = rect.left + (v.x * 0.5 + 0.5) * rect.width, ay = rect.top + (-v.y * 0.5 + 0.5) * rect.height;
       const w = card.offsetWidth, h = card.offsetHeight, vw = window.innerWidth, vh = window.innerHeight, gap = coarse ? 52 : 46;
-      let left, top;
-      if (coarse) {
-        left = ax - w / 2;
-        top = ay - gap - h;
-        if (top < 10) top = ay + gap;
-      } else {
-        left = ax + gap;
-        if (left + w > vw - 10) left = ax - gap - w;
-        top = ay - h / 2;
-      }
-      left = Math.max(10, Math.min(vw - w - 10, left));
-      top = Math.max(10, Math.min(vh - h - 10, top));
+      // Each side of the X in the order it's wanted, kept on the screen;
+      // the first clear of the chosen piece (and, the first two, of the
+      // screen's edge: a computer's right, then left; a phone's above).
+      const above = [ax - w / 2, ay - gap - h], below = [ax - w / 2, ay + gap];
+      const right = [ax + gap, ay - h / 2], leftOf = [ax - gap - w, ay - h / 2];
+      const sides = coarse ? [above, leftOf, right, below] : [right, leftOf, above, below];
+      const fits = ([l, t]) => l >= 10 && t >= 10 && l + w <= vw - 10 && t + h <= vh - 10;
+      const onScreen = ([l, t]) => [Math.max(10, Math.min(vw - w - 10, l)), Math.max(10, Math.min(vh - h - 10, t))];
+      const pr = pieceScreenRect(whyNot.pieceId);
+      const clear = ([l, t]) => !pr || !overlapArea({ left: l, top: t, right: l + w, bottom: t + h }, { left: pr.left - 6, top: pr.top - 6, right: pr.right + 6, bottom: pr.bottom + 6 });
+      const first = sides.find(fits) || sides[0];
+      const [left, top] = onScreen(sides.filter(fits).find(clear) || sides.map(onScreen).find(clear) || first);
       card.style.left = `${Math.round(left)}px`;
       card.style.top = `${Math.round(top)}px`;
       card.style.visibility = "visible";
@@ -5034,11 +5095,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [whyNot]);
-  const pieceCardShown = showGuide && isPlaying && !!selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== foeSide && !replaying && dockView !== "panel" && !pieceCardDismissed && !tourStep;
+  // (Not while a refused move's note is up: one thing to read at a time;
+  // user, of the two at once: "There's too much on the screen".)
+  const pieceCardShown = showGuide && isPlaying && !!selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== foeSide && !replaying && dockView !== "panel" && !pieceCardDismissed && !tourStep && !whyNot;
   /* The card sits above whatever corner buttons a theme stacks at the
      lower left (the den's lamp, room view and full screen; user: the card
      lay over them), measured as it shows and on a resize. */
   const [pieceCardBottom, setPieceCardBottom] = useState(66);
+  // (Its spot when its own place would cover the chosen piece: below.)
+  const [pieceCardSpot, setPieceCardSpot] = useState(null);
+  const pieceCardSpotRef = useRef(null);
+  pieceCardSpotRef.current = pieceCardSpot;
   useEffect(() => {
     if (!pieceCardShown) return undefined;
     const onDown = (ev) => {
@@ -5197,7 +5264,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     aiPlayer ? ["check", '[data-testid="check-alert-switch"]'] : null,
     ["end-game", '[data-testid="end-game"]'],
   ].filter(Boolean);
-  const tourMenuFoot = [layoutSwitch ? "layout" : null, "guide", theme.moveCostToggle ? "costs" : null, "points", theme.hasAudio ? "sound" : null].filter(Boolean);
+  const tourMenuFoot = [layoutSwitch ? "layout" : null, "why-not", "guide", theme.moveCostToggle ? "costs" : null, "points", theme.hasAudio ? "sound" : null].filter(Boolean);
   const t3 = { rings: [], band: null };
   const t2 = { tags: [], arrows: [], boxes: [], orbit: null, avoid: ['[data-testid="points-counter"]', '[data-testid="stop-here-float"]', '[data-testid="undo-move-float"]', '[data-testid="shell-points"]', '[data-testid="corner-menu-tab"]', ...(tourOffer && tourOffer.clear ? [tourOffer.clear] : [])] };
   const tourBlocks = [], tourBoxed = [], tourMoved = [];
@@ -6010,7 +6077,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      and slides back down when the card goes. */
   const [musicChipLift, setMusicChipLift] = useState(0);
   useLayoutEffect(() => {
-    if (!cornerStack || shell || !pieceCardShown || typeof document === "undefined") { setMusicChipLift(0); return undefined; }
+    // (Only while the card's in its own place at the lower left.)
+    if (!cornerStack || shell || !pieceCardShown || pieceCardSpot || typeof document === "undefined") { setMusicChipLift(0); return undefined; }
     const measure = () => {
       const card = document.querySelector('[data-testid="piece-card"]');
       const r = card && card.getBoundingClientRect();
@@ -6020,7 +6088,69 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [cornerStack, shell, pieceCardShown, selectedId, pieceCardBottom, musicChipBottom]);
+  }, [cornerStack, shell, pieceCardShown, selectedId, pieceCardBottom, musicChipBottom, pieceCardSpot]);
+  /* Where the piece card sits (user, of the 1×3 Block's card over the
+     piece: "Piece guide cards will have to be moved so it doesn't cover up
+     the piece that is currently selected"). In its own place at the lower
+     left (pieceCardBottom) unless that covers the chosen piece on the
+     screen (pieceScreenRect); then in the corner that covers it least,
+     clear of the screen's own controls where it can be: the top left
+     under the corner's tab first, then the right side's top and foot.
+     Looked at a few times a second as the view moves (the frame hooks),
+     and left where it is while it's clear, so it doesn't hop about; back
+     in its own place when it next comes. pieceCardSpot: null (its own
+     place), or { key, style }. */
+  useEffect(() => {
+    if (!pieceCardShown || shell || typeof document === "undefined") { setPieceCardSpot(null); return undefined; }
+    const t3 = three.current;
+    const EDGE = 18, PAD = 8;
+    const BUSY = '[data-testid="corner-menu-tab"], [data-testid="ciudad-time-chip"], [data-testid="dock-corner"], [data-testid="turn-buttons-float"], [data-testid="points-counter"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="music-chip"], [data-testid="lab-hud"], [data-testid="action-corner"], [data-testid="how-to-play"], [data-testid="room-view-corner"], [data-testid="focus-corner"], [data-fullscreen-toggle]';
+    let last = -1e9;
+    const look = (now) => {
+      if (now - last < 140) return;
+      last = now;
+      const card = document.querySelector('[data-testid="piece-card"]');
+      const pr0 = card && pieceScreenRect(selectedId);
+      if (!pr0) return;
+      const pr = { left: pr0.left - PAD, top: pr0.top - PAD, right: pr0.right + PAD, bottom: pr0.bottom + PAD };
+      // Clear where it is: it stays.
+      if (!overlapArea(card.getBoundingClientRect(), pr)) return;
+      const vw = window.innerWidth, vh = window.innerHeight, w = card.offsetWidth, h = card.offsetHeight;
+      const taken = [];
+      document.querySelectorAll(BUSY).forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        const cs = getComputedStyle(el);
+        if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) === 0) return;
+        taken.push(r);
+      });
+      // A corner's top: under what's at the top of the screen there (the
+      // tab, the City's clock); its foot: above what's at the foot.
+      const under = (x0, x1) => taken.reduce((y, r) => (r.right > x0 && r.left < x1 && r.top < vh * 0.25 && r.bottom < vh * 0.45 ? Math.max(y, r.bottom + 10) : y), 14);
+      const over = (x0, x1) => taken.reduce((y, r) => (r.right > x0 && r.left < x1 && r.top > vh * 0.55 && r.bottom > vh * 0.75 ? Math.min(y, r.top - 10) : y), vh - 66);
+      const L = [EDGE, EDGE + w], R = [vw - EDGE - w, vw - EDGE];
+      const ownTop = vh - pieceCardBottom - h, tl = under(...L), tr = under(...R), br = over(...R);
+      const spots = [
+        { key: "own", style: null, rect: { left: L[0], right: L[1], top: ownTop, bottom: ownTop + h } },
+        { key: "top-left", style: { left: EDGE, top: tl }, rect: { left: L[0], right: L[1], top: tl, bottom: tl + h } },
+        { key: "top-right", style: { right: EDGE, top: tr }, rect: { left: R[0], right: R[1], top: tr, bottom: tr + h } },
+        { key: "foot-right", style: { right: EDGE, bottom: vh - br }, rect: { left: R[0], right: R[1], top: br - h, bottom: br } },
+      ];
+      // (Covering the piece counts far more than covering a control; off
+      // the screen's foot, not at all; the order breaks a tie.)
+      const score = (sp, i) => (sp.rect.bottom > vh - 4 ? 1e12 : 0) + overlapArea(sp.rect, pr) * 1000 + taken.reduce((a, r) => a + overlapArea(sp.rect, r), 0) + i;
+      let best = spots[0], bestScore = Infinity;
+      spots.forEach((sp, i) => { const v = score(sp, i); if (v < bestScore) { best = sp; bestScore = v; } });
+      const want = best.style ? { key: best.key, style: best.style } : null;
+      const had = pieceCardSpotRef.current;
+      if (JSON.stringify(want) !== JSON.stringify(had)) setPieceCardSpot(want);
+    };
+    if (t3 && t3.frameHooks) t3.frameHooks.add(look);
+    // (And once as it shows, the board still or not.)
+    const first = requestAnimationFrame(() => requestAnimationFrame(() => { last = -1e9; look(performance.now()); }));
+    return () => { cancelAnimationFrame(first); if (t3 && t3.frameHooks) t3.frameHooks.delete(look); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pieceCardShown, shell, selectedId, pieceCardBottom]);
 
   /* ------------------------- scene setup ------------------------- */
   useEffect(() => {
@@ -9531,11 +9661,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 ...Object.entries(moves).filter(([, m]) => m.isSlide),
                 ...blockedDiag.map((b) => [slideKey(b.dir), { blocked: b }]),
               ];
-              // With the Piece guide on, every other way a slide could go
-              // here, refused, and why (engine/why-not.js): the X while the
-              // drag points that way, the note when it's let go there. (A
-              // way the rules allow always wins the drag, as before.)
-              const refused = piece && piece.type !== "cabeza" && whyNotRef.current.guide
+              // With Why not on, every other way a slide could go here,
+              // refused, and why (engine/why-not.js): the X while the drag
+              // points that way, the note when it's let go there. (A way
+              // the rules allow always wins the drag, as before.)
+              const refused = piece && piece.type !== "cabeza" && whyNotRef.current.on
                 ? Object.keys(STEP_DIRS)
                   .filter((dir) => !slideEntries.some(([key]) => baseDirOfSlideKey(key) === dir))
                   .map((dir) => ({ dir, reason: whyNotSlide(pieces, piece, dir, slideRemaining) }))
@@ -10210,7 +10340,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           const willSelect = selectedId !== p.id;
           willSelect ? audioRef.current.playSelect(cubeCount(p)) : audioRef.current.playDeselect(cubeCount(p));
           setSelectedId((prev) => (prev === p.id ? null : p.id));
-          // A piece of yours with no move at all: the Piece guide says why.
+          // A piece of yours with no move at all: Why not says why.
           if (willSelect) whyNotRef.current.show(whyNoMove(pieces, p, maxStepsFor(p.type)), p);
         }
       } else if (!hit && !turnLocked) {
@@ -12579,15 +12709,19 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
          RulesCards.jsx, pieceCardInfo). "More" opens its MOVES tile. */}
       {pieceCardShown && !shell && (() => {
         const info = pieceCardInfo(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name);
+        // (Moved off the chosen piece: pieceCardSpot; in with a short fade
+        // where it goes.)
         return (
           <div
+            key={pieceCardSpot ? pieceCardSpot.key : "own"}
             data-testid="piece-card"
             data-piece={selectedPiece.type}
+            data-spot={pieceCardSpot ? pieceCardSpot.key : "own"}
             role="status"
             style={{
               position: "fixed",
-              left: 18,
-              bottom: pieceCardBottom,
+              ...(pieceCardSpot ? pieceCardSpot.style : { left: 18, bottom: pieceCardBottom }),
+              animation: pieceCardSpot ? "ecPieceCardMove 170ms ease both" : undefined,
               zIndex: 12,
               width: "min(250px, calc(100vw - 36px))",
               boxSizing: "border-box",
@@ -12615,6 +12749,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
               </button>
             </div>
             <div data-testid="piece-card-text">{info.text}</div>
+            {pieceCardSpot && <style>{"@keyframes ecPieceCardMove{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}@media (prefers-reduced-motion: reduce){[data-testid=\"piece-card\"]{animation:none!important}}"}</style>}
           </div>
         );
       })()}
@@ -12655,7 +12790,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
           </div>
         );
       })()}
-      {/* The Piece guide's note on a refused move (showWhyNot): the
+      {/* Why not's note on a refused move (showWhyNot): the
          bubble by the X, tagged with the setting it belongs to, and its
          pointer to the X. Placed at each frame (the effect by the piece
          card's); hidden until then. Taps go through it. */}
@@ -12693,7 +12828,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             }}
           >
             <style>{"@keyframes ecWhyNotIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:none}}"}</style>
-            <div data-testid="why-not-tag" style={{ display: "inline-block", marginBottom: 5, padding: "2px 6px 1px", borderRadius: 4, background: COLORS.charcoal, color: COLORS.cream, font: "700 9.5px/1.4 'IBM Plex Sans', sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Piece guide</div>
+            <div data-testid="why-not-tag" style={{ display: "inline-block", marginBottom: 5, padding: "2px 6px 1px", borderRadius: 4, background: COLORS.charcoal, color: COLORS.cream, font: "700 9.5px/1.4 'IBM Plex Sans', sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Why not</div>
             <div data-testid="why-not-title" style={{ fontFamily: titleFontFamily, fontSize: 15, fontWeight: 600, lineHeight: 1.25, marginBottom: 2 }}>{whyNot.title}</div>
             <div data-testid="why-not-body">{whyNot.body}</div>
           </div>
@@ -14381,7 +14516,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
               position: "absolute",
               left: 16,
               bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
-              maxWidth: `calc(100% - ${(theme.hasAudio ? 76 : 44) + 32 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0) + (langInFoot ? 32 : 0) + 20}px)`,
+              maxWidth: `calc(100% - ${(theme.hasAudio ? 76 : 44) + 64 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0) + (langInFoot ? 32 : 0) + 20}px)`,
               display: "flex",
               alignItems: "baseline",
               gap: 10,
@@ -14445,7 +14580,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             style={{
               position: "absolute",
               left: 20,
-              right: (theme.hasAudio ? 76 : 44) + 32 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0) + (langInFoot ? 32 : 0),
+              right: (theme.hasAudio ? 76 : 44) + 64 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0) + (langInFoot ? 32 : 0),
               // (With the corner switches, into the strip at the end of the
               // panel's content when it scrolls: --ec-dock-overflow.)
               bottom: "calc(7px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
@@ -14565,7 +14700,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
           aria-pressed={showGuide}
           disabled={firstLook}
           {...firstLockIcon}
-          onClick={(e) => { showToggleHint(e, showGuide ? "Piece guide: off." : "Piece guide: on. A card says what the chosen piece does, and why a move can't be made."); togglePieceGuide(); }}
+          onClick={(e) => { showToggleHint(e, showGuide ? "Piece guide: off." : "Piece guide: on. A card says what the chosen piece does."); togglePieceGuide(); }}
           aria-label={showGuide ? "Hide the piece guide" : "Show the piece guide"}
           title={showGuide ? "Hide the piece guide" : "Show the piece guide"}
           style={{
@@ -14593,9 +14728,48 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             {!showGuide && <line x1="3" y1="21" x2="21" y2="3" />}
           </svg>
         </button>
-        {/* The language, left of the piece guide (on a phone it's in the
-           turn line instead). Pressable at a first look too: a new player
-           may need it before anything else. */}
+        {/* Why not on/off (its own since the user's "they need to be
+           separated out"): the note on a refused move. The glyph, a
+           question in a ring, struck through while it's off; left of the
+           piece guide. */}
+        <button
+          data-testid="why-not-toggle"
+          data-dock-foot=""
+          aria-pressed={whyNotOn}
+          disabled={firstLook}
+          {...firstLockIcon}
+          onClick={(e) => { showToggleHint(e, whyNotOn ? "Why not: off." : "Why not: on. When a move can't be made, an X on the square and a note say why."); toggleWhyNot(); }}
+          aria-label={whyNotOn ? "Hide why a move can't be made" : "Show why a move can't be made"}
+          title={whyNotOn ? "Hide why a move can't be made" : "Show why a move can't be made"}
+          style={{
+            position: "absolute",
+            right: (theme.hasAudio ? 40 : 8) + 64 + (theme.moveCostToggle ? 32 : 0),
+            bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
+            width: 30,
+            height: 30,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "transparent",
+            border: "none",
+            color: COLORS.slate,
+            opacity: whyNotOn ? 0.85 : 0.45,
+            cursor: "pointer",
+            transition: "opacity 0.2s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = 0.85; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = whyNotOn ? 0.85 : 0.45; }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M9.6 9.6a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.7" />
+            <path d="M12 17.1v.1" />
+            {!whyNotOn && <line x1="3" y1="21" x2="21" y2="3" />}
+          </svg>
+        </button>
+        {/* The language, left of Why not (on a phone it's in the turn
+           line instead). Pressable at a first look too: a new player may
+           need it before anything else. */}
         {langInFoot && (
           <LanguageBadge
             ink={COLORS.charcoal}
@@ -14604,7 +14778,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             hair={COLORS.slateSoft}
             style={{
               position: "absolute",
-              right: (theme.hasAudio ? 40 : 8) + 64 + (theme.moveCostToggle ? 32 : 0),
+              right: (theme.hasAudio ? 40 : 8) + 96 + (theme.moveCostToggle ? 32 : 0),
               bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
             }}
           />
@@ -14625,7 +14799,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             title="Use the control bar layout"
             style={{
               position: "absolute",
-              right: (theme.hasAudio ? 40 : 8) + 64 + (theme.moveCostToggle ? 32 : 0) + (langInFoot ? 32 : 0),
+              right: (theme.hasAudio ? 40 : 8) + 96 + (theme.moveCostToggle ? 32 : 0) + (langInFoot ? 32 : 0),
               bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
               width: 30,
               height: 30,
@@ -14866,6 +15040,8 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
               : null,
             showGuide,
             onToggleGuide: togglePieceGuide,
+            showWhyNot: whyNotOn,
+            onToggleWhyNot: toggleWhyNot,
             // Setup
             opponentLocked: busy || aiThinking || turnLocked,
             aiDifficulty, AI_DIFFICULTY,

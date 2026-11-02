@@ -2357,4 +2357,17 @@ export default {
   "Standard Cabeza or Cabeza Nova": "Cabeza tiêu chuẩn hoặc Cabeza Nova",
   "Standard Cabeza or Cabeza Nova for the next game": "Cabeza tiêu chuẩn hoặc Cabeza Nova cho ván sau",
   "Standard Cabeza or Cabeza Nova for this game": "Cabeza tiêu chuẩn hoặc Cabeza Nova cho ván này",
+  // Why not, its own switch apart from the Piece guide; a row's icon saying what it is (the calm menu).
+  "Why not": "Vì sao không",
+  "Why not: off.": "Vì sao không: tắt.",
+  "Why not: on.": "Vì sao không: bật.",
+  "When a move can't be made, an X on the square and a note say why.": "Khi một nước đi không thực hiện được, một dấu X trên ô và một ghi chú cho biết vì sao.",
+  "Why not: on. When a move can't be made, an X on the square and a note say why.": "Vì sao không: bật. Khi một nước đi không thực hiện được, một dấu X trên ô và một ghi chú cho biết vì sao.",
+  "Hide why a move can't be made": "Ẩn lý do một nước đi không thực hiện được",
+  "Show why a move can't be made": "Hiện lý do một nước đi không thực hiện được",
+  "Piece guide: on. A card says what the chosen piece does.": "Hướng dẫn quân: bật. Một thẻ cho biết quân được chọn làm gì.",
+  "When a move can't be made, an X on the square and a note saying why.": "Khi một nước đi không thực hiện được, một dấu X trên ô và một ghi chú cho biết vì sao.",
+  "When a move can't be made, an X on the square and a note saying why": "Khi một nước đi không thực hiện được, một dấu X trên ô và một ghi chú cho biết vì sao",
+  "when a move can't be made, an X on the square and a note that says why.": "khi một nước đi không thực hiện được, một dấu X trên ô và một ghi chú cho biết vì sao.",
+  "What is {name}?": "{name} là gì?",
 };

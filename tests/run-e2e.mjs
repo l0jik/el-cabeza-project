@@ -99,6 +99,8 @@ const E2E = [
   ["e2e-why-not.mjs"],
   // The rules in every world: ?nova opens a world's Cabeza Nova menu whatever the story; Change rules on the Rules card in play (asked first) and in the menus between games; nothing without the story or the link; a phone; Spanish.
   ["e2e-change-rules.mjs"],
+  // The piece card keeps off the chosen piece: in its own place till that covers it, then the corner that covers it least, left there while clear (the City on a phone, Luna on a computer).
+  ["e2e-piece-card-place.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

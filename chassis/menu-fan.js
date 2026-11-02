@@ -99,6 +99,7 @@ const ICON = {
   points: '<circle cx="6" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="18" cy="12" r="2"/>',
   costs: '<path d="M4 12.5V5h7.5l8.5 8.5-7.5 7.5z"/><circle cx="8.3" cy="9.2" r="1.4"/>',
   guide: '<rect x="4" y="4.5" width="16" height="15" rx="2"/><path d="M12 10.6v5M12 7.7v.1"/>',
+  whynot: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.7M12 17.1v.1"/>',
   bar: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M3.5 15h17"/>',
   view: '<path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6"/>',
   focus: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/>',
@@ -135,13 +136,13 @@ export const KINDS = [
 const KIND_OF = {
   you: "game", first: "game", opponent: "game", level: "game", endturn: "game", undomove: "game", undoturn: "game", endgame: "game", plainrules: "game",
   start: "board", half: "board", pieces: "board", nova: "board", cart: "board", view: "board", focus: "board", movelog: "board",
-  check: "hints", points: "hints", costs: "hints", guide: "hints",
+  check: "hints", points: "hints", costs: "hints", guide: "hints", whynot: "hints",
   sound: "settings", language: "settings", replay: "settings", saves: "settings", bar: "settings",
 };
 const NAMES = {
   you: "You", first: "First move", opponent: "Opponent", level: "Level", check: "Check alert", start: "Starting position", half: "My half", cart: "Cart",
   sound: "Sound", language: "Language", replay: "Replay", saves: "Saves", points: "Actions left", costs: "Move costs",
-  guide: "Piece guide", bar: "Control bar", view: "View", focus: "Focus", endturn: "End turn", undomove: "Undo move",
+  guide: "Piece guide", whynot: "Why not", bar: "Control bar", view: "View", focus: "Focus", endturn: "End turn", undomove: "Undo move",
   undoturn: "Undo turn", endgame: "End game", movelog: "Move log", plainrules: "Plain rules",
 };
 // What each does, in a line.
@@ -159,7 +160,9 @@ const TIPS = {
   saves: "Save your progress and settings to a file or the cloud, or bring them back.",
   points: "Dots that count the actions left in your turn.",
   costs: "Each move marker shows what the move costs.",
-  guide: "A card that says what the chosen piece does, and why a move can't be made.",
+  guide: "A card that says what the chosen piece does.",
+  // (Its own since the user's "they need to be separated out".)
+  whynot: "When a move can't be made, an X on the square and a note saying why.",
   bar: "Swap the floating piece for a bar of controls along the bottom.",
   view: "Where the camera looks from.",
   focus: "The room dims and the board stays lit.",
@@ -361,7 +364,7 @@ export function readDock(host, phase) {
     const b = one(`[data-testid="${id}"]`);
     if (b) add(key, { type: "open", name: words(b), icon: key, disabled: off(b), press: () => b.click() });
   }
-  for (const [key, id] of [["points", "points-toggle"], ["costs", "costs-toggle"], ["guide", "guide-toggle"]]) {
+  for (const [key, id] of [["points", "points-toggle"], ["costs", "costs-toggle"], ["guide", "guide-toggle"], ["whynot", "why-not-toggle"]]) {
     const b = one(`[data-testid="${id}"]`);
     if (b) add(key, { type: "toggle", value: onOff(lit(b)), on: lit(b), icon: key, disabled: off(b), press: () => b.click() });
   }
@@ -601,6 +604,14 @@ body.mf-quiet [data-testid="toggle-hint"]{display:none!important}
 .cr-row .cr-rv{color:var(--cr-ink2);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48%}
 .cr-row .cr-chev{width:18px;height:18px;flex:none;color:var(--cr-ink2);display:block}.cr-row .cr-chev svg{display:block;width:100%;height:100%}
 .cr-row[aria-disabled="true"]{opacity:.42;cursor:default}
+.cr-rw{position:relative}.cr-rw>.cr-row .cr-ico{visibility:hidden}
+.cr-ab{appearance:none;-webkit-appearance:none;position:absolute;left:-9px;top:50%;transform:translateY(-50%);width:44px;height:44px;margin:0;padding:11px;box-sizing:border-box;border:0;border-radius:12px;background:transparent;color:var(--cr-ink2);cursor:help;-webkit-tap-highlight-color:transparent}
+.cr-ab svg{display:block;width:22px;height:22px}
+.cr-ab[aria-expanded="true"]{color:var(--ml-ink);background:color-mix(in srgb,var(--ml-ink) 10%,transparent)}
+.cr-ab:focus-visible{outline:2px solid var(--ml-ink);outline-offset:-2px}
+@media (hover:hover){.cr-ab:hover{color:var(--ml-ink)}}
+.cr-rw.cr-open>.cr-row{border-bottom-color:transparent}
+.cr-about{font-size:14px;line-height:1.45;color:var(--cr-ink2);padding:0 4px 12px 36px;margin-top:-4px;border-bottom:1px solid var(--cr-rule)}
 .cr-sw{width:46px;height:28px;border-radius:14px;background:color-mix(in srgb,var(--ml-ink) 25%,transparent);position:relative;flex:none;transition:background .12s ease}
 .cr-sw::after{content:"";position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .12s ease}
 .cr-row[aria-checked="true"] .cr-sw{background:#3d7049}
@@ -1428,7 +1439,7 @@ const CALM_SPARE = { setup: ["sound", "language"], play: ["focus", "movelog"], o
 const CALM_GROUPS = [
   { key: "game", name: "Game", of: ["opponent", "level", "first", "start", "half", "endturn", "undomove", "undoturn", "plainrules"] },
   { key: "board", name: "Board", of: ["pieces", "cart", "nova", "view", "focus", "movelog"] },
-  { key: "hints", name: "Help on the board", of: ["check", "points", "costs", "guide"] },
+  { key: "hints", name: "Help on the board", of: ["check", "points", "costs", "guide", "whynot"] },
   { key: "sound", name: "Sound and language", of: ["sound", "language"] },
   { key: "saves", name: "Your games", of: ["replay", "saves"] },
   { key: "layout", name: "Layout", of: ["bar"] },
@@ -1469,7 +1480,7 @@ export function mountCalm(v, env) {
   const born = performance.now();
   // (open: a wedge's card, its key; more: the list out, with the choice
   // open in it and End game asked)
-  let cardKey = null, cardNode = null, moreOpen = false, moreNode = null, listNode = null, openRow = null, asking = false;
+  let cardKey = null, cardNode = null, moreOpen = false, moreNode = null, listNode = null, openRow = null, asking = false, aboutRow = null;
   const MORE = () => ({ key: "more", type: "more", name: t("More"), value: t("All settings"), icon: "more", tip: "" });
   const find = (key) => (key === "more" ? MORE() : data.items.find((i) => i.key === key) || null);
 
@@ -1748,7 +1759,7 @@ export function mountCalm(v, env) {
       if (it.type === "choice") node.append(chips(it));
       for (const x of withOf(it)) {
         if (x.type === "choice") node.append(el("div", { className: "cr-sub" }, x.world ? x.name : x.tip || x.name), chips(x));
-        else if (x.type === "toggle") node.append(el("div", { className: "cr-rows" }, row(x)));
+        else if (x.type === "toggle") node.append(el("div", { className: "cr-rows" }, row(x, false)));
       }
     }
     const w = Math.min(vw - 24, corner ? 360 : 400);
@@ -1814,6 +1825,7 @@ export function mountCalm(v, env) {
     if (!moreOpen) return;
     moreOpen = false;
     openRow = null;
+    aboutRow = null;
     asking = false;
     stage.classList.remove("cr-more-open");
     layer.classList.remove("cr-above");
@@ -1824,8 +1836,12 @@ export function mountCalm(v, env) {
     if (had) { const w = wedges.find((x) => x.key === "more"); if (w) w.g.focus(); }
   }
   // A row: its name and what it's set to, then a switch, the way on, or
-  // (a choice) its list, opening under it.
-  function row(it) {
+  // (a choice) its list, opening under it. Its icon, a button of its own
+  // (user, of the icons by the switches: "Clicking on their icons should
+  // give you a brief overview as to what they do"): a tap opens the line
+  // saying what it does under the row, and a second tap shuts it (More's
+  // list; a wedge's card says it at its head already: about false).
+  function row(it, about = true) {
     const sw = it.type === "toggle" && !it.alt;
     const attrs = { type: "button", className: `cr-row${it.confirm ? " cr-red" : ""}`, "data-mf-row": it.key, "aria-disabled": it.disabled ? "true" : null };
     if (sw) { attrs.role = "switch"; attrs["aria-checked"] = String(!!it.on); }
@@ -1844,7 +1860,18 @@ export function mountCalm(v, env) {
       if (it.type === "choice") { openRow = openRow === it.key ? null : it.key; renderMore(); return; }
       act(it, null);
     });
-    return b;
+    if (!about || !it.tip || it.confirm) return b;
+    const open = aboutRow === it.key;
+    const ab = el("button", { type: "button", className: "cr-ab", "data-mf-about-b": it.key, "aria-expanded": String(open), "aria-label": t("What is {name}?", { name: it.name }), title: t("What is {name}?", { name: it.name }) });
+    ab.innerHTML = iconOf(it.icon, it.level);
+    ab.addEventListener("click", (e) => { e.stopPropagation(); aboutRow = open ? null : it.key; renderMore(); });
+    const wrap = el("div", { className: `cr-rw${open ? " cr-open" : ""}`, "data-mf-rowwrap": it.key });
+    wrap.append(b, ab);
+    if (!open) return wrap;
+    const line = el("div", { className: "cr-about", "data-testid": "menu-fan-about", "data-mf-about": it.key, role: "note" }, it.tip);
+    const frag = document.createDocumentFragment();
+    frag.append(wrap, line);
+    return frag;
   }
   function renderMore(first = false) {
     const keep = listNode ? listNode.scrollTop : 0;
@@ -1925,6 +1952,7 @@ export function mountCalm(v, env) {
       const k = e.key;
       if (k === "Escape") {
         if (cardKey) { closeCard(); return true; }
+        if (moreOpen && aboutRow) { aboutRow = null; renderMore(); return true; }
         if (moreOpen) { closeMore(); return true; }
         return false;
       }

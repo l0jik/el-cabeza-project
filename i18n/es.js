@@ -2344,4 +2344,17 @@ export default {
   "Standard Cabeza or Cabeza Nova": "Cabeza estándar o Cabeza Nova",
   "Standard Cabeza or Cabeza Nova for the next game": "Cabeza estándar o Cabeza Nova para la próxima partida",
   "Standard Cabeza or Cabeza Nova for this game": "Cabeza estándar o Cabeza Nova para esta partida",
+  // Why not, its own switch apart from the Piece guide; a row's icon saying what it is (the calm menu).
+  "Why not": "Por qué no",
+  "Why not: off.": "Por qué no: desactivado.",
+  "Why not: on.": "Por qué no: activado.",
+  "When a move can't be made, an X on the square and a note say why.": "Cuando no se puede hacer una jugada, una X en la casilla y una nota te dicen por qué.",
+  "Why not: on. When a move can't be made, an X on the square and a note say why.": "Por qué no: activado. Cuando no se puede hacer una jugada, una X en la casilla y una nota te dicen por qué.",
+  "Hide why a move can't be made": "Ocultar por qué no se puede hacer una jugada",
+  "Show why a move can't be made": "Mostrar por qué no se puede hacer una jugada",
+  "Piece guide: on. A card says what the chosen piece does.": "Guía de piezas: activada. Una tarjeta te dice qué hace la pieza elegida.",
+  "When a move can't be made, an X on the square and a note saying why.": "Cuando no se puede hacer una jugada, una X en la casilla y una nota que dice por qué.",
+  "When a move can't be made, an X on the square and a note saying why": "Cuando no se puede hacer una jugada, una X en la casilla y una nota que dice por qué",
+  "when a move can't be made, an X on the square and a note that says why.": "cuando no se puede hacer una jugada, una X en la casilla y una nota que te dice por qué.",
+  "What is {name}?": "¿Qué es {name}?",
 };

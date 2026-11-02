@@ -75,6 +75,7 @@ const LOCKED = [
   ["the actions left", '[data-testid="points-toggle"]'],
   ["the move costs", '[data-testid="costs-toggle"]'],
   ["the piece guide", '[data-testid="guide-toggle"]'],
+  ["why not", '[data-testid="why-not-toggle"]'],
   ["the control bar", '[data-testid="layout-toggle"]'],
 ];
 // A control's state as seen: pressable at all, how faded (its own opacity
@@ -176,7 +177,7 @@ console.log("\nphone: a new player's first look at the store's menu");
   for (const [name, sel] of LOCKED) {
     const l = await look(page, sel);
     if (!l) continue;
-    if (l.disabled || (l.opacity < 0.4 && !/sound|actions|costs|guide|control bar/.test(name))) held.push(name);
+    if (l.disabled || (l.opacity < 0.4 && !/sound|actions|costs|guide|why not|control bar/.test(name))) held.push(name);
   }
   check("...everything in it pressable again", held.length === 0, held.join(", "));
   const hard = await look(page, '[data-ec-diff="hard"]');

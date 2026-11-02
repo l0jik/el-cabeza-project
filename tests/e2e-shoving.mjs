@@ -237,10 +237,10 @@ const cabezas = [P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cab
   await page.waitForTimeout(1200);
   let ps = await page.evaluate(() => window.__EC_TEST_PIECES__);
   check("...and letting go moves nothing", ps.find((p) => p.id === "dark-chato").col === 3 && ps.find((p) => p.id === "light-turrito").col === 4, JSON.stringify(ps));
-  // The Piece guide (on by default) says why, the X kept on the square
+  // Why not (on by default; once the Piece guide's) says why, the X kept on the square
   // while its note is up (user's pick, A1); the next click puts both away.
   const why = await page.evaluate(() => { const n = document.querySelector('[data-testid="why-not"]'); return n && n.dataset.code; });
-  check("...the Piece guide's note says why (no pushing on a diagonal), the X kept", why === "diagonalPush" && (await cues()).x, String(why));
+  check("...Why not's note says why (no pushing on a diagonal), the X kept", why === "diagonalPush" && (await cues()).x, String(why));
   await page.mouse.click(4, 450);
   await page.waitForTimeout(300);
   check("...the X is gone again at the next click, with the note", !(await cues()).x && !(await page.locator('[data-testid="why-not"]').count()));
