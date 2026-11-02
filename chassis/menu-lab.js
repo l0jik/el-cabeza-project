@@ -111,7 +111,8 @@ function readMenu(host) {
   }
 
   const beside = begin && begin.parentElement ? Array.from(begin.parentElement.children).filter((b) => b !== begin && b.tagName === "BUTTON") : [];
-  const nova = one('[data-testid="nova-again-setup"]');
+  // (Change rules, where the rules can be chosen: the chassis's.)
+  const nova = one('[data-testid="change-rules-setup"]');
   if (nova) beside.push(nova);
   beside.forEach((b, i) => items.push({
     key: i ? `extra${i}` : "pieces", label: words(b), disabled: off(b), press: () => b.click(),

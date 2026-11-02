@@ -302,7 +302,9 @@ export function readDock(host, phase) {
   if (half) add("half", { type: "toggle", value: onOff(lit(half)), on: lit(half), icon: "half", disabled: off(half), press: () => half.click() });
   const begin = one('[data-dock-role="begin"]');
   const beside = begin && begin.parentElement ? Array.from(begin.parentElement.children).filter((b) => b !== begin && b.tagName === "BUTTON" && !b.hasAttribute("data-dock-skip")) : [];
-  for (const id of ["nova-again-setup", "nova-again"]) { const b = one(`[data-testid="${id}"]`); if (b) beside.push(b); }
+  // (Change rules, before a game and after one, where the rules can be
+  // chosen: the chassis's askChangeRules.)
+  for (const id of ["change-rules-setup", "change-rules"]) { const b = one(`[data-testid="${id}"]`); if (b) beside.push(b); }
   // (One that changes things where they are, data-dock-stay, keeps the
   // fan out, its word after in the read-out: Futuris's Anomaly, a new
   // layout a tap; Cromo's stone. User: "when you click anomaly, it
@@ -310,7 +312,7 @@ export function readDock(host, phase) {
   beside.forEach((b, i) => {
     const id = b.getAttribute("data-testid") || "", stay = b.hasAttribute("data-dock-stay");
     add(i ? `extra${i}` : "pieces", {
-      kind: "board", type: stay ? "action" : "open", keepOpen: stay, name: words(b), icon: id === "tienda-order-form" ? "pieces" : /nova/.test(id) ? "nova" : "spark",
+      kind: "board", type: stay ? "action" : "open", keepOpen: stay, name: words(b), icon: id === "tienda-order-form" ? "pieces" : /change-rules/.test(id) ? "nova" : "spark",
       tip: b.getAttribute("title") ? t(b.getAttribute("title")) : "", said: b.getAttribute("data-dock-said") ? t(b.getAttribute("data-dock-said")) : "",
       disabled: off(b), press: () => b.click(),
     });

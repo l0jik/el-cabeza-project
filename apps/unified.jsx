@@ -197,7 +197,10 @@ const storeTheme = {
   // Full screen at the first tap (as every screen now is: the chassis).
   fullscreenOnFirstTap: true,
   // After the story: the gate as it comes up, and the other realities.
-  realityGate: SCENE_LINK ? null : { world: "store", novaGo: (to, w) => storyBridge.goWorld(w) },
+  // (story: one of the story's own places, so a ?nova link doesn't open
+  // it: themes/reality-gate.js rulesOpen. The den, Futuris and The City
+  // here too.)
+  realityGate: SCENE_LINK ? null : { world: "store", story: true, novaGo: (to, w) => storyBridge.goWorld(w) },
   cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
 };
 /* The den's television (themes/den-tv.js, den-fx.js) is the way into
@@ -216,7 +219,7 @@ const homeTheme = {
   // and all).
   cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
   // ...and the way into a game as it comes up (themes/reality-gate.js).
-  realityGate: SCENE_LINK ? null : { world: "den", novaGo: (to, w) => storyBridge.goWorld(w) },
+  realityGate: SCENE_LINK ? null : { world: "den", story: true, novaGo: (to, w) => storyBridge.goWorld(w) },
   mountAmbientEffects: (refs, helpers) => {
     const returning = tvBridge.returning;
     const commercial = returning && tvBridge.commercial;
@@ -257,7 +260,7 @@ const novaFuturisTheme = {
   ...futurisTheme,
   // After the story: the gate as it comes up, and the other realities.
   // (Not over the summons opened by its own link, ?scene=summons.)
-  realityGate: SCENE_LINK ? null : { world: "futuris", novaGo: (to, w) => storyBridge.goWorld(w) },
+  realityGate: SCENE_LINK ? null : { world: "futuris", story: true, novaGo: (to, w) => storyBridge.goWorld(w) },
   cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
   useSetupExtras: (x) => {
     const e = { ...futurisTheme.useSetupExtras(x), onSingularityBack: () => tvBridge.back() };
@@ -296,7 +299,7 @@ const WORLD_TITLES = { ciudad: "El Cabeza \u00b7 The City" };
 function makeNovaTheme(name, mod) {
   return {
     ...mod,
-    realityGate: SCENE_LINK ? null : { world: name, novaGo: (to, w) => storyBridge.goWorld(w) },
+    realityGate: SCENE_LINK ? null : { world: name, story: true, novaGo: (to, w) => storyBridge.goWorld(w) },
     cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
   };
 }

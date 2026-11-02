@@ -97,6 +97,8 @@ const E2E = [
   ["e2e-singularity-stall.mjs"],
   // A refused move says why (the Piece guide's X on the square aimed at and its note): the user's clip, too heavy to push and then not enough actions; a boxed-in piece; off with the guide; a phone; Spanish.
   ["e2e-why-not.mjs"],
+  // The rules in every world: ?nova opens a world's Cabeza Nova menu whatever the story; Change rules on the Rules card in play (asked first) and in the menus between games; nothing without the story or the link; a phone; Spanish.
+  ["e2e-change-rules.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

@@ -360,7 +360,7 @@ const GOLD = (a) => `rgba(${rgbOf(MENU.gold)}, ${a})`;
 const PAINT = (a) => `rgba(${rgbOf(MENU.paint)}, ${a})`;
 const PANELS = [
   '[data-testid="dock-panel"]', '[data-testid="sound-menu"]', '[data-testid="music-panel"]', '[data-testid="info-overlay"] > div',
-  '[data-testid="movelog-sheet"]', '[data-testid="victory-placard"]', '[data-testid="new-game-choice"]', '[data-testid="piece-card"]', '[data-testid="why-not"]',
+  '[data-testid="movelog-sheet"]', '[data-testid="victory-placard"]', '[data-testid="new-game-choice"]', '[data-testid="piece-card"]', '[data-testid="why-not"]', '[data-testid="change-rules-ask"]',
   ".rg-choose", ".rg-sheet", ".rg-pick-box",
 ].join(", ");
 

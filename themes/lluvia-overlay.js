@@ -31,7 +31,7 @@ import { PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, SIZES, BIG_ARMY, BIG_ARMY_NOTE, pi
 import { SHOVE_SETTINGS, shoveOf } from "../chassis/shove-settings.js";
 import { LLUVIA } from "./lluvia-city.js";
 import { bus } from "./lluvia-bus.js";
-import { storyOver, openRealityGate, piecePicture, piecePicturesReady, usePieceInspect } from "./reality-gate.js";
+import { rulesOpen, openRealityGate, piecePicture, piecePicturesReady, usePieceInspect } from "./reality-gate.js";
 
 const h = createElement;
 const PINK = "#ff3dbb", CYAN = "#23e6ff", AMBER = "#ffb347";
@@ -280,7 +280,8 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose,
   const wakeSound = () => { if (!soundStarted.current) { soundStarted.current = true; ctlRef.current && ctlRef.current.start(); } };
   const openPanel = (k) => { wakeSound(); sound("select"); ctlRef.current && ctlRef.current.select(k); setPanel(k); };
   const closePanel = () => { sound("close"); ctlRef.current && ctlRef.current.select(null); setPanel(null); };
-  const gateNext = storyOver();
+  // (After the story, or through the ?nova link: the gate next.)
+  const gateNext = rulesOpen();
   // Leaving: fade the layer and the city's score, then let go of it.
   const leave = (then) => {
     setLeaving(true);

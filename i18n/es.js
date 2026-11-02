@@ -2337,4 +2337,11 @@ export default {
   "A card that says what the chosen piece does, and why a move can't be made.": "Una tarjeta que dice qué hace la pieza elegida, y por qué no se puede hacer una jugada.",
   "What the chosen piece does, tips on what to tap, and why a move can't be made": "Qué hace la pieza elegida, consejos sobre qué tocar, y por qué no se puede hacer una jugada",
   "a card that tells you what the piece you pick does, and why a move can't be made.": "una tarjeta que te dice qué hace la pieza que elegís, y por qué no se puede hacer una jugada.",
+  // Change rules (chassis/ElCabeza3D.jsx askChangeRules, the Rules card, the menus).
+  "Change rules": "Cambiar las reglas",
+  "Change the rules?": "¿Cambiar las reglas?",
+  "This game ends, and you choose Standard Cabeza or Cabeza Nova for a new one.": "Esta partida termina, y elegís Cabeza estándar o Cabeza Nova para una nueva.",
+  "Standard Cabeza or Cabeza Nova": "Cabeza estándar o Cabeza Nova",
+  "Standard Cabeza or Cabeza Nova for the next game": "Cabeza estándar o Cabeza Nova para la próxima partida",
+  "Standard Cabeza or Cabeza Nova for this game": "Cabeza estándar o Cabeza Nova para esta partida",
 };

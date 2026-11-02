@@ -330,7 +330,7 @@ export const styleSheet = `
   }
   .ec-btn { border-radius: 2px !important; letter-spacing: 0.08em; }
   .ec-btn:active { transform: translateY(1px); }
-  [data-testid="piece-card"], [data-testid="why-not"], [data-testid="info-overlay"] > div, [data-testid="new-game-choice"] {
+  [data-testid="piece-card"], [data-testid="why-not"], [data-testid="info-overlay"] > div, [data-testid="new-game-choice"], [data-testid="change-rules-ask"] {
     background-image: var(--tienda-paper) !important;
     border-radius: 3px !important;
   }

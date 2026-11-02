@@ -2350,4 +2350,11 @@ export default {
   "A card that says what the chosen piece does, and why a move can't be made.": "Một thẻ cho biết quân được chọn làm gì, và vì sao một nước đi không thực hiện được.",
   "What the chosen piece does, tips on what to tap, and why a move can't be made": "Quân được chọn làm gì, gợi ý nên chạm vào đâu, và vì sao một nước đi không thực hiện được",
   "a card that tells you what the piece you pick does, and why a move can't be made.": "một thẻ cho biết quân bạn chọn làm gì, và vì sao một nước đi không thực hiện được.",
+  // Change rules (chassis/ElCabeza3D.jsx askChangeRules, the Rules card, the menus).
+  "Change rules": "Đổi luật",
+  "Change the rules?": "Đổi luật?",
+  "This game ends, and you choose Standard Cabeza or Cabeza Nova for a new one.": "Ván này sẽ kết thúc, rồi bạn chọn Cabeza tiêu chuẩn hoặc Cabeza Nova cho ván mới.",
+  "Standard Cabeza or Cabeza Nova": "Cabeza tiêu chuẩn hoặc Cabeza Nova",
+  "Standard Cabeza or Cabeza Nova for the next game": "Cabeza tiêu chuẩn hoặc Cabeza Nova cho ván sau",
+  "Standard Cabeza or Cabeza Nova for this game": "Cabeza tiêu chuẩn hoặc Cabeza Nova cho ván này",
 };

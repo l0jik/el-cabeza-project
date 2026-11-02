@@ -50,7 +50,7 @@ function chromeCss(spec) {
   .ec-btn { border-radius: var(--radius) !important; letter-spacing: var(--label-tracking) !important; font-family: var(--font-body) !important;
     transition: transform var(--transition-speed) var(--ease), box-shadow var(--transition-speed) var(--ease), background-color var(--transition-speed) var(--ease) !important; }
   .ec-btn:focus-visible, [data-testid="how-to-play"]:focus-visible, .lab-ctl:focus-visible { outline: 2px solid var(--accent-primary) !important; outline-offset: 2px; }
-  [data-testid="piece-card"], [data-testid="why-not"], [data-testid="new-game-choice"], [data-testid="victory-placard"], [data-testid="movelog-sheet"] {
+  [data-testid="piece-card"], [data-testid="why-not"], [data-testid="new-game-choice"], [data-testid="victory-placard"], [data-testid="movelog-sheet"], [data-testid="change-rules-ask"] {
     background: var(--surface) !important; color: var(--panel-ink) !important;
     border: var(--border-width) solid var(--border-color) !important; border-radius: var(--radius) !important;
     box-shadow: var(--shadow) !important; backdrop-filter: none !important;
@@ -143,6 +143,12 @@ const HUD_BASE = `
   .lab-hud .lab-rules .mark { font-weight: 700; color: var(--accent-primary, currentColor); margin-left: 1px; }
   .lab-hud .lab-rules .lab-rules-key { display: block; margin-top: 4px; font-size: 11px; color: var(--lab-rules-sub, inherit); }
   .lab-hud .lab-rules .sum { font-size: 12px; white-space: nowrap; color: var(--lab-rules-sub, inherit); }
+  /* Change rules, at the list's foot in the direction's accent. */
+  .lab-hud .lab-rules .lab-rules-change { all: unset; cursor: pointer; display: block; margin-top: 10px; font-family: var(--font-body, system-ui); font-size: 12.5px; font-weight: 700;
+    letter-spacing: var(--label-tracking, 0.04em); color: var(--accent-primary, currentColor); text-decoration: underline; text-underline-offset: 3px; }
+  .lab-hud .lab-rules .lab-rules-change:focus-visible { outline: 2px solid var(--accent-primary, currentColor); outline-offset: 2px; }
+  /* (On a touch screen, a finger's room round it, unseen.) */
+  @media (pointer: coarse) { .lab-hud .lab-rules .lab-rules-change { position: relative; } .lab-hud .lab-rules .lab-rules-change::after { content: ""; position: absolute; inset: -8px -6px; } }
   /* Compact: a phone, or any screen without room beside the board. */
   @media (max-aspect-ratio: 3/2), (max-width: 899px) {
     .lab-hud { left: calc(10px + env(safe-area-inset-left)); right: calc(10px + env(safe-area-inset-right)); top: 58px; width: auto; }

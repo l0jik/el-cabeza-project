@@ -46,7 +46,7 @@ import VolumeFader from "./VolumeFader.jsx";
 import NowPlaying from "./NowPlaying.jsx";
 import CornerMenu from "./CornerMenu.jsx";
 import { gameRules } from "./corner-menu.js";
-import { RealityGate, storyOver, GATE_EVENT, openRealityGate, lookParts } from "../themes/reality-gate.js";
+import { RealityGate, storyOver, rulesOpen, gateStage, GATE_EVENT, openRealityGate, lookParts } from "../themes/reality-gate.js";
 import { modelViews, FUTURIS_SHOWCASE } from "../themes/piece-showcase.js";
 import { saveLastWorld } from "../themes/realities.js";
 import { sideNamesOf, sideLabel, SIDE_NAMES as WORLD_SIDE_NAMES, DEFAULT_SIDE_NAMES } from "../themes/side-names.js";
@@ -1369,10 +1369,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   useEffect(() => {
     if (gameArmed && gateCfg && gateCfg.world && storyOver()) saveLastWorld(gateCfg.world);
   }, [gameArmed, gateCfg && gateCfg.world]);
-  const [gate, setGate] = useState(() => (gateCfg && !gateCfg.deferred && !gameArmed && storyOver() && (!gateCfg.when || gateCfg.when()) && !JOIN_PARAM && !savedOnlineSession() ? { stage: "choose", n: 0 } : null));
+  // (After the story, or this visit's ?nova link: rulesOpen. The link's
+  // first opening is Cabeza Nova's menu itself: gateStage.)
+  const [gate, setGate] = useState(() => (gateCfg && !gateCfg.deferred && !gameArmed && rulesOpen(gateCfg) && (!gateCfg.when || gateCfg.when()) && !JOIN_PARAM && !savedOnlineSession() ? { stage: gateStage(), n: 0 } : null));
   useEffect(() => {
     if (!gateCfg) return undefined;
-    const on = (e) => { if (storyOver()) setGate({ stage: (e.detail && e.detail.stage) || "choose", sel: (e.detail && e.detail.sel) || null, n: Date.now() }); };
+    const on = (e) => { if (rulesOpen(gateCfg)) setGate({ stage: gateStage(e.detail && e.detail.stage), sel: (e.detail && e.detail.sel) || null, n: Date.now() }); };
     window.addEventListener(GATE_EVENT, on);
     return () => window.removeEventListener(GATE_EVENT, on);
   }, []);
@@ -1380,18 +1382,35 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (gameArmed && gate) setGate(null);
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_ARMED__ = gameArmed; // tests: a game under way
   }, [gameArmed]);
-  /* Back to Cabeza Nova from a plain game (user: after picking Standard
-     Cabeza, "there's no way to go back, while still in that theme, to
-     return to Cabeza Nova"). A Nova game ends with its own way out (the
-     plain-rules link, and New Game's Reconfigure); a plain one now has
-     this: a "Cabeza Nova" link once it's over and before the next one
-     begins, opening the gate's sheet (Back on it: the two buttons, and
-     Other realities). In the same words everywhere, as the gate's. */
-  const novaAgain = !!(gateCfg && !currentVariants && storyOver());
-  function openNovaAgain() {
+  /* Change rules (user: "Do we need to have a button in every game to
+     allow toggling between standard game and Cabeza Nova rules?"; of the
+     options, "Go with A + B", B being this). Where the two buttons are
+     (after the story, or with the ?nova link), it brings them back: at
+     the foot of the Rules card in a game (CornerMenu; the Lab's Rules
+     line, through the setup extras' changeRules) and in the menu between
+     games, where it takes the place of the old "Cabeza Nova" and "Plain
+     rules" links (user, before: after Standard Cabeza "there's no way to
+     go back, while still in that theme, to return to Cabeza Nova"). A
+     game being played is asked about first (rulesAsk): new rules are a
+     new game. */
+  const rulesChoice = !!(gateCfg && rulesOpen(gateCfg));
+  const [rulesAsk, setRulesAsk] = useState(false);
+  function openRulesChoice() {
+    setRulesAsk(false);
     if (!awaitingBegin) resetGame(false);
-    openRealityGate({ stage: "nova" });
+    openRealityGate({ stage: "choose" });
   }
+  function askChangeRules() {
+    if (isPlaying && !awaitingBegin) { setRulesAsk(true); return; }
+    openRulesChoice();
+  }
+  // (Escape keeps playing.)
+  useEffect(() => {
+    if (!rulesAsk) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); setRulesAsk(false); } };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [rulesAsk]);
 
   /* Easter egg: clicking the "EL CABEZA" title (only the text itself,
      not the header around it) reveals a small INFO button that fades in
@@ -3543,6 +3562,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       pieceCount: { dark: pieces.filter((p) => p.owner === "dark").length, light: pieces.filter((p) => p.owner === "light").length },
       rules: rulesNow,
     },
+    // Change rules, for a world's own Rules line (the Lab's), as on the
+    // corner menu's card: where the rules can be chosen, a game being
+    // played asked about first (askChangeRules). null elsewhere.
+    changeRules: rulesChoice && !replay && !online ? askChangeRules : null,
   }) : null;
   /* The first game, walked through (chassis/FirstGameTour.jsx; user: "We
      need to create a first-time player walkthrough tutorial"): offered by
@@ -13934,14 +13957,14 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
               <button className="ec-btn" data-testid="move-log" data-dock-role="link" title="Move log" onClick={openMoveLog} style={dockLinkStyle()}>
                 {dockWords.moveLog}
               </button>
-              {currentVariants && (
+              {currentVariants && !rulesChoice && (
                 <button className="ec-btn" data-testid="reset-rules" data-dock-role="link" title="Plain rules for the next game" onClick={handleResetRules} style={dockLinkStyle()}>
                   {dockWords.plainRules}
                 </button>
               )}
-              {novaAgain && (
-                <button className="ec-btn" data-testid="nova-again" data-dock-role="link" title="Every piece, rule and board: set up the next game" onClick={openNovaAgain} style={dockLinkStyle()}>
-                  Cabeza Nova
+              {rulesChoice && (
+                <button className="ec-btn" data-testid="change-rules" data-dock-role="link" title="Standard Cabeza or Cabeza Nova for the next game" onClick={askChangeRules} style={dockLinkStyle()}>
+                  Change rules
                 </button>
               )}
               <button
@@ -14266,10 +14289,10 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
               const extras = theme.renderSetupExtras && theme.renderSetupExtras({ beginGameButton, ...setupExtras, firstLook });
               return extras || <div style={{ display: "flex", gap: 8, flexShrink: 0, width: "100%" }}>{beginGameButton}</div>;
             })()}
-          {awaitingBegin && novaAgain && !gate && (
+          {awaitingBegin && rulesChoice && !gate && (
             <div data-dock-role="links" style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>
-              <button className="ec-btn" data-testid="nova-again-setup" data-dock-role="link" title="Every piece, rule and board: set up this game" onClick={openNovaAgain} disabled={firstLook} {...firstLock} style={dockLinkStyle()}>
-                Cabeza Nova
+              <button className="ec-btn" data-testid="change-rules-setup" data-dock-role="link" title="Standard Cabeza or Cabeza Nova for this game" onClick={askChangeRules} disabled={firstLook} {...firstLock} style={dockLinkStyle()}>
+                Change rules
               </button>
             </div>
           )}
@@ -14897,10 +14920,12 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             onEndGame: handleEndActiveGame,
             endBusy: !!(busy || anim.current),
             onNewGame: handleNewGameClick,
-            canResetRules: !!currentVariants && status !== "playing",
+            // (Where the rules can be chosen, Change rules between games
+            // in their place: rulesChoice.)
+            canResetRules: !!currentVariants && status !== "playing" && !rulesChoice,
             onResetRules: handleResetRules,
-            canNovaAgain: novaAgain && status !== "playing",
-            onNovaAgain: openNovaAgain,
+            canChangeRules: rulesChoice && (status !== "playing" || awaitingBegin),
+            onChangeRules: askChangeRules,
             canFullscreen: !!(document.fullscreenEnabled || document.documentElement.requestFullscreen),
             isFullscreen,
             onToggleFullscreen: toggleFullscreen,
@@ -15857,6 +15882,54 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
         </div>
       </div>
 
+      {/* Change rules in a game being played: asked first, since new
+          rules are a new game (askChangeRules). Change rules ends it and
+          brings the two buttons; Keep playing, a tap beside the card or
+          Escape leaves it as it was. In the world's look as the new-game
+          card is (each theme's CSS hooks the card by its testid). */}
+      {rulesAsk && (
+        <div
+          data-testid="change-rules-ask-backdrop"
+          onClick={() => setRulesAsk(false)}
+          style={{ position: "fixed", inset: 0, background: modalBackdrop, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, boxSizing: "border-box", zIndex: 1150 }}
+        >
+          <div
+            data-testid="change-rules-ask"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="ec-change-rules-title"
+            onClick={(e) => e.stopPropagation()}
+            style={{ position: "relative", width: "min(90%, 380px)", background: COLORS.cream, border: `1px solid ${COLORS.slateSoft}`, boxShadow: "0 30px 70px rgba(36,24,10,0.35)", padding: "28px 26px 24px", boxSizing: "border-box", textAlign: "center" }}
+          >
+            <h2 id="ec-change-rules-title" style={{ margin: "0 0 10px", fontFamily: titleFontFamily, fontWeight: 600, fontSize: 22, letterSpacing: "0.02em", color: COLORS.charcoal }}>
+              Change the rules?
+            </h2>
+            <p style={{ margin: "0 0 20px", fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13.5, lineHeight: 1.5, color: COLORS.slate }}>
+              This game ends, and you choose Standard Cabeza or Cabeza Nova for a new one.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button
+                className="ec-btn"
+                data-testid="change-rules-yes"
+                onClick={openRulesChoice}
+                style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: COLORS.cream, background: COLORS.charcoal, border: `1.5px solid ${COLORS.charcoal}`, padding: "12px 12px", cursor: "pointer" }}
+              >
+                Change rules
+              </button>
+              <button
+                className="ec-btn ec-btn-invert"
+                data-testid="change-rules-no"
+                autoFocus
+                onClick={() => setRulesAsk(false)}
+                style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: COLORS.charcoal, background: "transparent", border: `1.5px solid ${COLORS.charcoal}`, padding: "12px 12px", cursor: "pointer" }}
+              >
+                Keep playing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Win -> New Game settings dialog: only ever shown by
           handleNewGameClick, and only for a real win off a
           Singularity-originated game (see its own gating comment) — a
@@ -15959,7 +16032,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
       </div>
 
       {theme.renderExtraOverlays && theme.renderExtraOverlays(setupExtras && { ...setupExtras, firstLook })}
-      {cornerMenu && <CornerMenu key={cornerMenu.look} look={cornerMenu.look} rules={rulesNow} extra={cornerMenu.extra || null} audio={audioRef.current} below={cornerBelow} />}
+      {cornerMenu && <CornerMenu key={cornerMenu.look} look={cornerMenu.look} rules={rulesNow} extra={cornerMenu.extra || null} audio={audioRef.current} below={cornerBelow} onChangeRules={rulesChoice && !replay && !online ? askChangeRules : null} />}
       {gate && (
         <RealityGate
           key={gate.n}

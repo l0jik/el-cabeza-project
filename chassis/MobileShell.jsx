@@ -862,7 +862,8 @@ function MenuSheet({ ctl, t, open, onClose, landscape, safe }) {
             {ctl.phase === "over" && <Row label="New game" testid="shell-menu-new" onClick={run(ctl.onNewGame)} t={t} />}
             {ctl.canUndoAfter && <Row label="Take back the last turn" testid="shell-menu-undo-last" disabled={ctl.undoTurnBusy} onClick={run(ctl.onUndoTurn)} t={t} />}
             {ctl.canResetRules && <Row label="Reset to the standard rules" testid="shell-menu-reset-rules" onClick={run(ctl.onResetRules)} t={t} />}
-            {ctl.canNovaAgain && <Row label="Cabeza Nova" detail="Every piece, rule and board" testid="shell-menu-nova-again" onClick={run(ctl.onNovaAgain)} t={t} />}
+            {/* Standard Cabeza or Cabeza Nova for the next game (the chassis's askChangeRules). */}
+            {ctl.canChangeRules && <Row label="Change rules" detail="Standard Cabeza or Cabeza Nova" testid="shell-menu-change-rules" onClick={run(ctl.onChangeRules)} t={t} />}
           </Section>
 
           {(inGame || ctl.canFullscreen || ctl.onRoomView || ctl.onToggleFocus) && (

@@ -16,11 +16,12 @@
      by beginCustomGame, as those menus do; the last ones used are kept
      (this browser) for next time.
 
-   Only after the story (storyOver). The chassis shows it (a theme's
-   `realityGate`: { world, deferred?, when? }) when a reality mounts with
-   no game under way; a deferred one waits for openRealityGate() (Lluvia:
-   after its descent). React through createElement, as the other overlays,
-   so it imports in plain Node. */
+   Only after the story (storyOver), or through a world's ?nova link
+   (rulesOpen, below). The chassis shows it (a theme's `realityGate`:
+   { world, deferred?, when?, story? }) when a reality mounts with no game
+   under way, and again from Change rules; a deferred one waits for
+   openRealityGate() (Lluvia: after its descent). React through
+   createElement, as the other overlays, so it imports in plain Node. */
 
 import { usePivotGuide, useGuideHush, flashEl } from "./pivot-guide.js";
 import { FitAlert, useFitAlert, fitProblemOf } from "./fit-alert.js";
@@ -54,6 +55,50 @@ export function storyOver() {
   // (Or come here from the realities menu this visit: realities.js goToWorld.)
   try { if (window.sessionStorage.getItem(REALITIES_VISIT_KEY) === "1") return true; } catch (e) { /* the record, then */ }
   try { const s = JSON.parse(window.localStorage.getItem(STORY_KEY) || "null"); return !!(s && s.ended); } catch (e) { return false; }
+}
+/* A link straight to a world's Cabeza Nova menu (user, of the Lab: "there
+   is no way to access rules other than the standard game. What is a
+   solution here?"; of the options, "Go with A + B", A being this): ?nova
+   on the page of any world with the two buttons opens the menu as the
+   world comes up, whatever the story, for testing and for sharing. The
+   rules stay open for the rest of the visit (this tab), the two buttons
+   and Change rules with them; the story itself is untouched (Other
+   realities still waits for it), and Nova's own places, where the story
+   decides (their gate's `story`), don't take it. Read once, by the first
+   world that asks, and the word dropped from the address. */
+export const NOVA_LINK_KEY = "el-cabeza:nova-link";
+let novaLink = null; // this load came by the link (null: not read yet)
+let novaLinkSheet = false; // ...and its menu is still to open
+function readNovaLink() {
+  if (novaLink !== null) return novaLink;
+  novaLink = false;
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("nova")) {
+      novaLink = novaLinkSheet = true;
+      url.searchParams.delete("nova");
+      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+      try { window.sessionStorage.setItem(NOVA_LINK_KEY, "1"); } catch (e) { /* this load only, then */ }
+    }
+  } catch (e) { /* no address to read */ }
+  return novaLink;
+}
+/* Whether the rules may be chosen here: the two buttons as a world comes
+   up, and Change rules. After the story; or, but for a place of the
+   story's (`gate.story`), this visit's ?nova link. */
+export function rulesOpen(gate = null) {
+  if (storyOver()) return true;
+  if (gate && gate.story) return false;
+  if (readNovaLink()) return true;
+  try { return window.sessionStorage.getItem(NOVA_LINK_KEY) === "1"; } catch (e) { return false; }
+}
+/* The stage the gate opens on: Cabeza Nova's menu the first time after
+   the link, the two buttons after that (or as asked). */
+export function gateStage(asked = null) {
+  if (asked) return asked;
+  readNovaLink();
+  if (novaLinkSheet) { novaLinkSheet = false; return "nova"; }
+  return "choose";
 }
 export const GATE_EVENT = "el-cabeza:reality-gate";
 // Opens the gate (a deferred one, or again): { stage: "choose" | "nova" }.
@@ -799,6 +844,8 @@ export function RealityGate({ api, world, stage: initialStage = "choose", sel: i
       h("button", { type: "button", className: "rg-big rg-nova", "data-testid": "gate-nova", onClick: () => setStage("nova") },
         h("span", { className: "rg-big-t" }, "Cabeza Nova"),
         h("span", { className: "rg-big-s" }, "Every piece, rule and board. Set it up, then play.")),
-      h("button", { type: "button", className: "rg-link", "data-testid": "gate-realities", onClick: realities }, "Other realities"))
+      // (The other realities are the story's to open: not through the
+      // ?nova link.)
+      storyOver() && h("button", { type: "button", className: "rg-link", "data-testid": "gate-realities", onClick: realities }, "Other realities"))
     : h(NovaSheet, { api, initial: initialSel, onBack: () => setStage("choose"), onPlay: play, world, pieceLook }));
 }

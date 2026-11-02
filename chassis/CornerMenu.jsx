@@ -30,13 +30,15 @@ function useFonts(look, fonts) {
 // below: the px its top stands at instead of its own (out from under the
 // replay's bar), or null. Straight there, no glide: it comes up as a
 // replay starts playing, so a glide began over the bar.
-export default function CornerMenu({ look, rules, extra = null, audio = null, below = null }) {
+// onChangeRules: Change rules on the card (where the rules can be chosen:
+// the chassis's askChangeRules), or null.
+export default function CornerMenu({ look, rules, extra = null, audio = null, below = null, onChangeRules = null }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const lift = useRaise(ref, open);
   // (Its lines are made in the language: made again when it changes.)
   useLanguage();
-  const { tab, card, css, fonts } = cornerMenuParts(look, rules, extra);
+  const { tab, card, css, fonts } = cornerMenuParts(look, rules, extra, !!onChangeRules);
   useFonts(look, fonts);
 
   const shut = () => { setOpen(false); if (audio && audio.playDockClose) audio.playDockClose(); };
@@ -63,6 +65,7 @@ export default function CornerMenu({ look, rules, extra = null, audio = null, be
     } else if (what === "rules") { setOpen(false); openRules("game"); }
     else if (what === "law") { setOpen(false); openRules("moves", t.getAttribute("data-law")); }
     else if (what === "extra" && extra && extra.onClick) { setOpen(false); extra.onClick(); }
+    else if (what === "change" && onChangeRules) { setOpen(false); onChangeRules(); }
   };
 
   return (

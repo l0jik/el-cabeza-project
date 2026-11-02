@@ -83,7 +83,7 @@ const sums = {
 };
 
 // The card's insides, the same everywhere (each look's own labels and marks).
-function card(r, L, extra) {
+function card(r, L, extra, change) {
   const laws = r.laws.length
     ? r.laws.map((l) => `<li class="cm-law"><button type="button" class="cm-name" data-cm="law" data-law="${esc(l.key)}" data-testid="corner-menu-law-${esc(l.key)}">${esc(l.name)}</button>${(l.sets || []).map(([k, v]) => `<span class="cm-set"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></span>`).join("")}</li>`).join("")
     : `<li class="cm-law cm-none"><span class="cm-name">${esc(L.noLaws || "None: the standard rules")}</span></li>`;
@@ -93,11 +93,16 @@ function card(r, L, extra) {
     ...(r.board.holePairs > 1 ? [["Singularity exits", r.board.anyExit ? "Any other singularity" : "The other half"]] : [])];
   const board = rows.map(([k, v]) => `<li class="cm-bd"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></li>`).join("");
   const go = extra ? `<button type="button" class="go cm-extra" data-cm="extra" data-testid="corner-menu-extra">${esc(extra.label)}</button>` : "";
+  // Change rules (user: "Do we need to have a button in every game to
+  // allow toggling between standard game and Cabeza Nova rules?"; "Go
+  // with A + B"): the two buttons back, the game asked about first (the
+  // chassis's askChangeRules). Where the rules can be chosen.
+  const swap = change ? `<button type="button" class="go cm-extra cm-change" data-cm="change" data-testid="corner-menu-change-rules">${esc(t("Change rules"))} ›</button>` : "";
   return `${L.head || ""}
     <section class="cm-sec cm-laws"><h4>${L.laws(r)}</h4><ul>${laws}</ul></section>
     <section class="cm-sec cm-pieces"><h4>${L.pieces(r)}</h4><ul>${pieces}</ul>${L.piecesExtra ? L.piecesExtra(r) : ""}</section>
     <section class="cm-sec cm-board"><h4>${L.board(r)}</h4><ul>${board}</ul>${L.boardExtra ? L.boardExtra(r) : ""}</section>
-    ${go}${L.foot(r)}`;
+    ${go}${swap}${L.foot(r)}`;
 }
 const rulesLink = (label) => `<button type="button" class="go" data-cm="rules" data-testid="corner-menu-rules">${label}</button>`;
 
@@ -136,6 +141,9 @@ const BASE = `
   .cm .cm-pc, .cm .cm-bd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .cm .cm-bd .v { text-align: right; } /* (a long one, "Any other singularity", wraps flush right) */
   .cm .cm-extra { display: block; margin-top: 10px; text-decoration: underline; }
+  /* Change rules on a touch screen: the look's small link (11 px in Luna's)
+     with a finger's room round it, unseen, nothing moved. */
+  @media (pointer: coarse) { .cm .cm-change { position: relative; } .cm .cm-change::after { content: ""; position: absolute; inset: -8px -6px; } }
   /* The den's lights down (focus mode): it dims with the room until it's opened. */
   html.ec-lights-down .cm:not([data-open="true"]):not([data-raised="true"]) { opacity: 0.3; }
   @media (hover: hover) { html.ec-lights-down .cm:not([data-open="true"]):hover { opacity: 0.9; } }
@@ -553,9 +561,10 @@ LOOKS["parrish-watermark"] = {
 const PARRISH_TITLE = { "parrish-orinoco": "TÁ MUID BEO", "parrish-watermark": "GO DEO NA NDEOR" };
 
 /* A look's tab and card (markup), and its CSS. `extra`: a further action
-   on the card, { label } (the store's "Purchase and bring home"). */
-export function cornerMenuParts(look, r, extra = null) {
+   on the card, { label } (the store's "Purchase and bring home").
+   `change`: Change rules on it (true where the rules can be chosen). */
+export function cornerMenuParts(look, r, extra = null, change = false) {
   const L0 = LOOKS[look] || LOOKS.den;
   const L = typeof L0.L.head === "function" ? { ...L0.L, head: L0.L.head(PARRISH_TITLE[look] || "") } : L0.L;
-  return { tab: L0.tab(r), card: card(r, L, extra), css: BASE + L0.css, fonts: L0.fonts };
+  return { tab: L0.tab(r), card: card(r, L, extra, change), css: BASE + L0.css, fonts: L0.fonts };
 }

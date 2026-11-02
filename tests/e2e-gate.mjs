@@ -53,8 +53,11 @@ console.log("Cromo, after the story");
 }
 
 // User: after picking Standard Cabeza in a reality, "there's no way to
-// go back, while still in that theme, to return to Cabeza Nova".
-console.log("Cromo: back to Cabeza Nova after a Standard Cabeza game");
+// go back, while still in that theme, to return to Cabeza Nova"; then
+// (2026-11-02, "Go with A + B") Change rules between games in its place,
+// the two buttons back (chassis askChangeRules; e2e-change-rules.mjs has
+// the rest: the link, the Rules card, the question in a game).
+console.log("Cromo: Change rules after a Standard Cabeza game");
 {
   const { p, ctx, errs } = await open("el-cabeza-cromo.html");
   await gateOn(p);
@@ -63,11 +66,13 @@ console.log("Cromo: back to Cabeza Nova after a Standard Cabeza game");
   await p.waitForTimeout(1200);
   const endIt = async () => { await openDockPanel(p).catch(() => {}); await p.locator('[data-testid="end-game"]').click(); };
   await endIt();
-  check("a Standard Cabeza game over: Cabeza Nova among its links", !!(await poll(async () => (await p.locator('[data-testid="nova-again"]').count()) > 0, 6000)) && /cabeza nova/i.test(await p.locator('[data-testid="nova-again"]').innerText()));
-  check("...and no plain-rules link (the rules are plain)", (await p.locator('[data-testid="reset-rules"]').count()) === 0);
-  await p.locator('[data-testid="nova-again"]').click();
-  check("...it opens Cabeza Nova's menu, in Cromo", !!(await poll(async () => (await p.locator('[data-testid="gate-sheet"]').count()) > 0 && (await p.locator('[data-testid="reality-gate"]').getAttribute("data-world")) === "cromo", 6000)));
+  check("a Standard Cabeza game over: Change rules among its links", !!(await poll(async () => (await p.locator('[data-testid="change-rules"]').count()) > 0, 6000)) && /change rules/i.test(await p.locator('[data-testid="change-rules"]').innerText()));
+  check("...and no plain-rules link", (await p.locator('[data-testid="reset-rules"]').count()) === 0);
+  await p.locator('[data-testid="change-rules"]').click();
+  check("...it brings the two buttons back, in Cromo, nothing asked (no game being played)", !!(await poll(async () => (await p.locator('[data-testid="gate-standard"]').count()) > 0 && (await p.locator('[data-testid="reality-gate"]').getAttribute("data-world")) === "cromo", 6000)) && (await p.locator('[data-testid="change-rules-ask"]').count()) === 0);
   check("...the finished game put away", await p.evaluate(() => window.__EC_TEST_ARMED__ === false));
+  await p.locator('[data-testid="gate-nova"]').click();
+  check("...Cabeza Nova from there opens its menu", !!(await poll(async () => (await p.locator('[data-testid="gate-sheet"]').count()) > 0, 4000)));
   await p.locator('[data-testid="gate-sheet-back"]').click();
   check("its Back: the two buttons again", !!(await poll(async () => (await p.locator('[data-testid="gate-standard"]').count()) > 0, 4000)));
   await p.locator('[data-testid="gate-standard"]').click();
@@ -77,15 +82,15 @@ console.log("Cromo: back to Cabeza Nova after a Standard Cabeza game");
   await poll(async () => (await p.locator('[data-testid="new-game"]').count()) > 0, 6000);
   await p.locator('[data-testid="new-game"]').click();
   await openDockPanel(p).catch(() => {});
-  check("New Game after it: Cabeza Nova under Begin Game", !!(await poll(async () => (await p.locator('[data-testid="nova-again-setup"]').count()) > 0, 6000)));
-  await p.locator('[data-testid="nova-again-setup"]').click();
-  check("...and it opens the menu too", !!(await poll(async () => (await p.locator('[data-testid="gate-sheet"]').count()) > 0, 6000)));
+  check("New Game after it: Change rules under Begin Game", !!(await poll(async () => (await p.locator('[data-testid="change-rules-setup"]').count()) > 0, 6000)));
+  await p.locator('[data-testid="change-rules-setup"]').click();
+  check("...and it brings the two buttons too", !!(await poll(async () => (await p.locator('[data-testid="gate-standard"]').count()) > 0, 6000)));
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }
 
 // ...and on Nova's phone layout (the bar), in its menu.
-console.log("Nova on a phone, the bar: Cabeza Nova in the menu after a Standard Cabeza game");
+console.log("Nova on a phone, the bar: Change rules in the menu after a Standard Cabeza game");
 {
   const { p, ctx, errs } = await open("el-cabeza-nova.html?world=futuris", { viewport: { width: 390, height: 844 } });
   await p.evaluate(() => localStorage.setItem("el-cabeza:nova-layout", "bar"));
@@ -94,16 +99,16 @@ console.log("Nova on a phone, the bar: Cabeza Nova in the menu after a Standard 
   await p.locator('[data-testid="gate-standard"]').click();
   await poll(() => p.evaluate(() => window.__EC_TEST_ARMED__ === true), 6000);
   await p.waitForTimeout(1200);
-  const menuBtn = p.locator('[data-testid="shell-menu-button"]'), row = p.locator('[data-testid="shell-menu-nova-again"]');
+  const menuBtn = p.locator('[data-testid="shell-menu-button"]'), row = p.locator('[data-testid="shell-menu-change-rules"]');
   await menuBtn.click();
-  check("the bar's menu during the game: no Cabeza Nova", !!(await poll(async () => (await p.locator('[data-testid="shell-menu-end"]').count()) > 0, 4000)) && (await row.count()) === 0);
+  check("the bar's menu during the game: no Change rules (the Rules card has it)", !!(await poll(async () => (await p.locator('[data-testid="shell-menu-end"]').count()) > 0, 4000)) && (await row.count()) === 0);
   await p.locator('[data-testid="shell-menu-end"]').click();
   await p.locator('[data-testid="shell-menu-end"]').click();
   await p.waitForTimeout(1200);
   await menuBtn.click();
-  check("the game ended: Cabeza Nova in the menu, by New game", !!(await poll(async () => (await row.count()) > 0 && (await p.locator('[data-testid="shell-menu-new"]').count()) > 0, 6000)));
+  check("the game ended: Change rules in the menu, by New game", !!(await poll(async () => (await row.count()) > 0 && (await p.locator('[data-testid="shell-menu-new"]').count()) > 0, 6000)));
   await row.click();
-  check("...it opens Cabeza Nova's menu", !!(await poll(async () => (await p.locator('[data-testid="gate-sheet"]').count()) > 0, 6000)));
+  check("...it brings the two buttons", !!(await poll(async () => (await p.locator('[data-testid="gate-standard"]').count()) > 0, 6000)));
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

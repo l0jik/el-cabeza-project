@@ -51,7 +51,8 @@ function flap(text) {
 // chassis listens; chassis/RulesCards.jsx).
 const openRules = (tab, focus = null) => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab, focus } }));
 
-function LabRules({ rules, open }) {
+// change: Change rules (the chassis's, where the rules can be chosen), or null.
+function LabRules({ rules, open, change = null }) {
   const ref = React.useRef(null);
   const listRef = React.useRef(null);
   React.useLayoutEffect(() => {
@@ -97,7 +98,12 @@ function LabRules({ rules, open }) {
       h("span", { className: "lab-label" }, "Board"),
       h("ul", null,
         h("li", null, "Size ", h("b", null, board.label)),
-        board.pairs ? h("li", null, "Missing squares ", h("b", null, `${board.pairs} ${board.pairs === 1 ? "pair" : "pairs"}`)) : null)));
+        board.pairs ? h("li", null, "Missing squares ", h("b", null, `${board.pairs} ${board.pairs === 1 ? "pair" : "pairs"}`)) : null),
+      // (User: "Do we need to have a button in every game to allow
+      // toggling between standard game and Cabeza Nova rules?"; "Go with
+      // A + B": Change rules at the foot of the Rules card, here the
+      // Lab's Rules line.)
+      change ? h("button", { type: "button", className: "lab-rules-change", "data-testid": "lab-rules-change", onClick: (e) => { e.stopPropagation(); change(); } }, "Change rules", " \u203a") : null));
 }
 
 export function LabHud({ spec, x }) {
@@ -268,6 +274,6 @@ export function LabHud({ spec, x }) {
     h("div", { className: "lab-over", role: "status" }, game.status === "finished" && game.winner ? (game.youResult ? inWords(game.youResult === "win" ? "You win" : "You lose") : inWords("{side} wins", { side: SIDE[game.winner] })) : "", game.winReason ? h("div", { className: "lab-label", style: { marginTop: 6 } }, game.winReason) : null,
       // (Whom they beat, the AI's level: the chassis's winFoeNote.)
       game.winFoeNote ? h("div", { className: "lab-label", style: { marginTop: 4, opacity: 0.8 } }, game.winFoeNote) : null),
-    compact && game.rules ? h(LabRules, { rules: game.rules, open }) : null
+    compact && game.rules ? h(LabRules, { rules: game.rules, open, change: x.changeRules || null }) : null
   );
 }
