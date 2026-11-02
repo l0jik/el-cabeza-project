@@ -538,6 +538,14 @@ in; leaving Singularity, back in the den as the set switches off.
   size from its middle, through the rush, in the 1100 x 800 pass and the
   412 x 915 phone pass (on the old code both fail, 1.86 and 1.83 of the
   glass's size off; on the fix 0.01).
+  The test's frame log runs until the den's hooks go, and they go after
+  the den: Nova swaps it out 380 ms into its transition (apps/unified.jsx
+  beginTransition), React takes the den's page away before its clean-up
+  runs, so a frame in between can find the den's canvas off the page and
+  Futuris's the first canvas (CI shard 1 on 478671f, 2176 ms in: no
+  stretch, the glass's box 0 x 0). The log reads the den's own canvas
+  (__DEN_THREE__) and whether it's on the page (`shown`); "the picture
+  drawn out" takes the last frame after 1 s with it shown.
 
 - **The 3D piece out of the look round** (2026-10-29; user, a phone
   screenshot of Rings open over the den's coffee table: "Clicking the 3D

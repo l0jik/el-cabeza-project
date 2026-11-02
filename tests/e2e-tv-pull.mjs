@@ -99,8 +99,14 @@ const aimCheck = (label, samples) => {
         const t = f();
         if (t.tug && !t.pull) window.__TUG_LOG__.push({ s: t.tug.s, lurch: +t.tug.lurch.toFixed(3), shake: +t.tug.shake.toFixed(3), dist: t.glassDist, phase: t.phase, lock: t.lock, debris: t.tug.debris.map((d) => `${d.id}:${d.phase}`).join(" "), think: !!document.querySelector('[data-testid="den-tug-think"]:not(.off)'), uhoh: !!document.querySelector('[data-testid="den-uhoh"]:not(.off)') });
         if (t.pull) {
-          const c = document.querySelector("canvas"), el = document.querySelector('[data-testid="den-pull"]');
-          window.__PULL_LOG__.push({ s: t.pull.s, focus: +t.focus.toFixed(3), dive: +t.dive.toFixed(3), fov: t.pull.fov, fov0: t.pull.fov0, transform: c ? c.style.transform : "", streaks: el ? Number(el.style.opacity) : null, aim: window.__PULL_AIM__(), phase: t.phase, lock: t.lock, yell: t.pull.yell, tugged: t.tug ? t.tug.s : null, dist: t.glassDist, dark: t.pull.dark, crt: !!document.querySelector(".ec-crt-overlay") });
+          // (The den's own picture, and whether it's still on the page:
+          // Nova swaps the den out 380 ms into its transition, and the
+          // den's clean-up, its hooks with it, comes after. A frame in
+          // between, on a slow machine, found Futuris's canvas the first
+          // on the page and the den's gone: CI on 478671f, 2176 ms in.)
+          const t3 = window.__DEN_THREE__, c = t3 && t3.renderer ? t3.renderer.domElement : null, el = document.querySelector('[data-testid="den-pull"]');
+          const box = c && c.isConnected ? c.getBoundingClientRect() : null;
+          window.__PULL_LOG__.push({ s: t.pull.s, focus: +t.focus.toFixed(3), dive: +t.dive.toFixed(3), fov: t.pull.fov, fov0: t.pull.fov0, transform: c ? c.style.transform : "", shown: !!box && box.width > 0 && box.height > 0, streaks: el ? Number(el.style.opacity) : null, aim: window.__PULL_AIM__(), phase: t.phase, lock: t.lock, yell: t.pull.yell, tugged: t.tug ? t.tug.s : null, dist: t.glassDist, dark: t.pull.dark, crt: !!document.querySelector(".ec-crt-overlay") });
         }
       }
       if (window.__DEN_TV__ || !window.__PULL_LOG__.length) requestAnimationFrame(tick);
@@ -156,7 +162,8 @@ const aimCheck = (label, samples) => {
   const early = samples.filter((x) => x.s < 450), late = samples.filter((x) => x.s > 1000);
   check(`...slow at first (focus ${early.length ? Math.max(...early.map((x) => x.focus)) : "?"} by 0.45 s)`, early.length > 0 && Math.max(...early.map((x) => x.focus)) < 0.45, JSON.stringify(samples.slice(0, 6)));
   check(`...then all at once, into the glass (focus ${late.length ? Math.max(...late.map((x) => x.focus)) : "?"}, dive ${late.length ? Math.max(...late.map((x) => x.dive)) : "?"} after 1 s)`, late.length > 0 && Math.max(...late.map((x) => x.focus)) > 0.9 && Math.max(...late.map((x) => x.dive)) > 0.4, JSON.stringify(samples.slice(-6)));
-  const wide = late.length ? late[late.length - 1] : null;
+  // (The last of them with the den's picture still on the page.)
+  const wide = late.filter((x) => x.shown).pop() || null;
   check(`...the lens widening (${wide && wide.fov0} -> ${wide && wide.fov})`, !!wide && wide.fov > wide.fov0 * 1.4, JSON.stringify(wide));
   check(`...the picture drawn out toward the set, streaks of light (${wide && wide.transform}, ${wide && wide.streaks})`, !!wide && /scale\(/.test(wide.transform) && wide.streaks > 0.5, JSON.stringify(wide));
   aimCheck("...the streaks meeting on the set's glass, at its middle", samples);
