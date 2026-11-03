@@ -73,29 +73,56 @@ since radius/phi can change independently afterward):
   inert at aspect ≥ 1 (pixel-identical desktop screenshots before/after)
   — if this code is touched again, re-verify both a narrow-portrait
   viewport AND a square/desktop viewport, not just one.
-- **Zoomed in, the pan hardly moves (2026-11-03, user video, Futuris on a
-  phone: "when I am zoomed in, I want to move the board over ... with my
-  two fingers trying to pull and it won't go. What solutions do we have
-  here?").** Why: with `MIN_VISIBLE_FRACTION = 0.5` the horizontal clamp
-  is purely `groundHalfSpan` (the board's own term is `B * (1 - 2 * 0.5)
-  = 0`), i.e. the visible half-span, which shrinks with the radius. When
-  the screen shows less than half the board, "half the board on screen"
-  can't be met anyway, and the formula collapses to "stay by the middle".
-  Measured on a 390 x 844 phone in Futuris (aim pushed to x = 30, read
-  back): radius 9 (ZOOM_MIN, the closest) 1.52 squares from the middle;
-  13: 2.19; 18: 3.02. A 12 x 13 board's edges are 6 squares out. The
-  worlds with their own `freeCamera` reach (the City 22, Noir 26, Luna 40,
-  the den 70, the store 60) don't have it; Futuris, the Lab's looks,
-  Lluvia, Plano, Cromo and both Parrish looks do. Options given (nothing
-  changed yet): A, zoomed in closer than the whole board, let the aim go
-  anywhere over the board (the screen kept over it, so the board can't be
-  pushed off: the user's visibility rule still holds), as today when
-  zoomed out; B, a pinch zooms toward the point between the fingers (as
-  maps do); C, the view follows the chosen piece when zoomed in; D, a
-  double tap zooms to a spot. A + B recommended. Note for A: panBy moves
-  the aim along the camera's own up vector (target.y too), held by the
-  vertical clamp; a screen-up drag may want to slide over the ground
-  (XZ) instead.
+- **Zoomed in, the pan hardly moved; now anywhere over the board, and a
+  pinch toward the fingers (2026-11-03, user video, Futuris on a phone:
+  "when I am zoomed in, I want to move the board over ... with my two
+  fingers trying to pull and it won't go. What solutions do we have
+  here?"; picked A + B: "When zoomed in, two fingers can take the view
+  anywhere over the board, right up to its edges. The screen always stays
+  over the board, so it still can't be pushed off. Zoomed out, the limit
+  stays as it is today." and "Pinch toward your fingers. The zoom closes
+  in on the spot between your fingers, the way maps do, instead of the
+  middle of the screen.").** Why it was stuck: with
+  `MIN_VISIBLE_FRACTION = 0.5` the horizontal clamp is purely
+  `groundHalfSpan` (the board's own term is `B * (1 - 2 * 0.5) = 0`), the
+  visible half-span, which shrinks with the radius; once the screen shows
+  less than half the board, "half the board on screen" can't be met and
+  the formula collapsed to "stay by the middle". Measured on a 390 x 844
+  phone in Futuris: radius 9 (ZOOM_MIN) 1.52 squares from the middle; 13:
+  2.19; 18: 3.02 (a 12 x 13 board's edges are 6 out). The worlds with
+  their own `freeCamera` reach (the City 22, Noir 26, Luna 40, the den 70,
+  the store 60) never had it.
+  - A (tick()): the allowed region is today's circle OR the slab's own
+    rectangle (SLAB_X/2, SLAB_Z/2, turned with the board, boardGroup.
+    rotation.y = -goal.theta) shrunk by groundHalfSpan on each side: the
+    aim anywhere the screen's narrow axis stays over the board. Outside
+    both, the nearer edge of the two. The rectangle reaches past the
+    circle only while the half-span is under about 0.29 of the slab, so
+    zoomed out nothing changes; on a computer's 10 x 10 at ZOOM_MIN (half-
+    span 3.46) it's still inside, so only phones and big boards gain.
+    Measured: phone ZOOM_MIN, pushed out along the board, 3.89 squares
+    (was 1.52), to a corner 5.50; radius 40 the same 7.10 as before.
+    Beyond the circle horizUsage is 1, so the vertical budget is 0
+    (target.y 0), as it already was that close in. The fit's own
+    clampPan (the framing views, Show me) keeps the circle: stricter is
+    still legal.
+  - B (onMove, two fingers): at the second finger's touch the board's
+    plane point under the fingers' middle (groundUnder: the GOAL camera,
+    the live projection matrices copied, so a phone's view offset counts;
+    the plane at the target's height) is kept as pinchGround; each move
+    sets the radius as before, then shifts the target by pinchGround
+    minus the point now under the middle: the zoom closes in on that spot
+    and a pull drags the board along the ground (no more target.y from a
+    two-finger pull). If the line misses the plane or meets it beyond 4
+    radii (a view at the horizon) the old screen-plane panBy carries on
+    for the rest of that pinch. Kept across handler re-binds
+    (gestureKeepRef) and cleared with panAnchor. The mouse wheel still
+    zooms on the middle.
+  - tests/e2e-zoom-pan.mjs (Futuris on a phone, theta 0.3, phi 0.55): the
+    push along the board and to a corner, the screen over the board;
+    radius 40 unchanged; four two-finger pulls, 4.47 squares out and no
+    further; a pinch apart over a spot off the middle, 24 to 9, the spot
+    0 px off under the fingers.
 - **The rooms look around (user's explicit instruction, Sep 27):** "I
   can't really move around in the room at all... panning feels far, far
   too restrictive", and asked, the user chose to let the den and the store
@@ -159,6 +186,20 @@ immediately.
   switch in the dock or the phone's menu, a tap still the note, End turn
   ends it, and on the phone a stored "0" from the old switch is passed
   over (the note, then a held touch ends the turn).
+- **The floating End turn goes once a turn's been ended by holding**
+  (2026-11-03; user, of the button by Undo move: "Isn't this end turn
+  button redundant now that we can long press on a piece?"; picked "B.
+  Hide it once you've ended a turn by holding. New players still see it.
+  The game already remembers when you've used the hold, so after that the
+  button stays gone. Undo move stays where it is."). holdKnown state
+  (from holdLearned(), el-cabeza:hold-to-end-learned, set by the first
+  hold held to its end) and endTurnFloat = stopHereFloat && showPoints &&
+  !holdKnown. Only the floating button (stop-here-float): End turn stays
+  in the calm menu's Game, the dock's panel (end-turn-dock), the phone's
+  control bar (shell-end-turn) and the check alert's held turn. The
+  walkthrough's and rules' "or press End turn" stay true (the menu's).
+  e2e-hold-to-end: there for a new player; after the first hold, gone,
+  Undo move left, the dock's End turn ends the turn.
 
 - **A finger whose lift never arrived** (2026-10-21; user's video, home
   from the trip: "Something screwed up the spin, zoom, pan. The single

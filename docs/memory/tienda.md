@@ -502,7 +502,10 @@ box art and an ad standee (assets/tienda/*.jpg).
   status line "One action left: move it again, or press End turn, or hold
   the piece until its ring closes." Also: How to play's "hold the piece you
   moved, or press End turn", the tap's note, the first hold's teaching
-  ring. Fits on a 360x640 phone with the board in view.
+  ring. Fits on a 360x640 phone with the board in view. (Since
+  2026-11-03 the floating End turn goes once a turn's been ended by
+  holding, user's pick; End turn stays in the menu: docs/memory/
+  05-camera-input.md.)
 - **Walking in, one even rise; the music 20% lower** (2026-10-23; user:
   "When you enter the Tienda / store, the sound starts low, then suddenly
   jumps up ...maybe b/c the A/C kicks in or.....something....I think the

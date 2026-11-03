@@ -101,6 +101,8 @@ const E2E = [
   ["e2e-change-rules.mjs"],
   // The piece card keeps off the chosen piece: in its own place till that covers it, then the corner that covers it least, left there while clear (the City on a phone, Luna on a computer).
   ["e2e-piece-card-place.mjs"],
+  // Zoomed in, the view goes anywhere over the board (the screen kept over it), zoomed out as before; two fingers pull it to the edge; a pinch zooms toward the fingers (Futuris on a phone).
+  ["e2e-zoom-pan.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

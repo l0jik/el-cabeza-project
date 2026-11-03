@@ -1583,6 +1583,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [endHold, setEndHold] = useState(null);
   const endHoldRef = useRef(null);
   const [holdHint, setHoldHint] = useState(null);
+  // A turn once ended by holding (el-cabeza:hold-to-end-learned): the
+  // floating End turn put away for good (below, endTurnFloat).
+  const [holdKnown, setHoldKnown] = useState(holdLearned);
   const moveTapAtRef = useRef(0); // when a tap on a marker last set a piece moving
   function cancelEndHold() {
     const h = endHoldRef.current;
@@ -5190,6 +5193,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // (Stop here above the points row; see its button. Kept up through a
   // move's own animation, when the markers are briefly gone.)
   const stopHereFloat = !shell && isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && (stepsRemaining > 0 || busy) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
+  /* The floating End turn, with the points showing, until a turn's been
+     ended by holding the piece (user, of the button by Undo move, "Isn't
+     this end turn button redundant now that we can long press on a
+     piece?"; picked: "Hide it once you've ended a turn by holding. New
+     players still see it."): from then on the hold is the way, and End
+     turn stays in the menu's Game, the dock's panel and the phone's bar.
+     Undo move stays where it is. */
+  const endTurnFloat = stopHereFloat && showPoints && !holdKnown;
   /* Undo move (handleUndoMove): mid-turn, or between turns while the turn
      before can be opened again (not online, where a turn's gone down the
      line; and against the computer only once there's a turn of yours to
@@ -6076,7 +6087,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     });
     window.__EC_TEST_TO_MOVE__ = () => currentPlayer; // (whose turn it is: "dark" or "light")
   }
-  const cornerColumnUnderFloats = cornerStack && ((stopHereFloat && showPoints) || undoMoveFloat);
+  const cornerColumnUnderFloats = cornerStack && (endTurnFloat || undoMoveFloat);
   const cornerColumnCovered = cornerControlsCovered || cornerColumnUnderFloats;
   // (The piece card's place, measured below everything at the lower left.)
   useLayoutEffect(() => {
@@ -6100,7 +6111,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [pieceCardShown, selectedId, stopHereFloat, undoMoveFloat, cornerStack]);
+  }, [pieceCardShown, selectedId, endTurnFloat, undoMoveFloat, cornerStack]);
   /* On a phone the pause chip, at the top of the corner's column, climbs
      above the piece card while the card shows (user: the chip lay on the
      card's top corner), measured from the card as it shows and as it moves,
@@ -7244,11 +7255,38 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         const halfHFovRad = Math.atan(Math.tan(halfFovRad) * camera.aspect);
         const groundHalfSpan = goal.radius * Math.tan(Math.min(halfFovRad, halfHFovRad));
         const maxPanDistance = (SLAB_MIN / 2) * (1 - 2 * MIN_VISIBLE_FRACTION) + groundHalfSpan;
-        const panDistSq = goal.target.x * goal.target.x + goal.target.z * goal.target.z;
-        if (panDistSq > maxPanDistance * maxPanDistance) {
-          const panK = maxPanDistance / Math.sqrt(panDistSq);
-          goal.target.x *= panK;
-          goal.target.z *= panK;
+        /* Zoomed in, anywhere over the board (user, a video of Futuris on
+           a phone: "when I am zoomed in, I want to move the board over ...
+           with my two fingers trying to pull and it won't go"; picked:
+           "When zoomed in, two fingers can take the view anywhere over the
+           board, right up to its edges. The screen always stays over the
+           board, so it still can't be pushed off. Zoomed out, the limit
+           stays as it is today."). The circle is the visible half-span,
+           which shrinks with the zoom: right in (ZOOM_MIN, a phone) it kept
+           the view's middle within a square and a half of the board's.
+           So the target may also be anywhere the screen stays over the
+           board: the slab's own rectangle, turned with it (boardGroup.
+           rotation.y = -theta), less the visible half-span each side.
+           Close in that reaches the board's edges; once the screen shows
+           more than about half the board it lies inside the circle, so
+           zoomed out nothing changes. Outside both, the nearer of the two
+           edges. */
+        const panDist = Math.hypot(goal.target.x, goal.target.z);
+        if (panDist > maxPanDistance) {
+          const roomX = SLAB_X / 2 - groundHalfSpan, roomZ = SLAB_Z / 2 - groundHalfSpan;
+          const cT = Math.cos(goal.theta), sT = Math.sin(goal.theta);
+          const lx = goal.target.x * cT + goal.target.z * sT, lz = -goal.target.x * sT + goal.target.z * cT;
+          const overBoard = roomX > 0 && roomZ > 0 && Math.abs(lx) <= roomX && Math.abs(lz) <= roomZ;
+          if (!overBoard) {
+            const panK = maxPanDistance / panDist;
+            let toX = goal.target.x * panK, toZ = goal.target.z * panK;
+            if (roomX > 0 && roomZ > 0) {
+              const qx = Math.max(-roomX, Math.min(roomX, lx)), qz = Math.max(-roomZ, Math.min(roomZ, lz));
+              if (Math.hypot(lx - qx, lz - qz) < panDist - maxPanDistance) { toX = qx * cT - qz * sT; toZ = qx * sT + qz * cT; }
+            }
+            goal.target.x = toX;
+            goal.target.z = toZ;
+          }
         }
         /* How much of the horizontal budget the current position already
            spends, 0 (dead center) to 1 (right at the circular clamp
@@ -9290,6 +9328,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // distance the camera was at (see onMove).
     let pinchSpan0 = 0, pinchR0 = 0;
     let panAnchor = null;
+    // (The board's point under a pinch's fingers as it began: groundUnder.)
+    let pinchGround = null;
     /* Two-finger gesture recognition — a double-tap toggles full screen,
        a fast mostly-vertical swipe jumps to Current Player View (up) or
        Top-Down View (down) — layers on top of the pinch/pan handling
@@ -9367,7 +9407,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       lastTwoFingerTapAt = kept.lastTwoFingerTapAt;
       if (kept.view) {
         kept.view.active.forEach((v, id) => active.set(id, v));
-        ({ dragging, dragArmed, altPanning, moved, lastX, lastY, pinchDist, pinchSpan0, pinchR0, panAnchor, twoFingerStartTime, twoFingerStartMid, twoFingerStartSpan, twoFingerTrail, twoFingerLastMid, twoFingerMoved } = kept.view);
+        ({ dragging, dragArmed, altPanning, moved, lastX, lastY, pinchDist, pinchSpan0, pinchR0, panAnchor, pinchGround, twoFingerStartTime, twoFingerStartMid, twoFingerStartSpan, twoFingerTrail, twoFingerLastMid, twoFingerMoved } = kept.view);
         grab.theta = kept.view.grab.theta;
         grab.phi = kept.view.grab.phi;
       }
@@ -9577,6 +9617,35 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        never rotates with heading anymore. Panning always shifts the
        fixed viewer's own screen-relative aim point, independent of
        whatever heading the board currently happens to be at. */
+    /* The point of the board's plane (y = the target's) under a screen
+       point, as the GOAL view shows it (cam.current, not the eased view),
+       the live camera's own projection copied (a phone's bars offset it).
+       A pinch keeps the point first under the fingers there (user:
+       "Pinch toward your fingers. The zoom closes in on the spot between
+       your fingers, the way maps do"). Null when the line meets the plane
+       too far off, or not at all (a view near the horizon). */
+    const goalCam = new THREE.PerspectiveCamera();
+    const goalRay = new THREE.Raycaster();
+    const goalPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const goalNdc = new THREE.Vector2();
+    function groundUnder(x, y) {
+      const c = cam.current, { camera } = t;
+      const rect = el.getBoundingClientRect();
+      if (!rect.width || !rect.height) return null;
+      const r = t.cameraDistance ? t.cameraDistance(c.theta, c.phi, c.radius, c.target, !!c.dollhouse) : c.radius;
+      goalCam.position.set(c.target.x, c.target.y + r * Math.cos(c.phi), c.target.z + r * Math.sin(c.phi));
+      goalCam.lookAt(c.target);
+      goalCam.updateMatrixWorld(true);
+      goalCam.projectionMatrix.copy(camera.projectionMatrix);
+      goalCam.projectionMatrixInverse.copy(camera.projectionMatrixInverse);
+      goalNdc.set(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
+      goalRay.setFromCamera(goalNdc, goalCam);
+      goalPlane.constant = -c.target.y;
+      const hit = goalRay.ray.intersectPlane(goalPlane, new THREE.Vector3());
+      if (!hit || hit.distanceTo(goalCam.position) > 4 * Math.max(r, 1)) return null;
+      return hit;
+    }
+
     function panBy(dxPx, dyPx) {
       const { camera } = t;
       const dist =
@@ -9814,6 +9883,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         pinchDist = active.size === 2 ? pinchSpan() : 0;
         pinchSpan0 = pinchDist; pinchR0 = active.size === 2 ? zoomBase() : 0;
         panAnchor = active.size === 2 ? pinchMid() : null;
+        pinchGround = panAnchor ? groundUnder(panAnchor.x, panAnchor.y) : null;
         if (active.size === 2) {
           // A clean two-finger contact starts here — see the field
           // comments above for how this feeds the tap/swipe
@@ -9862,8 +9932,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           pinchDist = d;
 
           const mid = pinchMid();
-          if (panAnchor) {
-            panBy(mid.x - panAnchor.x, mid.y - panAnchor.y);
+          /* The board's point first under the fingers kept under them,
+             through the zoom just set and the pull together: the zoom
+             closes in on it, and the board follows the fingers along the
+             ground (the turn of the view kept). Where it can't be found
+             (a line to the horizon), the screen-plane pull as before, for
+             the rest of the pinch. */
+          const under = pinchGround && groundUnder(mid.x, mid.y);
+          if (under) {
+            cam.current.target.x += pinchGround.x - under.x;
+            cam.current.target.z += pinchGround.z - under.z;
+          } else {
+            pinchGround = null;
+            if (panAnchor) panBy(mid.x - panAnchor.x, mid.y - panAnchor.y);
           }
           panAnchor = mid;
 
@@ -10150,6 +10231,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         pinchDist = 0;
         pinchSpan0 = 0;
         panAnchor = null;
+        pinchGround = null;
       }
       if (active.size === 0) {
         dragging = false;
@@ -10388,6 +10470,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (active.size < 2) {
         pinchDist = 0;
         panAnchor = null;
+        pinchGround = null;
         // An interrupted two-finger gesture must never be classified
         // as a tap or swipe on some later, unrelated release.
         twoFingerStartMid = null;
@@ -10468,7 +10551,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         el,
         lastTwoFingerTapAt,
         view: active.size && !(undoDragTarget || slideDrag || pivotDrag)
-          ? { active: new Map(active), dragging, dragArmed, altPanning, moved, lastX, lastY, pinchDist, pinchSpan0, pinchR0, panAnchor, twoFingerStartTime, twoFingerStartMid, twoFingerStartSpan, twoFingerTrail, twoFingerLastMid, twoFingerMoved, grab: { theta: grab.theta, phi: grab.phi } }
+          ? { active: new Map(active), dragging, dragArmed, altPanning, moved, lastX, lastY, pinchDist, pinchSpan0, pinchR0, panAnchor, pinchGround, twoFingerStartTime, twoFingerStartMid, twoFingerStartSpan, twoFingerTrail, twoFingerLastMid, twoFingerMoved, grab: { theta: grab.theta, phi: grab.phi } }
           : null,
       };
       el.removeEventListener("pointerdown", onDown);
@@ -10979,7 +11062,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   holdDoneRef.current = (h) => {
     if (!h || h !== endHoldRef.current || h.done) return;
     h.done = true;
-    if (h.first) markHoldLearned();
+    if (h.first) { markHoldLearned(); setHoldKnown(true); }
     setEndHold(null);
     setHoldHint(null);
     try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) { /* no vibration here */ }
@@ -12600,7 +12683,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
           turn"): the step taken back, as the dock panel's does. */}
       {/* (Undo move whether the points show or not, and between turns too:
           the last move, easy to reach, user.) */}
-      {((stopHereFloat && showPoints) || undoMoveFloat) && (
+      {(endTurnFloat || undoMoveFloat) && (
         <div
           data-testid="turn-buttons-float"
           /* (On a phone 10 px higher, clear of the full screen button at
@@ -12618,7 +12701,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
               Undo move
             </button>
           )}
-          {stopHereFloat && showPoints && (
+          {endTurnFloat && (
             <button type="button" className="ec-btn" data-testid="stop-here-float" onClick={handleEndTurnClick} style={{ ...playerButtonStyle(currentPlayer), whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 7 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3FAE5A" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ filter: "drop-shadow(0 1px 0 rgba(0,0,0,0.35))" }}>
                 <path d="M4.5 12.5 9.5 17.5 19.5 6.5" />

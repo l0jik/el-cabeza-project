@@ -12,7 +12,9 @@
      more: the turn goes on, no note;
    - always on (user: "Hold to End should be a default, always-on
      mechanic. The toggle is unnecessary"): no switch in the dock, a tap
-     still the note, End turn the one tap that ends it.
+     still the note; the floating End turn there for a new player, gone
+     once a turn's been ended by holding (user: "Hide it once you've ended
+     a turn by holding."), Undo move left; the dock's End turn ends it.
    On a phone (the den's bar, the old switch's "off" kept from before):
    no switch in the menu; a tap, the note; a held touch ends the turn, its
    words over the ring (user: "This message should be moved to where it's
@@ -79,6 +81,7 @@ async function desktop(world) {
   await poll(() => page.evaluate(() => { const q = (window.__EC_TEST_PIECES__ || []).find((x) => x.id === "dark-turrito"); return q && q.row === 4; }), 8000);
   await page.waitForTimeout(800);
   check("a move made, the turn going on", (await turns(page)) === 0);
+  check("...a new player (no turn ended by holding yet): the floating End turn there", (await page.locator('[data-testid="stop-here-float"]').count()) === 1);
 
   // A tap on it: the turn goes on, and the note says how to end it.
   p = await at(page, "dark-turrito");
@@ -172,10 +175,16 @@ async function desktop(world) {
   p = await at(page, "light-turrito");
   await page.mouse.click(p.x, p.y);
   check("...a tap on the piece that's moved: the note, the turn goes on", !!(await poll(async () => (await hint(page).count()) === 1, 2000)) && (await turns(page)) === 1);
-  await page.locator('[data-testid="stop-here-float"]').click();
+  // A turn once ended by holding (above): the floating End turn put away
+  // for good (user: "Hide it once you've ended a turn by holding. New
+  // players still see it."), Undo move still there; End turn in the
+  // dock's panel ends it.
+  check("...the hold learned: no floating End turn, Undo move still beside where it was", (await page.locator('[data-testid="stop-here-float"]').count()) === 0 && (await page.locator('[data-testid="undo-move-float"]').count()) === 1);
+  await openDockPanel(page);
+  await page.locator('[data-testid="end-turn-dock"]').click();
   await page.waitForTimeout(400);
   if (await page.locator('[data-testid="end-turn-ask-end"]').count()) await page.locator('[data-testid="end-turn-ask-end"]').click();
-  check("...End turn ends it", !!(await poll(async () => (await turns(page)) === 2, 3000)));
+  check("...End turn (the dock's) ends it", !!(await poll(async () => (await turns(page)) === 2, 3000)));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }
