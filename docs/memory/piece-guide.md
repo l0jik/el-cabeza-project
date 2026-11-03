@@ -59,6 +59,28 @@ separated out."
   fits the screen and is clear of the chosen piece; else any side clamped
   onto the screen and clear; else as before.
 
+## The note stays up till a click outside it (2026-11-03)
+
+User: "leave why not pop-up cards open until they are until you click
+outside of it." No timer any more (WHY_NOT_MS, 4.4 s, gone), and no
+longer put away by any touch at all:
+
+- A click or a tap outside the note puts it away: a press let go within
+  the board's own dead zone (DRAG_DEAD_ZONE_PX, the board's tap-or-drag
+  line), one finger, the main mouse button, judged as it's let go (capture
+  listeners on the document, before the board's own handler, so a tap
+  that brings a new note leaves that one up). The tap still does what it
+  does (chooses a piece, moves one, opens a menu). Escape too.
+- Not a drag to turn the view, a pinch, the wheel, or a press on the note
+  itself: the note takes presses now (`pointerEvents: auto`, no text
+  selection, `touchAction: none`), so nothing under it is touched; the
+  frame hook keeps it beside its X as the board turns.
+- Still put away when it no longer fits: another piece chosen, the board
+  changed (the note keeps the `pieces` it was said on: a move, an undo, a
+  reset), the turn over (the side it was said on), the game done, Why not
+  switched off.
+- The piece card stays aside while it's up, as before.
+
 ## The icons say what each does
 
 - The calm menu's More list (menu-fan.js `row`): a row with a tip gets its
@@ -72,6 +94,8 @@ separated out."
 ## Tests
 
 tests/e2e-piece-card-place.mjs (City phone, Luna desktop), e2e-why-not.mjs
-(the tag, the card stepping aside, the note off the Cruce, Why not off,
+(the tag, the card stepping aside, the note off the Cruce, a click on the
+note, a drag and the wheel leaving it up, still up after 5 s, a click or
+a tap outside and Escape putting it away, mid-turn too; Why not off,
 guide off with Why not on, the old guide-off player), e2e-rings.mjs (Why
 not's row, the icon lines), e2e-first-look.mjs, e2e-first-game-tour.mjs.

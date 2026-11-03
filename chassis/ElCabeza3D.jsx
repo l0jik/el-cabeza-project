@@ -1604,15 +1604,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      says which rule refused the move, chassis/why-not.js puts it in
      words. Only with Why not on (its own switch since the user's "they
      need to be separated out"; it was the Piece guide's), on your own
-     turn; gone after WHY_NOT_MS, or at the next touch. `at` is where the
-     bubble points, in the board's own space (the X's middle, or the
-     piece's top). */
+     turn. Up till a click or a tap outside it (user: "leave why not
+     pop-up cards open until ... you click outside of it"), or Escape, or
+     till it no longer fits (below). `at` is where the bubble points, in
+     the board's own space (the X's middle, or the piece's top). */
   const [whyNot, setWhyNot] = useState(null);
-  const whyNotTimerRef = useRef(0);
   const whyNotXRef = useRef(false); // the X is the note's (not a drag's)
   const whyNotCardRef = useRef(null);
   const whyNotLineRef = useRef(null);
-  const WHY_NOT_MS = 4400;
   // The X over board squares `cells`, `top` cube levels up: a square
   // across, on their middle (the diagonal shove's X too, while dragged).
   const placeBoardX = (cells, top) => {
@@ -1626,7 +1625,6 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return true;
   };
   const hideWhyNot = () => {
-    clearTimeout(whyNotTimerRef.current);
     if (whyNotXRef.current) {
       whyNotXRef.current = false;
       const x = three.current && three.current.slideBlockGroup;
@@ -1639,7 +1637,6 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const showWhyNot = (reason, piece) => {
     if (!reason || !piece || !whyNotOn || !isPlaying || tourStep || replaying || currentPlayer === foeSide || piece.owner !== currentPlayer) return false;
     const words = whyNotWords(reason, { mover: piece, sideName });
-    clearTimeout(whyNotTimerRef.current);
     const placed = placeBoardX(reason.cells, reason.top);
     whyNotXRef.current = placed;
     let at;
@@ -1650,8 +1647,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       const c = pieceCenter(piece);
       at = { x: c.x, y: (piece.z || 1) * PIECE_SCALE + 0.1, z: c.z };
     }
-    setWhyNot({ key: Date.now(), code: reason.code, pieceId: piece.id, title: words.title, body: words.body, at });
-    whyNotTimerRef.current = setTimeout(hideWhyNot, WHY_NOT_MS);
+    // (The board and the side it was said on: a move, an undo or the
+    // turn's end puts it away, below.)
+    setWhyNot({ key: Date.now(), code: reason.code, pieceId: piece.id, title: words.title, body: words.body, at, board: pieces, side: currentPlayer });
     if (audioRef.current && audioRef.current.playBlocked) audioRef.current.playBlocked();
     return true;
   };
@@ -5033,24 +5031,53 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return x1 > x0 && y1 > y0 ? { left: x0, top: y0, right: x1, bottom: y1 } : null;
   };
   /* The refused move's note (showWhyNot): put away when it no longer
-     fits (another piece chosen, the turn over, a move made, the game
-     done, Why not switched off), at the next touch anywhere, or Escape.
-     While it's up, each frame keeps the bubble beside its X (the board
+     fits (another piece chosen, the turn over, a move made or undone,
+     the game done, Why not switched off), at a click or a tap outside it,
+     or Escape. Not by itself, and not by a press on the note (it takes
+     the press: nothing under it is touched), a drag to turn the view, a
+     pinch or the wheel: it stays up to be read while the board's looked
+     round (user: "leave why not pop-up cards open until ... you click
+     outside of it"). A click is a press let go within the board's own
+     dead zone (DRAG_DEAD_ZONE_PX, as the board tells a tap from a drag),
+     one finger, the main button; judged as it's let go, before the board
+     takes the tap (which still does what it does: chooses a piece, moves
+     one, opens a menu). While it's up, each frame keeps the bubble beside its X (the board
      may still be turning) and its pointer on it: on a computer to the
      X's right (left, if there's no room), on a phone above it, clear of
      the finger; and off the chosen piece (user: the guide's cards
      mustn't "cover up the piece that is currently selected"): where that
      side would cover it, the next side that doesn't. */
   useEffect(() => {
-    if (whyNot && (whyNot.pieceId !== selectedId || !isPlaying || !whyNotOn)) hideWhyNot();
+    if (whyNot && (whyNot.pieceId !== selectedId || whyNot.board !== pieces || whyNot.side !== currentPlayer || !isPlaying || !whyNotOn)) hideWhyNot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, currentPlayer, pieces, isPlaying, whyNotOn]);
   useEffect(() => {
     if (!whyNot) return undefined;
     const t3 = three.current;
-    const off = () => hideWhyNot();
+    let down = null;
+    const onDown = (e) => {
+      // (A second finger: a pinch, no click.)
+      if (down) { down.multi = true; return; }
+      const card = whyNotCardRef.current;
+      if (card && card.contains(e.target)) return;
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      down = { id: e.pointerId, x: e.clientX, y: e.clientY, far: false, multi: false };
+    };
+    const onMove = (e) => {
+      if (down && e.pointerId === down.id && Math.hypot(e.clientX - down.x, e.clientY - down.y) > DRAG_DEAD_ZONE_PX) down.far = true;
+    };
+    const onUp = (e) => {
+      const d = down;
+      if (!d || e.pointerId !== d.id) return;
+      down = null;
+      if (!d.far && !d.multi && Math.hypot(e.clientX - d.x, e.clientY - d.y) <= DRAG_DEAD_ZONE_PX) hideWhyNot();
+    };
+    const onCancel = (e) => { if (down && e.pointerId === down.id) down = null; };
     const key = (e) => { if (e.key === "Escape") hideWhyNot(); };
-    document.addEventListener("pointerdown", off, true);
+    document.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("pointermove", onMove, { capture: true, passive: true });
+    document.addEventListener("pointerup", onUp, true);
+    document.addEventListener("pointercancel", onCancel, true);
     document.addEventListener("keydown", key, true);
     const v = new THREE.Vector3();
     const coarse = isCoarsePointer();
@@ -5089,7 +5116,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (t3 && t3.frameHooks) t3.frameHooks.add(frame);
     frame();
     return () => {
-      document.removeEventListener("pointerdown", off, true);
+      document.removeEventListener("pointerdown", onDown, true);
+      window.removeEventListener("pointermove", onMove, { capture: true, passive: true });
+      document.removeEventListener("pointerup", onUp, true);
+      document.removeEventListener("pointercancel", onCancel, true);
       document.removeEventListener("keydown", key, true);
       if (t3 && t3.frameHooks) t3.frameHooks.delete(frame);
     };
@@ -12793,7 +12823,8 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
       {/* Why not's note on a refused move (showWhyNot): the
          bubble by the X, tagged with the setting it belongs to, and its
          pointer to the X. Placed at each frame (the effect by the piece
-         card's); hidden until then. Taps go through it. */}
+         card's); hidden until then. It takes a press on it (up till a
+         click outside it): nothing under it is touched. */}
       {whyNot && (
         <>
           <svg aria-hidden="true" data-testid="why-not-pointer" style={{ position: "fixed", left: 0, top: 0, width: "100vw", height: "100vh", pointerEvents: "none", zIndex: 13, overflow: "visible" }}>
@@ -12823,7 +12854,12 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
               fontFamily: "'IBM Plex Sans', sans-serif",
               fontSize: 12.5,
               lineHeight: 1.45,
-              pointerEvents: "none",
+              pointerEvents: "auto",
+              cursor: "default",
+              userSelect: "none",
+              WebkitUserSelect: "none",
+              WebkitTouchCallout: "none",
+              touchAction: "none",
               animation: "ecWhyNotIn 160ms ease both",
             }}
           >

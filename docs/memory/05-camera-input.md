@@ -73,6 +73,29 @@ since radius/phi can change independently afterward):
   inert at aspect ≥ 1 (pixel-identical desktop screenshots before/after)
   — if this code is touched again, re-verify both a narrow-portrait
   viewport AND a square/desktop viewport, not just one.
+- **Zoomed in, the pan hardly moves (2026-11-03, user video, Futuris on a
+  phone: "when I am zoomed in, I want to move the board over ... with my
+  two fingers trying to pull and it won't go. What solutions do we have
+  here?").** Why: with `MIN_VISIBLE_FRACTION = 0.5` the horizontal clamp
+  is purely `groundHalfSpan` (the board's own term is `B * (1 - 2 * 0.5)
+  = 0`), i.e. the visible half-span, which shrinks with the radius. When
+  the screen shows less than half the board, "half the board on screen"
+  can't be met anyway, and the formula collapses to "stay by the middle".
+  Measured on a 390 x 844 phone in Futuris (aim pushed to x = 30, read
+  back): radius 9 (ZOOM_MIN, the closest) 1.52 squares from the middle;
+  13: 2.19; 18: 3.02. A 12 x 13 board's edges are 6 squares out. The
+  worlds with their own `freeCamera` reach (the City 22, Noir 26, Luna 40,
+  the den 70, the store 60) don't have it; Futuris, the Lab's looks,
+  Lluvia, Plano, Cromo and both Parrish looks do. Options given (nothing
+  changed yet): A, zoomed in closer than the whole board, let the aim go
+  anywhere over the board (the screen kept over it, so the board can't be
+  pushed off: the user's visibility rule still holds), as today when
+  zoomed out; B, a pinch zooms toward the point between the fingers (as
+  maps do); C, the view follows the chosen piece when zoomed in; D, a
+  double tap zooms to a spot. A + B recommended. Note for A: panBy moves
+  the aim along the camera's own up vector (target.y too), held by the
+  vertical clamp; a screen-up drag may want to slide over the ground
+  (XZ) instead.
 - **The rooms look around (user's explicit instruction, Sep 27):** "I
   can't really move around in the room at all... panning feels far, far
   too restrictive", and asked, the user chose to let the den and the store
@@ -345,9 +368,13 @@ immediately.
   armed only for refused ways (`preferred: !slideDrag ||
   !slideDrag.dirs.length || nearArm`).
 - The note: whyNot state, placed every frame by a frame hook (beside the
-  X on a computer, above it on a phone), put away by any pointerdown
-  (capture; the touch still acts on the board), Escape, 4.4 s, another
-  piece chosen, a move, the turn, the guide off. A press of an own piece
+  X on a computer, above it on a phone). Since 2026-11-03 up till a click
+  or a tap outside it (user: "leave why not pop-up cards open until ...
+  you click outside of it"): a press let go within DRAG_DEAD_ZONE_PX
+  (capture; the tap still acts on the board), or Escape; a drag, a
+  pinch, the wheel or a press on the note (it takes presses now) leave
+  it; no timer. Also put away by another piece chosen, the board changed
+  (a move, an undo), the turn, Why not off (docs/memory/piece-guide.md). A press of an own piece
   with no move (whyNoMove) shows it at the piece, with no X.
 - Tests: tests/e2e-why-not.mjs; tests/e2e-shoving.mjs section 5 (the
   diagonal X now stays with its note until the next click).
