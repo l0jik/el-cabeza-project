@@ -54,6 +54,11 @@ import { RULE_LAWS, HOLES_LAW } from "../themes/rules-selections.js";
 import { gameRecord, encodeReplay, checkReplay, readPastedLog, VANILLA_LAWS } from "../engine/replay.js";
 import { quality, createGovernor } from "./device-fit.js";
 import { createShadowWatch } from "./shadow-watch.js";
+// The picture gone (the context lost and not given back, or no WebGL at
+// all): a card instead of the browser's white canvas (gl-watch.js).
+import { watchGL, webglWorks } from "./gl-watch.js";
+import PictureOut from "./PictureOut.jsx";
+import { createPortal } from "react-dom";
 import { fpsWanted, createFpsReadout } from "./fps-readout.js";
 import { sideAt, sideAsItGoes } from "./turn-where.js";
 import { collectSave, applySave, downloadSave, readSaveFile, cloudSave, cloudFetch, cloudRecord, restoreLink, restoreFromLink, takeRestoreNote, normalizeCode } from "./saves.js";
@@ -545,10 +550,33 @@ function glowShows(glow, ground) {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
-export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTilt = false, titleInfo = true, titleBadge = true }) {
+/* The chassis, if this browser will draw 3D at all (chassis/gl-watch.js):
+   when it won't make a WebGL context (blocked after a graphics crash, or
+   switched off), a card that says so, in the world's look, in place of the
+   empty page a renderer that couldn't start left. */
+export default function ElCabeza3D(props) {
+  const [canDraw] = useState(webglWorks);
+  if (!canDraw) return typeof document !== "undefined" ? createPortal(<PictureOut theme={props.theme} kind="none" />, document.body) : null;
+  return <ElCabeza3DScene {...props} />;
+}
+
+function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTilt = false, titleInfo = true, titleBadge = true }) {
   // Drawn again, every word in it, when the player changes the language
   // (chassis/i18n.js; the game itself goes on as it was).
   useLanguage();
+  /* The picture gone (chassis/gl-watch.js; the user's Moto G Stylus 5G:
+     "There's something not right here."): the board's or the corner
+     piece's WebGL context lost. At once the world's dark covers the
+     browser's white canvas ("waiting": the browser usually gives it back
+     within a moment); not given back, a card that loads the page again
+     (PictureOut.jsx). Either goes by itself when the picture comes back. */
+  const glRef = useRef({ board: null, dock: null });
+  const [pictureOut, setPictureOut] = useState(null);
+  const glState = (which, state) => {
+    glRef.current[which] = state;
+    const all = Object.values(glRef.current);
+    setPictureOut(all.includes("stuck") ? "stuck" : all.includes("lost") ? "waiting" : null);
+  };
   // Up and down the other way for a mouse (a page's choice: Big Glutts,
   // user; a finger always goes Futuris's way, grabLatch).
   const invertTiltRef = useRef(invertTilt);
@@ -2241,6 +2269,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     renderer.domElement.style.height = "100%";
     renderer.domElement.style.touchAction = "none";
     renderer.domElement.style.cursor = "grab";
+    // (Lost: the same cover and card as the board's, glState.)
+    const unwatchGL = watchGL(renderer.domElement, {
+      onLost: () => glState("dock", "lost"),
+      onBack: () => glState("dock", null),
+      onStuck: () => glState("dock", "stuck"),
+    });
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.65));
     const key = new THREE.DirectionalLight(0xffffff, 1.15);
@@ -2478,6 +2512,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      unwatchGL();
       if (painter) painter.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
@@ -6280,6 +6315,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     renderer.domElement.style.display = "block";
     renderer.domElement.style.touchAction = "none";
     renderer.domElement.style.cursor = "grab";
+    /* Lost and given back (a phone's graphics restarting): three.js puts
+       back everything it had uploaded, and the shadows are drawn again at
+       once (their map comes back empty). Lost: the cover; not given back:
+       the card (glState; chassis/gl-watch.js). */
+    const unwatchGL = watchGL(renderer.domElement, {
+      onLost: () => glState("board", "lost"),
+      onBack: () => { renderer.shadowMap.needsUpdate = true; glState("board", null); },
+      onStuck: () => glState("board", "stuck"),
+    });
 
     /* Ambient light hits every face equally, so it is precisely what
        flattens a cube. Keep it low and let directional lights at
@@ -7543,6 +7587,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (warmId != null) { if (idle) window.cancelIdleCallback(warmId); else clearTimeout(warmId); }
       ro.disconnect();
       if (readout) readout.dispose();
+      unwatchGL();
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       ambientRef.current && ambientRef.current.dispose();
@@ -16346,6 +16391,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
           }}
         />
       )}
+      {pictureOut && typeof document !== "undefined" && createPortal(<PictureOut theme={theme} kind="lost" waiting={pictureOut === "waiting"} />, document.body)}
     </div>
   );
 }

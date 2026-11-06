@@ -2370,4 +2370,14 @@ export default {
   "When a move can't be made, an X on the square and a note saying why": "Khi một nước đi không thực hiện được, một dấu X trên ô và một ghi chú cho biết vì sao",
   "when a move can't be made, an X on the square and a note that says why.": "khi một nước đi không thực hiện được, một dấu X trên ô và một ghi chú cho biết vì sao.",
   "What is {name}?": "{name} là gì?",
+  // The picture gone (chassis/PictureOut.jsx): lost and not given back, or no 3D at all.
+  "The picture went out": "Hình ảnh đã tắt",
+  "This device's graphics stopped, and the browser didn't bring them back.": "Đồ họa của thiết bị này đã ngừng, và trình duyệt không khôi phục lại.",
+  "Load the page again to bring the picture back. Your story and settings are kept; a game on the board starts over.": "Tải lại trang để đưa hình ảnh trở lại. Câu chuyện và cài đặt của bạn vẫn được giữ; ván đang chơi trên bàn sẽ bắt đầu lại.",
+  "Bringing the picture back…": "Đang đưa hình ảnh trở lại…",
+  "Bring the picture back": "Đưa hình ảnh trở lại",
+  "The 3D picture won't start": "Hình ảnh 3D không khởi động được",
+  "This browser isn't drawing 3D for the game right now. That can happen after a phone's graphics restart.": "Trình duyệt này hiện không vẽ 3D cho trò chơi. Điều này có thể xảy ra sau khi đồ họa của điện thoại khởi động lại.",
+  "Close the browser completely (on a phone, swipe it away in your recent apps), then open the link again. If it still won't start, turn on hardware acceleration in the browser's settings.": "Đóng hẳn trình duyệt (trên điện thoại, vuốt nó khỏi danh sách ứng dụng gần đây), rồi mở lại liên kết. Nếu vẫn không khởi động được, hãy bật tăng tốc phần cứng trong cài đặt của trình duyệt.",
+  "Try again": "Thử lại",
 };

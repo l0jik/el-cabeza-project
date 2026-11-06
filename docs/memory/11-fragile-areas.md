@@ -64,3 +64,15 @@
   source behind `__EC_TEST_HOOKS__` (tienda-overlay.js's shake() bumps
   `window.__TD_SHAKES__`) and check separately that the animation plays
   at all.
+- **The chassis's default export is a check, not the scene** (2026-11-06,
+  the lost-picture round, 10-solved-bugs.md). `ElCabeza3D` asks
+  `webglWorks()` (chassis/gl-watch.js; one throwaway context, lost at
+  once) and renders `ElCabeza3DScene` only when the browser will make
+  WebGL; otherwise PictureOut's "won't start" card. Hooks belong in
+  ElCabeza3DScene. Both renderers (the board's, the corner piece's) are
+  watched with `watchGL`; a new long-lived renderer elsewhere (a theme's
+  own scene) isn't, and needs its own watch if it should get the card.
+  A test that loses a context must keep the WEBGL_lose_context extension
+  from before the loss: a lost context gives no extensions, so asking
+  then and calling restoreContext() does nothing (an earlier probe here
+  concluded "no recovery" from exactly that).

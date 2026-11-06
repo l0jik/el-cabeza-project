@@ -2357,4 +2357,14 @@ export default {
   "When a move can't be made, an X on the square and a note saying why": "Cuando no se puede hacer una jugada, una X en la casilla y una nota que dice por qué",
   "when a move can't be made, an X on the square and a note that says why.": "cuando no se puede hacer una jugada, una X en la casilla y una nota que te dice por qué.",
   "What is {name}?": "¿Qué es {name}?",
+  // The picture gone (chassis/PictureOut.jsx): lost and not given back, or no 3D at all.
+  "The picture went out": "Se cortó la imagen",
+  "This device's graphics stopped, and the browser didn't bring them back.": "Los gráficos de este dispositivo se detuvieron y el navegador no los recuperó.",
+  "Load the page again to bring the picture back. Your story and settings are kept; a game on the board starts over.": "Cargá la página de nuevo para recuperar la imagen. Tu historia y tus ajustes se guardan; una partida en el tablero empieza de nuevo.",
+  "Bringing the picture back…": "Recuperando la imagen…",
+  "Bring the picture back": "Recuperar la imagen",
+  "The 3D picture won't start": "La imagen 3D no arranca",
+  "This browser isn't drawing 3D for the game right now. That can happen after a phone's graphics restart.": "Este navegador no está dibujando en 3D para el juego en este momento. Puede pasar después de que se reinician los gráficos de un teléfono.",
+  "Close the browser completely (on a phone, swipe it away in your recent apps), then open the link again. If it still won't start, turn on hardware acceleration in the browser's settings.": "Cerrá el navegador por completo (en un teléfono, deslizalo fuera de tus apps recientes) y después abrí el enlace de nuevo. Si sigue sin arrancar, activá la aceleración por hardware en la configuración del navegador.",
+  "Try again": "Probar de nuevo",
 };

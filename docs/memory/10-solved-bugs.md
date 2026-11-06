@@ -86,3 +86,48 @@
   solid surface in the store and the den; no corner inside an edge only
   one triangle has; it found the old floors' 4 and 84). Any floor or wall
   laid from pieces wants the same: split them where their lines cross.
+- **The picture went out on a Moto G Stylus 5G (2022)** (2026-11-06;
+  user, a photo of the fresh link on that phone: a white screen, a small
+  sad face in a box at its top left, the EL CABEZA badge, the corner
+  piece a white cube in its glow, the two buttons at the bottom left: "I
+  sent the link to a Moto G Stylus 5G 2022, and it opened it, the link,
+  but this is what came out. There's something not right here."). The
+  white and the sad face are the browser's own: Chrome's "broken canvas",
+  painted in place of a canvas whose WebGL context is lost and not given
+  back. Reproduced exactly by losing both contexts (the board's,
+  `board-canvas`, and the corner piece's, `dock-piece-canvas`) after Open
+  the box and keeping the board's canvas off its own layer: white, the
+  sad face at its top left, the DOM (badge, buttons, the dock's glow) on
+  top. What it isn't: the store too heavy for the phone (measured at its
+  tier, low: about 42 MB of textures, 122 draw calls, 31k triangles, one
+  1024 shadow map, the canvas 350x777 after the governor); too many
+  contexts (five made on the fresh path, only the two alive; the rest,
+  the quality check and woodSwatch's two, lost at once; Android keeps
+  eight); no WebGL at all (that gives an empty page: the renderer throws
+  and React's tree goes). What it most likely was: the phone's graphics
+  restarting (a driver reset, perhaps at the first tap's switch to full
+  screen) and Chrome then refusing the contexts back (after a GPU crash
+  it blocks WebGL for a while, or for the site; a restore attempt then
+  just gives up). When the browser does give them back, three.js r128
+  puts back everything it had uploaded: measured, the store and the
+  corner piece came back whole (an earlier probe that "showed" otherwise
+  had asked a lost context for its lose-context extension, which a lost
+  context never gives, so nothing was ever restored). Fixed:
+  chassis/gl-watch.js (watchGL on each canvas: onLost; onBack redraws
+  the shadows at once; not given back within STUCK_MS 4 s of the page
+  being in view, onStuck) and chassis/PictureOut.jsx (on the loss, at
+  once, the world's own dark over the whole screen with "Bringing the
+  picture back…", so the browser's white and its sad face never show;
+  stuck, a card in the world's look, "The picture went out", one button,
+  "Bring the picture back", that loads the page again; the story and
+  settings kept, a game on the board starts over; cover and card go by
+  themselves if the picture comes back). With no WebGL at all (webglWorks(), one
+  throwaway context lost at once; ?nogl to see it), the chassis's default
+  export renders "The 3D picture won't start" with Try again instead of
+  the scene (ElCabeza3DScene). Words in es and vi. Test:
+  tests/e2e-picture-out.mjs (lost: the cover at once, no button; given
+  back: it goes, drawn again; lost for good: the card after the wait,
+  given back late: it goes; the
+  button reloads; --disable-webgl on Nova's page and Futuris's: the card,
+  no page errors). Not known: what restarted the Moto's graphics; if it
+  keeps happening there, ?quality=low is already its tier.

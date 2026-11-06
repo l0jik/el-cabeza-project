@@ -103,6 +103,8 @@ const E2E = [
   ["e2e-piece-card-place.mjs"],
   // Zoomed in, the view goes anywhere over the board (the screen kept over it), zoomed out as before; two fingers pull it to the edge; a pinch zooms toward the fingers (Futuris on a phone).
   ["e2e-zoom-pan.mjs"],
+  // The picture gone (the Moto's white screen and sad face): lost and given back, no card; lost for good, a card that loads the page again; no WebGL at all, a card in place of the empty page.
+  ["e2e-picture-out.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");
