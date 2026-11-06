@@ -51,6 +51,7 @@ import { createHall, echoRoom, SHOUT_TIMES } from "./den-hall.js";
 import { createEnding, prewarmFigure, prefetchVoidMusic } from "./den-ending.js";
 import { WORLDS } from "./realities.js";
 import { loadSound } from "../chassis/sound-files.js";
+import { autoFullscreenOk } from "../chassis/gl-watch.js";
 
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
 
@@ -464,7 +465,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         e.stopPropagation();
         if (audio && audio.ensureStarted) { try { audio.ensureStarted(); } catch (err) { /* no sound */ } }
         const fs = d.documentElement.requestFullscreen;
-        if (fs && !d.fullscreenElement && window.matchMedia && window.matchMedia("(pointer: coarse)").matches) { try { fs.call(d.documentElement).catch(() => {}); } catch (err) { /* stays as it is */ } }
+        if (fs && autoFullscreenOk() && !d.fullscreenElement && window.matchMedia && window.matchMedia("(pointer: coarse)").matches) { try { fs.call(d.documentElement).catch(() => {}); } catch (err) { /* stays as it is */ } }
         previewEl.remove(); previewEl = null;
         if (preview === "glutts") { if (trip) trip.start({ from: 8300 }); }
         else if (hallPreview) { if (hall) hall.now(movesNow()); }

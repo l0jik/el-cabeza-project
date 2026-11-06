@@ -131,3 +131,23 @@
   button reloads; --disable-webgl on Nova's page and Futuris's: the card,
   no page errors). Not known: what restarted the Moto's graphics; if it
   keeps happening there, ?quality=low is already its tier.
+  Then (user: "And it opened in Chrome, by the way. I should be clear,
+  this is what showed up after I clicked open the box."): that tap is the
+  one that takes the page full screen (the chassis's first tap and the
+  store lid's own ask), and it also starts the store's sound (small: a
+  reel decodes to 12 to 16 MB) and lifts the lid (a CSS tilt and fade). The
+  switch to full screen, the canvases resized under it, is the suspect
+  (known trouble on some Android phones). So gl-watch.js notes when the
+  page went full screen and the last tap; a loss that isn't given back
+  within FULLSCREEN_SUSPECT_MS (6 s) of going full screen sets
+  `elcabeza-device:no-auto-fullscreen` (outside the game's prefixes: ?fresh
+  leaves it, saves don't carry it), and every automatic ask for full
+  screen checks autoFullscreenOk() (the chassis's first tap, the store's
+  lid, the den's scene preview, the title screen's own copy of the key);
+  the full-screen button still works. The card then adds "It went as the
+  screen switched to full size, so on this device the game won't do that
+  by itself any more. The full-screen button still does." and a small
+  line of what happened just before ("0.7 s after full screen · 0.8 s
+  after a tap · the GPU's name"; "No switch to full screen" when there
+  wasn't one), for the user's next photo: it says whether full screen is
+  really the cause.

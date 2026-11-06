@@ -36,6 +36,41 @@
 
 export const STUCK_MS = 4000;
 
+/* Right at Open the box (user, after the fix above: "I should be clear,
+   this is what showed up after I clicked open the box"). That tap is the
+   one that takes the page full screen (the chassis's first tap; the
+   store's lid), and the picture going out as the screen changes size is a
+   known trouble on some Android phones. So: when it goes within
+   FULLSCREEN_SUSPECT_MS of the switch to full screen and isn't given
+   back, this device is remembered (NO_AUTO_FS_KEY, kept apart from the
+   game's own keys: ?fresh leaves it, a save doesn't carry it) and the game
+   stops switching to full screen by itself here; the full-screen button
+   still does. The card says what happened just before (lossInfo), for a
+   photo of it. */
+export const FULLSCREEN_SUSPECT_MS = 6000;
+export const NO_AUTO_FS_KEY = "elcabeza-device:no-auto-fullscreen";
+let fullAt = null, tapAt = null, lastLoss = null, glName = "";
+const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+if (typeof document !== "undefined") {
+  const onFull = () => { if (document.fullscreenElement || document.webkitFullscreenElement) fullAt = now(); };
+  document.addEventListener("fullscreenchange", onFull, true);
+  document.addEventListener("webkitfullscreenchange", onFull, true);
+  const onTap = () => { tapAt = now(); };
+  document.addEventListener("pointerdown", onTap, { capture: true, passive: true });
+  document.addEventListener("touchstart", onTap, { capture: true, passive: true });
+}
+
+// May the game switch to full screen by itself on this device?
+export function autoFullscreenOk() {
+  try { return window.localStorage.getItem(NO_AUTO_FS_KEY) !== "1"; } catch (e) { return true; }
+}
+
+// What was going on when the picture last went: { fsAgo, tapAgo } in
+// seconds (null: never), whether full screen was blamed, the GPU's name.
+export function lossInfo() {
+  return lastLoss ? { ...lastLoss, gpu: glName } : null;
+}
+
 let works = null;
 export function webglWorks() {
   if (works !== null) return works;
@@ -46,6 +81,12 @@ export function webglWorks() {
     const c = document.createElement("canvas");
     const gl = c.getContext("webgl2") || c.getContext("webgl") || c.getContext("experimental-webgl");
     works = !!gl;
+    if (gl) {
+      try {
+        const dbg = gl.getExtension("WEBGL_debug_renderer_info");
+        glName = String((dbg && gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) || gl.getParameter(gl.RENDERER) || "");
+      } catch (e) { /* unnamed */ }
+    }
     // Given back at once: a phone keeps only a few contexts alive.
     const lose = gl && gl.getExtension("WEBGL_lose_context");
     if (lose) lose.loseContext();
@@ -67,6 +108,12 @@ export function watchGL(canvas, { onLost, onBack, onStuck, stuckMs = STUCK_MS } 
       timer = null;
       if (!lost || stuck || !inView()) return;
       stuck = true;
+      // Gone for good just after the switch to full screen: not by itself
+      // again on this device.
+      if (lastLoss && lastLoss.fsAgo != null && lastLoss.fsAgo * 1000 <= FULLSCREEN_SUSPECT_MS && !lastLoss.blamedFullscreen) {
+        lastLoss.blamedFullscreen = true;
+        try { window.localStorage.setItem(NO_AUTO_FS_KEY, "1"); } catch (e) { /* this visit only */ }
+      }
       if (onStuck) onStuck();
     }, stuckMs);
   };
@@ -76,6 +123,12 @@ export function watchGL(canvas, { onLost, onBack, onStuck, stuckMs = STUCK_MS } 
     e.preventDefault();
     if (lost) return;
     lost = true;
+    // (The first of the canvases to go says when: both go together.)
+    const t = now();
+    if (!lastLoss || t - lastLoss.t > 3000) {
+      const ago = (at) => (at == null ? null : Math.max(0, Math.round((t - at) / 100) / 10));
+      lastLoss = { t, fsAgo: ago(fullAt), tapAgo: ago(tapAt), blamedFullscreen: false };
+    }
     if (onLost) onLost();
     arm();
   };

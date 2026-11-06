@@ -56,7 +56,7 @@ import { quality, createGovernor } from "./device-fit.js";
 import { createShadowWatch } from "./shadow-watch.js";
 // The picture gone (the context lost and not given back, or no WebGL at
 // all): a card instead of the browser's white canvas (gl-watch.js).
-import { watchGL, webglWorks } from "./gl-watch.js";
+import { watchGL, webglWorks, autoFullscreenOk, lossInfo } from "./gl-watch.js";
 import PictureOut from "./PictureOut.jsx";
 import { createPortal } from "react-dom";
 import { fpsWanted, createFpsReadout } from "./fps-readout.js";
@@ -3040,7 +3040,9 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       // (Not when it's full screen already as an app opened from a home
       // screen, Nova's manifest.)
       if (window.matchMedia && window.matchMedia("(display-mode: fullscreen)").matches) return;
-      if (!own && (!fullscreenDeclined || fullscreenAlwaysRef.current) && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+      // (Not on a device where the picture went out as the screen went
+      // full size: gl-watch.js autoFullscreenOk.)
+      if (!own && (!fullscreenDeclined || fullscreenAlwaysRef.current) && autoFullscreenOk() && !document.fullscreenElement && document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(() => {});
       }
     }
@@ -16391,7 +16393,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
           }}
         />
       )}
-      {pictureOut && typeof document !== "undefined" && createPortal(<PictureOut theme={theme} kind="lost" waiting={pictureOut === "waiting"} />, document.body)}
+      {pictureOut && typeof document !== "undefined" && createPortal(<PictureOut theme={theme} kind="lost" waiting={pictureOut === "waiting"} info={pictureOut === "stuck" ? lossInfo() : null} />, document.body)}
     </div>
   );
 }

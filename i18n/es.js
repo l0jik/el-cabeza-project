@@ -2367,4 +2367,8 @@ export default {
   "This browser isn't drawing 3D for the game right now. That can happen after a phone's graphics restart.": "Este navegador no está dibujando en 3D para el juego en este momento. Puede pasar después de que se reinician los gráficos de un teléfono.",
   "Close the browser completely (on a phone, swipe it away in your recent apps), then open the link again. If it still won't start, turn on hardware acceleration in the browser's settings.": "Cerrá el navegador por completo (en un teléfono, deslizalo fuera de tus apps recientes) y después abrí el enlace de nuevo. Si sigue sin arrancar, activá la aceleración por hardware en la configuración del navegador.",
   "Try again": "Probar de nuevo",
+  "It went as the screen switched to full size, so on this device the game won't do that by itself any more. The full-screen button still does.": "Se cortó justo cuando la pantalla pasó a pantalla completa, así que en este dispositivo el juego ya no lo va a hacer solo. El botón de pantalla completa sigue funcionando.",
+  "{s} s after full screen": "{s} s después de la pantalla completa",
+  "No switch to full screen": "Sin pasar a pantalla completa",
+  "{s} s after a tap": "{s} s después de un toque",
 };

@@ -14,6 +14,8 @@
    kind "none": the browser won't draw 3D at all (WebGL blocked after a
    crash, or switched off), in place of the empty page there was. */
 import React from "react";
+// (A line with numbers in it, in the player's language: chassis/i18n.js.)
+import { t } from "./i18n.js";
 
 const reload = () => {
   try { window.location.reload(); } catch (e) { /* nowhere to go */ }
@@ -41,7 +43,19 @@ function inkOn(ground, a, b) {
   return Math.abs(ba - g) >= Math.abs(bb - g) ? a : b;
 }
 
-export default function PictureOut({ theme, kind = "lost", waiting = false }) {
+/* The small print under the card's button (`info`, gl-watch.js lossInfo):
+   what was going on as the picture went, for a photo of it. */
+function details(info) {
+  if (!info) return "";
+  const parts = [
+    info.fsAgo != null ? t("{s} s after full screen", { s: info.fsAgo }) : t("No switch to full screen"),
+    info.tapAgo != null ? t("{s} s after a tap", { s: info.tapAgo }) : null,
+    info.gpu || null,
+  ];
+  return parts.filter(Boolean).join(" · ");
+}
+
+export default function PictureOut({ theme, kind = "lost", waiting = false, info = null }) {
   const C = (theme && theme.COLORS) || {};
   const ink = C.charcoal || "#2A1A10";
   const paper = (theme && theme.modalSurface) || C.cream || "#F3E7CD";
@@ -116,6 +130,11 @@ export default function PictureOut({ theme, kind = "lost", waiting = false }) {
               ? "Load the page again to bring the picture back. Your story and settings are kept; a game on the board starts over."
               : "Close the browser completely (on a phone, swipe it away in your recent apps), then open the link again. If it still won't start, turn on hardware acceleration in the browser's settings."}
           </p>
+          {lost && info && info.blamedFullscreen && (
+            <p data-testid="picture-out-fullscreen" style={{ margin: "8px 0 0", opacity: 0.85 }}>
+              It went as the screen switched to full size, so on this device the game won't do that by itself any more. The full-screen button still does.
+            </p>
+          )}
         </div>
         <button
           type="button"
@@ -138,6 +157,11 @@ export default function PictureOut({ theme, kind = "lost", waiting = false }) {
         >
           {lost ? "Bring the picture back" : "Try again"}
         </button>
+        {lost && info && (
+          <div data-testid="picture-out-details" style={{ marginTop: 10, font: "400 11px/1.4 'IBM Plex Mono', monospace", opacity: 0.6, overflowWrap: "anywhere" }}>
+            {details(info)}
+          </div>
+        )}
       </div>
     </div>
   );

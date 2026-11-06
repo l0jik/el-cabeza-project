@@ -12,7 +12,13 @@
    2. Lost and not given back: still only the cover after a second, then
       the card, one button; given back late, the card goes by itself.
    3. Lost again, the button: the page loads again, the store with it.
-   4. A browser that won't make WebGL at all (--disable-webgl): the card
+   4. Lost right as Open the box takes the screen full size (user: "I
+      should be clear, this is what showed up after I clicked open the
+      box"): the card says it went as the screen switched to full size and
+      shows what happened just before; this device is remembered, so after
+      the button's reload, and after ?fresh too, Open the box leaves the
+      screen as it is.
+   5. A browser that won't make WebGL at all (--disable-webgl): the card
       that says so, in place of the empty page; on a world's own page too.
      node tests/e2e-picture-out.mjs */
 import { chromium } from "playwright";
@@ -107,9 +113,54 @@ await page.waitForTimeout(4000);
 const after = await page.evaluate(() => { const c = document.querySelector('[data-testid="board-canvas"]'); const g = window.__gls.find((x) => x.canvas === c); return { canvas: !!c, lost: g ? g.gl.isContextLost() : null }; });
 check(`...the store with it, drawing (${JSON.stringify(after)})`, after.canvas && after.lost === false && !(await card()));
 check(`no page errors (${errs.length})`, errs.length === 0, errs.slice(0, 3).join(" | "));
+
+// 4. Lost right as the screen goes full size.
+console.log("[lost as Open the box takes the screen full size]");
+{
+  const p2 = await ctx.newPage();
+  const e3 = [];
+  p2.on("pageerror", (e) => e3.push(e.message));
+  const openBox = async () => {
+    await p2.waitForSelector('[data-testid="tienda-open-box"]', { timeout: 60000 });
+    await p2.waitForTimeout(1200);
+    await p2.locator('[data-testid="tienda-open-box"]').tap();
+  };
+  await p2.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html?fresh");
+  await openBox();
+  const full = await poll(() => p2.evaluate(() => !!document.fullscreenElement), 3000, 100);
+  check("Open the box takes the page full screen (as on the Moto)", !!full);
+  await p2.waitForTimeout(1200);
+  await p2.evaluate(() => window.__gls.filter((g) => document.contains(g.canvas) && g.ext).forEach((g) => g.ext.loseContext()));
+  const c4 = await poll(() => p2.evaluate(() => { const el = document.querySelector('[data-testid="picture-out"][data-state="card"]'); return el && { fs: (el.querySelector('[data-testid="picture-out-fullscreen"]') || {}).textContent || "", details: (el.querySelector('[data-testid="picture-out-details"]') || {}).textContent || "" }; }), 9000);
+  check(`not given back: the card says it went as the screen switched to full size`, !!c4 && /switched to full size/.test(c4.fs), JSON.stringify(c4));
+  check(`...and what happened just before: "${c4 && c4.details}"`, !!c4 && /s after full screen/.test(c4.details) && /s after a tap/.test(c4.details), JSON.stringify(c4));
+  const kept = await p2.evaluate(() => window.localStorage.getItem("elcabeza-device:no-auto-fullscreen"));
+  check(`this device remembered (${kept})`, kept === "1");
+  // The button: the page again, and Open the box leaves the screen as it is.
+  await p2.locator('[data-testid="picture-out-reload"]').tap();
+  await p2.waitForTimeout(2500);
+  const lid = await p2.locator('[data-testid="tienda-open-box"]').count();
+  if (lid) await openBox(); else await p2.mouse.click(206, 400);
+  await p2.waitForTimeout(1500);
+  check(`after the reload, Open the box doesn't switch to full screen (${lid ? "the box again" : "a tap on the store"})`, !(await p2.evaluate(() => !!document.fullscreenElement)));
+  // ?fresh forgets the player, not the device.
+  await p2.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html?fresh");
+  await openBox();
+  await p2.waitForTimeout(1500);
+  const afterFresh = await p2.evaluate(() => ({ fs: !!document.fullscreenElement, kept: window.localStorage.getItem("elcabeza-device:no-auto-fullscreen") }));
+  check(`?fresh again: still remembered, still no switch to full screen (${JSON.stringify(afterFresh)})`, !afterFresh.fs && afterFresh.kept === "1");
+  // The full-screen button still does it.
+  const btn = p2.locator('[data-fullscreen-toggle]').first();
+  if (await btn.count()) {
+    await btn.tap().catch(() => {});
+    const byHand = await poll(() => p2.evaluate(() => !!document.fullscreenElement), 3000, 100);
+    check("...the full-screen button still switches it", !!byHand);
+  }
+  check(`no page errors (${e3.length})`, e3.length === 0, e3.slice(0, 3).join(" | "));
+}
 await browser.close();
 
-// 4. No WebGL at all.
+// 5. No WebGL at all.
 console.log("[a browser that won't draw 3D]");
 const nogl = await chromium.launch({ executablePath: EXE, args: ["--allow-file-access-from-files", "--disable-webgl"] });
 for (const [name, url] of [["Nova's page", "el-cabeza-nova.html?fresh"], ["Futuris", "el-cabeza-futuris.html"]]) {

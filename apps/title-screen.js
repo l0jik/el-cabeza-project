@@ -541,6 +541,9 @@ html.ec-splash-on { background: #120C08; }
     try {
       const de = D.documentElement, req = de.requestFullscreen || de.webkitRequestFullscreen;
       if (!req || D.fullscreenElement || D.webkitFullscreenElement) return;
+      // (Not on a device where the picture went out as the screen went full
+      // size: chassis/gl-watch.js NO_AUTO_FS_KEY.)
+      try { if (W.localStorage.getItem("elcabeza-device:no-auto-fullscreen") === "1") return; } catch (e) { /* none kept */ }
       // (Opened from its icon on a home screen it's full screen already:
       // the app's manifest, build/build.js APP_HEAD.)
       if (W.matchMedia && W.matchMedia("(display-mode: fullscreen)").matches) return;

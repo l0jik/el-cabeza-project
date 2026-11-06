@@ -51,6 +51,8 @@ import flyerInkUrl from "../assets/tienda/flyer-ink.webp";
 import flyerPhotoUrl from "../assets/tienda/flyer-photo.jpg";
 import { TRY_IT_EVENT, boxOpened, boxClosed, storeState } from "./tienda-fx.js";
 import { singularitySeen, onJourneyChange, isCommercialOn, CLASSIC_PIECE_KEYS, specialOrderNoted, markSpecialOrderNoted, isSceneLink } from "../engine/journey.js";
+// (Full screen by itself only where it hasn't put the picture out: chassis/gl-watch.js.)
+import { autoFullscreenOk } from "../chassis/gl-watch.js";
 
 /* The classic game's order (engine/journey.js: the extras wait for the
    Singularity's first visit): the five pieces only, no laws, no cut
@@ -551,7 +553,7 @@ export function useSetupExtras(x) {
          phone the page is asked to go full screen at the touch's end, a
          moment the browser lets it; a mouse, at its click.) */
       const activation = e.type === "click" || e.type === "touchend" || (e.type === "pointerup" && e.pointerType !== "mouse");
-      if (activation && e.isTrusted && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+      if (activation && e.isTrusted && autoFullscreenOk() && !document.fullscreenElement && document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(() => {});
       }
     };

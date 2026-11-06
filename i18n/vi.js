@@ -2380,4 +2380,8 @@ export default {
   "This browser isn't drawing 3D for the game right now. That can happen after a phone's graphics restart.": "Trình duyệt này hiện không vẽ 3D cho trò chơi. Điều này có thể xảy ra sau khi đồ họa của điện thoại khởi động lại.",
   "Close the browser completely (on a phone, swipe it away in your recent apps), then open the link again. If it still won't start, turn on hardware acceleration in the browser's settings.": "Đóng hẳn trình duyệt (trên điện thoại, vuốt nó khỏi danh sách ứng dụng gần đây), rồi mở lại liên kết. Nếu vẫn không khởi động được, hãy bật tăng tốc phần cứng trong cài đặt của trình duyệt.",
   "Try again": "Thử lại",
+  "It went as the screen switched to full size, so on this device the game won't do that by itself any more. The full-screen button still does.": "Hình ảnh tắt đúng lúc màn hình chuyển sang toàn màn hình, nên trên thiết bị này trò chơi sẽ không tự chuyển nữa. Nút toàn màn hình vẫn dùng được.",
+  "{s} s after full screen": "{s} giây sau khi vào toàn màn hình",
+  "No switch to full screen": "Không chuyển sang toàn màn hình",
+  "{s} s after a tap": "{s} giây sau một lần chạm",
 };
