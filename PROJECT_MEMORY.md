@@ -72,7 +72,7 @@ rim, the front-page mock-ups of NOVA as a neon sign.
   mock-ups (front/) and the old root copies (el_cabeza_3d.jsx,
   el-cabeza-futuris-3d.html) still have the old order.
 
-## Backlog (as given to the user, 2026-10-26: "What's on backlog besides Parrish audio issue?"; first 2026-10-18: "what's in the backlog.")
+## Backlog (as given to the user, 2026-11-08: "what's on the backlog?"; before, 2026-10-26: "What's on backlog besides Parrish audio issue?"; first 2026-10-18: "what's in the backlog.")
 
 Keep this list current: add what's offered and not started, strike what's
 built or dropped.
@@ -93,10 +93,15 @@ built or dropped.
     Poniachik first: change them too?
   - whether the Singularity's sound now plays on the user's Chromebook
     (the light reverbs since 2026-10-23);
-- The user's own step: the online play and cloud saves server on their
+  - the title's intro: a small Skip button, or its buttons in sooner
+    (offered with "The title screen answers its buttons only", Recent
+    rounds; missed off this list until 2026-11-08);
+- The user's own steps: the online play and cloud saves server on their
   free Cloudflare account (server/README.md, then its address in
   chassis/online-config.js RELAY_URL; until then online games and cloud
-  codes don't work, a save file does).
+  codes don't work, a save file does); the Moto G Stylus's next try at
+  Open the box (if the picture goes again, a photo of the card's small
+  line says whether going full screen set it off; 10-solved-bugs.md).
 - Reminders: the standard rules before any public launch; the Trusted Web
   Activity (both above).
 - Offered, not started: on the weakest devices, each world's own extras
@@ -106,15 +111,12 @@ built or dropped.
   computer's Cabeza can reach your back row next turn"); the computer
   faster and stronger with big armies; the game on the board kept through
   the lost-picture card's reload (it starts over today; chassis/PictureOut.jsx).
-- Settled: the dock menu on phones (2026-10-27, A to M, M1 to M10, the
-  menu lab's ten, its five turning fans): Rings (4.2) is the dock's menu
-  everywhere (user: "I like rings."; then "Replace the dock everywhere
-  (Recommended)"), every world, phones and computers; the lab's other
-  versions stay in ?menulab. Rings now opens like the first Fan (user:
-  "I want to combine rings and fans"; 2026-10-28) and every fan turns
-  with the mouse wheel. If "combine" meant more (Rings' kinds inside the
-  Dial's bigger fan; one kind's settings filling the fan, as Pages), it
-  waits on the user's word.
+- Settled: the dock's menu (2026-10-27 to 10-30: A to M, M1 to M10, the
+  menu lab's ten, its five turning fans, then Rings everywhere): since
+  2026-10-30 Calm Rings in every world (user, of six options: "A, with B
+  in play."), a half ring of five fixed wedges round the piece before and
+  after a game, a quarter fan out of the corner piece in play, More for
+  every setting; the lab's other versions stay in ?menulab.
 - Settled: the store's mouse drag (asked 2026-10-18 whether it should turn
   the board the way a finger does): since the turn "where you touch"
   (2026-10-22), any pointer, everywhere (docs/memory/05-camera-input.md).
@@ -366,3 +368,4 @@ built or dropped.
 - The picture went out on a Moto G Stylus 5G (2022) (user, a photo: a white screen, a small sad face in a box at its top left, the badge, the corner piece a white cube in its glow: "I sent the link to a Moto G Stylus 5G 2022, and it opened it, the link, but this is what came out. There's something not right here."). The white and the sad face are Chrome's own "broken canvas", painted for a canvas whose WebGL context is lost and not given back; reproduced exactly by losing both of ours (the board's and the corner piece's) after Open the box. Not the store too heavy (its tier on that phone: about 42 MB of textures, 122 draw calls, one 1024 shadow map), not too many contexts (two alive, Android keeps eight); most likely the phone's graphics restarted and Chrome refused the contexts back, as it does after a GPU crash. When the browser does give them back, three.js puts everything back (measured). Now: chassis/gl-watch.js watches both canvases (given back: the shadows drawn again at once; not given back within 4 s of the page in view: stuck); chassis/PictureOut.jsx covers the screen at once with the world's own dark and "Bringing the picture back…" (the browser's white and sad face never show), and when it's stuck a card in the world's look, "The picture went out" and one button, "Bring the picture back", that loads the page again (story and settings kept, a game on the board starts over; both go by themselves if the picture comes back); and a browser that won't make WebGL at all gets "The 3D picture won't start" with Try again instead of an empty page (the chassis's default export checks first; ?nogl shows it). Words in es and vi. tests/e2e-picture-out.mjs (new). Details: docs/memory/10-solved-bugs.md.
 - The Moto's white screen came right at Open the box (user: "And it opened in Chrome, by the way. I should be clear, this is what showed up after I clicked open the box."). That tap takes the page full screen (and starts the store's sound and lifts the lid); the switch to full screen is the suspect. Now a picture lost within 6 s of going full screen and not given back makes this device stop going full screen by itself (elcabeza-device:no-auto-fullscreen, kept through ?fresh; every automatic ask checks it; the button still works), and the card says so, with a small line of what happened just before (seconds after full screen, after the tap, the GPU) for the user's next photo. tests/e2e-picture-out.mjs (the Open the box case). Details: docs/memory/10-solved-bugs.md.
 - Story scenes put the game's own things away (user, a phone screenshot of the den's board with Undo move under it: "undo move button is not disappearing when you get diverted, your attention gets diverted toward the hallway. There are other situations where some of the new menus are not disappearing during the first time playthrough when they need to."). The scenes' lists of what steps aside predate Undo move and End turn, so the two stayed up through the hall (the flare as the camera turns to the doorway, the choice, the walk), a visit to the set, the phone call and "Free pieces?!", the trip's see-through start and end; and the den's look round as the set acts up (the stereo, the hall door, the set), its hold after the blast, the tugs and the pull, home from the trip's card and the bulb after it weren't scenes at all (everything stayed, doing nothing). Now one list in the chassis, PLAY_UI (the points, Undo move and End turn, the end-turn question, the hold's ring and note, the piece card, Why not, the unused-points note, the check alert, the corner piece's call, the rules card, the tour, the phone's bar), hidden through every one of STORY_SCENES, with two new flags: html.ec-den-lock (the look round and the rest of the lure's lock; the corner's buttons go too, as for the hall, all but full screen) and html.ec-home-card. While the phone only rings, they stay (the game goes on). tests/e2e-scene-aside.mjs (new). Details: docs/memory/nova-story.md; the rule for new controls: docs/memory/11-fragile-areas.md.
+- The backlog, asked for (user: "what's on the backlog?"): given as the Backlog above stands. Brought up to date on the way: the title intro's offer (a small Skip button, or its buttons sooner) had been missed off the waiting list since it was made, now on it; the Moto G Stylus's next try at Open the box added as the user's step; the dock menu's settled entry now says Calm Rings (it still said Rings). Nothing built.
