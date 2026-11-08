@@ -151,12 +151,19 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
          nowhere, and "Tap to play" shows only once it's free (a drag
          still moves it). */
       const HOLD_MS = 3800;
+      /* While it's up, and then through settling in, the game's own things
+         are out of the way (html.ec-home-card, then ec-settle: the
+         chassis's PLAY_UI); its buttons did nothing meanwhile (user: "some
+         of the new menus are not disappearing during the first time
+         playthrough when they need to"). The game's yours, and they're
+         back, once the lamp's been switched on. */
       let done = false, held = true, c = null, holdTimer = 0;
       const swallow = (e) => { if (held && !(e.target instanceof Element && c.el.contains(e.target))) { e.stopPropagation(); e.preventDefault(); } };
       const unhook = () => {
         clearTimeout(holdTimer);
         doc.removeEventListener("pointerdown", elsewhere, true);
         for (const t of ["click", "mousedown", "touchstart"]) doc.removeEventListener(t, swallow, true);
+        doc.documentElement.classList.remove("ec-home-card");
       };
       const close = () => {
         if (done || held) return;
@@ -170,6 +177,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (held) swallow(e); else close();
       };
       c = dealCard(doc, { testid: "den-home-card", l1: HOME_WORDS, l2: HOME_LAST, l2Delay: 2600, long: true, hint: "Tap to play", role: "dialog", label: "Home again", onTap: close });
+      doc.documentElement.classList.add("ec-home-card");
       c.el.classList.add("held");
       holdTimer = setTimeout(() => { held = false; c.el.classList.remove("held"); }, HOLD_MS);
       homeCardDrop = () => { done = true; unhook(); c.el.remove(); };
@@ -1289,12 +1297,18 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       restOn = false; restIds.clear();
       REST_EVENTS.forEach((ev) => window.removeEventListener(ev, onRest, { capture: true }));
     }
+    /* While it holds, the page is flagged html.ec-den-lock: the game's own
+       things step aside (the chassis's PLAY_UI), and the corner's buttons
+       (standard.js), all but the full-screen switch, the one the lock lets
+       through (user, a phone screenshot of Undo move still up as the den
+       looked toward the hallway; the hall's own walk had the same). */
     function lureLock(on) {
       if (on === lockOn || typeof window === "undefined") return;
       lockOn = on;
       const f = on ? "addEventListener" : "removeEventListener";
       LOCK_EVENTS.forEach((ev) => window[f](ev, onLock, { capture: true, passive: false }));
       window[f]("keydown", onLockKey, true);
+      if (typeof document !== "undefined") document.documentElement.classList.toggle("ec-den-lock", on);
     }
     /* The Singularity seen meanwhile, while the set's still luring (another
        tab; a test's shortcut): its reason gone, the lure stands down, as

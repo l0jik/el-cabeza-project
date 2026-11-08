@@ -296,6 +296,13 @@ export const styleSheet = `
   @keyframes ec-tv-step-aside { from { opacity: 1; } to { opacity: 0; } }
   html.ec-tv-visit .ec-title, html.ec-tv-visit canvas[data-testid="dock-piece-canvas"] { animation: ec-tv-step-aside 0.5s ease both; pointer-events: none; }
   html.ec-tv-visit [data-dock-piece] { pointer-events: none !important; }
+  /* The den looking round as the set acts up, and held on it (den-fx.js
+     lureLock, html.ec-den-lock): nothing takes a tap but the set and the
+     full-screen switch, so the corner's other buttons step out of the way
+     as they do for the hall (den-hall.js); the game's own things go too
+     (the chassis's PLAY_UI). The dock's piece stays, minimized. */
+  html.ec-den-lock :is([data-testid="room-view-corner"], [data-testid="focus-corner"], [data-testid="action-corner"], [data-testid="how-to-play"], [data-testid="music-chip"]) {
+    opacity: 0 !important; pointer-events: none !important; transition: opacity 0.6s ease !important; }
   html, body { overscroll-behavior: none; background: #1a120b; }
   [style*="Fraunces"] { font-variation-settings: "SOFT" 100, "WONK" 1; }
   .ec-title {

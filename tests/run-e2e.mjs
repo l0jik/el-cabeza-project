@@ -105,6 +105,8 @@ const E2E = [
   ["e2e-zoom-pan.mjs"],
   // The picture gone (the Moto's white screen and sad face): lost and given back, no card; lost for good, a card that loads the page again; no WebGL at all, a card in place of the empty page.
   ["e2e-picture-out.mjs"],
+  // The game's own things (Undo move, End turn, the points, its cards, the phone's bar) out of the way through the story's scenes: a visit to the set, home again and the bulb, the hall, the den looking round, the phone call.
+  ["e2e-scene-aside.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

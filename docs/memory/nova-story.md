@@ -838,3 +838,43 @@ in; leaving Singularity, back in the den as the set switches off.
   inner ones dropped, vertices merged), drawn with a fresnel glow
   (PHANTOM_VS/FS: brighter at the rim, additive, no depth write), opacity
   through its uOpacity uniform.
+- **The game's own things away through every story scene** (2026-11-08;
+  user, a phone screenshot of the den's board with Undo move under it:
+  "undo move button is not disappearing when you get diverted, your
+  attention gets diverted toward the hallway. There are other situations
+  where some of the new menus are not disappearing during the first time
+  playthrough when they need to."). The scenes' lists of what steps aside
+  (the chassis's, the hall's own) were written before Undo move and End
+  turn (the turn buttons) existed, so those stayed up: through the hall's
+  flare as the camera turns to the doorway, its choice and the walk in, a
+  visit to the set (the book, the phone), the phone call and its "Free
+  pieces?!", the trip's see-through start and end. Nor were the hold's
+  ring and note, the end-turn question, the tour or the phone's bar in
+  them. And three moments weren't scenes at all, everything left up and
+  doing nothing: the den's look round as the set acts up (the stereo, the
+  hall door, over the set, "Huh? What's going on?"), with its hold on the
+  set after the blast, the tugs and the pull (den-fx.js lureLock); home
+  from the trip, its card's 3.8 s hold; and the bulb to settle in by.
+  Now one list in the chassis, `PLAY_UI` (the points, the turn buttons,
+  the end-turn question, the hold's ring and note, the piece card, Why
+  not and its pointer, the unused-points note, the check alert and its
+  chip, the corner piece's call, the rules card, the tour's card and
+  marks, the phone's bar and its hint), hidden (opacity 0, no taps)
+  through every one of `STORY_SCENES`: html.ec-tv-visit, ec-hall-scene,
+  ec-den-lock (new: lureLock toggles it), ec-home-card (new: homeCard,
+  off as it's put away, ec-settle following at once), ec-settle,
+  ec-order-paper, ec-commercial, ec-summon, and the trip, the ending and
+  the clerk's layers (body:has). The CSS is made from the two lists
+  (PLAY_UI_ASIDE). Through the look round the corner's buttons go too
+  (standard.js: Room view, the bulb, the theme's action, How to play, the
+  now-playing chip), as for the hall, all but the full-screen switch,
+  the one thing besides the set the lock lets through; the dock's piece
+  stays minimized (2026-10-29). While the phone only rings the game goes
+  on, so they stay; the bar's menu (outside the bar) stays through the
+  call (e2e-den-phone reads its rows). Probed scene by scene (a game with
+  a move made, every fixed thing on the screen listed): before, the turn
+  buttons were up through all of the above and the look round left
+  everything; after, nothing of the game's in any of them, all back
+  after. Test: tests/e2e-scene-aside.mjs (a phone: a visit to the set,
+  home again and the bulb, the hall flaring, its choice, keep playing,
+  the walk; a computer: the look round; a phone with the bar: the call).

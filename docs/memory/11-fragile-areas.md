@@ -76,3 +76,13 @@
   from before the loss: a lost context gives no extensions, so asking
   then and calling restoreContext() does nothing (an earlier probe here
   concluded "no recovery" from exactly that).
+- **Anything new over the board in play goes in PLAY_UI** (2026-11-08,
+  nova-story.md). The chassis's `PLAY_UI` (test ids) is what steps aside
+  through every story scene; `STORY_SCENES` the page flags that mean a
+  scene has the screen. A new floating control left out of PLAY_UI stays
+  up through the hall, the look round, the call and the rest (Undo move
+  and End turn did, a month, unnoticed); a new scene that takes the
+  camera or the taps should flag the page (a class on html, dropped in
+  its dispose) and be added to STORY_SCENES. The hall's own list
+  (den-hall.js) and standard.js's corner rules hide the corner's buttons
+  for their scenes; PLAY_UI is only the game's own things.

@@ -550,6 +550,40 @@ function glowShows(glow, ground) {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
+/* The game's own things over the board in play, each by its test id: out
+   of the way while a story scene has the screen (STORY_SCENES, below; the
+   style is the component's). Anything new that floats over the board in a
+   game belongs here (user, a phone screenshot of Undo move still up as the
+   den's camera turned to the hallway: "There are other situations where
+   some of the new menus are not disappearing during the first time
+   playthrough when they need to"; Undo move and End turn, the hold's
+   ring and its note, the end-turn question and the tour had never been
+   added). The phone's bar is one of them, with its own Undo move and End
+   turn; its menu isn't (the call's rows are read from it). */
+const PLAY_UI = [
+  "points-counter", "turn-buttons-float", "end-turn-ask", "hold-to-end", "hold-to-end-hint",
+  "piece-card", "why-not", "why-not-pointer", "unused-points-note",
+  "check-alert", "check-alert-recall", "dock-call-aura", "corner-menu",
+  "tour-card", "tour-marks", "shell-bar", "shell-hint",
+];
+/* A story scene has the screen, each flagging itself on the page: a visit
+   to the set, the book or the phone, and the hall (den-fx.js, den-hall.js);
+   the den looking round as the set acts up, and held on it (den-fx.js
+   lureLock); home from the trip, its card and the lamp to settle in by
+   (den-fx.js); the order form glowing by the board (tienda-overlay.js);
+   the set's commercial (engine/journey.js); Futuris's summons; the trip,
+   the ending and the store's clerk. */
+const STORY_SCENES = [
+  "html.ec-tv-visit", "html.ec-hall-scene", "html.ec-den-lock", "html.ec-home-card", "html.ec-settle",
+  "html.ec-order-paper", "html.ec-commercial", "html.ec-summon",
+  "body:has(.den-trip, .den-ending, .td-clerk-layer)",
+];
+// (A rule a scene: a browser that can't read one scene's selector, :has()
+// before it was everywhere, drops that rule alone, not every scene's.)
+const PLAY_UI_ASIDE = STORY_SCENES.map((s) => `${s} :is(${PLAY_UI.map((id) => `[data-testid="${id}"]`).join(", ")}) {
+  opacity: 0 !important; pointer-events: none !important; transition: opacity 0.4s ease !important;
+}`).join("\n");
+
 /* The chassis, if this browser will draw 3D at all (chassis/gl-watch.js):
    when it won't make a WebGL context (blocked after a graphics crash, or
    switched off), a card that says so, in the world's look, in place of the
@@ -12622,19 +12656,15 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
          screens it holds the finished game's last turn (pointsFinal).
          Hidden while the dock panel is open (it would sit under it). */}
       {/* Out of the way while a cut-scene has the screen (user: the TV's
-          commercial played with the points still showing). The story's
-          scenes flag themselves on the page (the TV visit, the hall, the
-          summons, the trip, the ending, the store's clerk); Futuris's
-          Singularity through its phase. Their own sheets hide the rest.
-          On the den's phone the full-screen switch goes altogether, the
-          corner's and the bar menu's (user: "When on the phone in your
-          den, you should not be able to click the unmaximize button ...
-          just remove it during that scene"; toggleFullscreen holds its
-          shortcuts meanwhile). */}
-      <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="why-not"], [data-testid="why-not-pointer"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
-html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="why-not"], [data-testid="why-not-pointer"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
-html.ec-hall-scene :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="why-not"], [data-testid="why-not-pointer"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
-body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="why-not"], [data-testid="why-not-pointer"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
+          commercial played with the points still showing): the game's own
+          things (PLAY_UI) through every story scene (STORY_SCENES, each
+          flagging itself on the page); Futuris's Singularity through its
+          phase. Their own sheets hide the rest. On the den's phone the
+          full-screen switch goes altogether, the corner's and the bar
+          menu's (user: "When on the phone in your den, you should not be
+          able to click the unmaximize button ... just remove it during
+          that scene"; toggleFullscreen holds its shortcuts meanwhile). */}
+      <style>{`${PLAY_UI_ASIDE}
 html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-recall"]) {
   opacity: 0 !important; pointer-events: none !important; transition: opacity 0.4s ease !important;
 }
