@@ -32,6 +32,8 @@
    reverb from the last thunderclap needs to continue until its cessation
    naturally".) */
 
+import { loadSound } from "../chassis/sound-files.js";
+
 const APPEAR_AT = 0.4, RING_AT = 1.7, WAVES_AT = 3.6, RAMP = 45;
 // The last clap's reverb: toll 2 s + fall 3.6 s + black 0.9 s + the
 // sphere's fade 2 s is 8.5 s; this runs a little past that.
@@ -47,6 +49,17 @@ const LAST_TAIL_S = 10;
 const LAST_TAIL_PHONE_S = 5.5;
 const TO_GAME = 0.716 / (1.25 * Math.pow(10, 17 / 20));
 const dB = (x) => Math.pow(10, x / 20);
+/* The last clap, recorded (user, on a Chromebook: "The sound when
+   traveling through the black hole still isn't happening"; futuris.js's
+   way-in): where the reverbs are light, the closing clap and its tails
+   play from a file, this code rendered offline with the full reverbs
+   (renderLastClap; tools/singularity_way_in.mjs), and the summons' own
+   room and thunder reverbs let go once the hum's faded, so nothing of
+   the summons is left computing under the toll and the fall. The file is
+   what the clap puts on the mix bus (the phone's treatment after it, as
+   ever). Not fetched yet: the live clap, as before. */
+const LAST_CLAP_URL = "el-cabeza-futuris-way-in-clap.mp3";
+const LAST_CLAP_LEN = LAST_TAIL_S + 1.2;
 
 /* Light reverbs (one channel, the long ones shorter), here and in
    futuris.js and futuris-unease.js: on a phone, and on a computer that may
@@ -95,12 +108,23 @@ function makeImpulse(ctx, secs, decay, chans = 2) {
   return b;
 }
 
-/* out: { ctx, dest, resume } from the soundscape's summonOutput(). */
-export function createSummonSound(out, { mix = "full" } = {}) {
+/* out: { ctx, dest, resume } from the soundscape's summonOutput().
+   render: building into an OfflineAudioContext for the recording
+   (renderLastClap): the full reverbs, no phone treatment, at unity. */
+export function createSummonSound(out, { mix = "full", render = false } = {}) {
   const { ctx, dest } = out;
-  const phone = mix === "phone";
+  const phone = mix === "phone" && !render;
   // (The reverbs light on a phone, and on a computer that may not keep up.)
-  const light = phone || lightReverbsFor();
+  const light = !render && (phone || lightReverbsFor());
+  // (Where they're light, the last clap recorded, once it's here.)
+  let clapBuf = null, clapWas = null;
+  // (Test-only: how the last clap went, read after the summons is gone.)
+  if (!render && typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_SUMMON_CLAP__ = () => ({ light, ready: !!clapBuf, clap: clapWas });
+  if (light) {
+    let live = false;
+    try { live = localStorage.getItem("ec:way-in") === "live"; } catch (e) { /* recorded, then */ }
+    if (!live) loadSound(ctx, LAST_CLAP_URL).then((b) => { clapBuf = b; }).catch(() => { /* the live clap, then */ });
+  }
   const srcs = [];
   const O = (type, f) => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; return o; };
   const G = (v) => { const g = ctx.createGain(); g.gain.value = v; return g; };
@@ -119,7 +143,7 @@ export function createSummonSound(out, { mix = "full" } = {}) {
   const noise = makeNoise(ctx, false), brown = makeNoise(ctx, true);
 
   /* ---- the output: the mix bus, the phone treatment, to the game ---- */
-  const bus = G(1), toGame = G(TO_GAME);
+  const bus = G(1), toGame = G(render ? 1 : TO_GAME);
   if (phone) {
     // Butterworth, 4th order, at 120 Hz (Q given in dB, as Web Audio's
     // high-pass Q is: -5.33 and +2.33).
@@ -170,12 +194,18 @@ export function createSummonSound(out, { mix = "full" } = {}) {
 
   /* ---- the thunder (9H) ---- */
   const thBed = G(0.08), thOut = G(dB(10)), thVerb = G(1);
-  function startThunder(t) {
+  let thCv = null;
+  // (The claps' way out and their reverb; the bed is startThunder's.)
+  function thunderChain() {
+    if (thCv) return;
     chain(thOut, thWhole);
+    thCv = ctx.createConvolver(); thCv.buffer = makeImpulse(ctx, light ? 3.5 : 5, 2.2, light ? 1 : 2);
+    chain(thVerb, thCv, F("lowpass", 1200), G(0.9), thOut);
+  }
+  function startThunder(t) {
+    thunderChain();
     const bed = loop(brown, t); bedSrcs.push(bed);
     chain(bed, F("lowpass", 80), thBed, G(dB(10)), whole);
-    const cv = ctx.createConvolver(); cv.buffer = makeImpulse(ctx, light ? 3.5 : 5, 2.2, light ? 1 : 2);
-    chain(thVerb, cv, F("lowpass", 1200), G(0.9), thOut);
   }
   function thunderRing(t) {
     const lp = F("lowpass", 216); lp.frequency.setValueAtTime(216, t); lp.frequency.exponentialRampToValueAtTime(64, t + 2.4);
@@ -228,6 +258,8 @@ export function createSummonSound(out, { mix = "full" } = {}) {
       thunderHit(when, strength);
     },
     resume() { if (out.resume) out.resume(); },
+    // (The recording's: the closing clap alone, at t, with its tails.)
+    clapOnly(t) { thunderChain(); thWhole.gain.value = 1; lastClap(t); },
     // fade: how fast the hum goes. last: the closing clap and its long
     // tail (the Singularity taking over); without it (leaving the theme)
     // everything goes together.
@@ -238,7 +270,16 @@ export function createSummonSound(out, { mix = "full" } = {}) {
       const out = (g) => { g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.setTargetAtTime(0, now, fade / 4); };
       out(whole.gain);
       const clap = last && started && thWhole.gain.value > 0.01;
-      if (clap) { const g = thWhole.gain; g.cancelScheduledValues(now); g.setValueAtTime(Math.max(g.value, 0.5), now); lastClap(now + 0.02); }
+      // (Recorded, where the reverbs are light and it's here: the clap and
+      // its tails onto the bus, and the summons' own reverbs let go once
+      // the hum's faded through them.)
+      const recorded = clap && !!clapBuf;
+      if (clap) clapWas = recorded ? "recorded" : "live";
+      if (recorded) {
+        const s = ctx.createBufferSource(); s.buffer = clapBuf; s.connect(bus); s.start(now + 0.02);
+        out(thWhole.gain);
+        setTimeout(() => { [room, thCv].forEach((n) => { try { if (n) n.disconnect(); } catch (e) { /* gone */ } }); }, (fade + 0.45) * 1000);
+      } else if (clap) { const g = thWhole.gain; g.cancelScheduledValues(now); g.setValueAtTime(Math.max(g.value, 0.5), now); lastClap(now + 0.02); }
       else out(thWhole.gain);
       /* The hum's voices (fifteen saws, each with two LFOs) and the
          thunder's bed, faded out with the whole, stopped once they're
@@ -251,7 +292,19 @@ export function createSummonSound(out, { mix = "full" } = {}) {
       setTimeout(() => {
         srcs.forEach((s) => { try { s.stop(); } catch (e) {} });
         try { toGame.disconnect(); } catch (e) {}
-      }, ((clap ? (light ? LAST_TAIL_PHONE_S : LAST_TAIL_S) : 5) + fade + 0.5) * 1000);
+      }, ((recorded ? LAST_CLAP_LEN : clap ? (light ? LAST_TAIL_PHONE_S : LAST_TAIL_S) : 5) + fade + 0.5) * 1000);
     },
   };
 }
+
+/* The last clap rendered offline for its recording (createSummonSound's
+   recorded clap): the full reverbs, what it puts on the mix bus, as
+   [left, right]. tools/singularity_way_in.mjs (through the page's test
+   hook) encodes and writes it. */
+export async function renderLastClap({ sampleRate = 48000 } = {}) {
+  const oc = new OfflineAudioContext(2, Math.round(LAST_CLAP_LEN * sampleRate), sampleRate);
+  createSummonSound({ ctx: oc, dest: oc.destination }, { mix: "full", render: true }).clapOnly(0.02);
+  const buf = await oc.startRendering();
+  return { sampleRate, clap: [Float32Array.from(buf.getChannelData(0)), Float32Array.from(buf.getChannelData(1))] };
+}
+if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_RENDER_LAST_CLAP__ = renderLastClap;

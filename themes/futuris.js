@@ -26,6 +26,7 @@ export { PIECE_ORIENTATIONS, shuffledIndices, generateAnomalySetup };
 import { advanceSingularityScene, useSingularityPhase, renderSingularityOverlay } from "./futuris-singularity.js";
 import { lightReverbsFor } from "./futuris-summon-audio.js";
 import { makeAudioContext } from "./audio-context.js";
+import { loadSound } from "../chassis/sound-files.js";
 
 /* Everything visual in this experimental skin lives in these two
    objects (COLORS for the DOM/CSS layer, HEX for the Three.js scene
@@ -3340,6 +3341,7 @@ export function useSetupExtras({
   function revealSingularity() {
     if (!awaitingBegin) return;
     if (singularityRevealed || singularityCinematic.singularityPhase !== "idle") return;
+    if (audio && audio.prepareWayIn) audio.prepareWayIn();
     setSingularityRevealed(true);
     clearTimeout(singularityHideTimerRef.current);
     singularityHideTimerRef.current = setTimeout(
@@ -4189,6 +4191,56 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
   };
 }
 
+/* The way into the Singularity, recorded (createSoundscape's way-in; the
+   files made by tools/singularity_way_in.mjs), its parts in seconds. The
+   toll is futuris-singularity.js's SINGULARITY_TOLL_MS, the collapse its
+   COLLAPSE_DURATION_MS. hum: the toll's hum from the tap, built over the
+   toll, then held (its loop); fall: from the collapse's start, the hum
+   through it with the roar and the pull, then its climax held (its loop);
+   bell: the strike and its ring. Each loop's last xfade seconds are
+   crossfaded into the run up to its start, so it goes round without a
+   seam. scale: what each file was raised by for the encoder (the hum's
+   raw level is low), taken off again as it plays. */
+export const WAY_IN = { toll: 2, collapse: 3.6, bell: { len: 14 }, hum: { len: 6, loop: [3, 5.5] }, fall: { len: 6.6, loop: [4, 6.4] }, xfade: 0.4,
+  scale: { bell: 3, hum: 16, fall: 8 } };
+
+/* The parts rendered offline from the soundscape itself (the full
+   reverbs, every stage at unity), each as [left, right]: the frames'
+   calls (the toll's build, the fall's progress) at 60 a second, as the
+   scene makes them. tools/singularity_way_in.mjs (through the page's test
+   hook) loops, scales, encodes and writes them. */
+export async function renderWayIn({ sampleRate = 48000 } = {}) {
+  const STEP = 1 / 60;
+  const pass = async (seconds, script) => {
+    const oc = new OfflineAudioContext(2, Math.round(seconds * sampleRate), sampleRate);
+    const ss = createSoundscape({ context: oc });
+    // (One suspend a render quantum: two calls in one are made together.)
+    const calls = new Map();
+    const at = (t, fn) => { const q = Math.round((t * sampleRate) / 128); if (!calls.has(q)) calls.set(q, []); calls.get(q).push(fn); };
+    script(ss, at);
+    for (const [q, fns] of calls) oc.suspend((q * 128) / sampleRate).then(() => { fns.forEach((f) => f()); oc.resume(); });
+    const buf = await oc.startRendering();
+    return [Float32Array.from(buf.getChannelData(0)), Float32Array.from(buf.getChannelData(1))];
+  };
+  const T = WAY_IN.toll;
+  const toll = (ss, at, until) => {
+    ss.startSingularityHum();
+    for (let k = 1; k * STEP < until - 1e-6; k++) { const t = k * STEP; at(t, () => ss.updateSingularityHum(Math.min(1, t / T))); }
+  };
+  const bell = await pass(WAY_IN.bell.len, (ss) => ss.playSingularityBell());
+  const hum = await pass(WAY_IN.hum.len, (ss, at) => toll(ss, at, WAY_IN.hum.len));
+  // (The fall: the toll first, as the hum's state at the collapse is the
+  // toll's end, then the collapse; kept from the collapse's start.)
+  const whole = await pass(T + WAY_IN.fall.len, (ss, at) => {
+    toll(ss, at, T);
+    at(T, () => ss.startSingularityCollapseRoar());
+    for (let k = 1; k * STEP < WAY_IN.fall.len - 1e-6; k++) { const u = (k * STEP) / WAY_IN.collapse; at(T + k * STEP, () => ss.continueSingularityHumThroughCollapse(Math.min(1, u))); }
+  });
+  const from = Math.round(T * sampleRate);
+  return { sampleRate, way: WAY_IN, bell, hum, fall: whole.map((ch) => ch.slice(from)) };
+}
+if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_RENDER_WAY_IN__ = renderWayIn;
+
 /* A synthesized ambient bed (Web Audio API, no external assets) plus a
    sparse, randomized layer of "machine is alive" micro-events, plus a
    handful of short gameplay cues. Entirely isolated from game state —
@@ -4200,8 +4252,15 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
 
    Autoplay policies require a user gesture before any audio can
    start, so ensureStarted() is idempotent and cheap to call from
-   anywhere — it's wired to the first pointer-down on the board. */
-export function createSoundscape() {
+   anywhere — it's wired to the first pointer-down on the board.
+
+   opts.context: an OfflineAudioContext to build into instead of the
+   speakers (renderWayIn, below: the way into the Singularity recorded
+   from this very code). Then every output stage is at unity (master,
+   sfxOut, the bell's bus; no last stage), the reverbs are the full set,
+   and nothing touches the page's test hooks. */
+export function createSoundscape(opts = {}) {
+  const RENDER = opts.context || null;
   const MASTER_GAIN = Math.pow(10, 17 / 20); // +4dB, +10dB, then a further +3dB per feedback ("maximize the overall gain across every audio channel") — +17dB total, applied once at the final stage
   let ctx = null;
   let master = null; // overall output, respects mute
@@ -4321,7 +4380,9 @@ export function createSoundscape() {
   function startSingularityHum() {
     ensureGraph();
     if (!ctx || humNodes) return;
-    if (ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); }
+    if (!RENDER && ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); }
+    // (Recorded, on a machine that can't keep up: the build, then its hold.)
+    if (wayIn) { humNodes = { recorded: playRecorded(wayIn.hum, sfxGain, { loop: WAY_IN.hum.loop, gain: 1 / WAY_IN.scale.hum }) }; return; }
     const t0 = ctx.currentTime;
 
     // Dry path and wet (reverb) path run in parallel into sfxGain, so
@@ -4403,7 +4464,7 @@ export function createSoundscape() {
      Everything that makes it feel like it's tightening is driven from
      this one value, so the caller only has to report progress. */
   function updateSingularityHum(intensity) {
-    if (!ctx || !humNodes) return;
+    if (!ctx || !humNodes || humNodes.recorded) return;
     const t = Math.max(0, Math.min(1, intensity));
     const now = ctx.currentTime;
     const S = 0.08; // setTargetAtTime constant — smooth, no zipper noise
@@ -4465,7 +4526,7 @@ export function createSoundscape() {
      via nextGateAt so that being called every animation frame doesn't
      pile overlapping ramps onto the same parameter. */
   function scheduleSingularityGateStutter(t, now) {
-    if (!humNodes || t < 0.5) return;
+    if (!humNodes || humNodes.recorded || t < 0.5) return;
     if (now < humNodes.nextGateAt) return;
     const bite = (t - 0.5) / 0.5; // 0 at the halfway point, 1 at commit
     const g = humNodes.gate.gain;
@@ -4488,7 +4549,7 @@ export function createSoundscape() {
      instead of hold progress, picking up exactly where intensity=1
      left off so there's no audible seam at the handoff. */
   function continueSingularityHumThroughCollapse(u) {
-    if (!ctx || !humNodes) return;
+    if (!ctx || !humNodes || humNodes.recorded) return;
     const c = Math.max(0, Math.min(1, u));
     const now = ctx.currentTime;
     const S = 0.08;
@@ -4517,6 +4578,31 @@ export function createSoundscape() {
   function startSingularityCollapseRoar() {
     ensureGraph();
     if (!ctx || collapseRoar) return;
+    /* Recorded: the fall, the hum through it with the roar and the pull,
+       in over 80 ms as the toll's hum goes (its recording's hold, or the
+       live hum if the recordings came in after the tap: the fall is the
+       heavy part). It holds its climax till the cut. */
+    if (wayIn) {
+      const now = ctx.currentTime, X = 0.08;
+      const fall = playRecorded(wayIn.fall, sfxGain, { loop: WAY_IN.fall.loop, gain: 0 });
+      fall.g.gain.setValueAtTime(0, now);
+      fall.g.gain.linearRampToValueAtTime(1 / WAY_IN.scale.fall, now + X);
+      const h = humNodes;
+      humNodes = null;
+      if (h && h.recorded) {
+        h.recorded.g.gain.setValueAtTime(1 / WAY_IN.scale.hum, now);
+        h.recorded.g.gain.linearRampToValueAtTime(0, now + X);
+        dropRecorded(h.recorded, now + X + 0.02);
+      } else if (h) {
+        [h.dry.gain, h.wetOut.gain].forEach((p) => { p.cancelScheduledValues(now); p.setValueAtTime(p.value, now); p.linearRampToValueAtTime(0, now + X); });
+        try { h.oscs.forEach((o) => o.stop(now + X + 0.05)); h.lfo.stop(now + X + 0.05); } catch (e) { /* stopped */ }
+        setTimeout(() => {
+          try { h.dry.disconnect(); h.wetSend.disconnect(); h.wetOut.disconnect(); h.conv.disconnect(); h.lp.disconnect(); h.gate.disconnect(); h.lfoTarget.disconnect(); h.lfoDepth.disconnect(); } catch (e) { /* gone */ }
+        }, (X + 0.3) * 1000);
+      }
+      collapseRoar = { recorded: fall };
+      return;
+    }
     const src = brownNoiseSource();
     const bp = ctx.createBiquadFilter();
     bp.type = "bandpass";
@@ -4576,7 +4662,7 @@ export function createSoundscape() {
   }
 
   function updateSingularityCollapseRoar(u) {
-    if (!ctx || !collapseRoar) return;
+    if (!ctx || !collapseRoar || collapseRoar.recorded) return;
     const c = Math.max(0, Math.min(1, u));
     const now = ctx.currentTime;
     const S = 0.09;
@@ -4624,6 +4710,7 @@ export function createSoundscape() {
     if (!collapseRoar) return;
     const r = collapseRoar;
     collapseRoar = null;
+    if (r.recorded) { dropRecorded(r.recorded); return; }
     try { r.src.stop(); } catch (e) { /* already stopped — harmless */ }
     try { r.src.disconnect(); r.bp.disconnect(); r.g.disconnect(); } catch (e) { /* fine either way */ }
     [r.air, r.flut, ...r.risers].forEach((o) => { try { o.stop(); } catch (e) { /* fine */ } });
@@ -4649,6 +4736,7 @@ export function createSoundscape() {
     // actually silent right now."
     if (typeof window !== "undefined") window.__EC_TEST_MASTER_GAIN__ = 0;
     stopSingularityCollapseRoar();
+    if (humNodes && humNodes.recorded) { dropRecorded(humNodes.recorded, now); humNodes = null; }
     if (humNodes) {
       const h = humNodes;
       humNodes = null;
@@ -4685,6 +4773,8 @@ export function createSoundscape() {
     const h = humNodes;
     humNodes = null;
     const now = ctx.currentTime;
+    // (Recorded: it goes as the live one's dry voices do.)
+    if (h.recorded) { h.recorded.g.gain.setTargetAtTime(0, now, 0.12); dropRecorded(h.recorded, now + 0.8); return; }
     h.dry.gain.cancelScheduledValues(now);
     h.dry.gain.setTargetAtTime(0, now, 0.12);
     h.wetSend.gain.cancelScheduledValues(now);
@@ -4711,7 +4801,7 @@ export function createSoundscape() {
   function playSingularityDismiss() {
     ensureGraph();
     if (!ctx) return;
-    if (ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); }
+    if (!RENDER && ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); }
     const t0 = ctx.currentTime;
     const conv = ctx.createConvolver();
     conv.buffer = makeImpulse(4.2, 1.5);
@@ -4781,6 +4871,7 @@ export function createSoundscape() {
      limiter just under full scale so no sum of layers can ever clip. */
   let outIn = null;
   function outStage() {
+    if (RENDER) return ctx.destination;
     if (outIn) return outIn;
     const hp1 = ctx.createBiquadFilter(), hp2 = ctx.createBiquadFilter();
     // (Butterworth, 4th order: Q 0.541 and 1.307, given in dB, as Web
@@ -4816,17 +4907,75 @@ export function createSoundscape() {
   function ensureBellBus() {
     if (bellBus) return;
     bellBus = ctx.createGain();
-    bellBus.gain.value = muted ? 0 : BELL_BUS_GAIN * chGain("interface");
+    bellBus.gain.value = RENDER ? 1 : muted ? 0 : BELL_BUS_GAIN * chGain("interface");
     bellBus.connect(outStage());
+  }
+  // (Its reverb only for the bell made here: the recorded toll has its own.)
+  function ensureBellReverb() {
+    if (bellReverb) return;
     bellReverb = ctx.createConvolver();
     bellReverb.buffer = makeImpulse(11.5, 1.25);
     bellReverb.connect(bellBus);
   }
 
+  /* ---- The way into the Singularity, recorded (user, on a Chromebook:
+     "The sound when traveling through the black hole still isn't
+     happening on the Chromebook", after the light reverbs and the
+     slow-frame fixes). Made live, the tap starts five long reverbs at
+     once on the story's way in (the summons' room and thunder, its last
+     clap's tail, the toll's, the hum's), with the hum's voices, the roar
+     and the pull: measured, Chrome's audio thread needs about 35% of a
+     fast desktop core for it, light reverbs and all (about 15% from
+     Futuris's own page), where the sphere after needs 12%. A Chromebook's
+     core is three or four times slower and the fall loads its graphics
+     too: what the audio thread can't make in time it plays as silence,
+     so the fall was silent and the ring after it heard. Now a machine
+     that gets the light reverbs (a phone, a Chromebook, two cores or
+     fewer, 4 GB or less: futuris-summon-audio.js lightReverbsFor) plays
+     the toll, the hum and the fall as recordings: this same code
+     rendered offline with the full reverbs (renderWayIn, below;
+     tools/singularity_way_in.mjs), a few buffers playing where dozens of
+     nodes and five reverbs were. The toll's hum builds for 2 s and then
+     holds (a loop) however late the collapse comes; the fall holds its
+     climax (a loop) however long the picture takes to reach the cut. Not
+     fetched yet (or not to be had: the live sound then, as before).
+     localStorage "ec:way-in" = "live" turns it off, for comparing. ---- */
+  const WAY_IN_FILES = { bell: "el-cabeza-futuris-way-in-bell.mp3", hum: "el-cabeza-futuris-way-in-hum.mp3", fall: "el-cabeza-futuris-way-in-fall.mp3" };
+  let wayIn = null, wayInAsked = false;
+  function askWayIn() {
+    if (wayInAsked || RENDER || !ctx || !lightReverbs) return;
+    try { if (localStorage.getItem("ec:way-in") === "live") return; } catch (e) { /* recorded, then */ }
+    wayInAsked = true;
+    Promise.all(Object.entries(WAY_IN_FILES).map(([k, url]) => loadSound(ctx, url).then((b) => [k, b])))
+      .then((pairs) => { wayIn = Object.fromEntries(pairs); })
+      .catch(() => { wayIn = null; });
+  }
+  // (Test-only: whether they're asked for and here, and what's playing.)
+  let bellWas = null, bellsRung = 0;
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__ && !RENDER) {
+    window.__EC_WAY_IN__ = () => ({ light: lightReverbs, asked: wayInAsked, ready: !!wayIn, bell: bellWas, bells: bellsRung,
+      hum: humNodes ? (humNodes.recorded ? "recorded" : "live") : null, fall: collapseRoar ? (collapseRoar.recorded ? "recorded" : "live") : null });
+  }
+  function playRecorded(buf, dest, { loop = null, gain = 1 } = {}) {
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    if (loop) { src.loop = true; src.loopStart = loop[0]; src.loopEnd = Math.min(loop[1], buf.duration); }
+    const g = ctx.createGain();
+    g.gain.value = gain;
+    src.connect(g).connect(dest);
+    src.start();
+    return { src, g };
+  }
+  function dropRecorded(r, at = ctx.currentTime) {
+    if (!r) return;
+    try { r.src.stop(at); } catch (e) { /* stopped */ }
+    setTimeout(() => { try { r.g.disconnect(); } catch (e) { /* gone */ } }, Math.max(0, at - ctx.currentTime) * 1000 + 200);
+  }
+
   function playSingularityBell() {
     ensureGraph();
     if (!ctx) return;
-    if (ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); }
+    if (!RENDER && ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); }
     // The bell is a rare, deliberate cue — like the choir stab, it should
     // read clearly even if a post-game hush has pinned master low.
     if (windingDown && master) {
@@ -4837,6 +4986,10 @@ export function createSoundscape() {
     // Its own bus, outside master: the toll outlives the event-horizon
     // cut to silence and rings out, reverb and all, to true zero.
     ensureBellBus();
+    // (Recorded, on a machine that can't keep up: the strike and its ring.)
+    bellWas = wayIn ? "recorded" : "live"; bellsRung++;
+    if (wayIn) { const r = playRecorded(wayIn.bell, bellBus, { gain: 1 / WAY_IN.scale.bell }); dropRecorded(r, ctx.currentTime + wayIn.bell.duration + 0.1); return; }
+    ensureBellReverb();
     const t0 = ctx.currentTime;
 
     // Shared bus: a low-pass to tame brightness, then split dry (small)
@@ -4964,7 +5117,8 @@ export function createSoundscape() {
      mono, and can't play the long low tails anyway. And on a computer that
      may not keep up either (a Chromebook, user: silent from the tap on;
      futuris-summon-audio.js lightReverbsFor). */
-  const lightReverbs = lightReverbsFor();
+  // (Rendering the way in for the recordings: the full set, always.)
+  const lightReverbs = RENDER ? false : lightReverbsFor();
   function makeImpulse(duration, decay) {
     if (lightReverbs) duration = Math.min(duration, 0.4 * duration + 0.5);
     const chans = lightReverbs ? 1 : 2;
@@ -5817,23 +5971,25 @@ export function createSoundscape() {
     try {
       // (At the device's rate, up to 48 kHz: a sound card set to 96 or
       // 192 kHz doubles or quadruples every reverb's cost; audio-context.js.)
-      ctx = makeAudioContext();
+      ctx = RENDER || makeAudioContext();
       if (!ctx) throw new Error("no Web Audio");
       // Defensive: some browsers create a context suspended even inside
       // a user gesture. Harmless to call when already running.
-      unlockIosAudio();
-      if (ctx.state === "suspended") ctx.resume();
+      if (!RENDER) {
+        unlockIosAudio();
+        if (ctx.state === "suspended") ctx.resume();
+      }
       master = ctx.createGain();
       // Test-only: the live master level, the context state and the
       // wind-down flag (tests/e2e-undo-audio.mjs).
-      if (typeof window !== "undefined") {
+      if (typeof window !== "undefined" && !RENDER) {
         window.__EC_TEST_AUDIO__ = () => ({ gain: master ? master.gain.value : null, state: ctx ? ctx.state : null, windingDown, intro: introGain ? introGain.gain.value : null, channelsOff: { ...channelOff }, channelLevels: { ...channelLevel }, gates: ambienceGate ? { ambience: ambienceGate.gain.value, pieces: piecesGate.gain.value, interface: interfaceGate.gain.value } : null });
         window.__EC_TEST_AUDIO_SUSPEND__ = () => ctx && ctx.suspend(); // stands in for a phone suspending a silent context
       }
       // +14dB overall total (10^(14/20) ≈ 5.01) — a single multiplier on
       // the final stage, so every sound is raised by the same factor and
       // nothing shifts relative to anything else.
-      master.gain.value = muted ? 0 : MASTER_GAIN;
+      master.gain.value = RENDER ? 1 : muted ? 0 : MASTER_GAIN;
       master.connect(outStage());
 
       /* theme: sits between the ambient bed (hum/crackle, and the
@@ -5877,7 +6033,7 @@ export function createSoundscape() {
       eventsGain.connect(eventsShaper).connect(eventsMuffle).connect(introGain);
 
       const sfxOut = ctx.createGain();
-      sfxOut.gain.value = 1.25; // +25% per feedback ("maximize the overall gain across every audio channel")
+      sfxOut.gain.value = RENDER ? 1 : 1.25; // +25% per feedback ("maximize the overall gain across every audio channel")
       sfxOut.connect(master);
       interfaceGate = ctx.createGain();
       interfaceGate.gain.value = chGain("interface");
@@ -5907,6 +6063,7 @@ export function createSoundscape() {
     } catch (e) {
       ctx = null; // Web Audio unavailable — game stays fully playable, just silent
     }
+    askWayIn();
   }
 
   /* Mobile browsers (iOS Safari especially) can suspend an already-
@@ -6992,6 +7149,9 @@ export function createSoundscape() {
     // Both cut 50% per feedback (0.16 -> 0.08, 0.24 -> 0.12).
     playSingularityOpen: () => { ensureGraph(); cue(70, 900, 0.7, "sine", 0.08); },
     playSingularityClose: () => { ensureGraph(); reverseCue(70, 900, 0.5, "sine", 0.12); },
+    // (The invite's up: the way in's recordings asked for now, where
+    // they're wanted, so they're here by the tap.)
+    prepareWayIn: () => ensureGraph(),
     startSingularityHum,
     updateSingularityHum,
     continueSingularityHumThroughCollapse,

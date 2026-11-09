@@ -86,3 +86,14 @@
   its dispose) and be added to STORY_SCENES. The hall's own list
   (den-hall.js) and standard.js's corner rules hide the corner's buttons
   for their scenes; PLAY_UI is only the game's own things.
+- **The way into the Singularity is two sounds: the code and its
+  recordings** (2026-11-09, 03c-singularity-transition.md). On a light
+  machine (a phone, a Chromebook, two cores or fewer, 4 GB or less) the
+  toll, the toll's hum, the fall and the summons' last clap play from
+  assets/futuris/way-in-*.mp3, rendered from the code by
+  tools/singularity_way_in.mjs; a desktop makes them live. Change any of
+  them (playSingularityBell, the hum, the roar, the pull, lastClap and its
+  reverbs, their levels) and run the tool again, then opus_twins.py and
+  the build, or the phones and Chromebooks keep the old sound. WAY_IN in
+  futuris.js holds the parts' lengths, loops and scales the tool and the
+  game share.

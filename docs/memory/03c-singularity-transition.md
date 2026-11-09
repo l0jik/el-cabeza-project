@@ -208,3 +208,62 @@ to-black → draggable Fresnel-glow sphere sequence, in a new module,
   tap (futuris-summon-audio.js bedSrcs), not computed silently on for the
   last clap's 11 s. After: the stall test plays 3.3 s of the fall after
   the thaw, sound on, then the black and the cut there.
+- **The way in, recorded, where the audio can't make it live**
+  (2026-11-09; user, of the backlog's "does the Singularity's sound play
+  on your Chromebook now?": "The sound when traveling through the black
+  hole still isn't happening on the Chromebook."). Neither earlier fix
+  (the light reverbs, 2026-10-23; the slow frame, 2026-10-31) was about
+  the real limit. Measured here with the Chromebook's user agent (light
+  reverbs), Chrome's audio thread ("AudioOutputDevice", read from
+  /proc/<pid>/task/*/stat) through the toll and the fall: about 35% of a
+  core on the story's way in (the summons first) and about 15% from
+  Futuris's own page, where the sphere after needs 12% and nothing before
+  the tap. Five long reverbs run at once on the story's way (the summons'
+  room 2.4 s and thunder 3.5 s, its last clap's tail 5.5 s, the toll's
+  5.1 s, the hum's 3.1 s, all light): with their impulses cut to 256
+  samples the fall needs 9%; the summons' three are 17 points of it, the
+  toll's and the hum's 9, the oscillators, noise and shapers the other 9
+  (the shapers' oversampling under 1). A Chromebook's core is three or
+  four times slower, and its two cores are busy with the fall's graphics
+  too: what the audio thread can't make in time it plays as silence. The
+  sphere's 12% it keeps up with (the ring is heard). Here, even slowed
+  eightfold (the page's main thread, CDP throttling), the fall was heard:
+  it's the audio thread. Now, where the reverbs are light
+  (lightReverbsFor: a phone, a Chromebook, two cores or fewer, 4 GB or
+  less), the toll (bell), the toll's hum, the fall (the hum through it,
+  the roar, the pull) and the summons' last clap play from recordings of
+  that same code: themes/futuris.js `renderWayIn` and
+  futuris-summon-audio.js `renderLastClap` build it in an
+  OfflineAudioContext (`createSoundscape({ context })`: every stage at
+  unity, no last stage, the full reverbs; the frames' calls made at 60 a
+  second through suspend()), and tools/singularity_way_in.mjs renders five
+  takes of each (the reverbs' impulses and the strikes' noise are random:
+  one bell came out 3.5 dB under the live one), keeps the middle by
+  loudness, crossfades the holds into loops (the hum's 3-5.5 s, the
+  fall's 4-6.4 s; WAY_IN.xfade 0.4 s), raises each by WAY_IN.scale for the
+  encoder (taken off as it plays) and writes assets/futuris/way-in-
+  {bell,hum,fall,clap}.mp3 (48 kHz stereo 128 kbps; Opus twins about 420
+  KB in all). Played: the bell onto the bell's bus (its reverb no longer
+  made: ensureBellReverb only for the live bell), the hum into the
+  interface gate from the tap (it builds 2 s, then holds however late the
+  collapse comes), the fall in over 80 ms at the collapse's start (from
+  the recorded hum, or from the live one if the recordings came after the
+  tap: the fall is the heavy part) holding its climax till the cut, which
+  stops both (master to 0 as ever); the clap onto the summons' mix bus
+  (the phone's treatment after it), the summons' room and thunder reverbs
+  disconnected 0.45 s after its hum's fade, its way out kept till the
+  recording's end. Asked for when Futuris's graph is made (the summons'
+  start on the story's way, the masthead's taps on its page) and again as
+  the invite comes up (prepareWayIn); not here by then, the live sound,
+  as before. localStorage "ec:way-in" = "live" turns it off. Measured
+  after: the audio thread through the toll and the fall 4.3% on the
+  story's way (was 34%), 2.2% from Futuris's page (was 15.8%); the
+  levels a quarter second at a time match the live full set's (the bell's
+  strike -6 to -9 dB against -9, the hum's build, the collapse -7 to -15
+  dB, the cut, the bell's ring-out -16 to -19 dB, the clap's tail -13 dB
+  dying to -38 by the cut). A desktop is unchanged (made live, the full
+  set: audio-bell). Test: tests/e2e-way-in.mjs (served over HTTP: Futuris's
+  page on a light machine; the recordings let go only after the tap; the
+  story's way with the summons; a desktop; "live"). Changing the toll,
+  the hum, the roar, the pull or the last clap: run the tool again
+  (11-fragile-areas.md).

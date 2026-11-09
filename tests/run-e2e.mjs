@@ -107,6 +107,8 @@ const E2E = [
   ["e2e-picture-out.mjs"],
   // The game's own things (Undo move, End turn, the points, its cards, the phone's bar) out of the way through the story's scenes: a visit to the set, home again and the bulb, the hall, the den looking round, the phone call.
   ["e2e-scene-aside.mjs"],
+  // The way into the Singularity from recordings where the audio can't make it live (a Chromebook, a phone): the toll, the hum, the fall, the last clap; late recordings; a desktop live.
+  ["e2e-way-in.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

@@ -141,3 +141,15 @@ filters/modal synthesis again** — it's been tried twice in different
 forms and specifically rejected both times for the same underlying
 reason.
 
+- **What a slow machine can't make live, it plays recorded** (2026-11-09;
+  03c-singularity-transition.md). Chrome's audio thread is the limit on a
+  Chromebook or a phone, not the main thread: what it can't make in time
+  comes out as silence, and long ConvolverNode reverbs are its biggest
+  cost (about 5% of a fast core each, light or not). Measure it from
+  /proc (the renderer's "AudioOutputDevice" thread's CPU time over a
+  window) rather than offline renders, which miss the live overheads. The
+  way into the Singularity is the first sound made both ways: live on a
+  desktop, recordings of the same code on a light machine
+  (tools/singularity_way_in.mjs renders them offline in the browser from
+  the game's own soundscape: createSoundscape({ context }) builds into an
+  OfflineAudioContext, every stage at unity).

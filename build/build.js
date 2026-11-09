@@ -58,6 +58,11 @@ const DEN_RECORDS = {
 // drone, looped (tools/futuris_sphere_drone.py; themes/futuris-unease.js createDrone).
 const SPHERE_FILES = { "el-cabeza-futuris-sphere-drone.mp3": "assets/futuris/sphere-drone.mp3" };
 DEN_RECORDS["el-cabeza-futuris-sphere-drone.mp3"] = SPHERE_FILES["el-cabeza-futuris-sphere-drone.mp3"];
+// The way into the Singularity, recorded, for a machine that can't make it
+// live (a phone, a Chromebook: themes/futuris.js WAY_IN; tools/singularity_way_in.mjs).
+const WAY_IN_FILES = Object.fromEntries(["bell", "hum", "fall", "clap"].map((k) => [`el-cabeza-futuris-way-in-${k}.mp3`, `assets/futuris/way-in-${k}.mp3`]));
+Object.assign(SPHERE_FILES, WAY_IN_FILES);
+Object.assign(DEN_RECORDS, WAY_IN_FILES);
 
 // Beside every page: ABOUT's original-game cue (chassis ORIGINAL_CUE_URL),
 // and the faces of the lines between scenes (themes/faces.js: Fraunces,
