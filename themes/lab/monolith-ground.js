@@ -486,3 +486,136 @@ export function plateField({ rx, rz, edgeAt, groundAt, colourAt, detail = 1, E =
   const floorCells = cells.filter((c) => kind[c.i] === "floor").map((c) => c.poly);
   return { geo, floorCells, plateAt, count: tops.size };
 }
+
+/* ---------------------------------------------------------------- weathering */
+
+/* The weathering on the board's floor and the plates round it (user: "The
+   ground should look, I don't know, more messed up. I mean, more cracks, I
+   guess, hairline cracks, just all the, you know, sort of weathering and
+   erosion sort of effects you would see in this type of environment."):
+   one sheet, not repeating, laid on by the land's x and z where a face
+   looks up (the plates' material multiplies the rock by twice its colour,
+   by its alpha: mid grey leaves it be, darker darkens, lighter lightens,
+   so the stone keeps its own colour under it). On it, the slickrock's
+   weathering: long fractures, jagged and branching, a lit lip on the
+   side the moon faces; crazing, nets of hairline cracks in patches; the
+   skin flaked off here and there (exfoliation), fresher stone inside a
+   ragged step; shallow pans with sand in them; sand drifted against the
+   floor's edges; varnish and rust stains; lichen. Over the board itself
+   the lot fainter, so the squares and the pieces still read.
+   `rx`, `rz` the floor's half sizes (floorRect), `ox`, `oz` the board's;
+   the sheet reaches `pad` past the floor. Returns { tex, x0, z0, W, D }. */
+export function wearSheet({ rx, rz, ox, oz, detail = 1, pad = 2.6 }) {
+  const x0 = -rx - pad, z0 = -rz - pad, W = 2 * (rx + pad), D = 2 * (rz + pad);
+  const ppu = Math.min(detail === 0 ? 46 : 96, (detail === 0 ? 1024 : 2048) / Math.max(W, D));
+  const c = document.createElement("canvas");
+  c.width = Math.round(W * ppu); c.height = Math.round(D * ppu);
+  const g = c.getContext("2d");
+  g.lineCap = "round"; g.lineJoin = "round";
+  const X = (x) => (x - x0) * ppu, Y = (z) => (z - z0) * ppu, px = (u) => Math.max(1, u * ppu);
+  const R = stream(0x3e1d7a5);
+  const rr = (a, b) => a + R() * (b - a);
+  // A colour to multiply the rock by, as the shader takes it (0.5 leaves it).
+  const mod = (r, gg, b, a) => `rgba(${Math.round(r * 255)},${Math.round(gg * 255)},${Math.round(b * 255)},${Math.max(0, Math.min(1, a)).toFixed(3)})`;
+  // Fainter over the board (the squares and pieces still read), full past it.
+  const onBoard = (x, z) => { const d = Math.max(Math.abs(x) - ox, Math.abs(z) - oz); return d < -0.3 ? 1 : d > 0.3 ? 0 : (0.3 - d) / 0.6; };
+  const dim = (x, z, k = 0.55) => 1 - (1 - k) * onBoard(x, z);
+  const anyPoint = () => [rr(x0 + 0.3, x0 + W - 0.3), rr(z0 + 0.3, z0 + D - 0.3)];
+  const blob = (x, z, r, k = 12, rag = 0.35, seed = 0) => {
+    const pts = [];
+    for (let i = 0; i < k; i++) { const a = (i / k) * Math.PI * 2, f = 1 - rag / 2 + rag * n1(i * 0.9 + seed, 0.37 + seed * 0.01) + (R() - 0.5) * rag * 0.5; pts.push([x + Math.cos(a) * r * f, z + Math.sin(a) * r * f]); }
+    return pts;
+  };
+  const path = (pts) => { g.beginPath(); pts.forEach(([x, z], i) => (i ? g.lineTo(X(x), Y(z)) : g.moveTo(X(x), Y(z)))); };
+  const soft = (x, z, r, col) => { const gr = g.createRadialGradient(X(x), Y(z), 0, X(x), Y(z), r * ppu); gr.addColorStop(0, col); gr.addColorStop(1, col.replace(/[\d.]+\)$/, "0)")); g.fillStyle = gr; g.fillRect(X(x - r), Y(z - r), 2 * r * ppu, 2 * r * ppu); };
+  // The light's way: the moon's from +x, +z, so a crack's wall on its -x,
+  // -z side faces it (lit), the other's in shade.
+  const LX = -0.6, LZ = -0.8;
+
+  // Sand drifted against the floor's edges, and dust about.
+  for (let i = 0; i < 46; i++) {
+    const side = Math.floor(R() * 4), t = R() * 2 - 1;
+    const x = side < 2 ? (side ? rx : -rx) + rr(-0.6, 0.5) : t * rx, z = side < 2 ? t * rz : (side === 2 ? rz : -rz) + rr(-0.6, 0.5);
+    soft(x, z, rr(0.4, 1.3), mod(0.64, 0.59, 0.5, rr(0.22, 0.4) * dim(x, z, 0.35)));
+  }
+  for (let i = 0; i < 22; i++) { const [x, z] = anyPoint(); soft(x, z, rr(0.3, 1), mod(0.62, 0.58, 0.51, rr(0.12, 0.26) * dim(x, z, 0.4))); }
+  // Stains: desert varnish, darker; iron, rusty; a little salt, paler.
+  for (let i = 0; i < 34; i++) { const [x, z] = anyPoint(); soft(x, z, rr(0.25, 1.1), mod(0.3, 0.29, 0.28, rr(0.12, 0.26) * dim(x, z))); }
+  for (let i = 0; i < 12; i++) { const [x, z] = anyPoint(); soft(x, z, rr(0.2, 0.7), mod(0.68, 0.45, 0.32, rr(0.12, 0.22) * dim(x, z))); }
+  for (let i = 0; i < 8; i++) { const [x, z] = anyPoint(); soft(x, z, rr(0.3, 0.9), mod(0.72, 0.71, 0.68, rr(0.1, 0.18) * dim(x, z))); }
+  // Lichen, in clusters: grey-green crusts and pale yellow spots.
+  for (let k = 0; k < 14; k++) {
+    const [cx, cz] = anyPoint(), n = 8 + Math.floor(R() * 22);
+    for (let i = 0; i < n; i++) {
+      const x = cx + (R() - 0.5) * 0.6, z = cz + (R() - 0.5) * 0.6, r = rr(0.012, 0.045);
+      g.fillStyle = R() < 0.6 ? mod(0.4, 0.42, 0.34, rr(0.3, 0.55) * dim(x, z, 0.4)) : mod(0.66, 0.66, 0.46, rr(0.3, 0.5) * dim(x, z, 0.4));
+      path(blob(x, z, r, 7, 0.5, i)); g.closePath(); g.fill();
+    }
+  }
+  // The skin flaked off (exfoliation): fresher stone inside a ragged step,
+  // the step dark where it faces away from the moon, lit where it faces it.
+  for (let i = 0; i < 22; i++) {
+    const [x, z] = anyPoint(), r = rr(0.25, 0.85), k = dim(x, z, 0.5);
+    const pts = blob(x, z, r, 14, 0.55, i * 3.1);
+    path(pts); g.closePath(); g.fillStyle = mod(0.57, 0.55, 0.53, 0.42 * k); g.fill();
+    g.save(); g.translate(LX * px(0.012), LZ * px(0.012)); path(pts); g.closePath(); g.strokeStyle = mod(0.78, 0.76, 0.72, 0.3 * k); g.lineWidth = px(0.012); g.stroke(); g.restore();
+    path(pts); g.closePath(); g.strokeStyle = mod(0.2, 0.19, 0.18, 0.5 * k); g.lineWidth = px(0.016); g.stroke();
+    // Flakes still lifting at its edge.
+    for (let j = 0; j < 4; j++) { const [fx, fz] = pts[Math.floor(R() * pts.length)]; path(blob(fx, fz, rr(0.03, 0.08), 6, 0.6, j)); g.closePath(); g.fillStyle = mod(0.36, 0.34, 0.33, 0.4 * k); g.fill(); }
+  }
+  // Shallow pans worn into the rock, sand in them.
+  for (let i = 0; i < 12; i++) {
+    const [x, z] = anyPoint(), r = rr(0.12, 0.5), k = dim(x, z, 0.45);
+    const pts = blob(x, z, r, 13, 0.4, i * 1.7);
+    path(pts); g.closePath(); g.fillStyle = mod(0.66, 0.61, 0.52, 0.5 * k); g.fill();
+    soft(x + 0.25 * r, z + 0.25 * r, r * 0.8, mod(0.34, 0.32, 0.3, 0.22 * k)); // (the side in shade)
+    path(pts); g.closePath(); g.strokeStyle = mod(0.24, 0.22, 0.21, 0.42 * k); g.lineWidth = px(0.014); g.stroke();
+  }
+  // Crazing: nets of hairline cracks in patches, strongest at their middle.
+  for (let k = 0; k < 13; k++) {
+    const [cx, cz] = anyPoint(), reach = rr(0.9, 2.2), cell = rr(0.16, 0.3);
+    const n = Math.ceil((reach * 2) / cell), pt = [];
+    for (let i = 0; i <= n; i++) { pt.push([]); for (let j = 0; j <= n; j++) pt[i].push([cx - reach + i * cell + (R() - 0.5) * cell * 0.7, cz - reach + j * cell + (R() - 0.5) * cell * 0.7]); }
+    const edge = (a, b) => {
+      const mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2, f = 1 - Math.hypot(mx - cx, mz - cz) / reach;
+      if (f <= 0 || R() < 0.3) return;
+      const jx = mx + (R() - 0.5) * cell * 0.25, jz = mz + (R() - 0.5) * cell * 0.25;
+      path([a, [jx, jz], b]); g.strokeStyle = mod(0.18, 0.17, 0.16, Math.min(1, f * 1.6) * rr(0.32, 0.55) * dim(mx, mz, 0.5)); g.lineWidth = px(rr(0.012, 0.022)); g.stroke();
+    };
+    for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) {
+      if (i < n) edge(pt[i][j], pt[i + 1][j]);
+      if (j < n) edge(pt[i][j], pt[i][j + 1]);
+      if (i < n && j < n && R() < 0.12) edge(pt[i][j], pt[i + 1][j + 1]);
+    }
+  }
+  // Fractures: long, jagged, branching; a dusty halo, a dark core, the lip
+  // that faces the moon lit.
+  const fractures = [];
+  const grow = (x, z, a, len, w, depth) => {
+    const pts = [[x, z, w]];
+    let t = 0;
+    while (t < len) {
+      const step = rr(0.12, 0.38);
+      a += R() < 0.1 ? (R() - 0.5) * 1.6 : (R() - 0.5) * 0.6;
+      x += Math.cos(a) * step; z += Math.sin(a) * step; t += step;
+      pts.push([x, z, w * (1 - 0.65 * (t / len))]);
+      if (depth < 2 && R() < 0.16) grow(x, z, a + (R() < 0.5 ? -1 : 1) * rr(0.4, 1.1), rr(0.4, len * 0.45), w * 0.6, depth + 1);
+    }
+    fractures.push(pts);
+  };
+  for (let i = 0; i < 16; i++) { const [x, z] = anyPoint(); grow(x, z, R() * Math.PI * 2, rr(2.5, 8), rr(0.035, 0.06), 0); }
+  const strokeAll = (shift, colour, k, alphaK) => {
+    for (const pts of fractures) for (let i = 1; i < pts.length; i++) {
+      const [ax, az, aw] = pts[i - 1], [bx, bz, bw] = pts[i], w = (aw + bw) / 2;
+      g.beginPath(); g.moveTo(X(ax + LX * w * shift), Y(az + LZ * w * shift)); g.lineTo(X(bx + LX * w * shift), Y(bz + LZ * w * shift));
+      g.strokeStyle = colour(alphaK * dim((ax + bx) / 2, (az + bz) / 2, 0.7)); g.lineWidth = px(w * k); g.stroke();
+    }
+  };
+  strokeAll(0, (a) => mod(0.6, 0.58, 0.54, a), 3.2, 0.14);
+  strokeAll(0, (a) => mod(0.12, 0.11, 0.11, a), 1, 0.78);
+  strokeAll(0.9, (a) => mod(0.8, 0.78, 0.74, a), 0.45, 0.32);
+  const tex = new THREE.CanvasTexture(c);
+  tex.flipY = false;
+  tex.anisotropy = 8;
+  return { tex, x0, z0, W, D };
+}

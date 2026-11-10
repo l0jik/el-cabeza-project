@@ -58,7 +58,7 @@ import { rng } from "./paint.js";
 import { quality } from "../tienda-quality.js";
 import { hewnBox } from "./hewn.js";
 import { cubesSdf, weathered, rockGeometry, rockMaterial, STONE, noise3, sdRoundBox, sdEllipsoid, sdColumn, smin, smax } from "./rockforms.js";
-import { grooveSheet, plateField } from "./monolith-ground.js";
+import { grooveSheet, plateField, wearSheet } from "./monolith-ground.js";
 import { BENCH_GAP, BENCH_ROOM } from "../../chassis/set-out.js";
 
 // The camera's room (specs.js camera.freeCamera.room) and how far out the
@@ -119,6 +119,35 @@ function stoneTexture() {
 // Slickrock under foot (the plateau's plates and the board's floor): no
 // way to it, as a flat of weathered rock has none; mottled, grained, pitted,
 // a few short hairline cracks. Drawn to tile.
+/* The plateau's rock, the plates and the board's floor: rockMaterial, and
+   over it the weathering sheet (monolith-ground.js wearSheet), laid on by
+   the land's own x and z where a face looks up (not down a crack): the
+   rock multiplied by twice the sheet's colour, by its alpha, so mid grey
+   leaves the stone be and the stone keeps its own colour under the rest.
+   `userData.wear` and `userData.wearRect` (x0, z0, 1/W, 1/D) are the
+   sheet's, set when the ground's built. */
+function plateMaterial(map, scale) {
+  const mat = rockMaterial(map, scale, { flatShading: true });
+  const wear = { value: null }, rect = { value: new THREE.Vector4(0, 0, 0, 0) };
+  const base = mat.onBeforeCompile;
+  mat.onBeforeCompile = (shader) => {
+    base(shader);
+    shader.uniforms.uWear = wear; shader.uniforms.uWearRect = rect;
+    shader.fragmentShader = shader.fragmentShader
+      .replace("uniform float uTriScale;", "uniform float uTriScale;\nuniform sampler2D uWear;\nuniform vec4 uWearRect;")
+      .replace("diffuseColor *= texelColor;", `diffuseColor *= texelColor;
+        vec2 wuv = (vTriPos.xz - uWearRect.xy) * uWearRect.zw;
+        if (uWearRect.z > 0.0 && wuv.x > 0.0 && wuv.x < 1.0 && wuv.y > 0.0 && wuv.y < 1.0) {
+          vec4 wr = texture2D(uWear, wuv);
+          float up = smoothstep(0.55, 0.9, normalize(vTriNrm).y) * smoothstep(-0.14, -0.03, vTriPos.y);
+          diffuseColor.rgb *= mix(vec3(1.0), wr.rgb * 2.0, wr.a * up);
+        }`);
+  };
+  mat.customProgramCacheKey = () => "lab-rock-triplanar-wear";
+  mat.userData.wear = wear; mat.userData.wearRect = rect;
+  return mat;
+}
+
 function slickTexture() {
   if (CACHE.slick) return CACHE.slick;
   const S = quality().detail === 0 ? 512 : 1024;
@@ -137,13 +166,69 @@ function slickTexture() {
       g.fillStyle = "rgba(245,240,230,0.1)"; g.beginPath(); g.arc(x + rad * 0.45, y + rad * 0.45, rad * 0.7, 0, Math.PI * 2); g.fill();
     });
   }
-  // Short hairline cracks, wandering.
-  for (let i = 0; i < 26; i++) {
+  /* The weathering, fine (user: "more cracks, I guess, hairline cracks,
+     just all the, you know, sort of weathering and erosion sort of
+     effects"); wide enough to outlast the mipmaps at play distance (a
+     line a texel wide is averaged away there): crazing, a net of hairline
+     cracks, strong in patches and faint between; hairline cracks
+     wandering through it; sand caught in small pans; lichen; salt. (The
+     big features, which mustn't repeat, are on the floor's own sheet:
+     monolith-ground.js wearSheet.) */
+  const k = S / 1024;
+  {
+    const N = 12, cell = S / N, pt = [];
+    for (let i = 0; i < N; i++) { pt.push([]); for (let j = 0; j < N; j++) pt[i].push([i * cell + (r() - 0.5) * cell * 0.7, j * cell + (r() - 0.5) * cell * 0.7]); }
+    // (Periodic: the last column's neighbour is the first, a tile over.)
+    const at = (i, j) => { const p = pt[((i % N) + N) % N][((j % N) + N) % N]; return [p[0] + Math.floor(i / N) * S, p[1] + Math.floor(j / N) * S]; };
+    const patch = (x, y) => 0.5 + 0.5 * Math.sin(x / S * Math.PI * 2 * 2 + 1.3) * Math.cos(y / S * Math.PI * 2 + 0.4);
+    const edge = (a, b) => {
+      if (r() < 0.32) return;
+      const mx = (a[0] + b[0]) / 2 + (r() - 0.5) * cell * 0.2, my = (a[1] + b[1]) / 2 + (r() - 0.5) * cell * 0.2;
+      const al = (0.08 + 0.2 * patch(mx, my)) * (0.7 + r() * 0.6), w = (1.6 + r() * 1.4) * k;
+      tiled(() => { g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(mx, my); g.lineTo(b[0], b[1]); g.lineWidth = w; g.strokeStyle = `rgba(34,31,28,${al.toFixed(3)})`; g.stroke(); });
+    };
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+      edge(at(i, j), at(i + 1, j)); edge(at(i, j), at(i, j + 1));
+      if (r() < 0.12) edge(at(i, j), at(i + 1, j + 1));
+    }
+  }
+  // Hairline cracks, wandering, some long; a lit lip on the moon's side.
+  for (let i = 0; i < 60; i++) {
     let x = r() * S, y = r() * S, a = r() * Math.PI * 2;
-    const pts = [[x, y]], n = 6 + Math.floor(r() * 14);
-    for (let k = 0; k < n; k++) { a += (r() - 0.5) * 1.1; x += Math.cos(a) * S * 0.012; y += Math.sin(a) * S * 0.012; pts.push([x, y]); }
-    const w = 0.7 + r() * 0.9, al = 0.18 + r() * 0.22;
-    tiled(() => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); pts.slice(1).forEach(([px, py]) => g.lineTo(px, py)); g.lineWidth = w; g.strokeStyle = `rgba(36,33,30,${al})`; g.stroke(); });
+    const pts = [[x, y]], n = 8 + Math.floor(r() * 26);
+    for (let j = 0; j < n; j++) { a += (r() - 0.5) * (r() < 0.12 ? 1.8 : 0.7); x += Math.cos(a) * S * 0.011; y += Math.sin(a) * S * 0.011; pts.push([x, y]); }
+    const w = (1.5 + r() * 1.3) * k, al = 0.22 + r() * 0.24;
+    tiled(() => {
+      g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); pts.slice(1).forEach(([px, py]) => g.lineTo(px, py)); g.lineWidth = w; g.strokeStyle = `rgba(30,28,26,${al.toFixed(3)})`; g.stroke();
+      g.beginPath(); g.moveTo(pts[0][0] - w, pts[0][1] - w); pts.slice(1).forEach(([px, py]) => g.lineTo(px - w, py - w)); g.lineWidth = w * 0.6; g.strokeStyle = `rgba(245,240,230,${(al * 0.35).toFixed(3)})`; g.stroke();
+    });
+  }
+  // Small pans, sand in them, their rim darker on the side in shade.
+  for (let i = 0; i < 12; i++) {
+    const x = r() * S, y = r() * S, rad = (7 + r() * 22) * k, sides = 13, pts = [];
+    for (let j = 0; j < sides; j++) { const a = (j / sides) * Math.PI * 2, f = 0.55 + r() * 0.7; pts.push([x + Math.cos(a) * rad * f, y + Math.sin(a) * rad * f]); }
+    const sand = (0.22 + r() * 0.16).toFixed(3), from = Math.floor(r() * sides);
+    tiled(() => {
+      g.beginPath(); pts.forEach(([px, py], j) => (j ? g.lineTo(px, py) : g.moveTo(px, py))); g.closePath();
+      g.fillStyle = `rgba(214,198,166,${sand})`; g.fill();
+      g.beginPath();
+      for (let j = 0; j <= sides / 2; j++) { const [px, py] = pts[(from + j) % sides]; j ? g.lineTo(px, py) : g.moveTo(px, py); }
+      g.lineWidth = 1.6 * k; g.strokeStyle = "rgba(52,47,42,0.32)"; g.stroke();
+    });
+  }
+  // Lichen: grey-green crusts and pale yellow spots, in clusters.
+  for (let i = 0; i < 9; i++) {
+    const cx = r() * S, cy = r() * S, n = 6 + Math.floor(r() * 12);
+    for (let j = 0; j < n; j++) {
+      const x = cx + (r() - 0.5) * S * 0.06, y = cy + (r() - 0.5) * S * 0.06, rad = (1.5 + r() * 4.5) * k;
+      const col = r() < 0.6 ? `rgba(98,104,86,${(0.3 + r() * 0.3).toFixed(3)})` : `rgba(196,194,140,${(0.3 + r() * 0.25).toFixed(3)})`;
+      tiled(() => { g.fillStyle = col; g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill(); });
+    }
+  }
+  // Salt, a pale crust here and there.
+  for (let i = 0; i < 6; i++) {
+    const x = r() * S, y = r() * S, rad = S * (0.03 + r() * 0.06);
+    tiled(() => { const gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, `rgba(246,244,236,${(0.08 + r() * 0.08).toFixed(3)})`); gr.addColorStop(1, "rgba(246,244,236,0)"); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); });
   }
   for (let i = 0; i < S * 30; i++) { g.fillStyle = r() < 0.5 ? `rgba(30,28,26,${r() * 0.22})` : `rgba(255,252,246,${r() * 0.16})`; g.fillRect(r() * S, r() * S, 1 + r(), 1 + r()); }
   const t = new THREE.CanvasTexture(c);
@@ -751,7 +836,7 @@ export function createMonolithLand() {
   const groundMat = rockMaterial(plainTexture(), 1 / 12);
   // (The plateau's plates and the board's floor: one rock, shaded flat,
   // facet by facet.)
-  const plateMat = rockMaterial(slickTexture(), 1 / 4.5, { flatShading: true });
+  const plateMat = plateMaterial(slickTexture(), 1 / 4.5);
   const grooveMat = new THREE.MeshStandardMaterial({ transparent: true, depthWrite: false, roughness: 0.95, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   // (Shaded flat, face by face: broken stone's facets and edges, where
   // smooth shading made every block look worn soft as clay.)
@@ -782,6 +867,11 @@ export function createMonolithLand() {
       colourAt: (x, y, z, d) => plateColour(x, y, z, d),
     });
     plateAt = field.plateAt;
+    // The weathering over the floor and the plates round it.
+    const wear = wearSheet({ rx, rz, ox: (BOARD_COLS * SQUARE_SIZE) / 2, oz: (BOARD_ROWS * SQUARE_SIZE) / 2, detail: q.detail });
+    if (plateMat.userData.wear.value) plateMat.userData.wear.value.dispose();
+    plateMat.userData.wear.value = wear.tex;
+    plateMat.userData.wearRect.value.set(wear.x0, wear.z0, 1 / wear.W, 1 / wear.D);
     plates = new THREE.Mesh(field.geo, plateMat);
     plates.name = "monolith-plates"; plates.receiveShadow = true; plates.castShadow = true;
     plates.userData.floorCells = field.floorCells; plates.userData.count = field.count;
@@ -894,6 +984,7 @@ export function createMonolithLand() {
       hidden.forEach((c) => { c.visible = true; });
       RUBBLE.forEach((g) => g.dispose());
       if (grooveMat.map) grooveMat.map.dispose();
+      if (plateMat.userData.wear.value) plateMat.userData.wear.value.dispose();
       [groundMat, plateMat, grooveMat, rockMat, shadowMat, rubbleMat].forEach((m) => m.dispose());
     },
   };

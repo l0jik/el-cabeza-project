@@ -238,6 +238,29 @@ blocks, themselves need to be rough-hewn, not perfect looking."
       where a straight grid's would), hairline cracks off into the squares;
       the two goal rows a shade darker. Built again with the ground when
       the board changes size.
+    - Weathered (2026-11-10, user: "The ground should look, I don't
+      know, more messed up. I mean, more cracks, I guess, hairline
+      cracks, just all the, you know, sort of weathering and erosion sort
+      of effects you would see in this type of environment."). Two
+      layers. The plates' tiled texture (slickTexture, a tile every 4.5)
+      carries the fine, many-times weathering: crazing (a periodic net of
+      hairline cracks, strong in patches and faint between), sixty
+      wandering hairline cracks with a lit lip, small sandy pans with a
+      rim dark on one side, lichen, salt. Its lines are 1.5 to 3 texels
+      wide at 1024 (they were 0.7 to 1.6 before, and a line a texel wide
+      is averaged away by the mipmaps at play distance: that's why the
+      floor read clean). And one sheet that doesn't repeat, over the
+      floor and 2.6 past it (monolith-ground.js wearSheet, 96 to a unit,
+      46 on phones): long fractures, jagged and branching, a dusty halo,
+      a dark core and the lip facing the moon lit; patches of crazing;
+      the skin flaked off (exfoliation) in ragged steps; pans with sand
+      in them; sand drifted against the floor's edges; varnish, rust and
+      salt stains; lichen in clusters; over the board itself the lot
+      fainter (to 0.55 to 0.7) so the squares and the pieces read. The
+      plates' material (monoliths.js plateMaterial) multiplies the rock by
+      twice the sheet's colour, by its alpha, where a face looks up and
+      not down a crack: mid grey leaves it be, and the stone keeps its own
+      colour under the rest. Built again with the ground.
     - Black holes and missing squares cut into the floor (scene.js
       carvedPit, the Monolith's only): a jagged pit at 0.005 (the other
       directions' discs stand at 0.058 over their slabs), a hole ringed
