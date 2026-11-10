@@ -20,21 +20,25 @@
    the whole place turns with it, sky and moon too; the key, fill and back
    lights are turned with it (tick), so a shadow stays where it falls.
 
-     - The board is set into a platform of the land's own rock, a little
-       below it: the chassis's slab is its floor (its painted face), the
-       rock's cut wall stands round it (the terrain's first ring is the
-       slab's own edge), the slab's outline lines hidden. The platform,
-       slickrock cracked along its joints (basalt on Dark's side,
-       sandstone on Light's), runs out to a ledge, a second below it, then
-       the plain, rolling, out to a horizon the fog takes. Built again
-       when the board changes size.
+     - The board a part of the ground (user: "Make the board a seamless
+       part of the ground"; "... with the symmetry of the lines, albeit
+       extremely crooked and jagged, chiseled into the ground itself"):
+       the chassis's slab, outline and grid hidden; a plateau of
+       fractured polygonal plates round it, the board's floor one plate
+       of the same rock, level, its edge as irregular as the rest, the
+       grid chiseled into it; past the plateau's edge, blocks broken down
+       the slope to the plain, rolling out to a horizon the fog takes
+       (monolith-ground.js). Built again when the board changes size.
      - Every piece of the game, the standard five and Cabeza Nova's ten,
        stands in the land as natural rock (rockforms.js), each side's
        behind its own end: basalt beyond Dark's, sandstone beyond Light's
        (a weak device gets each shape once). Between them and beyond, a
-       land of other rock: capped spires, fins, domes, balanced rocks,
-       boulder heaps, a free arch, jointed blocks, and mesas and buttes on
-       the horizon.
+       land of other rock, angular as the user asked ("Sharp, fractured
+       rock surfaces ... Massive angular boulders. Naturally sculpted
+       stone corridors"): capped spires, fins, a faceted dome, balanced
+       blocks, angular boulders fallen together, a free arch, jointed
+       blocks, corridors, jagged ridgelines, and mesas and buttes on the
+       horizon.
      - Their long shadows on the ground, away from the dusk, stopped short
        of the platform; rubble and scree.
      - The sky: the last of the dusk low over Dark's end, the night coming
@@ -49,14 +53,14 @@
    visit. */
 import * as THREE from "three";
 import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { SLAB_X, SLAB_Z } from "../../engine/constants.js";
+import { SLAB_X, SLAB_Z, BOARD_COLS, BOARD_ROWS, SQUARE_SIZE } from "../../engine/constants.js";
 import { rng } from "./paint.js";
 import { quality } from "../tienda-quality.js";
 import { hewnBox } from "./hewn.js";
 import { cubesSdf, weathered, rockGeometry, rockMaterial, STONE, noise3, sdRoundBox, sdEllipsoid, sdColumn, smin, smax } from "./rockforms.js";
+import { grooveSheet, plateField } from "./monolith-ground.js";
+import { BENCH_GAP, BENCH_ROOM } from "../../chassis/set-out.js";
 
-// The rock round the board stands this far above its face (the cut wall).
-export const LIP = 0.1;
 // The camera's room (specs.js camera.freeCamera.room) and how far out the
 // tall rock must stand to be outside it at every corner.
 export const ROOM_HALF = 24;
@@ -110,6 +114,41 @@ function stoneTexture() {
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
   return (CACHE.stone = shared(t));
+}
+
+// Slickrock under foot (the plateau's plates and the board's floor): no
+// way to it, as a flat of weathered rock has none; mottled, grained, pitted,
+// a few short hairline cracks. Drawn to tile.
+function slickTexture() {
+  if (CACHE.slick) return CACHE.slick;
+  const S = quality().detail === 0 ? 512 : 1024;
+  const c = canvas(S, S), g = c.getContext("2d"), r = rng(6211);
+  const tiled = (draw) => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) { g.save(); g.translate(ox, oy); draw(); g.restore(); } };
+  g.fillStyle = "#c2bcb3"; g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 70; i++) {
+    const x = r() * S, y = r() * S, rad = S * (0.03 + r() * 0.16), v = r() < 0.55 ? "86,80,74" : "232,226,216", a = 0.05 + r() * 0.11;
+    tiled(() => { const gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, `rgba(${v},${a})`); gr.addColorStop(1, `rgba(${v},0)`); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); });
+  }
+  // Weathering pits, a lit rim on the far side of each.
+  for (let i = 0; i < S * 0.28; i++) {
+    const x = r() * S, y = r() * S, rad = 0.7 + Math.pow(r(), 4) * S * 0.007, a = 0.12 + r() * 0.22;
+    tiled(() => {
+      g.fillStyle = `rgba(48,44,40,${a})`; g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "rgba(245,240,230,0.1)"; g.beginPath(); g.arc(x + rad * 0.45, y + rad * 0.45, rad * 0.7, 0, Math.PI * 2); g.fill();
+    });
+  }
+  // Short hairline cracks, wandering.
+  for (let i = 0; i < 26; i++) {
+    let x = r() * S, y = r() * S, a = r() * Math.PI * 2;
+    const pts = [[x, y]], n = 6 + Math.floor(r() * 14);
+    for (let k = 0; k < n; k++) { a += (r() - 0.5) * 1.1; x += Math.cos(a) * S * 0.012; y += Math.sin(a) * S * 0.012; pts.push([x, y]); }
+    const w = 0.7 + r() * 0.9, al = 0.18 + r() * 0.22;
+    tiled(() => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); pts.slice(1).forEach(([px, py]) => g.lineTo(px, py)); g.lineWidth = w; g.strokeStyle = `rgba(36,33,30,${al})`; g.stroke(); });
+  }
+  for (let i = 0; i < S * 30; i++) { g.fillStyle = r() < 0.5 ? `rgba(30,28,26,${r() * 0.22})` : `rgba(255,252,246,${r() * 0.16})`; g.fillRect(r() * S, r() * S, 1 + r(), 1 + r()); }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
+  return (CACHE.slick = shared(t));
 }
 
 // The plain: dust over stone, cracked square along the rock's joints, and
@@ -247,32 +286,38 @@ function shadowTexture() {
 const ease = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const mix3 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
 
-// How far a point lies out from the board's edge (0 on it, or within it).
+/* The board's floor: the board and its set-out bench at either end, a
+   little room round them (the floor plate takes in every plate this
+   meets, so its own edge lies further out, as the plates fall). */
+export function floorRect(hx, hz) {
+  return [hx + 0.55, hz + BENCH_GAP + BENCH_ROOM + 0.45];
+}
+// How far a point lies out from the floor's rectangle (0 within it).
 function outFromBoard(x, z, hx, hz) {
-  const dx = Math.max(Math.abs(x) - hx, 0), dz = Math.max(Math.abs(z) - hz, 0);
+  const [rx, rz] = floorRect(hx, hz);
+  const dx = Math.max(Math.abs(x) - rx, 0), dz = Math.max(Math.abs(z) - rz, 0);
   return Math.hypot(dx, dz);
 }
-// Where the platform ends (P out from the board), the bench below it
-// (T wide), and how far each ledge drops: by direction, a ledge's own
-// ragged line.
+// Where the plateau ends (P out from the floor), the slope below it (T
+// wide), and how far each ledge drops: by direction, a ledge's own ragged
+// line.
 function ledgeLine(x, z) {
   const a = Math.atan2(z, x), c = Math.cos(a), s = Math.sin(a);
   return {
-    P: 13 + 7 * (noise3(c * 1.3 + 4, s * 1.3, 0.5, 41) - 0.5) + 3 * (noise3(c * 4.2, s * 4.2, 1.5, 43) - 0.5),
+    P: 12 + 7 * (noise3(c * 1.3 + 4, s * 1.3, 0.5, 41) - 0.5) + 3 * (noise3(c * 4.2, s * 4.2, 1.5, 43) - 0.5),
     T: 6 + 5 * (noise3(c * 2.1, s * 2.1, 2.5, 47) - 0.5),
     d1: 1.3 + 0.9 * noise3(c * 3.1, s * 3.1, 3.5, 51),
     d2: 1.8 + 1.4 * noise3(c * 2.6, s * 2.6, 4.5, 53),
   };
 }
 /* The ground's height at (x, z) of the land, round a board hx by hz:
-   under the board's edge the cut wall's foot, then the platform a
-   little uneven, its two ledges (a rounded lip, a steep face, scree at
-   the foot), the plain rolling beyond. */
+   under the plateau the floor of the cracks between its plates (the plates
+   stand on it, monolith-ground.js), then its two ledges down (a steep
+   face, scree at the foot), the plain rolling beyond. */
 export function groundAt(x, z, hx, hz) {
   const d = outFromBoard(x, z, hx, hz);
-  if (d < 1e-3) return -0.03;
   const { P, T, d1, d2 } = ledgeLine(x, z);
-  let h = LIP + 0.044 * (noise3(x * 0.33, 0.7, z * 0.33, 61) - 0.5);
+  let h = -0.5 + 0.05 * (noise3(x * 0.33, 0.7, z * 0.33, 61) - 0.5);
   h -= d1 * ease((d - P + 0.7) / 1.4) + d2 * ease((d - P - T + 1.1) / 2.2);
   const far = ease((d - P - T - 3) / 14);
   h += far * (2.4 * (noise3(x * 0.016, 1.1, z * 0.016, 67) - 0.5) + 0.9 * (noise3(x * 0.07, 2.1, z * 0.07, 71) - 0.5));
@@ -280,7 +325,8 @@ export function groundAt(x, z, hx, hz) {
 }
 
 // The land's own stone under foot: basalt toward Dark's end, sandstone
-// toward Light's, a ragged line between; dust on the plain.
+// toward Light's, a ragged line between; dust on the plain; under the
+// plateau, the dark of the cracks.
 function groundColour(x, y, z, d, P, slope) {
   const side = ease((z + 4 + 12 * (noise3(x * 0.04, 3.3, z * 0.04, 73) - 0.5)) / 10);
   let c = mix3([0.27, 0.28, 0.3], [0.74, 0.62, 0.48], side);
@@ -289,14 +335,26 @@ function groundColour(x, y, z, d, P, slope) {
     const b = 0.5 + 0.5 * Math.sin(y * 2.6 + 3 * noise3(x * 0.05, 0, z * 0.05, 79));
     c = mix3(c, mix3([0.34, 0.27, 0.22], [0.66, 0.55, 0.43], b * (0.35 + 0.65 * side)), ease((slope - 0.25) * 2.5));
   }
-  if (d < 0.05) c = mix3(c, [0.7, 0.68, 0.64], 0.45); // (the cut wall: fresh stone)
-  const m = 0.84 + 0.32 * noise3(x * 0.22, 0.3, z * 0.22, 83);
+  const m = (0.84 + 0.32 * noise3(x * 0.22, 0.3, z * 0.22, 83)) * (0.55 + 0.45 * ease((d - P + 0.5) / 1.5));
   return [c[0] * m, c[1] * m, c[2] * m];
 }
+/* The plateau's own rock, its plates and the board's floor alike: a pale,
+   weathered slickrock round the board (dark and light stones both read
+   on it), going over to the two stones further out, basalt toward Dark's
+   end and sandstone toward Light's, a hint of each even under the board. */
+function plateColour(x, y, z, d) {
+  const side = ease((z + 14 * (noise3(x * 0.05, 5.3, z * 0.05, 91) - 0.5)) / 26 + 0.5);
+  const stone = mix3([0.3, 0.31, 0.33], [0.7, 0.58, 0.45], side);
+  let c = mix3([0.55, 0.52, 0.47], stone, 0.22 + 0.62 * ease((d - 1.5) / 9));
+  const m = 0.88 + 0.24 * noise3(x * 0.4, 0.9, z * 0.4, 93) + 0.08 * (noise3(x * 2.1, 1.9, z * 2.1, 97) - 0.5);
+  c = [c[0] * m, c[1] * m, c[2] * m];
+  return c;
+}
 
-/* The ground as one mesh: rings from the board's own edge (the first
-   ring is the slab's outline, so the cut wall meets it exactly) out to
-   the land's edge, round in the end. */
+/* The ground as one mesh: rings from the board's own edge out to the
+   land's edge, round in the end. Under the plateau it's the floor of
+   the cracks between the plates (they stand on it: monolith-ground.js);
+   past it, the slope and the plain. */
 function terrainGeometry(hx, hz, detail) {
   const M = detail === 0 ? 168 : 296;
   const TAU = Math.PI * 2;
@@ -393,6 +451,27 @@ function pieceRock(pose, C, R) {
   return { sdf, size: [size[0], size[1] + ph, size[2]] };
 }
 
+/* A block broken on every side: the planes of a random convex polytope
+   round (cx, cy, cz), about r out (sx, sy, sz stretch it), as a distance
+   (a bound, fine near the surface). Angular, flat-faced, as rock breaks. */
+function polytope(R, cx, cy, cz, r, sx = 1, sy = 1, sz = 1, n = 11) {
+  const planes = [];
+  for (let i = 0; i < n; i++) {
+    // (A face a way; the first six roughly the box's, then any.)
+    let v = i < 6 ? [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]][i].map((c) => c + (R() - 0.5) * 0.5) : [R() - 0.5, R() - 0.5, R() - 0.5];
+    const l = Math.hypot(v[0], v[1], v[2]);
+    v = v.map((c) => c / l);
+    // (Its distance out along that way, through the stretch.)
+    const reach = r * Math.hypot(v[0] * sx, v[1] * sy, v[2] * sz) * (0.82 + R() * 0.3);
+    planes.push([v[0], v[1], v[2], reach]);
+  }
+  return (x, y, z) => {
+    let d = -Infinity;
+    for (const [a, b, c, o] of planes) { const k = a * (x - cx) + b * (y - cy) + c * (z - cz) - o; if (k > d) d = k; }
+    return d;
+  };
+}
+
 /* The land's other rock, each kind its own distance function and size. */
 const OTHER = {
   mesa(R) {
@@ -430,23 +509,58 @@ const OTHER = {
     };
   },
   dome(R) {
-    // A slickrock dome, its sandstone bedded at a slant.
+    // A slickrock dome, its sandstone bedded at a slant, broken into facets.
     const rx = 9 + R() * 8, ry = 5 + R() * 4, rz = 8 + R() * 6;
-    return { sdf: (x, y, z) => sdEllipsoid(x, y + ry * 0.25, z, rx, ry, rz), size: [rx * 2, ry * 0.75, rz * 2], layer: 0.8 + R() * 0.5, strata: 0.25, tilt: 0.3 + R() * 0.4, wear: 0.35 };
+    const facets = polytope(R, 0, -ry * 0.25, 0, 1, rx, ry, rz, 16);
+    return { sdf: (x, y, z) => smax(sdEllipsoid(x, y + ry * 0.25, z, rx, ry, rz), facets(x, y, z), 0.6), size: [rx * 2, ry * 0.75, rz * 2], layer: 0.8 + R() * 0.5, strata: 0.25, tilt: 0.3 + R() * 0.4, wear: 0.3 };
   },
   balanced(R) {
+    // A great angular block on a pedestal worn narrow under it.
     const br = 2.6 + R() * 2, ph = 3 + R() * 3, pr = br * 0.42;
+    const cap = polytope(R, 0, ph + br * 0.75, 0, br, 1.2, 0.85, 1);
+    const ped = polytope(R, 0, ph * 0.5, 0, 1, pr * 1.3, ph * 0.55, pr * 1.3, 9);
     return {
-      sdf: (x, y, z) => smin(sdEllipsoid(x, y - ph - br * 0.7, z, br * 1.2, br * 0.85, br), Math.max(Math.hypot(x, z) - pr * (1 + 0.5 * Math.max(0, (ph - y) / ph)), y - ph - br * 0.4, -y - 1), br * 0.3),
-      size: [br * 2.4, ph + br * 1.55, br * 2], layer: 0.9, strata: 0.2, wear: 0.3,
+      sdf: (x, y, z) => Math.min(cap(x, y, z), Math.max(ped(x, y, z), Math.hypot(x, z) - pr * (1 + 0.5 * Math.max(0, (ph - y) / ph)), -y - 1)),
+      size: [br * 2.6, ph + br * 1.7, br * 2.2], layer: 0.9, strata: 0.2, wear: 0.25,
     };
   },
   boulders(R) {
-    const n = 4 + Math.floor(R() * 4), parts = [];
-    for (let i = 0; i < n; i++) { const r = 1.2 + R() * 2.4, a = R() * Math.PI * 2, d = R() * 4.5; parts.push([Math.cos(a) * d, r * 0.55, Math.sin(a) * d, r * (0.9 + R() * 0.4), r * (0.6 + R() * 0.3), r]); }
+    // Massive angular boulders, fallen together: each a block broken on
+    // every side, some leaning on the others.
+    const n = 3 + Math.floor(R() * 4), parts = [];
+    for (let i = 0; i < n; i++) {
+      const r = 1.4 + R() * 2.6, a = R() * Math.PI * 2, d = R() * 4.5;
+      parts.push(polytope(R, Math.cos(a) * d, r * (0.45 + R() * 0.3), Math.sin(a) * d, r, 0.9 + R() * 0.5, 0.6 + R() * 0.4, 0.9 + R() * 0.5));
+    }
     return {
-      sdf: (x, y, z) => { let d = Infinity; for (const [px, py, pz, rx, ry, rz] of parts) d = smin(d, sdEllipsoid(x - px, y - py, z - pz, rx, ry, rz), 0.8); return d; },
-      size: [16, 7, 16], layer: 1, strata: 0.1, wear: 0.3,
+      sdf: (x, y, z) => { let d = Infinity; for (const f of parts) d = Math.min(d, f(x, y, z)); return d; },
+      size: [18, 8, 18], layer: 1, strata: 0.1, wear: 0.2,
+    };
+  },
+  corridor(R) {
+    // A corridor worn through the rock: two walls, a narrow way between,
+    // their faces broken, their tops ragged.
+    const L = 16 + R() * 14, t = 2.4 + R() * 1.6, gap = 1.2 + R() * 1.4, H = 7 + R() * 7;
+    const top = (x, side) => H * (0.78 + 0.22 * noise3(x * 0.25, side, 0.5, 131));
+    const wall = (x, y, z, side) => {
+      const cz = side * (gap / 2 + t / 2);
+      return Math.max(sdRoundBox(x, y - H / 2, z - cz, L / 2, H / 2, t / 2, 0.5), y - top(x, side));
+    };
+    return {
+      sdf: (x, y, z) => smin(Math.min(wall(x, y, z, -1), wall(x, y, z, 1)), sdRoundBox(x, y, z, L / 2 + 0.5, 0.8, gap / 2 + t + 0.5, 0.5), 0.8),
+      size: [L + 1, H, gap + t * 2 + 1], layer: 1.1 + R() * 0.6, strata: 0.35, wear: 0.3, face: true,
+    };
+  },
+  ridge(R) {
+    // A jagged ridgeline: a long blade of rock, its crest in teeth.
+    const L = 22 + R() * 16, w = 4 + R() * 3, H = 8 + R() * 8;
+    const crest = (x) => H * (0.55 + 0.3 * noise3(x * 0.12, 3.3, 0.5, 141) + 0.18 * Math.abs(Math.sin(x * 0.9 + noise3(x * 0.3, 1.1, 0, 143) * 4)));
+    return {
+      sdf: (x, y, z) => {
+        const hw = w / 2 * Math.max(0.15, 1 - Math.max(0, y) / (crest(x) * 1.05));
+        return Math.max(Math.abs(z) - hw, y - crest(x), Math.abs(x) - L / 2, -y - 1) * 0.8;
+      },
+      size: [L, H * 1.05, w + 1], layer: 1.4 + R() * 0.8, strata: 0.3, wear: 0.3, face: true,
     };
   },
   arch(R) {
@@ -467,8 +581,8 @@ const OTHER = {
   },
 };
 // The background's kinds, near and far, and how many of each.
-const MID = ["spire", "spire", "spire", "spire", "spire", "fins", "fins", "dome", "dome", "balanced", "balanced", "boulders", "boulders", "boulders", "arch", "jointed", "jointed"];
-const FAR = ["mesa", "mesa", "mesa", "mesa", "butte", "butte", "butte", "butte"];
+const MID = ["spire", "spire", "spire", "spire", "fins", "fins", "dome", "balanced", "balanced", "boulders", "boulders", "boulders", "arch", "jointed", "jointed", "corridor", "corridor", "ridge"];
+const FAR = ["mesa", "mesa", "mesa", "mesa", "butte", "butte", "butte", "butte", "ridge", "ridge"];
 
 /* ---------------------------------------------------------------- the plan */
 
@@ -610,7 +724,9 @@ function shadowRibbon(job, ground, hx, hz) {
 
 /* ---------------------------------------------------------------- the land */
 
-const HIDE = new Set(["ec-slab-edges", "ec-top-ring"]); // (the slab's outline: its floor is the board, its edges are the rock's)
+// (The chassis's slab, its outline and the grid drawn over it: the board
+// is the rock's own floor here, its grid chiseled in.)
+const HIDE = new Set(["ec-slab", "ec-slab-edges", "ec-top-ring", "ec-grid"]);
 
 /* The land: { group (hang it on the board group), fog(), tick(t, now),
    dispose() }. group.userData.formations lists what stands in it (each
@@ -633,6 +749,10 @@ export function createMonolithLand() {
   group.add(moon);
 
   const groundMat = rockMaterial(plainTexture(), 1 / 12);
+  // (The plateau's plates and the board's floor: one rock, shaded flat,
+  // facet by facet.)
+  const plateMat = rockMaterial(slickTexture(), 1 / 4.5, { flatShading: true });
+  const grooveMat = new THREE.MeshStandardMaterial({ transparent: true, depthWrite: false, roughness: 0.95, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   // (Shaded flat, face by face: broken stone's facets and edges, where
   // smooth shading made every block look worn soft as clay.)
   const rockMat = rockMaterial(stoneTexture(), 1 / 7.5, { flatShading: true });
@@ -641,26 +761,57 @@ export function createMonolithLand() {
   // (Three shapes of broken stone, coarse: there are hundreds of them.)
   const RUBBLE = [0, 1, 2].map((k) => hewnBox(1, 1, 1, { seed: 9100 + k, seg: 0.34, rough: 0.08, chip: 0.2, chipW: 0.32, freq: 2.2, uvUnit: 1 }));
 
-  /* The ground and the rubble on it, for the board's size now. */
-  let ground = null, rubble = [], dims = "", hx = 0, hz = 0;
+  /* The ground and the rubble on it, for the board's size now: the
+     plain below, the plateau's plates and the board's floor
+     (monolith-ground.js), the grid chiseled into it. */
+  let ground = null, plates = null, grid = null, rubble = [], dims = "", hx = 0, hz = 0, plateAt = () => null;
   function buildGround() {
     hx = SLAB_X / 2; hz = SLAB_Z / 2; dims = `${SLAB_X}x${SLAB_Z}`;
     if (ground) { group.remove(ground); ground.geometry.dispose(); }
+    if (plates) { group.remove(plates); plates.geometry.dispose(); }
+    if (grid) { group.remove(grid); grid.geometry.dispose(); if (grooveMat.map) grooveMat.map.dispose(); }
     rubble.forEach((im) => { group.remove(im); im.dispose(); }); rubble = [];
     ground = new THREE.Mesh(terrainGeometry(hx, hz, q.detail), groundMat);
     ground.name = "monolith-ground"; ground.receiveShadow = true;
     group.add(ground);
-    // Rubble: a little on the platform (clear of the board and its bench),
-    // scree and fallen blocks over the plain.
+    const [rx, rz] = floorRect(hx, hz);
+    const field = plateField({
+      rx, rz, detail: q.detail,
+      edgeAt: (x, z) => ledgeLine(x, z).P,
+      groundAt: (x, z) => groundAt(x, z, hx, hz),
+      colourAt: (x, y, z, d) => plateColour(x, y, z, d),
+    });
+    plateAt = field.plateAt;
+    plates = new THREE.Mesh(field.geo, plateMat);
+    plates.name = "monolith-plates"; plates.receiveShadow = true; plates.castShadow = true;
+    plates.userData.floorCells = field.floorCells; plates.userData.count = field.count;
+    group.add(plates);
+    const sheet = grooveSheet({ cols: BOARD_COLS, rows: BOARD_ROWS, sq: SQUARE_SIZE, detail: q.detail });
+    grooveMat.map = sheet.tex; grooveMat.needsUpdate = true;
+    grid = new THREE.Mesh(new THREE.PlaneGeometry(sheet.W, sheet.D), grooveMat);
+    grid.rotation.x = -Math.PI / 2; grid.position.y = 0.003;
+    grid.name = "monolith-grid"; grid.receiveShadow = true; grid.renderOrder = 2;
+    group.add(grid);
+    // Rubble: a little on the plateau's plates (never on the floor, nor in
+    // a crack), scree and fallen blocks over the plain.
     const R = rng(7713), dummy = new THREE.Object3D(), lists = [[], [], []], colours = [[], [], []];
     const n = q.detail === 0 ? 170 : 420;
     for (let i = 0; i < n; i++) {
-      const onPlatform = i < n * 0.25;
-      const a = R() * Math.PI * 2, r = onPlatform ? Math.hypot(hx, hz) + 3 + R() * 14 : 30 + Math.pow(R(), 0.8) * 110;
+      const onPlateau = i < n * 0.3;
+      const a = R() * Math.PI * 2, r = onPlateau ? Math.hypot(rx, rz) * 0.8 + R() * 16 : 30 + Math.pow(R(), 0.8) * 110;
       const x = Math.cos(a) * r, z = Math.sin(a) * r, d = outFromBoard(x, z, hx, hz), P = ledgeLine(x, z).P;
-      if (onPlatform ? d < 3 || d > P - 1.5 : d < P + 1) continue;
-      const s = onPlatform ? 0.08 + Math.pow(R(), 2) * 0.28 : 0.25 + Math.pow(R(), 2.4) * 2.2;
-      dummy.position.set(x, groundAt(x, z, hx, hz) + s * 0.25, z);
+      let y;
+      if (onPlateau) {
+        if (d < 0.6 || d > P - 1) continue;
+        const under = plateAt(x, z);
+        if (!under || under.floor) continue;
+        y = under.h;
+      } else {
+        if (d < P + 8) continue;
+        y = groundAt(x, z, hx, hz);
+      }
+      const s = onPlateau ? 0.08 + Math.pow(R(), 2) * 0.24 : 0.25 + Math.pow(R(), 2.4) * 2.2;
+      dummy.position.set(x, y + s * 0.2, z);
       dummy.rotation.set(R() * 0.6, R() * Math.PI, R() * 0.6);
       dummy.scale.set(s * (0.7 + R() * 0.8), s * (0.4 + R() * 0.6), s * (0.7 + R() * 0.8));
       dummy.updateMatrix();
@@ -742,7 +893,8 @@ export function createMonolithLand() {
       if (t && t.lights && base) for (const k of ["key", "fill", "back"]) t.lights[k].position.copy(base[k]);
       hidden.forEach((c) => { c.visible = true; });
       RUBBLE.forEach((g) => g.dispose());
-      [groundMat, rockMat, shadowMat, rubbleMat].forEach((m) => m.dispose());
+      if (grooveMat.map) grooveMat.map.dispose();
+      [groundMat, plateMat, grooveMat, rockMat, shadowMat, rubbleMat].forEach((m) => m.dispose());
     },
   };
 }

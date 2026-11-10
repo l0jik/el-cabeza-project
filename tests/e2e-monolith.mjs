@@ -16,8 +16,10 @@
      turns with the board, and the lights turn with it; sky, moon, ground,
      rock, its shadows, rubble, the fog; every piece's shape standing in
      it (a computer's: on both sides), rock of other kinds between; the
-     board set into the rock (the slab its floor, its outline gone, the
-     cut wall round it); no ground, rock or rubble inside the room the
+     board a part of the ground (user: "Make the board a seamless part of
+     the ground"): the chassis's slab, outline and grid gone, the
+     plateau's floor level under the board and its bench, the grid
+     chiseled in; no ground, plate, rock or rubble inside the room the
      camera is kept in, above its floor (no view is ever inside a stone);
    - the pieces hewn: no face flat, every corner knocked off, nothing past
      its own squares; and a piece that rolls keeps its own shape (its
@@ -84,7 +86,7 @@ const landOf = (pg) => poll(() => pg.evaluate(() => {
   const t = window.__EC_TEST_THREE__ && window.__EC_TEST_THREE__();
   const g = t && t.scene.getObjectByName("lab-monolith-land");
   if (!g || !g.userData.ready) return null;
-  const has = Object.fromEntries(["monolith-sky", "monolith-moon", "monolith-ground", "monolith-rocks", "monolith-shadows", "monolith-rubble"].map((n) => [n, !!g.getObjectByName(n)]));
+  const has = Object.fromEntries(["monolith-sky", "monolith-moon", "monolith-ground", "monolith-plates", "monolith-grid", "monolith-rocks", "monolith-shadows", "monolith-rubble"].map((n) => [n, !!g.getObjectByName(n)]));
   // Every point of the ground, the rock and the rubble, in the land's own
   // frame (the board's, which the camera's room turns with): inside the
   // room (specs.js camera.freeCamera.room, x and z within 24, two more to
@@ -105,24 +107,29 @@ const landOf = (pg) => poll(() => pg.evaluate(() => {
       for (let k = 0; k < o.count; k++) look(m.slice(k * 16, k * 16 + 16), a);
     } else look(o.matrix.elements, a);
   }
-  // The board set into it: the ground's first ring on the slab's own edge,
-  // a little under its face; the rock round it LIP over the face (a cut wall).
-  const slab = t.boardGroup.getObjectByName("ec-slab"), gp = g.getObjectByName("monolith-ground").geometry.attributes.position.array;
+  // The board a part of the ground (user: "Make the board a seamless part
+  // of the ground"): the chassis's slab, its outline and its grid gone; the
+  // plateau's floor level at 0 under the board and its bench (nothing of
+  // the plates above it there), the floor's own edge further out; the
+  // grid chiseled in over the board.
+  const slab = t.boardGroup.getObjectByName("ec-slab");
   const hx = slab.geometry.parameters.width / 2, hz = slab.geometry.parameters.depth / 2;
-  let onEdge = 0, edgeUnder = 0, rim = 0, rimHigh = 0;
-  for (let i = 0; i < gp.length; i += 3) {
-    const x = gp[i], y = gp[i + 1], z = gp[i + 2];
-    const dx = Math.max(Math.abs(x) - hx, 0), dz = Math.max(Math.abs(z) - hz, 0), d = Math.hypot(dx, dz);
-    if (d < 1e-4 && (Math.abs(Math.abs(x) - hx) < 1e-4 || Math.abs(Math.abs(z) - hz) < 1e-4)) { onEdge++; if (y < 0) edgeUnder++; }
-    else if (d > 0.05 && d < 2) { rim++; if (y > 0.05 && y < 0.16) rimHigh++; }
+  const pp = g.getObjectByName("monolith-plates").geometry.attributes.position.array;
+  let floorPts = 0, overFloor = 0;
+  for (let i = 0; i < pp.length; i += 3) {
+    const x = pp[i], y = pp[i + 1], z = pp[i + 2];
+    if (Math.abs(x) > hx + 0.5 || Math.abs(z) > hz + 3.2 || y < -0.02) continue;
+    if (Math.abs(y) < 1e-5) floorPts++; else overFloor++;
   }
+  const gm = g.getObjectByName("monolith-grid"), gw = gm.geometry.parameters;
+  const grid = { w: gw.width, d: gw.height, y: gm.position.y, flat: Math.abs(gm.rotation.x + Math.PI / 2) < 1e-6, map: !!gm.material.map };
   const F = g.userData.formations, types = {};
   F.filter((f) => f.type).forEach((f) => { (types[f.type] = types[f.type] || []).push(f.side); });
   const f = t.scene.fog, sky = g.getObjectByName("monolith-sky");
-  const outline = ["ec-slab-edges", "ec-top-ring"].map((n) => t.boardGroup.getObjectByName(n)).filter(Boolean);
+  const gone = ["ec-slab", "ec-slab-edges", "ec-top-ring", "ec-grid"].map((n) => t.boardGroup.getObjectByName(n)).filter(Boolean);
   return {
     onBoard: g.parent === t.boardGroup, has, points, inRoom, types, kinds: [...new Set(F.filter((x) => x.kind !== "piece").map((x) => x.kind))],
-    formations: F.length, onEdge, edgeUnder, rim, rimHigh, slabShown: slab.visible, outlineHidden: outline.length > 0 && outline.every((o) => !o.visible),
+    formations: F.length, floorPts, overFloor, grid, gridSize: [hx * 2, hz * 2], slabGone: gone.length === 4 && gone.every((o) => !o.visible),
     fog: f ? { isFog: !!f.isFog, near: f.near, far: f.far } : null, skyFogless: !!sky && sky.material.fog === false, stats: g.userData.stats,
   };
 }), 120000, 500);
@@ -132,7 +139,9 @@ function landChecks(land, where, { bothSides = false } = {}) {
   check(`${where}: sky, moon, ground, rock, its shadows, rubble`, !!land && Object.values(land.has).every(Boolean), JSON.stringify(land && land.has));
   check(`${where}: every piece's shape stands in the land, the standard five and Cabeza Nova's ten${bothSides ? ", on both sides" : ""}`, !!land && SHAPES.every((s) => land.types[s] && (!bothSides || (land.types[s].includes("light") && land.types[s].includes("dark")))), JSON.stringify(land && land.types));
   check(`${where}: and rock of other kinds between (${land && land.kinds.join(", ")})`, !!land && land.kinds.length >= (bothSides ? 9 : 6));
-  check(`${where}: the board set into the rock: the slab its floor, its outline gone, the ground's first ring on its edge under its face (${land && land.edgeUnder}/${land && land.onEdge}), the rock round it a cut wall over it (${land && land.rimHigh}/${land && land.rim})`, !!land && land.slabShown && land.outlineHidden && land.onEdge >= 40 && land.edgeUnder === land.onEdge && land.rim > 100 && land.rimHigh / land.rim > 0.95);
+  check(`${where}: the board a part of the ground: the slab, its outline and its grid gone`, !!land && land.slabGone);
+  check(`${where}: ...the plateau's floor level under the board and its bench (${land && land.floorPts} points at 0, ${land && land.overFloor} above)`, !!land && land.floorPts >= 20 && land.overFloor === 0);
+  check(`${where}: ...the grid chiseled into it, over the whole board (${land && JSON.stringify(land.grid)})`, !!land && land.grid.map && land.grid.flat && land.grid.y > 0 && land.grid.y < 0.01 && land.grid.w >= land.gridSize[0] - 1 && land.grid.d >= land.gridSize[1] - 1);
   check(`${where}: the fog the land runs out into (the sky never fogged)`, !!land && !!land.fog && land.fog.isFog && land.fog.near >= 30 && land.fog.far > land.fog.near && land.skyFogless, JSON.stringify(land && land.fog));
   check(`${where}: no ground, rock or rubble inside the camera's room above its floor (${land && land.points} points looked at)`, !!land && land.points > 10000 && land.inRoom === 0, land && `${land.inRoom} inside`);
   if (land) console.log(`   ${where}: ${land.formations} formations, built in ${Math.round(land.stats.buildMs)} ms, ${land.stats.vertices} points of rock`);
@@ -223,6 +232,19 @@ console.log("the page");
   check("every block's faces uneven: each face's middle wanders in and out", blocks.length === 8 && blocks.every((s) => s.faces === 6 && s.faceSpread > 0.005), JSON.stringify(blocks.map((s) => +s.faceSpread.toFixed(4))));
   check("every block's corners knocked off", blocks.every((s) => s.corner > 0.02), JSON.stringify(blocks.map((s) => +s.corner.toFixed(3))));
   check("nothing of a block past its own squares", blocks.every((s) => s.past === 0), JSON.stringify(blocks.map((s) => s.past)));
+  // Rough cut (user: "The pieces on the board must be more rough cut than they currently are"): shaded flat, facet
+  // by facet, every one a stone of its own; and the Cabeza bare (user: "Remove the spirals off of the cabeza pieces").
+  const cut = await page.evaluate(() => {
+    const t = window.__EC_TEST_THREE__();
+    const meshes = t.pieceGroup.children.filter((c) => c.userData.kind === "piece");
+    const cabezas = meshes.filter((m) => /cabeza/.test(m.userData.pieceId));
+    return {
+      n: meshes.length, flat: meshes.filter((m) => m.material.flatShading).length, colours: meshes.filter((m) => !!m.geometry.attributes.color && !!m.geometry.attributes.stonePos).length,
+      cabezas: cabezas.length, marks: cabezas.reduce((k, m) => k + m.children.filter((c) => c.userData.kind === "mark").length, 0),
+    };
+  });
+  check(`every piece a rough-cut stone, shaded facet by facet, its own colours (${JSON.stringify(cut)})`, cut.n === 10 && cut.flat === 10 && cut.colours === 10);
+  check("the Cabezas bare: no spiral", cut.cabezas === 2 && cut.marks === 0, JSON.stringify(cut));
 
   // ---- a game: the recordings, and the stones' weight in their sound
   await page.mouse.click(5, 400); // (a gesture)

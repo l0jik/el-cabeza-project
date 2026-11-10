@@ -168,6 +168,21 @@ const HUD_BASE = `
       box-shadow: var(--shadow); padding: 10px 12px 12px; }
     /* (Not the whole width of a wide screen: a count beside its name.) */
     .lab-hud .lab-rules { max-width: 420px; }
+    /* The game's own notes at the top come down below the Lab's bar (the
+       check alert, its note, the replay's bar: they were under it; user,
+       a Monolith phone screenshot, the bar over the alert's Show again
+       chip, circled: "We have some menu overlap here that needs to be
+       addressed."). The chip itself stays up all turn, so it goes on the
+       bar's own row, at the right: small, its words on two lines if the
+       row is narrow, never over the bar or the read-out. */
+    :root { --ec-shell-top: calc(52px + env(safe-area-inset-top)); }
+    [data-testid="check-alert-recall"] {
+      top: calc(10px + env(safe-area-inset-top)) !important; left: auto !important; right: calc(12px + env(safe-area-inset-right)) !important;
+      transform: none !important; animation: none !important; min-height: 36px !important;
+      max-width: calc(100vw - 214px - env(safe-area-inset-left) - env(safe-area-inset-right));
+      flex-wrap: wrap; justify-content: flex-start; row-gap: 1px !important; column-gap: 6px !important;
+      padding: 5px 10px 5px 8px !important; font-size: 10px !important; letter-spacing: 0.08em !important; line-height: 1.15;
+    }
   }
   @media (prefers-reduced-motion: reduce) { .lab-hud, .lab-hud * { animation: none !important; transition: none !important; } }
 `;

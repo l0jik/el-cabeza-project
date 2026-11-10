@@ -84,18 +84,22 @@ function fbm(x, y, z, seed) {
    (vertical cracks of a width, at given planes), a notch worn in near
    the ground. Away from the surface the shape's own distance is given
    (the weather never moves the surface further than `reach`). */
-export function weathered(base, { seed = 1, wear = 0.3, freq = 0.25, layer = 1.6, strata = 0.2, tilt = 0, joints = [], notch = 0, notchAt = 0.6, cuts = [] } = {}) {
+export function weathered(base, { seed = 1, wear = 0.3, freq = 0.25, layer = 1.6, strata = 0.2, tilt = 0, joints = [], notch = 0, notchAt = 0.6, cuts = [], fresh = 1 } = {}) {
   const reach = wear + strata + notch + 0.6;
   return (x, y, z) => {
     let d = base(x, y, z);
+    const d0 = d;
     // Fractures: the stone broken off along planes (each [nx, ny, nz, o]:
     // what lies past n·p = o is gone), flat faces and crisp edges, as
     // rock breaks.
     for (let i = 0; i < cuts.length; i++) { const c = cuts[i]; const k = c[0] * x + c[1] * y + c[2] * z - c[3]; if (k > d) d = k; }
     if (d > reach || d < -reach) return d;
-    d += wear * (fbm(x * freq, y * freq, z * freq, seed) - 0.5) * 2;
+    // (`fresh` < 1: a break, where it's the face, less worn than the skin
+    // round it, going over to it smoothly at the break's edge.)
+    const w = fresh === 1 ? wear : wear * (1 - (1 - fresh) * Math.min(1, Math.max(0, (d - d0) / wear)));
+    d += w * (fbm(x * freq, y * freq, z * freq, seed) - 0.5) * 2;
     // (and a finer roughness on that: rock, not clay)
-    d += wear * 0.4 * (noise3(x * freq * 5.3, y * freq * 5.3, z * freq * 5.3, seed + 17) - 0.5) * 2;
+    d += w * 0.4 * (noise3(x * freq * 5.3, y * freq * 5.3, z * freq * 5.3, seed + 17) - 0.5) * 2;
     if (strata) {
       // Soft layers eaten back: a band a layer wide, its depth varying.
       const yy = y + tilt * x + 0.8 * (noise3(x * 0.04, 0, z * 0.04, seed + 7) - 0.5) * layer;

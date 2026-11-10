@@ -364,6 +364,37 @@ console.log("\nYour own last move into reach: the turn waits");
   }
 }
 
+console.log("\nThe Lab on a phone: the card and its chip clear of the Lab's bar");
+{
+  // (User, a Monolith phone screenshot, the Lab's bar over the chip, circled: "We have some menu overlap here that
+  // needs to be addressed.") The card comes down under the bar; the chip, up all turn, goes on the bar's own row at
+  // the right, over neither the bar nor the read-out.
+  const { ctx, page, errs } = await open(`${D}/el-cabeza-lab.html?theme=monolith`, { phone: true });
+  await openDockPanel(page);
+  await page.locator('[data-opponent="ai-light"]').first().click();
+  await page.waitForTimeout(400);
+  await page.locator('[data-dock-role="begin"]').first().click();
+  check("a game against the computer begun, in the Monolith", !!(await armed(page)));
+  await page.waitForTimeout(1500);
+  await setPieces(page, TWO_ROLLS);
+  check("check: the warning", !!(await poll(async () => (await card(page).count()) === 1)));
+  const overlap = (a, b) => a.x < b.x + b.width - 0.5 && b.x < a.x + a.width - 0.5 && a.y < b.y + b.height - 0.5 && b.y < a.y + a.height - 0.5;
+  const bar = await page.locator('[data-testid="lab-bar"]').boundingBox();
+  const b = await card(page).boundingBox();
+  check(`...the card under the Lab's bar, inside the screen (${JSON.stringify(b && { y: Math.round(b.y), x: Math.round(b.x), w: Math.round(b.width) })}; bar ${JSON.stringify(bar && { y: Math.round(bar.y), h: Math.round(bar.height) })})`, !!b && !!bar && b.y >= bar.y + bar.height && b.x >= 15 && b.x + b.width <= 412 - 15);
+  await page.touchscreen.tap(30, 700);
+  check("...a tap elsewhere puts it away", !!(await poll(async () => (await card(page).count()) === 0)));
+  const recall = page.locator('[data-testid="check-alert-recall"]');
+  const rb = await poll(async () => ((await recall.count()) ? recall.boundingBox() : null));
+  const hud = await page.locator(".lab-hud").boundingBox();
+  check(`...its chip clear of the Lab's bar and the read-out, on the screen (${JSON.stringify(rb && { x: Math.round(rb.x), y: Math.round(rb.y), w: Math.round(rb.width), h: Math.round(rb.height) })})`,
+    !!rb && !!bar && !overlap(rb, bar) && (!hud || !overlap(rb, hud)) && rb.x >= 0 && rb.x + rb.width <= 412 && rb.y >= 0);
+  await recall.click();
+  check("...a tap on it: the card back", !!(await poll(async () => (await card(page).count()) === 1)));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
 console.log("\nTwo people: never a warning");
 {
   const { ctx, page, errs } = await open(`${D}/el-cabeza-futuris.html`);

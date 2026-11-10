@@ -14,7 +14,9 @@ import {
 import { makeRoundedBox, makePolycubeSmooth, voxCubeCenters } from "../../engine/geometry.js";
 import { paintBoard, pieceSurface, markTexture, squareName, paintGroundSheet } from "./paint.js";
 import { createMonolithLand } from "./monoliths.js";
-import { hewnBox, hewnDisc, seedOf, snapTurn } from "./hewn.js";
+import { seedOf, snapTurn } from "./hewn.js";
+import { cutStone, cellsOf, turnTo, stoneMaterial } from "./roughcut.js";
+import { quality } from "../tienda-quality.js";
 
 const hex = (css) => new THREE.Color(css).getHex();
 
@@ -155,9 +157,6 @@ export function createScene(spec) {
     });
     const tex = pieceSurface(m.texture);
     if (tex) mat.map = tex;
-    // (A hewn stone's grain in relief too: its pits and grains catch the
-    // light, where a map alone lies flat on a smooth face.)
-    if (tex && P.hewn) { mat.bumpMap = tex; mat.bumpScale = 0.018; }
     /* Edge lines (Minimal Mono: white on the black pieces, black on the
        white; user: "Black pieces in minimal mono need edge delineation
        because they're just a black mass", then "Minimal mono white
@@ -206,45 +205,51 @@ export function createScene(spec) {
     return { x: 0, y: (piece.z * PIECE_SCALE) / 2, z: 0, w: piece.w * PIECE_SCALE * 0.9, d: piece.h * PIECE_SCALE * 0.9 };
   }
 
-  /* Rough-hewn pieces (the Monolith's, pieces.hewn; user: "the blocks,
-     themselves need to be rough-hewn, not perfect looking"): each its own
-     stone (seeded by its id), its faces uneven and its edges knocked
-     about (hewn.js). A rolled piece keeps its own: the chassis hands back
-     the mesh it rolled, turned a quarter, before building the piece
-     again, and that turn is carried into the new one's frame, so the same
-     chips come down where they went over. (An odd-shaped piece keeps the
-     chassis's smooth solid.)
-     And natural stone's surface (the land's own, as the user asked of
-     the Monolith: "natural formations of rock"; the pieces keep their
-     shapes): a few flakes off its arrises, flat scars of fresh stone, and
-     the stone's colours through it, sandstone's bedding and varnish,
-     basalt's weathered rind (hewn.js flakePlanes, stoneTint), all in its
-     own frame, so they roll with it too. */
+  /* Rough-cut stones (the Monolith's, pieces.hewn; user: "the blocks,
+     themselves need to be rough-hewn, not perfect looking", then "The
+     pieces on the board must be more rough cut than they currently
+     are"): each piece a stone of its own (seeded by its id), cut out of
+     its cubes along a score of planes, its facets shaded flat, never past
+     its squares (roughcut.js); the odd-shaped ones too, and the Cabeza a
+     round stone with no mark. Cut once and kept: a piece that rolls gets
+     the same stone turned. The chassis hands back the mesh it rolled,
+     turned a quarter, before building the piece again; that turn on the
+     stone's last one is tried first, then the last one alone (a slide, a
+     fall through a singularity), then whichever of a cube's 24 puts its
+     cubes where they are now (an undo, a replay). So the same facets come
+     down where they went over. */
   const hewnTurns = new Map(); // piece id -> { mesh, turn }
-  function hewnGeometry(piece, isDark, isDisc) {
-    if (!P.hewn || piece.vox) return null;
-    const seed = seedOf(piece.id), stone = (isDark ? P.dark : P.light).texture || null;
-    if (isDisc) return { geo: hewnDisc((DISC_DIAM * CABEZA_SCALE) / 2, DISC_H * CABEZA_SCALE, { seed, rough: 0.012, chip: 0.035, chipW: 0.05, freq: 7, stone }), turn: null };
-    const prev = hewnTurns.get(piece.id);
-    const turn = new THREE.Quaternion();
-    if (prev) snapTurn(turn.copy(prev.mesh.quaternion).multiply(prev.turn));
-    const S = PIECE_SCALE, cubes = piece.w * piece.z * piece.h;
-    return {
-      geo: hewnBox(piece.w * S, piece.z * S, piece.h * S, {
-        seed, turn, seg: S / 11, rough: 0.045 * S, chip: 0.085 * S, chipW: 0.15 * S, freq: 3, uvUnit: S,
-        flakes: 3 + (cubes >= 2 ? 1 : 0) + (cubes >= 6 ? 1 : 0), flakeDepth: 0.2 * S, flakeReach: 0.5 * S, stone,
-      }),
-      turn,
-    };
+  const stones = new Map(); // piece id -> { stone, type, kind }
+  const STONES_KEPT = 96;
+  function roughGeometry(piece, isDark, isDisc) {
+    if (!P.hewn) return null;
+    const kind = (isDark ? P.dark : P.light).texture || "basalt", seed = seedOf(piece.id);
+    let held = stones.get(piece.id), turn = null;
+    if (held && held.type === piece.type && held.kind === kind) {
+      const prev = hewnTurns.get(piece.id), tries = [];
+      if (prev) tries.push(snapTurn(new THREE.Quaternion().copy(prev.mesh.quaternion).multiply(prev.turn)), prev.turn);
+      turn = turnTo(held.stone, piece, tries);
+    }
+    if (!turn) {
+      const detail = quality().detail;
+      const stone = isDisc
+        ? cutStone({ disc: { r: (DISC_DIAM * CABEZA_SCALE) / 2, h: DISC_H * CABEZA_SCALE }, stone: kind, seed, detail })
+        : cutStone({ cells: cellsOf(piece), S: PIECE_SCALE, stone: kind, seed, detail });
+      held = { stone, type: piece.type, kind };
+      stones.delete(piece.id); stones.set(piece.id, held);
+      if (stones.size > STONES_KEPT) { const [oldest] = stones.keys(); stones.get(oldest).stone.geo.dispose(); stones.delete(oldest); }
+      turn = new THREE.Quaternion();
+    }
+    const geo = held.stone.geo.clone();
+    if (1 - Math.abs(turn.w) > 1e-9) geo.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(turn)); // (r128: no BufferGeometry.applyQuaternion)
+    return { geo, turn, mat: stoneMaterial(pieceSurface((isDark ? P.dark : P.light).texture), 1 / PIECE_SCALE) };
   }
 
   function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
-    const hewn = hewnGeometry(piece, isDark, isDisc);
-    if (hewn) geo.dispose(); // (the chassis's smooth one, not used)
-    const mesh = new THREE.Mesh(hewn ? hewn.geo : geo, pieceMaterial(isDark, isDisc));
-    // (The stone's own colours, where it has them: hewn.js stoneTint.)
-    if (hewn && hewn.geo.attributes.color) mesh.material.vertexColors = true;
-    if (hewn && hewn.turn) hewnTurns.set(piece.id, { mesh, turn: hewn.turn });
+    const rough = roughGeometry(piece, isDark, isDisc);
+    if (rough) geo.dispose(); // (the chassis's smooth one, not used)
+    const mesh = new THREE.Mesh(rough ? rough.geo : geo, rough ? rough.mat : pieceMaterial(isDark, isDisc));
+    if (rough) hewnTurns.set(piece.id, { mesh, turn: rough.turn });
     mesh.position.set(center.x, y, center.z);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -426,7 +431,36 @@ export function createScene(spec) {
   }
 
   /* ---------------- black holes and missing squares, in the theme's terms */
+  /* The Monolith's: cut into its floor (the board is the rock there, level
+     at 0: monolith-ground.js), not laid on it. A jagged outline, `r` out
+     at `k` points, from fixed numbers. */
+  const jagged = (r, k, seed, wob = 0.14) => {
+    const pts = [];
+    for (let i = 0; i < k; i++) { const a = (i / k) * Math.PI * 2, f = 1 - wob / 2 + wob * ((Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453) % 1 + 1) % 1; pts.push(new THREE.Vector2(Math.cos(a) * r * f, Math.sin(a) * r * f)); }
+    return pts;
+  };
+  const CARVED = spec.ground === "monoliths";
+  function carvedPit(center, outline, ring, seed) {
+    const g = new THREE.Group();
+    const pit = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(outline)), new THREE.MeshBasicMaterial({ color: hex(C.hole || "#08090B"), polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }));
+    pit.rotation.x = -Math.PI / 2; pit.position.set(center.x, 0.005, center.z);
+    g.add(pit);
+    if (ring) {
+      // Its broken rim: fresh stone, paler, a band round the pit.
+      const shape = new THREE.Shape(jagged(ring.r, ring.k, seed + 7, 0.1));
+      shape.holes.push(new THREE.Path(outline.slice().reverse()));
+      const rim = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({ color: ring.color, transparent: true, opacity: ring.opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }));
+      rim.rotation.x = -Math.PI / 2; rim.position.set(center.x, 0.0052, center.z);
+      g.add(rim);
+    }
+    return g;
+  }
   function buildBlackHoleVisual({ center, radius }) {
+    if (CARVED) {
+      const g = carvedPit(center, jagged(radius, 22, center.x * 3.1 + center.z), { r: radius * 1.16, k: 22, color: hex(C.accentPrimary), opacity: 0.85 }, center.x + center.z * 1.7);
+      g.name = `lab-${spec.id}-hole`;
+      return g;
+    }
     const g = new THREE.Group();
     const disc = new THREE.Mesh(new THREE.CircleGeometry(radius, 48), new THREE.MeshBasicMaterial({ color: hex(C.hole || (spec.id === "minimalMono" ? "#000000" : C.textPrimary === "#EAE6DF" ? "#111111" : C.textPrimary)), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 }));
     disc.rotation.x = -Math.PI / 2; disc.position.set(center.x, 0.058, center.z);
@@ -437,8 +471,18 @@ export function createScene(spec) {
     return g;
   }
   function buildMissingSquareVisual({ center, size }) {
-    const g = new THREE.Group();
     const s = size ?? SQUARE_SIZE;
+    if (CARVED) {
+      // The square broken out of the floor: a pit, its edges chipped.
+      const h = s * 0.47, seed = center.x * 2.3 + center.z * 5.1, out = [];
+      for (const [x0, z0, x1, z1] of [[-h, -h, h, -h], [h, -h, h, h], [h, h, -h, h], [-h, h, -h, -h]]) {
+        for (let i = 0; i < 5; i++) { const t = i / 5, j = (((Math.sin(seed + out.length * 12.9898) * 43758.5453) % 1) + 1) % 1; out.push(new THREE.Vector2(x0 + (x1 - x0) * t - (x0 + (x1 - x0) * t) * j * 0.07, z0 + (z1 - z0) * t - (z0 + (z1 - z0) * t) * j * 0.07)); }
+      }
+      const g = carvedPit(center, out, null, seed);
+      g.name = `lab-${spec.id}-missing`;
+      return g;
+    }
+    const g = new THREE.Group();
     const pit = new THREE.Mesh(new THREE.PlaneGeometry(s * 0.98, s * 0.98), new THREE.MeshBasicMaterial({ color: hex(C.bgSecondary === "#FFFFFF" ? "#EDEDED" : C.bgSecondary), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 }));
     pit.rotation.x = -Math.PI / 2; pit.position.set(center.x, 0.057, center.z);
     const x = new THREE.Mesh(boxesGeometry([{ x: 0, z: 0, w: s * 0.9, d: 0.02, h: 0, y: 0 }]), new THREE.MeshBasicMaterial({ color: hex(C.textSecondary.startsWith("rgba") ? "#888888" : C.textSecondary) }));

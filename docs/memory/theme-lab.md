@@ -178,16 +178,61 @@ blocks, themselves need to be rough-hewn, not perfect looking."
     Dark's end in the land: from Light's end you look into it, the
     stones dark against it and their shadows coming at you; from Dark's
     end it's behind you and warms every face toward you.)
-  - The board set into the rock: the chassis's slab is the basin's floor
-    (its painted face), the terrain's first ring lies exactly on the
-    slab's edge just under its face (-0.03) and the next stands LIP
-    (0.1) over it, the cut wall; the slab's outline (ec-slab-edges,
-    ec-top-ring) hidden every tick (the chassis remakes them). Polar
-    rings out from the slab's rectangle: a platform of slickrock
-    cracked along its joints (basalt toward Dark's end, sandstone toward
-    Light's), a ledge, a second, then the plain rolling out to R_OUT
-    (170), past the sky (150); the fog (40 to 148) takes the edge. Built
-    again when the board changes size (`${SLAB_X}x${SLAB_Z}`).
+  - The board a part of the ground (2026-11-10, user: "Make the board a
+    seamless part of the ground"; "Right now it looks like an actual game
+    board is just placed on the ground, but I want it to look more like
+    ... a part of the contour of the earth itself, with the symmetry of
+    the lines, albeit extremely crooked and jagged, chiseled into the
+    ground itself"; and a list to keep in mind: "Prehistoric stone
+    wilderness. Alien sandstone landscape. Ancient eroded badlands.
+    Surreal geological formations. Fossilized-looking terrain. Desolate
+    stone wilderness. Monumental natural sculptures. Sharp, fractured
+    rock surfaces. Irregular geometric rock structures. Polygonal stone
+    formations. Jagged ridgelines and fractured plateaus. Massive angular
+    boulders. Naturally sculpted stone corridors. Interlocking rock
+    formations."). monolith-ground.js:
+    - The chassis's slab, its outline and the theme's grid hidden every
+      tick (HIDE: ec-slab, ec-slab-edges, ec-top-ring, ec-grid; the
+      chassis remakes them on a resize). Clicks never used the slab (a
+      plane), so nothing else changes.
+    - A plateau of polygonal plates round the board (plateField: a
+      Voronoi of points on a jittered grid, some dropped away from the
+      board so the plates come in every size; each convex cell taken in
+      for a crack, its top a little tilted, a bevel broken round its rim,
+      walls down to the crack's floor; now and then one split in two,
+      one gone (a pit, never near the board), one stood up as a block).
+      They rise from a step over the floor to 0.7 at most toward the
+      plateau's edge (ledgeLine P out from the floor), then broken blocks
+      sit on the slope down to the plain (groundAt, now the crack's
+      floor at -0.5 under the plateau). One rock, shaded flat
+      (rockMaterial over slickTexture: no way to it, as a flat of rock
+      has none; the land's stone texture laid flat showed its streaks).
+    - The board's floor: every plate the board and its set-out bench
+      meet (floorRect: the slab and BENCH_GAP + BENCH_ROOM at each end,
+      chassis/set-out.js), level at 0, no crack between them, so its edge
+      lies out among the plates, as irregular as theirs. Its colour
+      (plateColour) a pale slickrock both stones read on, going over to
+      basalt toward Dark's end and sandstone toward Light's further out,
+      a hint of each even under the board.
+    - The grid chiseled in (grooveSheet: a canvas over the grid, clear but
+      the grooves, laid at 0.003): each line wandering off true (about a
+      tenth of a square), on that a jagged run as a crack goes (straight a
+      little way, then off at another angle, turned back toward true past
+      0.03, never more than 0.05 off the wander) and now and then a kink,
+      wide and narrow, the border's wider; fresh paler stone round it
+      here and there where the skin broke, a shaded wall, a dark core, a
+      lit wall (the moon's light from +x, +z; it turns with the land, so
+      the painting always agrees with it); chipped lips, a spall now and
+      then, a pit at each crossing (where the two crooked lines cross, not
+      where a straight grid's would), hairline cracks off into the squares;
+      the two goal rows a shade darker. Built again with the ground when
+      the board changes size.
+    - Black holes and missing squares cut into the floor (scene.js
+      carvedPit, the Monolith's only): a jagged pit at 0.005 (the other
+      directions' discs stand at 0.058 over their slabs), a hole ringed
+      in ember.
+    - The plain beyond, polar rings out to R_OUT (170), past the sky
+      (150); the fog (40 to 148) takes the edge.
   - Every piece's shape stands in it as natural rock (PIECE_FORMS: the
     standard five and Cabeza Nova's ten, each from its cube layout,
     engine/anomaly.js's, or a disc on edge): the Flaco and the 1x3
@@ -198,9 +243,13 @@ blocks, themselves need to be rough-hewn, not perfect looking."
     (quality() detail 0; SwiftShader counts) gets each shape once,
     sides alternating.
   - Between and beyond, other rock (OTHER): capped spires (hoodoos),
-    fins, slickrock domes, balanced rocks, boulder heaps, a free arch,
-    jointed shelves (Muley Point's), 62 to 112 out; mesas and buttes on
-    the horizon, 112 to 150 (166 at most).
+    fins, a slickrock dome broken into facets, balanced rocks (an angular
+    block on a worn pedestal), massive angular boulders fallen together
+    (polytope: a random convex block, broken on every side), a free
+    arch, jointed shelves (Muley Point's), corridors (two walls, a
+    narrow way between, their tops ragged) and a jagged ridgeline, 62 to
+    112 out; mesas, buttes and ridgelines on the horizon, 112 to 150 (166
+    at most).
   - rockforms.js: each formation a distance function (rounded boxes,
     ellipsoids, columns, smooth unions; a piece's from its cubes,
     cubesSdf), weathered (fracture planes cut first, then wear in two
@@ -234,45 +283,47 @@ blocks, themselves need to be rough-hewn, not perfect looking."
   ROOM_CLEAR (37) out, past the box's corners; nothing of the ground or
   the rubble inside it rises past its floor (e2e-monolith looks at every
   point of the ground, rock and rubble).
-- Rough-hewn (hewn.js): every block, piece or stone, is a subdivided box
-  moved inward only, by smooth value noise (its faces wander in by up to
-  a few hundredths of a cube) plus knocks along its edges and deeper at
-  its corners, all a function of the point's place alone, so a box's
-  shared edges move as one and it stays whole. Standing stones taper and
-  have their tops cut on a slant. Pieces never reach past their squares.
-  A piece keeps its own stone through a roll: the chassis bakes the
-  rolled mesh (turned a quarter) into the piece group before building the
-  piece again, and scene.js reads that turn off the old mesh, snaps it to
-  a cube's 24 (hewn.js snapTurn) and builds the new one with the pattern
-  in the stone's own frame (texture too), so its chips come down where
-  they went over. The Cabeza is a hewn disc (a lathe), its faces dressed
-  flat in the middle where its spiral is pecked (paint.js "petroglyph":
-  the Cabeza's only, pale on basalt, dark on sandstone). Odd-shaped
-  MATTER pieces keep the chassis's smooth solid.
-- A piece's surface is natural stone's (the shape kept): a few flakes
-  off its arrises (hewn.js flakePlanes: planes in the stone's own frame
-  across a corner, slanted to run out along one of its edges; what
-  stood past one laid flat on it, moved in along its normal, so never
-  out of the squares), and its colours baked per vertex (stoneTint):
-  sandstone's bedding through the whole stone (planar, a little tilted;
-  painted on the map it ran across one face and down the next, so the
-  map has none), its varnish in streaks; basalt's weathered rind in grey
-  patches and a mottle; fresh stone where a flake came off or an arris
-  was knocked (paler sand, darker basalt); the hollows a little darker.
-  The map is its bump map too (its grains and pits in relief), painted
-  to tile without a seam (paint.js blotches/speckle `wrap`: a face's
-  map repeats across its middle, where the seam showed as a line, the
-  bump map's too). All in the stone's own frame, so it rolls with it;
-  its noise read turned off the stone's axes (hewn.js skew: value
-  noise sliced along its lattice's planes, as a block's faces slice
-  it, showed squares and a line down every face).
+- Rough-cut stones (roughcut.js; user, first: "No, the blocks, themselves
+  need to be rough-hewn, not perfect looking"; then: "The pieces on the
+  board must be more rough cut than they currently are", and "Remove the
+  spirals off of the cabeza pieces. They look stupid."): every piece, the
+  odd-shaped ones too, cut out of its own cubes as the land's formations
+  are (cubesSdf, set a little in from its box so its lumps have room both
+  ways), broken along a score of planes (its corners off unevenly, long
+  facets down its arrises, each face split into facets off true, more on
+  a bigger face; a bigger stone in bigger pieces), pitted, its breaks
+  fresh (a third as worn as the skin no break touched: rockforms.js
+  weathered `fresh`), bounded by its box (never past its squares), meshed
+  by surface nets, its arrises then put back sharp (roughcut.js sharpen: a
+  point where two or three of its planes meet, its breaks or a break and
+  the block's face, goes onto all of them the least way; the mesh alone
+  rounds them off by a cell), shaded flat, its
+  colours baked per point at its own scale (stoneColour: bands, varnish,
+  lichen, its hollows darker, flecks); its grain laid on from three sides
+  in its own frame (stonePos, stoneNrm: it rolls with the stone). The
+  Cabeza a round stone cut the same way, bare (the petroglyph mark gone).
+  Cut once per piece and kept (scene.js stones, up to 96): a piece built
+  again gets the same stone turned: the roll's turn on its last one
+  (the chassis hands back the rolled mesh; hewn.js snapTurn), then its
+  last turn alone, then whichever of a cube's 24 puts its cubes where they
+  are now (roughcut.js turnTo: an undo, a replay); none fits, it's cut
+  afresh. About 3 ms a cube's stone, 11 the Opa's, 15 a Hombro's, at a
+  computer's detail. (The last round's flakes and baked tints on hewn
+  boxes are gone; hewn.js only makes the land's rubble now. The piece
+  maps still tile without a seam, paint.js `wrap`.)
 - Its marks: a little circle of seven standing stones for a legal move
   (lit, sandstone gold; a crush in ember with a capstone), an ember ring
-  round the chosen piece, dust on a landing. The board (paint.js
-  monolithSlab) a slab of grey rock: mottling, grit, two old cracks,
-  lichen toward the margin, the goal rows worn darker with an incised
-  line and a wash of the stone coming to them, pecked rings in the
-  margin's corners. Black holes a pit (colors.hole).
+  round the chosen piece, dust on a landing. (paint.js monolithSlab, the
+  slab's painted face, is still the board texture the chassis makes, but
+  the slab it's on is hidden.)
+- On a phone the Lab's bar sits over the top of the screen, where the
+  game puts its own notes (the check alert, its Show again chip, its
+  note, the replay's bar); user, a Monolith phone screenshot, the bar
+  over the chip, circled: "We have some menu overlap here that needs to
+  be addressed." css.js, compact: --ec-shell-top set under the bar, so
+  those come down below it; the chip, up all turn, on the bar's own row
+  at the right, small, its words on two lines if the row is narrow
+  (e2e-check-alert: the Lab on a phone).
 - The HUD a stele: the turn number cut into a standing stone (incised
   figures, an ember edge), the rest carved small over the land with a
   shadow under every word; the Actions counter and note on slabs of their
@@ -286,10 +337,13 @@ blocks, themselves need to be rough-hewn, not perfect looking."
   layout of the recordings; the land, at a weak device's detail and at a
   computer's (?quality=high): on the board group, every part there,
   every piece's shape (on both sides at a computer's), the other kinds,
-  the board set in (the ground's first ring on the slab's edge under its
-  face, the cut wall over it, the outline hidden), the fog, nothing in
-  the camera's room; turned, the lights turned with it; the hewn pieces
-  and a roll keeping one's shape, the recordings fetched and decoded,
+  the board a part of the ground (the slab, outline and grid hidden, the
+  floor level at 0 under the board and bench, the grid chiseled over the
+  board), the fog, nothing in the camera's room (the plates too);
+  turned, the lights turned with it; the rough-cut pieces (uneven faces,
+  corners off, nothing past their squares, shaded flat, their own
+  colours, the Cabezas bare) and a roll keeping one's shape, the
+  recordings fetched and decoded,
   landings by face and weight, the rolls' grinds, the Cabeza's glide,
   the credits, old Bauhaus links). The channel picture
   (assets/den/channels/lab-monolith.jpg) is the low view from Light's

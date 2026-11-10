@@ -577,7 +577,7 @@ export function pieceSurface(kind) {
     speckle(g, S, S, 300, "rgba(90,84,76,0.3)", 0.4, 1.2, 532);
   } else if (kind === "basalt") {
     // Fine-grained and dark: a faint mottle, pale vesicles, dark grains.
-    // (Tiling without a seam, as the sandstone: the hewn pieces' maps.)
+    // (Tiling without a seam, as the sandstone: the stones' grain.)
     blotches(g, S, S, 12, "70,72,80", 0.3, 541, 0.3, true);
     speckle(g, S, S, 900, "rgba(30,30,34,0.4)", 0.3, 1.1, 542, true);
     speckle(g, S, S, 160, "rgba(255,255,255,0.55)", 0.4, 1.3, 543, true);
@@ -585,7 +585,7 @@ export function pieceSurface(kind) {
     // Grains and iron's rust in blooms. (Its bedding isn't painted here:
     // a face's map runs whichever way the face does, so bands came out
     // across one face and down the next. It's in the stone itself, the
-    // same through every face: hewn.js stoneTint.)
+    // same through every face: roughcut.js, baked per point.)
     blotches(g, S, S, 8, "160,96,52", 0.18, 552, 0.25, true);
     speckle(g, S, S, 1100, "rgba(110,86,60,0.3)", 0.3, 1, 553, true);
     speckle(g, S, S, 500, "rgba(255,250,236,0.45)", 0.3, 0.9, 554, true);
@@ -605,7 +605,7 @@ const MARKS = new Map();
 export function markTexture(spec, kind, { label, owner, type, square, w = 1, h = 1, isCabeza }) {
   const key = [spec.id, kind, label, owner, square, w, h, isCabeza].join("|");
   if (MARKS.has(key)) return MARKS.get(key);
-  if (!MARK_KINDS.has(kind) || ((kind === "cabezaYellow" || kind === "petroglyph") && !isCabeza)) return null;
+  if (!MARK_KINDS.has(kind) || (kind === "cabezaYellow" && !isCabeza)) return null;
   const U = 128;
   const c = canvasOf(Math.round(U * w), Math.round(U * h));
   const g = c.getContext("2d");
@@ -616,7 +616,7 @@ export function markTexture(spec, kind, { label, owner, type, square, w = 1, h =
   MARKS.set(key, tex);
   return track(tex, paint);
 }
-const MARK_KINDS = new Set(["petroglyph", "cabezaYellow", "code", "glyph", "serial", "sticker", "idCoord"]);
+const MARK_KINDS = new Set(["cabezaYellow", "code", "glyph", "serial", "sticker", "idCoord"]);
 function drawMark(spec, kind, { label, owner, type, square, isCabeza }, g, W, H) {
   const m = Math.min(W, H);
   const dark = owner === "dark";
@@ -625,22 +625,7 @@ function drawMark(spec, kind, { label, owner, type, square, isCabeza }, g, W, H)
   const initial = sideNamesFor(spec.id)[dark ? "dark" : "light"][0].toUpperCase(); // the side's own initial (I / C, N / S)
   g.clearRect(0, 0, W, H);
   g.textAlign = "center"; g.textBaseline = "middle";
-  if (kind === "petroglyph") {
-    // The Monolith: the Cabeza's stone pecked with a spiral, as the
-    // oldest carvings are, a peck at a time; pale on the basalt, dark on
-    // the sandstone. (Only the Cabeza: the other stones are bare.)
-    const r = rng(dark ? 631 : 632);
-    const cx = W / 2, cy = H / 2, R = m * 0.4, turns = 3.1, k = R / (turns * Math.PI * 2);
-    const peck = (x, y, s) => {
-      g.fillStyle = dark ? "rgba(233,228,216,0.8)" : "rgba(30,31,35,0.66)";
-      g.beginPath(); g.arc(x, y, s, 0, Math.PI * 2); g.fill();
-    };
-    for (let a = 0.9; k * a < R;) {
-      const rr = k * a;
-      peck(cx + Math.cos(a) * rr + (r() - 0.5) * m * 0.01, cy + Math.sin(a) * rr + (r() - 0.5) * m * 0.01, m * (0.017 + r() * 0.008));
-      a += (m * 0.032) / Math.max(rr, m * 0.05);
-    }
-  } else if (kind === "cabezaYellow") {
+  if (kind === "cabezaYellow") {
     g.fillStyle = col.accentTertiary; g.fillRect(0, 0, W, H);
   } else if (kind === "code") {
     g.fillStyle = ink;

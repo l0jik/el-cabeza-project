@@ -88,7 +88,7 @@ export const LAB_SPECS = [
     num: "02",
     name: "Monolith",
     short: "MONOLITH",
-    tagline: "Great stones on a barren plain at dusk: basalt against sandstone, the board a slab of the rock.",
+    tagline: "Great stones on a barren plain at dusk: basalt against sandstone, the board cut into the rock itself.",
     colors: {
       bgPrimary: "#14161C", bgSecondary: "#1C1F27", surface: "#22252E",
       textPrimary: "#E9E4D8", textSecondary: "#A39E95",
@@ -116,16 +116,20 @@ export const LAB_SPECS = [
       edgeRadius: 0.03, outline: null,
       dark: { color: 0x3a3c42, roughness: 0.88, metalness: 0, texture: "basalt" },
       light: { color: 0xc4a47a, roughness: 0.96, metalness: 0, texture: "sandstone" },
-      mark: "petroglyph",
-      // Each a stone of its own, rough-hewn (user: "the blocks, themselves
-      // need to be rough-hewn, not perfect looking"; scene.js, hewn.js).
+      // No mark: the Cabeza a round stone, bare (user: "Remove the spirals
+      // off of the cabeza pieces. They look stupid.").
+      mark: null,
+      // Each a stone of its own, rough cut (user: "the blocks, themselves
+      // need to be rough-hewn, not perfect looking", then "The pieces on
+      // the board must be more rough cut than they currently are"; scene.js,
+      // roughcut.js), the odd-shaped ones too.
       hewn: true,
     },
     indicator: "stones", selection: "emberRing", landing: "dust",
     ground: "monoliths",
     hud: "monolith",
     animation: { speed: 320, ease: "cubic-bezier(.2,.7,.2,1)", enter: "rise" },
-    materials: "A slab of the plain's own rock; basalt and sandstone, split along their joints.",
+    materials: "The board chiseled into the plateau's own rock; basalt and sandstone, rough cut.",
     lighting: {
       // Dusk: the moon's cool light from above (key), the sky's blue in
       // the shadows (hemi), and the last of the sun low behind Dark's end

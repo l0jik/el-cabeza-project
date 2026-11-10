@@ -225,7 +225,7 @@ SINGULARITY". Plano's streets: "AV. DE LA CABEZA", "PLAZA DE LA CABEZA".
 | Look | Tagline | In the menu |
 | --- | --- | --- |
 | Swiss Design | The International Typographic Style: a rational grid, one red, nothing extra. | A rational grid, one red, nothing extra. |
-| Monolith (Bauhaus's place, 2026-11-10) | Great stones on a barren plain at dusk: basalt against sandstone, the board a slab of the rock. | Great stones on a barren plain, at dusk. |
+| Monolith (Bauhaus's place, 2026-11-10) | Great stones on a barren plain at dusk: basalt against sandstone, the board cut into the rock itself. | Great stones on a barren plain, at dusk. |
 | De Stijl | Mondrian's order: black structure raised, white fields recessed, primaries where they mean something. | Mondrian's black lines and primary fields. |
 | Brutalism | Béton brut. Poured, cast, stencilled. Mass over ornament. | Raw concrete: poured, cast, stencilled. |
 | New Typography | After Tschichold: the page is the architecture, the board a figure set into it. | The board set like a Tschichold page. |
