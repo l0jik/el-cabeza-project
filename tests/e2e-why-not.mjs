@@ -22,8 +22,13 @@
    1b. A push back the way it came (the user's Hombro, rolled down round
       the Pink Cabeza, dragged back up into it, 3 actions): the X and
       "Not enough actions" (3: slide 2, push 1; 2 left), the Hombro left
-      where it rolled; a drag back with nothing in the way still takes
-      the move back. On a computer and by touch.
+      where it rolled. On a computer and by touch.
+   1c. A slide back the way it came (user: "I want to slide it, but it's
+      just taking the drag as a reversal of the move I just made"): with
+      3 actions, a roll left, then a drag back the way it came slides it
+      there (2 left, a slide's 2), its rolled shape kept, no note; with 2
+      actions no slide is left for it, and the same drag takes the move
+      back, as ever. On a computer and by touch.
    2. Why not switched off: the same drag, no note and no X, the piece
       card still there. The Piece guide off and Why not on: the note, and
       no card. A player who'd switched the guide off before this (no
@@ -261,8 +266,8 @@ const outside = (page, box) => page.evaluate(([cells, box]) => {
 // back (Undo Move by dragging) before the push's refusal could be said.
 // Now a drag back into a piece a slide would push is the push: here
 // refused, 3 actions (slide 2, push 1) with 2 left, and said; the Hombro
-// stays. A drag back with nothing in the way still takes the move back.
-// On a computer, then by touch. ----
+// stays. (A drag back with nothing in the way: 1c.) On a computer, then by
+// touch. ----
 const HOMBRO = [
   P("light-hombro", "hombro", "light", 3, 4, 2, 2, 2, "0,0,1;0,1,0;0,1,1;1,1,1"),
   P("dark-cabeza", "cabeza", "dark", 5, 5, 1, 1, 1),
@@ -278,26 +283,6 @@ for (const phone of [false, true]) {
   await aim(page, phone, [4.5, 4.5]);
   const p0 = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-hombro"));
   await tap(s, p0.x, p0.y);
-  if (!phone) {
-    // A roll left, then a drag back toward where it was: nothing in the
-    // way, so the move's taken back, as ever.
-    await page.evaluate(() => window.__EC_TEST_MOVE__("light-hombro", "W"));
-    await page.waitForTimeout(1800);
-    let h = await hombro();
-    check("the Hombro rolled left", h.row === 3 && h.col === 2, JSON.stringify(h));
-    await aim(page, phone, [4.5, 4.5]);
-    // (Pressed on its corner, where its fourth cube stands up.)
-    const back = await page.evaluate(() => window.__EC_TEST_CUBE_POS__(4, 2, 1));
-    await dragToward(s, back, [4, 2], [0, 1]);
-    await page.waitForTimeout(1800);
-    h = await hombro();
-    check("...dragged back toward where it was, nothing in the way: the move taken back", h.row === 3 && h.col === 4 && h.vox === "0,0,1;0,1,0;0,1,1;1,1,1" && !(await note(page)).up, JSON.stringify(h));
-    await aim(page, phone, [4.5, 4.5]);
-    if ((await chosen(page)) === 0) {
-      const p1 = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-hombro"));
-      await tap(s, p1.x, p1.y);
-    }
-  }
   // Rolled down round the pink Cabeza (the clip's position), then dragged
   // back up into it.
   await page.evaluate(() => window.__EC_TEST_MOVE__("light-hombro", "S"));
@@ -314,6 +299,61 @@ for (const phone of [false, true]) {
   const n = await note(page);
   check("...let go: not enough actions", n.up && n.code === "cost" && n.title === "Not enough actions", JSON.stringify(n));
   check("...pushing the Pink Cabeza: 3 actions (slide 2, push 1), 2 left", /pushes the Pink Cabeza: 3 actions \(slide 2, push 1\)\. You have 2 left\./.test(n.body), n.body);
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await s.ctx.close();
+}
+
+// ---- 1c. A slide back the way it came (user, after a roll: "I created
+// another situation where a piece is, I want to slide it, but it's just
+// taking the drag as a reversal of the move I just made. So something is
+// still wrong here."). A drag on the moved piece back toward the square it
+// started the turn on was Undo Move whenever nothing was in the way, even
+// with a slide that way the rules allow: with 3 actions a roll leaves 2,
+// a slide's cost. Now a drag that points at a slide is the slide; with 2
+// actions (no slide left after a roll) the same drag still takes the move
+// back. On a computer, then by touch. ----
+for (const phone of [false, true]) {
+  console.log(`[a slide back the way it came${phone ? ", a phone" : ""}]`);
+  const s = await open({ phone, pieces: HOMBRO, laws: { ...LAWS, threeActions: true }, opening: ["W", "W", "W"] });
+  const { page, errs } = s;
+  const hombro = () => pieceAt(page, "light-hombro");
+  await aim(page, phone, [4.5, 4.5]);
+  const p0 = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-hombro"));
+  await tap(s, p0.x, p0.y);
+  await page.evaluate(() => window.__EC_TEST_MOVE__("light-hombro", "W"));
+  await page.waitForTimeout(1800);
+  const rolled = await hombro();
+  check("the Hombro rolled left", rolled.row === 3 && rolled.col === 2, JSON.stringify(rolled));
+  await aim(page, phone, [4.5, 4.5]);
+  // (Pressed on its corner, where its fourth cube stands up.)
+  const back = await page.evaluate(() => window.__EC_TEST_CUBE_POS__(4, 2, 1));
+  const mid = await dragToward(s, back, [4, 2], [0, 1]);
+  await page.waitForTimeout(1800);
+  const h = await hombro();
+  check("dragged back the way it came: the slide's arrow while it points there", mid.arrow && !mid.x, JSON.stringify(mid));
+  check("...let go: it slides back a square, its rolled shape kept (the move isn't taken back)", h.row === 3 && h.col === 3 && h.vox === rolled.vox, JSON.stringify(h));
+  check("...no note", !(await note(page)).up);
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await s.ctx.close();
+}
+{
+  console.log("[2 actions: nothing can slide back, so the drag takes the move back]");
+  const s = await open({ pieces: HOMBRO, laws: LAWS, opening: ["W", "W"] });
+  const { page, errs } = s;
+  const hombro = () => pieceAt(page, "light-hombro");
+  await aim(page, false, [4.5, 4.5]);
+  const p0 = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-hombro"));
+  await tap(s, p0.x, p0.y);
+  await page.evaluate(() => window.__EC_TEST_MOVE__("light-hombro", "W"));
+  await page.waitForTimeout(1800);
+  let h = await hombro();
+  check("the Hombro rolled left", h.row === 3 && h.col === 2, JSON.stringify(h));
+  await aim(page, false, [4.5, 4.5]);
+  const back = await page.evaluate(() => window.__EC_TEST_CUBE_POS__(4, 2, 1));
+  await dragToward(s, back, [4, 2], [0, 1]);
+  await page.waitForTimeout(1800);
+  h = await hombro();
+  check("...dragged back the way it came, 1 action left, no slide for it: the move taken back", h.row === 3 && h.col === 4 && h.vox === "0,0,1;0,1,0;0,1,1;1,1,1" && !(await note(page)).up, JSON.stringify(h));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await s.ctx.close();
 }

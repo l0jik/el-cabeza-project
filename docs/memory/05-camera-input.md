@@ -419,17 +419,22 @@ immediately.
   with no move (whyNoMove) shows it at the piece, with no X.
 - A drag back toward the square the moved piece started the turn on is
   Undo Move (undoDragTarget, checked first in onMove), except when the
-  same way points into a piece a slide would push or try to push
-  (pushesThatWay: the slide gesture's own pick, a legal way within ~60deg
-  first, then the nearest refused one; a shove, a refused diagonal shove,
-  or a reason with `pushed` or `blockers`). That's the push: made if the
-  rules allow it, else its X and, let go, Why not's note. After a move
-  that's always the note (a slide and a push are 3 actions, and a moved
-  piece has 2 at most). User, 2026-11-10, a Monolith phone clip, a
-  Hombro rolled down round the other side's Cabeza and dragged back up
-  into it: "my hombro cannot push the opponent's cabeza here. It keeps
-  wanting to flip it back up". With Why not off nothing's refused-armed,
-  so such a drag still undoes.
+  same way points at a slide (slidesThatWay: the slide gesture's own
+  pick, a legal way within ~60deg first, then the nearest refused one).
+  Any slide the rules allow that way is that slide (user, 2026-11-10,
+  after a roll with 3 actions, 2 left, a slide's cost: "I want to slide
+  it, but it's just taking the drag as a reversal of the move I just
+  made"); so is a refused one with a piece in its way (a reason with
+  `pushed` or `blockers`): its X and, let go, Why not's note. After a
+  move a push is always refused (a slide and a push are 3 actions, and
+  a moved piece has 2 at most). User, earlier that day, a Monolith phone
+  clip, a Hombro rolled down round the other side's Cabeza and dragged
+  back up into it: "my hombro cannot push the opponent's cabeza here. It
+  keeps wanting to flip it back up". A drag back that no slide takes
+  (none allowed that way and nothing in the way: with 2 actions, after
+  any move) still undoes; with Why not off nothing's refused-armed, so a
+  refused push that way undoes too. The Undo Move button always undoes.
+  Test: e2e-why-not 1b, 1c.
 - Tests: tests/e2e-why-not.mjs (section 1b: the Hombro, on a computer and
   by touch; a drag back with nothing in the way still undoes);
   tests/e2e-shoving.mjs section 5 (the diagonal X now stays with its note

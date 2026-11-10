@@ -454,21 +454,19 @@ function arrowLabWanted() {
 const slidesOnly = (piece) => !!piece && !!PIECE_META[piece.type] && PIECE_META[piece.type].shape === "disc";
 const slides = (piece, dir) => slidesOnly(piece) || (!!dir && isSlideKey(dir));
 /* Whether a drag on the chosen piece, its net way on the screen (ux, uy),
-   points at a slide that would push a piece, or try to: the way the slide
-   gesture would take it (a legal slide within ~60deg first, then the
-   nearest refused one, as onMove snaps them), and that way into a piece
-   (a shove, a diagonal shove refused, or a refusal Why not names with a
-   piece in the way). A drag back toward the start square that does is a
-   push, not Undo Move (onMove). */
-function pushesThatWay(slideDrag, ux, uy) {
+   points at a slide, as onMove snaps them: one the rules allow within
+   ~60deg (a slide, a shove, or a diagonal shove refused, its X), or else
+   the nearest one they refuse, if a piece is in its way (a push Why not
+   names). A drag back toward the start square that does is that slide,
+   not Undo Move (onMove). */
+function slidesThatWay(slideDrag, ux, uy) {
   if (!slideDrag) return false;
   const nearest = (list) => {
     let best = 0.5, hit = null;
     for (const d of list) { const dot = ux * d.dirX + uy * d.dirY; if (dot > best) { best = dot; hit = d; } }
     return hit;
   };
-  const legal = nearest(slideDrag.dirs);
-  if (legal) return !!(legal.shoves || legal.blocked);
+  if (nearest(slideDrag.dirs)) return true;
   const refused = nearest(slideDrag.refused);
   const r = refused && refused.reason;
   return !!(r && ((r.pushed && r.pushed.length) || (r.blockers && r.blockers.length)));
@@ -10117,16 +10115,20 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
           const totalLen = Math.hypot(totalDx, totalDy);
           if (totalLen > DRAG_DEAD_ZONE_PX) {
             const dot = (totalDx / totalLen) * undoDragTarget.dirX + (totalDy / totalLen) * undoDragTarget.dirY;
-            /* Back toward the start square, but also into a piece a slide
-               that way would push: the push, not Undo Move (user, a
-               Hombro rolled down round the other side's Cabeza, dragged
-               back up into it: "my hombro cannot push the opponent's
-               cabeza here. It keeps wanting to flip it back up"). Made
-               if the rules allow it; if not (after a move there's never
-               3 actions left for a slide and a push), Why not says why
-               when it's let go. A drag back with nothing in the way still
-               takes the move back, and the Undo Move button always does. */
-            if (dot > 0.55 && !pushesThatWay(slideDrag, totalDx / totalLen, totalDy / totalLen)) {
+            /* Back toward the start square, but pointing at a slide: the
+               slide, not Undo Move (a drag on the piece is the slide's
+               gesture). One the rules allow (user, after a roll, with 3
+               actions, so 2 left for a slide: "I want to slide it, but
+               it's just taking the drag as a reversal of the move I just
+               made"), or one they refuse with a piece in its way, a push
+               (user, a Hombro rolled down round the other side's Cabeza,
+               dragged back up into it: "my hombro cannot push the
+               opponent's cabeza here. It keeps wanting to flip it back
+               up"): its X, and Why not's note when it's let go (after a
+               move there's never 3 actions left for a slide and a push).
+               A drag back that no slide takes still takes the move back,
+               and the Undo Move button always does. */
+            if (dot > 0.55 && !slidesThatWay(slideDrag, totalDx / totalLen, totalDy / totalLen)) {
               // Within ~56 degrees of dead-on toward the origin square.
               undoDragTarget = null;
               slideDrag = null;
