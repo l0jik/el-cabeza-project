@@ -2,7 +2,8 @@
    frame. The chassis calls mountAmbientEffects once, after it has built
    the scene, and its tick every frame; nothing here changes the game.
 
-     - the ground: the composition the board is set into
+     - the ground: the composition the board is set into, and its fog
+       if it has one (the Monolith's plain runs out to a horizon)
      - selection and hover: each direction marks a chosen piece its own
        way (the chassis itself only shows its moves)
      - landing and capture: a short mark where a piece comes to rest, or
@@ -38,6 +39,15 @@ export function createAmbient(spec, scene, live) {
     const ground = scene.buildGround();
     t.scene.add(ground);
     disposers.push(() => { t.scene.remove(ground); ground.traverse((o) => { o.geometry && o.geometry.dispose(); if (o.material) { if (o.material.map && !o.material.map.__shared) o.material.map.dispose(); o.material.dispose(); } }); });
+    // A ground with a fog of its own (the Monolith's): on the scene while
+    // it's mounted, and the one before put back after.
+    let landFog = null;
+    ground.traverse((o) => { if (!landFog && o.userData.makeFog) landFog = o.userData.makeFog(); });
+    if (landFog) {
+      const fogBefore = t.scene.fog;
+      t.scene.fog = landFog;
+      disposers.push(() => { if (t.scene.fog === landFog) t.scene.fog = fogBefore; });
+    }
 
     const fx = new THREE.Group();
     fx.name = `lab-${spec.id}-fx`;
@@ -71,10 +81,14 @@ export function createAmbient(spec, scene, live) {
       const add = (m) => { g.add(m); return m; };
       switch (kind) {
         case "redFrame": add(frame(w, d, 0.035, hex(C.accentPrimary), a, 0.058)); break;
-        case "yellowDisc": {
-          const r = Math.min(w, d) * 0.5 + 0.14;
-          const m = new THREE.Mesh(new THREE.CircleGeometry(r, 56), new THREE.MeshBasicMaterial({ color: hex(C.accentTertiary), transparent: true, opacity: 0.9 * a, depthWrite: false }));
-          m.rotation.x = -Math.PI / 2; m.position.y = 0.057; add(m);
+        case "emberRing": {
+          // The Monolith: a ring in the dusk's ember round the chosen
+          // stone, and a faint glow inside it, as if lit from below.
+          const r = Math.max(w, d) * 0.5 + 0.16;
+          const glow = new THREE.Mesh(new THREE.CircleGeometry(r, 56), new THREE.MeshBasicMaterial({ color: hex(C.accentPrimary), transparent: true, opacity: 0.16 * a, depthWrite: false }));
+          glow.rotation.x = -Math.PI / 2; glow.position.y = 0.056; add(glow);
+          const ring = new THREE.Mesh(new THREE.RingGeometry(r - 0.05, r, 64), new THREE.MeshBasicMaterial({ color: hex(C.accentPrimary), transparent: true, opacity: 0.95 * a, depthWrite: false }));
+          ring.rotation.x = -Math.PI / 2; ring.position.y = 0.057; add(ring);
           break;
         }
         case "yellowField":

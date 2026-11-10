@@ -36,8 +36,10 @@ const solid = (css) => (css.startsWith("rgba") ? "#777777" : css);
 const lum = (css) => { const c = new THREE.Color(css); const f = (v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)); return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
 const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
 const bestOn = (bg, p, q) => (contrast(bg, p) >= contrast(bg, q) ? p : q);
-// The designs whose two sides are colours, their side buttons inked (below).
-const SIDE_INKED = new Set(["bauhaus", "destijl", "neoBrutalist"]);
+// The designs whose two sides are colours, their side buttons inked (below):
+// De Stijl's red and blue, Neo-Brutalism's pink and yellow, the Monolith's
+// two stones.
+const SIDE_INKED = new Set(["monolith", "destijl", "neoBrutalist"]);
 
 export function makeLabTheme(spec) {
   const c = spec.colors;
@@ -88,7 +90,8 @@ export function makeLabTheme(spec) {
     // The buttons and chips that stand for a side (chassis sideFill), in the
     // designs whose sides are colours (red / blue, pink / yellow): each in
     // its side's colour with that side's own ink (what its pieces are
-    // lettered in), all at full strength and the pick ringed. As flat fills
+    // lettered in), all at full strength and the pick ringed (the
+    // Monolith's in its two stones). As flat fills
     // lettered in the other side's colour and faded when not picked, their
     // words were lost: blue on red, the two AI buttons all but blank (user).
     sideSurface: SIDE_INKED.has(spec.id) ? (side) => (side === "dark" ? { background: c.pieceDark, color: c.inkOnDark } : { background: c.pieceLight, color: c.inkOnLight }) : undefined,
@@ -100,8 +103,19 @@ export function makeLabTheme(spec) {
     outlineYOffset: scene.outlineYOffset,
     titleFontFamily: spec.typography.display,
     viewPitch: L.pitch,
+    // A direction with a land to look round (the Monolith): how low the
+    // view may go, and the room to wander (chassis theme.maxPitch,
+    // theme.freeCamera).
+    maxPitch: spec.camera ? spec.camera.maxPitch : undefined,
+    freeCamera: spec.camera ? spec.camera.freeCamera : undefined,
+    // Slides glide over the board, nothing struck (as the wooden sets'):
+    // the stone drags (chassis theme.slidesGlide, audio.js playSlide).
+    slidesGlide: !!spec.slidesGlide,
+    soundCredits: spec.soundCredits, // a direction's recordings, credited on the About card
     rulesColors: { accentDark: c.accentPrimary },
-    modalBackdrop: rgba(c.bgSecondary.startsWith("rgba") ? "#000000" : spec.id === "minimalMono" ? "#FFFFFF" : c.textPrimary === "#EAE6DF" || c.textPrimary === "#EEF1F4" || c.textPrimary === "#F2F4F7" ? "#000000" : c.textPrimary, 0.42),
+    // (Black behind a card where the ink is light: Corporate Swiss, Fusion,
+    // the Monolith.)
+    modalBackdrop: rgba(c.bgSecondary.startsWith("rgba") ? "#000000" : spec.id === "minimalMono" ? "#FFFFFF" : lum(c.textPrimary) > 0.5 ? "#000000" : c.textPrimary, 0.42),
     modalSurface: c.surface,
     canvasGradientStart: c.bgPrimary,
     canvasGradientEnd: c.bgSecondary,

@@ -50,7 +50,7 @@ const DEN_RECORDS = {
   "el-cabeza-trip-dusk.jpg": "assets/den/trip/glutts-dusk.jpg",
   // The other realities' pictures (themes/realities.js: the den's set after
   // the story, and the realities menu; tools/channel_shots.mjs).
-  ...Object.fromEntries(["den", "futuris", "store", "lluvia", "cromo", "plano", "luna", "noir", "ciudad", "parrish-orinoco", "parrish-watermark", "lab-swiss", "lab-bauhaus", "lab-destijl", "lab-brutalist",
+  ...Object.fromEntries(["den", "futuris", "store", "lluvia", "cromo", "plano", "luna", "noir", "ciudad", "parrish-orinoco", "parrish-watermark", "lab-swiss", "lab-monolith", "lab-destijl", "lab-brutalist",
     "lab-newTypography", "lab-corporateSwiss", "lab-neoBrutalist", "lab-minimalMono", "lab-ultimateFusion"].map((id) => [`el-cabeza-channel-${id}.jpg`, `assets/den/channels/${id}.jpg`])),
 };
 
@@ -157,7 +157,10 @@ const targets = [
   // the user's five mall tracks), each fetched when it's next up rather
   // than weighing down the page (the page plays without them, see
   // themes/tienda-audio.js). Nova's store reads the same files.
-  { name: "lab", entry: "apps/lab.jsx", title: "El Cabeza · Theme Lab", head: '<meta name="theme-color" content="#F8F9FA">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover" },
+  // The Lab's page, and beside it the Monolith's recorded stone (themes/lab/
+  // monolith-sounds.js; tools/monolith_sounds.mjs), fetched as it opens.
+  { name: "lab", entry: "apps/lab.jsx", title: "El Cabeza · Theme Lab", head: '<meta name="theme-color" content="#F8F9FA">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover",
+    files: Object.fromEntries(["hits", "falls", "drags"].map((k) => [`el-cabeza-monolith-${k}.mp3`, `assets/monolith/monolith-${k}.mp3`])) },
   { name: "tienda", entry: "apps/tienda.jsx", title: "El Cabeza · Tienda", head: '<meta name="theme-color" content="#2B2219">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover", files: {
     "el-cabeza-tienda-muzak.mp3": "assets/tienda/muzak-1974.mp3",
     "el-cabeza-tienda-reel-2.mp3": "assets/tienda/reel-2-coupon-gloss-reverie.mp3",

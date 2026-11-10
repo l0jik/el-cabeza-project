@@ -16,7 +16,9 @@
 // Theme Lab", a very brief line on what the theme is).
 const LAB = [
   ["swiss", "Swiss Design", "A rational grid, one red, nothing extra."],
-  ["bauhaus", "Bauhaus", "Circle, square, triangle, in primary paint."],
+  // (In Bauhaus's place, user: "we're getting rid of Bauhaus and replacing
+  // it with something imposing & neolithic monoliths".)
+  ["monolith", "Monolith", "Great stones on a barren plain, at dusk."],
   ["destijl", "De Stijl", "Mondrian's black lines and primary fields."],
   ["brutalist", "Brutalism", "Raw concrete: poured, cast, stencilled."],
   ["newTypography", "New Typography", "The board set like a Tschichold page."],
@@ -150,12 +152,15 @@ const stayed = () => { try { window.dispatchEvent(new CustomEvent(REALITIES_STAY
    menu then, with a way straight back to where you were): kept when a game
    begins in it (the chassis, from its realityGate's world). */
 export const LAST_WORLD_KEY = "el-cabeza:last-world";
+// Worlds kept under a name they no longer have.
+export const RENAMED = { neon: "futuris", "lab-bauhaus": "lab-monolith" };
 export function saveLastWorld(id) {
   try { if (id && WORLDS.some((w) => w.id === id)) window.localStorage.setItem(LAST_WORLD_KEY, id); } catch (e) { /* this visit only */ }
 }
 export function lastWorld() {
-  // (Futuris was Neon: a world kept under the old name is the same one.)
-  try { const kept = window.localStorage.getItem(LAST_WORLD_KEY); const id = kept === "neon" ? "futuris" : kept; return WORLDS.find((w) => w.id === id) || null; } catch (e) { return null; }
+  // (Futuris was Neon, and the Lab's Monolith stands where Bauhaus was: a
+  // world kept under the old name is the new one.)
+  try { const kept = window.localStorage.getItem(LAST_WORLD_KEY); const id = RENAMED[kept] || kept; return WORLDS.find((w) => w.id === id) || null; } catch (e) { return null; }
 }
 /* `continueWorld`: a world to offer first, on its own ("Continue in
    Orinoco"), above the rest. */

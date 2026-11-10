@@ -97,7 +97,8 @@
      themes/realities.js the last world played.) */
   let rec = null, last = null;
   try { rec = JSON.parse(W.localStorage.getItem("el-cabeza:story") || "null"); } catch (e) { /* a new player, then */ }
-  try { last = W.localStorage.getItem("el-cabeza:last-world"); if (last === "neon") last = "futuris"; } catch (e) { /* none */ }
+  // (Kept under an old name: Futuris was Neon, the Lab's Monolith Bauhaus.)
+  try { last = W.localStorage.getItem("el-cabeza:last-world"); if (last === "neon") last = "futuris"; if (last === "lab-bauhaus") last = "lab-monolith"; } catch (e) { /* none */ }
   const ended = !!(rec && rec.ended), owned = !!(rec && rec.owned);
   if (!WORLD_NAMES[last]) last = null;
   const first = ended

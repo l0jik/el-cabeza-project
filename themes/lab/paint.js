@@ -1,7 +1,7 @@
 /* Theme Lab: procedural surfaces, painted on canvas.
 
    Every board in the lab is painted here rather than loaded: printed
-   paper, cold-pressed paper, enamel, brushed aluminium, board-formed
+   paper, a slab of stone, enamel, brushed aluminium, board-formed
    concrete, parchment, anodised aluminium, flat paint, pure white and a
    weathered composite. Nothing is fetched and nothing depends on the
    network. The board painter follows the live board size (rows and
@@ -156,30 +156,75 @@ const PAINTERS = {
     void H;
   },
 
-  bauhausPaper(spec, b) {
+  monolithSlab(spec, b) {
+    // The Monolith: a slab of the plain's grey rock, split from the
+    // bedrock along a joint. Mineral mottling and grit, two old cracks,
+    // a little lichen; the goal rows worn smooth (a shade darker, an
+    // incised line at their inner edge, a wash of the stone that comes
+    // to them); pecked rings in the margin's corners, the oldest marks
+    // people made on stone.
     const { g, W, H, pad, sq } = b;
-    g.fillStyle = spec.colors.boardSurface; g.fillRect(0, 0, W, H);
-    g.fillStyle = pattern(g, "fiber", 11); g.fillRect(0, 0, W, H);
-    // Architectural zones: quarter circles from two corners of the field,
-    // a triangle wedge from a third, faint, under everything.
     const fx = pad, fy = pad, fw = BOARD_COLS * sq, fh = BOARD_ROWS * sq;
-    g.save(); g.beginPath(); g.rect(fx, fy, fw, fh); g.clip();
-    g.globalAlpha = 0.13;
-    g.fillStyle = spec.colors.accentTertiary;
-    g.beginPath(); g.arc(fx + fw, fy + fh * 0.5, fh * 0.34, 0, Math.PI * 2); g.fill();
-    g.fillStyle = spec.colors.accentSecondary;
-    g.beginPath(); g.moveTo(fx, fy + fh); g.lineTo(fx + fw * 0.42, fy + fh); g.lineTo(fx, fy + fh * 0.58); g.fill();
-    g.fillStyle = spec.colors.accentPrimary;
-    g.fillRect(fx + fw * 0.08, fy + fh * 0.06, fw * 0.16, fw * 0.16);
-    g.restore();
-    // Goal rows: a band of each side's colour, printed flat.
-    g.globalAlpha = 0.2;
-    g.fillStyle = spec.colors.pieceDark; g.fillRect(fx, fy + fh - sq, fw, sq);
+    g.fillStyle = spec.colors.boardSurface; g.fillRect(0, 0, W, H);
+    blotches(g, W, H, 30, "34,33,32", 0.2, 611, 0.22);
+    blotches(g, W, H, 18, "196,190,180", 0.12, 612, 0.18);
+    blotches(g, W, H, 6, "120,104,82", 0.1, 613, 0.3);
+    g.fillStyle = pattern(g, "concrete", 614); g.fillRect(0, 0, W, H);
+    speckle(g, W, H, 2600, "rgba(18,18,20,0.32)", 0.5, 1.8, 615);
+    speckle(g, W, H, 1400, "rgba(226,222,212,0.3)", 0.5, 1.6, 616);
+    // Lichen, faint, mostly toward the margin.
+    const rl = rng(617);
+    for (let i = 0; i < 26; i++) {
+      const edge = rl() < 0.75, x = edge ? (rl() < 0.5 ? rl() * pad * 1.6 : W - rl() * pad * 1.6) : rl() * W, y = rl() * H;
+      const rad = sq * (0.05 + rl() * 0.16);
+      const gr = g.createRadialGradient(x, y, 0, x, y, rad);
+      gr.addColorStop(0, `rgba(160,170,140,${(0.08 + rl() * 0.1).toFixed(3)})`); gr.addColorStop(1, "rgba(160,170,140,0)");
+      g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+    }
+    // Two old cracks, wandering, dark with a lit lip.
+    const rc = rng(618);
+    for (let k = 0; k < 2; k++) {
+      let x = k ? W * (0.62 + rc() * 0.2) : rc() * W * 0.3, y = k ? 0 : H * (0.2 + rc() * 0.5);
+      const ax = k ? (rc() - 0.5) * 0.6 : 1, ay = k ? 1 : (rc() - 0.5) * 0.5;
+      const pts = [[x, y]];
+      for (let i = 0; i < 40; i++) { x += (ax + (rc() - 0.5) * 0.9) * sq * 0.09; y += (ay + (rc() - 0.5) * 0.9) * sq * 0.09; pts.push([x, y]); }
+      [["rgba(16,16,18,0.5)", Math.max(1.5, sq * 0.012), 0], ["rgba(220,214,204,0.18)", Math.max(1, sq * 0.006), Math.max(1, sq * 0.008)]].forEach(([col, lw, o]) => {
+        g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(pts[0][0] + o, pts[0][1] + o);
+        pts.slice(1).forEach(([px, py]) => g.lineTo(px + o, py + o)); g.stroke();
+      });
+    }
+    // The goal rows: worn, a shade darker, each washed with the stone of
+    // the side that's going there (Dark's goal nearest Light's seat, at
+    // the canvas's foot), an incised line at the inner edge.
+    g.fillStyle = "rgba(20,20,22,0.16)"; g.fillRect(fx, fy, fw, sq); g.fillRect(fx, fy + fh - sq, fw, sq);
+    g.globalAlpha = 0.16;
     g.fillStyle = spec.colors.pieceLight; g.fillRect(fx, fy, fw, sq);
+    g.fillStyle = spec.colors.pieceDark; g.fillRect(fx, fy + fh - sq, fw, sq);
     g.globalAlpha = 1;
-    // The margin: charcoal, a cut edge.
-    g.strokeStyle = spec.colors.textPrimary; g.lineWidth = pad * 0.16;
-    g.strokeRect(pad * 0.5, pad * 0.5, W - pad, H - pad);
+    const t = Math.max(2, sq * 0.016);
+    [fy + sq, fy + fh - sq].forEach((y) => {
+      g.fillStyle = "rgba(14,14,16,0.55)"; g.fillRect(fx, y - t / 2, fw, t);
+      g.fillStyle = "rgba(225,220,210,0.16)"; g.fillRect(fx, y + t / 2, fw, Math.max(1, t * 0.5));
+    });
+    // The margin: the slab's split edge, darker toward the rim.
+    const rim = Math.max(2, pad * 0.12);
+    g.strokeStyle = "rgba(10,10,12,0.4)"; g.lineWidth = rim * 2; g.strokeRect(0, 0, W, H);
+    g.strokeStyle = "rgba(10,10,12,0.2)"; g.lineWidth = rim; g.strokeRect(rim * 1.6, rim * 1.6, W - rim * 3.2, H - rim * 3.2);
+    // Pecked rings in the margin's four corners: concentric, a dot in the
+    // middle, each peck a little dent.
+    const rp = rng(619);
+    [[pad / 2, pad / 2], [W - pad / 2, pad / 2], [pad / 2, H - pad / 2], [W - pad / 2, H - pad / 2]].forEach(([cx, cy]) => {
+      const R0 = pad * 0.32;
+      const peck = (x, y, r) => {
+        g.fillStyle = "rgba(16,16,18,0.42)"; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+        g.fillStyle = "rgba(225,220,210,0.12)"; g.beginPath(); g.arc(x + r * 0.35, y + r * 0.35, r * 0.6, 0, Math.PI * 2); g.fill();
+      };
+      peck(cx, cy, pad * 0.035);
+      [R0 * 0.5, R0].forEach((rr) => {
+        const n = Math.round((Math.PI * 2 * rr) / (pad * 0.05));
+        for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 + rp() * 0.05; peck(cx + Math.cos(a) * rr * (0.96 + rp() * 0.08), cy + Math.sin(a) * rr * (0.96 + rp() * 0.08), pad * (0.016 + rp() * 0.01)); }
+      });
+    });
   },
 
   destijlField(spec, b) {
@@ -491,8 +536,9 @@ function drawGroundSheet(spec, kind, S, g, N) {
 
 const PIECE_TEX = new Map();
 /* A tileable surface map for a piece material: cast iron, concrete, a
-   painted metal gone a little worn, a composite. Returned as a colour
-   map to multiply over the material colour (so it stays near white). */
+   painted metal gone a little worn, a composite, basalt, sandstone.
+   Returned as a colour map to multiply over the material colour (so it
+   stays near white). */
 export function pieceSurface(kind) {
   if (!kind) return null;
   if (PIECE_TEX.has(kind)) return PIECE_TEX.get(kind);
@@ -513,6 +559,19 @@ export function pieceSurface(kind) {
   } else if (kind === "composite") {
     blotches(g, S, S, 12, "140,128,110", 0.3, 531, 0.3);
     speckle(g, S, S, 300, "rgba(90,84,76,0.3)", 0.4, 1.2, 532);
+  } else if (kind === "basalt") {
+    // Fine-grained and dark: a faint mottle, pale vesicles, dark grains.
+    blotches(g, S, S, 12, "70,72,80", 0.3, 541, 0.3);
+    speckle(g, S, S, 900, "rgba(30,30,34,0.4)", 0.3, 1.1, 542);
+    speckle(g, S, S, 160, "rgba(255,255,255,0.55)", 0.4, 1.3, 543);
+  } else if (kind === "sandstone") {
+    // Grains, and a little bedding: soft bands of a warmer and a paler
+    // sand, and iron's rust in blooms.
+    const r = rng(551);
+    for (let y = 0; y < S; y += 4 + r() * 14) { g.fillStyle = `rgba(${r() < 0.5 ? "150,112,70" : "255,248,230"},${(0.05 + r() * 0.08).toFixed(3)})`; g.fillRect(0, y, S, 2 + r() * 6); }
+    blotches(g, S, S, 8, "160,96,52", 0.18, 552, 0.25);
+    speckle(g, S, S, 1100, "rgba(110,86,60,0.3)", 0.3, 1, 553);
+    speckle(g, S, S, 500, "rgba(255,250,236,0.45)", 0.3, 0.9, 554);
   }
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
@@ -529,7 +588,7 @@ const MARKS = new Map();
 export function markTexture(spec, kind, { label, owner, type, square, w = 1, h = 1, isCabeza }) {
   const key = [spec.id, kind, label, owner, square, w, h, isCabeza].join("|");
   if (MARKS.has(key)) return MARKS.get(key);
-  if (!MARK_KINDS.has(kind) || (kind === "cabezaYellow" && !isCabeza)) return null;
+  if (!MARK_KINDS.has(kind) || ((kind === "cabezaYellow" || kind === "petroglyph") && !isCabeza)) return null;
   const U = 128;
   const c = canvasOf(Math.round(U * w), Math.round(U * h));
   const g = c.getContext("2d");
@@ -540,7 +599,7 @@ export function markTexture(spec, kind, { label, owner, type, square, w = 1, h =
   MARKS.set(key, tex);
   return track(tex, paint);
 }
-const MARK_KINDS = new Set(["shape", "cabezaYellow", "code", "glyph", "serial", "sticker", "idCoord"]);
+const MARK_KINDS = new Set(["petroglyph", "cabezaYellow", "code", "glyph", "serial", "sticker", "idCoord"]);
 function drawMark(spec, kind, { label, owner, type, square, isCabeza }, g, W, H) {
   const m = Math.min(W, H);
   const dark = owner === "dark";
@@ -549,16 +608,21 @@ function drawMark(spec, kind, { label, owner, type, square, isCabeza }, g, W, H)
   const initial = sideNamesFor(spec.id)[dark ? "dark" : "light"][0].toUpperCase(); // the side's own initial (I / C, N / S)
   g.clearRect(0, 0, W, H);
   g.textAlign = "center"; g.textBaseline = "middle";
-  if (kind === "shape") {
-    // Bauhaus: Dark is the circle, Light the square; the Cabeza, whose
-    // capture ends the game, is the yellow triangle.
-    g.fillStyle = isCabeza ? col.accentTertiary : ink;
-    const s = m * 0.52;
-    g.beginPath();
-    if (isCabeza) { g.moveTo(W / 2, H / 2 - s * 0.5); g.lineTo(W / 2 + s * 0.52, H / 2 + s * 0.4); g.lineTo(W / 2 - s * 0.52, H / 2 + s * 0.4); }
-    else if (dark) g.arc(W / 2, H / 2, s / 2, 0, Math.PI * 2);
-    else g.rect(W / 2 - s / 2, H / 2 - s / 2, s, s);
-    g.fill();
+  if (kind === "petroglyph") {
+    // The Monolith: the Cabeza's stone pecked with a spiral, as the
+    // oldest carvings are, a peck at a time; pale on the basalt, dark on
+    // the sandstone. (Only the Cabeza: the other stones are bare.)
+    const r = rng(dark ? 631 : 632);
+    const cx = W / 2, cy = H / 2, R = m * 0.4, turns = 3.1, k = R / (turns * Math.PI * 2);
+    const peck = (x, y, s) => {
+      g.fillStyle = dark ? "rgba(233,228,216,0.8)" : "rgba(30,31,35,0.66)";
+      g.beginPath(); g.arc(x, y, s, 0, Math.PI * 2); g.fill();
+    };
+    for (let a = 0.9; k * a < R;) {
+      const rr = k * a;
+      peck(cx + Math.cos(a) * rr + (r() - 0.5) * m * 0.01, cy + Math.sin(a) * rr + (r() - 0.5) * m * 0.01, m * (0.017 + r() * 0.008));
+      a += (m * 0.032) / Math.max(rr, m * 0.05);
+    }
   } else if (kind === "cabezaYellow") {
     g.fillStyle = col.accentTertiary; g.fillRect(0, 0, W, H);
   } else if (kind === "code") {

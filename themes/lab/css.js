@@ -179,7 +179,7 @@ const COMPACT_FLOAT = `
     .lab-hud .lab-big { position: absolute !important; right: 0 !important; top: 0 !important; width: 84px; margin: 0 !important; text-align: right; z-index: 1; }
   }
 `;
-const FLOATS = new Set(["swiss", "bauhaus", "brutalist", "newTypography", "neoBrutalist", "minimalMono", "ultimateFusion"]);
+const FLOATS = new Set(["swiss", "monolith", "brutalist", "newTypography", "neoBrutalist", "minimalMono", "ultimateFusion"]);
 
 /* ------------------------------------------------------------ the nine */
 
@@ -205,26 +205,35 @@ const HUD = {
   .lab-hud .lab-over { font-size: 42px; font-weight: 800; letter-spacing: -0.04em; line-height: 0.9; margin-top: 18px; border-top: 4px solid var(--accent-primary); padding-top: 10px; }
   @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud .lab-big { font-size: 40px; margin: 6px 0 0; position: absolute; right: 0; top: 0; } .lab-hud .lab-big small { display: none; } .lab-hud .lab-turn { font-size: 16px; margin-bottom: 8px; } }
   `,
-  bauhaus: `
-  .lab-hud { text-transform: lowercase; }
-  .lab-hud .lab-id { font-size: 12px; font-weight: 600; letter-spacing: 0.16em; display: flex; gap: 8px; align-items: center; }
-  .lab-hud .lab-id .num { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-primary); color: var(--surface); }
-  .lab-hud .lab-big { margin: 18px 0 14px; width: 128px; height: 128px; border-radius: 50%; background: var(--accent-primary); color: var(--surface);
-    display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 56px; line-height: 1; box-shadow: 0 8px 18px rgba(31,29,27,0.2); }
-  .lab-hud .lab-big small { display: none; }
-  .lab-hud .lab-turn { display: inline-block; background: var(--accent-secondary); color: var(--surface); padding: 12px 16px 12px 14px; font-size: 20px; font-weight: 700; margin: -34px 0 16px 76px; position: relative;
-    animation-name: lab-bauhaus-drop; }
-  .lab-hud[data-player="dark"] .lab-turn { background: var(--piece-primary); }
-  @keyframes lab-bauhaus-drop { from { transform: translateY(-14px) rotate(-6deg); opacity: 0; } to { transform: none; opacity: 1; } }
-  .lab-hud .lab-swatch { border-radius: 50%; box-shadow: none !important; background: var(--surface) !important; }
-  .lab-hud[data-player="light"] .lab-swatch { border-radius: 0; }
-  .lab-hud .lab-stats { background: var(--surface); border: 2px solid var(--text-primary); padding: 12px; position: relative; margin-bottom: 16px; }
-  .lab-hud .lab-stats::after { content: ""; position: absolute; right: -2px; top: -26px; width: 0; height: 0; border-left: 26px solid transparent; border-bottom: 26px solid var(--accent-tertiary); }
-  .lab-hud .lab-log { border-left: 10px solid var(--accent-tertiary); padding-left: 10px; }
-  .lab-hud .lab-log li { padding: 3px 0; }
-  .lab-hud .lab-log .p[data-p="dark"] { border-radius: 50%; }
-  .lab-hud .lab-over { margin-top: 14px; background: var(--accent-tertiary); color: var(--text-primary); padding: 14px; font-size: 26px; font-weight: 800; clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%); }
-  @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud .lab-big { width: 58px !important; height: 58px; font-size: 24px; display: grid !important; place-items: center; text-align: center !important; } .lab-hud .lab-turn { margin: 6px 0 8px; font-size: 15px; padding: 7px 10px; } .lab-hud .lab-stats { padding: 7px; } .lab-hud .lab-stats::after { display: none; } }
+  /* The Monolith: the read-out as a stele. The turn number cut into a
+     standing stone, lit from the dusk's side (an ember edge, incised
+     figures); the rest carved small beside it, in spaced capitals, over
+     the land itself (a shadow under every word, so the plain behind
+     never takes it). */
+  monolith: `
+  .lab-hud { color: var(--text-primary); text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 12px rgba(0,0,0,0.55); }
+  .lab-hud .lab-label { color: #C9C3B8; }
+  .lab-hud .lab-id { display: flex; gap: 10px; align-items: baseline; font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: 0.28em; text-transform: uppercase; color: #C9C3B8; }
+  .lab-hud .lab-id .num { color: var(--accent-primary); }
+  .lab-hud .lab-big { position: relative; margin: 16px 0 14px; padding: 20px 18px 16px; width: max-content; min-width: 116px;
+    background: linear-gradient(180deg, #2B2E36 0%, #1D1F25 100%); border: 1px solid #454955; border-radius: 4px 4px 1px 1px;
+    box-shadow: inset 3px 0 0 rgba(217,140,95,0.55), inset 0 1px 0 rgba(255,255,255,0.06), 0 18px 34px rgba(0,0,0,0.55);
+    font-family: var(--font-display); font-weight: 900; font-size: clamp(58px, 6.4vw, 92px); line-height: 0.88; letter-spacing: 0.02em; color: #E9E4D8;
+    text-shadow: 0 -1px 0 rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.1); }
+  .lab-hud .lab-big small { display: block; font-family: var(--font-body); font-size: 10.5px; font-weight: 700; letter-spacing: 0.26em; text-transform: uppercase; color: #A39E95; margin-bottom: 10px; text-shadow: none; }
+  .lab-hud .lab-turn { font-family: var(--font-display); font-size: 18px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border-left: 3px solid var(--accent-primary); padding: 2px 0 2px 12px; margin-bottom: 20px;
+    animation-name: lab-monolith-rise; }
+  @keyframes lab-monolith-rise { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+  /* (Each side's swatch a little standing stone.) */
+  .lab-hud .lab-swatch { width: 10px; height: 17px; border-radius: 2px 2px 0 0; vertical-align: -3px; box-shadow: inset 0 0 0 1px rgba(233,228,216,0.35) !important; }
+  .lab-hud .lab-stats { border-top: 1px solid rgba(233,228,216,0.22); padding-top: 10px; margin-bottom: 18px; }
+  .lab-hud .lab-stats dd { font-family: var(--font-display); font-weight: 700; font-size: 20px; letter-spacing: 0.02em; }
+  .lab-hud .lab-log li { border-top: 1px solid rgba(233,228,216,0.12); padding: 4px 0; }
+  .lab-hud .lab-log .n { font-family: var(--font-display); color: var(--accent-tertiary); }
+  .lab-hud .lab-log .p { width: 0.55em; height: 0.85em; border-radius: 1px 1px 0 0; vertical-align: -1px; }
+  .lab-hud .lab-log .p[data-p="light"] { box-shadow: none; }
+  .lab-hud .lab-over { font-family: var(--font-display); font-weight: 900; font-size: 30px; line-height: 1.05; letter-spacing: 0.04em; border-top: 2px solid var(--accent-primary); padding-top: 10px; margin-top: 16px; }
+  @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud .lab-big { font-size: 32px; min-width: 0; padding: 7px 10px 6px; text-align: center !important; } .lab-hud .lab-big small { display: none; } .lab-hud .lab-turn { font-size: 14px; margin-bottom: 8px; } .lab-hud .lab-id { display: none; } }
   `,
   destijl: `
   .lab-hud { display: grid; grid-template-columns: 1.6fr 1fr; gap: 7px; background: #0E0E0E; padding: 7px; }
@@ -376,7 +385,18 @@ const CHROME = {
   // (Its inverted buttons black, and their words white: the win card's
   // Move log had kept its black ink, black on black, user.)
   swiss: `.ec-btn-invert { background: #000 !important; color: #FFF !important; } [data-testid="dock-panel"] { border-top: 4px solid var(--accent-primary) !important; }`,
-  bauhaus: `[data-testid="dock-panel"] { border-left: 12px solid var(--accent-primary) !important; } .ec-btn { text-transform: lowercase !important; }`,
+  // (The dock a slab with the dusk along its top; the title in spaced
+  // inscription capitals.)
+  // (The Actions counter and the unused-actions note each on a slab of
+  // their own, as the read-out's turn number is: bone words bare over the
+  // lit plain and the grey board could go under 4.5 to 1. The note lifted
+  // clear of the counter, and on a phone over two lines.)
+  monolith: `[data-testid="dock-panel"] { border-top: 2px solid var(--accent-primary) !important; } .ec-title { letter-spacing: 0.1em !important; } .ec-btn { letter-spacing: 0.06em !important; }
+  [data-testid="points-counter"], [data-testid="unused-points-note"] { background: #1C1F27; border: 1px solid #454955; border-radius: 3px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 22px rgba(0,0,0,0.5); }
+  [data-testid="points-counter"] { padding: 4px 12px 4px 14px; bottom: 16px !important; }
+  [data-testid="unused-points-note"] { padding: 4px 12px; }
+  body:has([data-testid="points-counter"]) [data-testid="unused-points-note"] { bottom: 56px !important; }
+  @media (max-width: 600px) { [data-testid="unused-points-note"] { white-space: normal !important; text-wrap: balance; text-align: center; line-height: 1.45; width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; } }`,
   destijl: `[data-testid="dock-panel"] { box-shadow: inset 0 0 0 6px #0E0E0E !important; border: 0 !important; } [data-testid="victory-placard"] { border: 8px solid #0E0E0E !important; } [data-testid="victory-placard"]::before { content: ""; position: absolute; left: 0; top: 0; width: 34%; height: 18px; background: var(--accent-primary); }`,
   brutalist: `.ec-btn { border: 3px solid #111 !important; box-shadow: 4px 4px 0 #111 !important; text-transform: uppercase; } .ec-btn:active { transform: translate(4px, 4px) !important; box-shadow: none !important; } [data-testid="dock-panel"] { border-width: 4px !important; }`,
   newTypography: `[data-testid="dock-panel"] { border-width: 0 0 0 !important; border-top: 6px solid #141210 !important; } .ec-title { font-stretch: 62%; }`,

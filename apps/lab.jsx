@@ -34,12 +34,17 @@ applyBootstrapLaws();
 const THEMES = LAB_SPECS.map(makeLabTheme).map((t) => ({ ...t, realityGate: { world: `lab-${t.labId}` }, cornerAction: realitiesCorner(`lab-${t.labId}`) }));
 const byId = Object.fromEntries(THEMES.map((t) => [t.labId, t]));
 const STORE_KEY = "el-cabeza:lab-theme";
+// A direction asked for by a name it no longer has: the Monolith stands
+// where Bauhaus was (an old link, a saved choice).
+const RENAMED = { bauhaus: "monolith" };
 
 function initialId() {
   try {
-    const q = new URLSearchParams(window.location.search).get("theme") || window.location.hash.replace(/^#/, "");
+    const q0 = new URLSearchParams(window.location.search).get("theme") || window.location.hash.replace(/^#/, "");
+    const q = RENAMED[q0] || q0;
     if (q && byId[q]) return q;
-    const saved = window.localStorage.getItem(STORE_KEY);
+    const saved0 = window.localStorage.getItem(STORE_KEY);
+    const saved = RENAMED[saved0] || saved0;
     if (saved && byId[saved]) return saved;
   } catch (e) { /* storage or URL unavailable */ }
   return THEMES[0].labId;
@@ -105,8 +110,13 @@ const LAB_CSS = `
   .lab-curtain[data-enter="machine"].in { animation-name: lab-doors-in; } .lab-curtain[data-enter="machine"].out { animation-name: lab-doors-out; }
   @keyframes lab-doors-in { from { clip-path: inset(0 50% 0 50%); } to { clip-path: inset(0 0 0 0); } }
   @keyframes lab-doors-out { from { clip-path: inset(0 0 0 0); } to { clip-path: inset(50% 0 50% 0); } }
-  .lab-curtain[data-enter="bars"].in, .lab-curtain[data-enter="stack"].in { animation: lab-bars-in 240ms steps(4, end) both; }
+  .lab-curtain[data-enter="bars"].in { animation: lab-bars-in 240ms steps(4, end) both; }
   @keyframes lab-bars-in { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0); } }
+  /* The Monolith: the dark comes down slowly, and the name rises in it as
+     a stone is raised. */
+  .lab-curtain[data-enter="rise"].in { animation: lab-cur-in 260ms ease-in both; }
+  .lab-curtain[data-enter="rise"] .lab-cur-name { animation: lab-rise 560ms cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes lab-rise { from { transform: translate(-50%, -20%); opacity: 0; } to { transform: translate(-50%, -50%); opacity: 1; } }
   .lab-curtain .lab-cur-name { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; white-space: nowrap; }
   .lab-curtain .lab-cur-name b { display: block; font-size: clamp(34px, 7vw, 76px); line-height: 0.95; }
   .lab-curtain .lab-cur-name small { display: block; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; margin-top: 10px; opacity: 0.7; }
@@ -381,7 +391,7 @@ function LabApp() {
 
 const AUDIO_NOTES = {
   swiss: "Crisp square-wave clicks.",
-  bauhaus: "Warm triangle-wave tones and chords.",
+  monolith: "Real stone, recorded: thuds, knocks, a smash and a rockfall, stone dragged over stone. The heavier the piece, the lower and louder it lands, the slower it grinds.",
   destijl: "Short electronic pulse trains.",
   brutalist: "Distorted sawtooth, struck metal, heavy thuds.",
   newTypography: "Type-bar strikes, carriage return, a bell.",

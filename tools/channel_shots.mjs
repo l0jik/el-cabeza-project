@@ -14,7 +14,7 @@ import { fileURLToPath } from "url";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dist = (f) => "file://" + path.join(ROOT, "dist", f);
-const LAB = ["swiss", "bauhaus", "destijl", "brutalist", "newTypography", "corporateSwiss", "neoBrutalist", "minimalMono", "ultimateFusion"];
+const LAB = ["swiss", "monolith", "destijl", "brutalist", "newTypography", "corporateSwiss", "neoBrutalist", "minimalMono", "ultimateFusion"];
 const SHOTS = [
   ["den", dist("el-cabeza-standard.html"), 6500],
   ["futuris", dist("el-cabeza-futuris.html"), 6500],
@@ -31,7 +31,10 @@ const SHOTS = [
   ["ciudad", dist("el-cabeza-ciudad.html?quality=high&time=golden"), 10000],
   ["parrish-orinoco", dist("el-cabeza-parrish.html?look=orinoco"), 9000],
   ["parrish-watermark", dist("el-cabeza-parrish.html?look=watermark"), 9000],
-  ...LAB.map((id) => [`lab-${id}`, dist(`el-cabeza-lab.html?theme=${id}`), 6000]),
+  // (The Monolith low over the board, the stones over it and the moon low
+  // in the dusk: the view a player tilts down to, as Luna's.)
+  ...LAB.map((id) => [`lab-${id}`, dist(`el-cabeza-lab.html?theme=${id}${id === "monolith" ? "&quality=high" : ""}`), id === "monolith" ? 9000 : 6000,
+    ...(id === "monolith" ? [{ cam: { theta: 0.42, phi: 1.4, radius: 15, snap: true } }] : [])]),
 ];
 /* The store's card, branded (user: "add some 'Big Glutts' store branding
    on this Theme Switcher card, to give it more of an instant, relatable

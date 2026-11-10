@@ -8,8 +8,8 @@
    most MAX_VOICES play at once, and anything past that is dropped
    rather than piled up. A global volume and mute sit on one master gain.
 
-   Each direction's voice is its own synthesis, not one sample re-pitched:
-   Swiss square clicks, Bauhaus warm triangles, De Stijl pulse trains,
+   Each direction's voice is its own: Swiss square clicks, the Monolith's
+   real stone (recordings, not synthesis: monolith-sounds.js), De Stijl pulse trains,
    an Elementarist struck bar in tritones, Brutalist distorted sawtooth and metal, New
    Typography type-bar strikes and a bell, Corporate Swiss terminal beeps
    and split-flap flutter, Neo-Brutalist pops, Minimal Mono's few low
@@ -19,9 +19,12 @@
    (the same interface every theme's audio has); the lab also calls
    playHover, playTurn and playTheme. */
 
+import { fetchSoundBytes, decodeBytes } from "../../chassis/sound-files.js";
+import { MONOLITH_FILES, HIT_COUNT, HITS, FALLS, DRAGS, attackIn, endIn, landingRate, landingLevel, dragRate } from "./monolith-sounds.js";
+
 const MAX_VOICES = 24;
 const S = {
-  ctx: null, master: null, comp: null, noise: null, curve: null, room: null,
+  ctx: null, master: null, comp: null, noise: null, curve: null, room: null, echo: null,
   volume: 0.8, muted: false, active: 0,
 };
 const listeners = new Set();
@@ -60,7 +63,15 @@ export function setLabVolume(v) { S.volume = Math.max(0, Math.min(1, v)); applyM
 export function setLabMuted(m) { S.muted = !!m; applyMaster(); listeners.forEach((f) => f()); }
 export function labAudioState() { return { volume: S.volume, muted: S.muted, started: !!S.ctx && S.ctx.state === "running", active: S.active }; }
 export function onLabAudio(f) { listeners.add(f); return () => listeners.delete(f); }
-export function startLabAudio() { const c = ensureCtx(); if (c && c.state === "suspended") c.resume(); return !!c; }
+export function startLabAudio() {
+  const c = ensureCtx();
+  if (c && c.state === "suspended") c.resume();
+  // A voice of recordings already fetching (the Monolith's) decodes them
+  // now there's a context, whoever's gesture made it (the Lab's own
+  // controls make it too, not only the board).
+  if (c) Object.values(VOICES).forEach((v) => { if (v.prepare) try { v.prepare(false); } catch (e) { /* silent, then */ } });
+  return !!c;
+}
 
 /* ---------------------------------------------------------- primitives */
 
@@ -113,6 +124,55 @@ function room() {
   const out = c.createGain(); out.gain.value = 4;
   S.room.connect(out).connect(S.comp);
   return S.room;
+}
+
+/* The plain's echo: what comes back off the stones standing round it, a
+   little later and duller (two taps, a delay and a low-pass each, made
+   once; no convolver, so a phone pays almost nothing for it). A voice
+   sends into it with `echo`, the send's level. */
+function plainEcho() {
+  if (S.echo) return S.echo;
+  const c = S.ctx, input = c.createGain();
+  [[0.19, 1300, 0.42], [0.41, 800, 0.2]].forEach(([d, f, g]) => {
+    const dl = c.createDelay(1); dl.delayTime.value = d;
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = f;
+    const gn = c.createGain(); gn.gain.value = g;
+    input.connect(dl).connect(lp).connect(gn).connect(S.comp);
+  });
+  S.echo = input;
+  return input;
+}
+
+/* A stretch of a recording: `at` seconds in, `len` of it, played at
+   `rate` (slower is lower and longer, as a heavier stone sounds). Its own
+   decay is the recording's; the envelope only opens and closes it without
+   a click. `loop` ([start, end] in the buffer) holds it going round for
+   `len` seconds, `swell` shaping that hold (a roll's grind rises and
+   falls; a slide's holds). */
+function sample({ buf, at = 0, len = 0.5, rate = 1, g = 0.3, delay = 0, a = 0.002, filter, echo = 0, loop, swell }) {
+  if (!buf || !voiceSlot()) return;
+  const c = S.ctx, t0 = c.currentTime + 0.005 + delay;
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  src.playbackRate.value = rate;
+  const dur = loop ? len : len / rate;
+  const env = c.createGain();
+  const peak = g * jitter(0.06);
+  env.gain.setValueAtTime(0, t0);
+  if (swell === "rise") { env.gain.linearRampToValueAtTime(peak, t0 + dur * 0.4); env.gain.linearRampToValueAtTime(0, t0 + dur); }
+  else if (swell === "hold") { env.gain.linearRampToValueAtTime(peak, t0 + dur * 0.25); env.gain.setValueAtTime(peak, t0 + dur * 0.7); env.gain.linearRampToValueAtTime(0, t0 + dur); }
+  else { env.gain.linearRampToValueAtTime(peak, t0 + a); env.gain.setValueAtTime(peak, t0 + Math.max(a, dur - 0.03)); env.gain.linearRampToValueAtTime(0, t0 + dur); }
+  const chain = [src, env];
+  let last = src;
+  if (filter) { const fl = filterNode(filter); last.connect(fl); last = fl; chain.push(fl); }
+  last.connect(env); env.connect(S.comp);
+  if (echo > 0) { const send = c.createGain(); send.gain.value = echo; env.connect(send).connect(plainEcho()); chain.push(send); }
+  if (loop) {
+    src.loop = true; src.loopStart = loop[0]; src.loopEnd = loop[1];
+    src.start(t0, loop[0] + Math.random() * (loop[1] - loop[0]) * 0.8);
+  } else src.start(t0, at, len);
+  src.stop(t0 + dur + 0.02);
+  src.onended = releaser(chain, delay + dur + 0.05);
 }
 
 function tone({ type = "sine", f = 440, f2, dur = 0.1, a = 0.004, g = 0.1, delay = 0, filter, dist, det = 0.012, verb = 0 }) {
@@ -177,20 +237,96 @@ const VOICES = {
     close() { tone({ type: "square", f: 1568, dur: 0.01, g: 0.035, filter: { type: "highpass", f: 1000 } }); },
     theme() { tone({ type: "square", f: 1046, dur: 0.02, g: 0.05 }); tone({ type: "square", f: 1568, dur: 0.02, g: 0.05, delay: 0.05 }); },
   },
-  bauhaus: {
-    hover() { tone({ type: "triangle", f: 784, dur: 0.05, g: 0.025 }); },
-    select() { tone({ type: "triangle", f: 392, dur: 0.22, g: 0.1, filter: { f: 2000 } }); tone({ type: "triangle", f: 587.3, dur: 0.2, g: 0.07, delay: 0.02, filter: { f: 2000 } }); },
-    deselect() { tone({ type: "triangle", f: 587.3, f2: 392, dur: 0.18, g: 0.07 }); },
-    blocked() { tone({ type: "triangle", f: 233, dur: 0.25, g: 0.08 }); tone({ type: "triangle", f: 247, dur: 0.25, g: 0.08 }); },
-    roll(m, dur) { tone({ type: "triangle", f: 196, f2: 220, dur: Math.min(0.3, dur * 0.6), g: 0.06 }); },
-    land(m) { tone({ type: "triangle", f: 130.8 - m * 30, dur: 0.25, g: 0.13, filter: { f: 700 } }); noise({ dur: 0.04, g: 0.06, filter: { type: "lowpass", f: 300 } }); },
-    capture() { seq([392, 311, 261.6], (f, i) => tone({ type: "triangle", f, dur: 0.18, g: 0.09, delay: i * 0.09 })); },
-    turn() { tone({ type: "triangle", f: 523.3, dur: 0.12, g: 0.05 }); },
-    win() { seq([261.6, 329.6, 392, 523.3, 659.3], (f, i) => tone({ type: "triangle", f, dur: 0.24, g: 0.08, delay: i * 0.12 })); },
-    open() { tone({ type: "triangle", f: 659.3, dur: 0.09, g: 0.05 }); },
-    close() { tone({ type: "triangle", f: 493.9, dur: 0.09, g: 0.045 }); },
-    theme() { seq([261.6, 392, 523.3], (f, i) => tone({ type: "triangle", f, dur: 0.2, g: 0.07, delay: i * 0.07 })); },
-  },
+  /* The Monolith: real stone, nothing synthesized (user: "I want real
+     massive: thud / boom / scraping sounds ... per weight dictating
+     pitch"). Recordings (monolith-sounds.js, tools/monolith_sounds.mjs),
+     loaded once for the page and kept across switches; until they're in,
+     it stays silent rather than stand in with a synthesizer.
+     - a landing: one of five thumps on stone, pitched by the face it
+       comes down on and a little by the whole piece, as loud as its cubes
+       (landingRate, landingLevel: the wooden pieces' rules); a rock's knock
+       over it, less of one the heavier the piece; from three cubes up,
+       rubble under it too; and the echo off the stones
+     - a roll: the edge grinding as it tips (the door's slab for a heavy
+       piece, stone rubbed on stone for a light one), rising and falling
+       over the roll, lower as the piece is heavier
+     - a slide (the Cabeza, any slid block): the same grind held for the
+       glide, nothing struck at its end (the chassis's slidesGlide)
+     - a crush: the concrete smash, a deep thump, rocks tumbling after
+     - a win: the boom (the smash and a thump, slowed), the rockfall after */
+  monolith: (() => {
+    const L = { bytes: null, decoding: null, hits: null, falls: null, drags: null, attacks: [], ends: [] };
+    const pick = (list) => list[Math.floor(Math.random() * list.length)];
+    const note = (part, info) => { if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__ && Array.isArray(window.__EC_TEST_MONOLITH__)) window.__EC_TEST_MONOLITH__.push({ part, ...info }); };
+    const hit = (slot, rate, g, extra = {}) => {
+      if (!L.hits) return;
+      const at = L.attacks[slot] ?? slot;
+      sample({ buf: L.hits, at, len: Math.max(0.05, (L.ends[slot] ?? slot + 0.95) - at), rate, g, ...extra });
+    };
+    const fall = (part, rate, g, extra = {}) => { if (L.falls) sample({ buf: L.falls, at: FALLS[part][0], len: FALLS[part][1], rate, g, ...extra }); };
+    // A drag held for `secs`: the door's grind for a heavy piece, stone
+    // rubbed on stone for a light one, the two together between.
+    const drag = (units, secs, swell, level) => {
+      if (!L.drags) return;
+      const m = Math.max(1, Math.min(8, units || 1)), rate = dragRate(m), heavy = Math.min(1, Math.max(0, (m - 1.5) / 4));
+      if (heavy < 1) sample({ buf: L.drags, loop: DRAGS.rub.loop, len: secs, rate: rate * 1.1, g: level * (1 - heavy), swell, a: 0.02 });
+      if (heavy > 0) sample({ buf: L.drags, loop: DRAGS.grind.loop, len: secs, rate, g: level * heavy * 1.2, swell, a: 0.02 });
+      note("drag", { units: m, rate, secs, swell });
+    };
+    return {
+      // Fetched as soon as the direction is up; decoded once there's a
+      // context. (fetch false: only decode, if they're already coming: the
+      // page's context starting under another direction fetches nothing.)
+      prepare(fetch = true) {
+        if (!L.bytes) { if (!fetch) return; L.bytes = Promise.all(Object.values(MONOLITH_FILES).map((f) => fetchSoundBytes(f).catch(() => null))); }
+        if (!S.ctx || L.decoding) return;
+        L.decoding = L.bytes.then((list) => Promise.all(list.map((b) => (b ? decodeBytes(S.ctx, b).catch(() => null) : null)))).then(([hits, falls, drags]) => {
+          L.hits = hits; L.falls = falls; L.drags = drags;
+          if (hits) {
+            const d = hits.getChannelData(0);
+            L.attacks = Array.from({ length: HIT_COUNT }, (_, i) => attackIn(d, hits.sampleRate, i));
+            L.ends = Array.from({ length: HIT_COUNT }, (_, i) => endIn(d, hits.sampleRate, i));
+          }
+          note("loaded", { hits: !!hits, falls: !!falls, drags: !!drags });
+        });
+      },
+      hover() { hit(pick(HITS.knock), 1.55 * jitter(0.05), 0.05, { filter: { type: "highpass", f: 400 } }); },
+      select() { hit(pick(HITS.knock), 1.1 * jitter(0.04), 0.22); hit(pick(HITS.thud), 1.45, 0.1); },
+      deselect() { hit(pick(HITS.knock), 0.95 * jitter(0.04), 0.16); },
+      blocked() { hit(pick(HITS.thud), 1.45, 0.2); hit(pick(HITS.thud), 1.32, 0.15, { delay: 0.11 }); },
+      roll(m, secs, units) { drag(units, Math.max(0.2, secs || 0.5), "rise", 0.16 + 0.22 * m); },
+      slide(units, secs) { drag(units, Math.max(0.25, secs || 0.5), "hold", 0.14 + 0.2 * ((Math.max(1, Math.min(8, units || 1)) - 1) / 7)); },
+      land(m, units, contact) {
+        const rate = landingRate(units, contact) * jitter(0.03), level = landingLevel(units);
+        // (Measured offline against the other eight: a cube's landing level
+        // with theirs, an Opa's a few dB over their heaviest, as massive
+        // should be; on a phone's speaker the recordings carry where their
+        // sine thuds don't.)
+        hit(pick(HITS.thud), rate, 0.46 * level, { echo: 0.28 });
+        hit(pick(HITS.knock), rate * 1.05, 0.2 * level * (1.25 - m));
+        if ((units || 1) >= 3) hit(pick(HITS.rubble), rate * 0.9, 0.26 * level * Math.min(1, ((units || 1) - 2) / 6), { echo: 0.15 });
+        note("land", { units, contact, rate, level });
+      },
+      // (A crush and a win at the other directions' loudest, measured
+      // offline: the smash at full strength stood 10 dB over them.)
+      capture() {
+        fall("smash", 0.88, 0.24, { echo: 0.3 });
+        hit(pick(HITS.thud), 0.55, 0.3, { echo: 0.25 });
+        fall("tumble", 1, 0.15, { delay: 0.16 });
+        note("capture", {});
+      },
+      turn() { hit(pick(HITS.thud), 0.78, 0.09, { filter: { type: "lowpass", f: 520 }, echo: 0.45 }); },
+      win() {
+        fall("smash", 0.5, 0.3, { echo: 0.35 });
+        hit(pick(HITS.thud), 0.45, 0.32);
+        fall("rockfall", 0.82, 0.24, { delay: 0.28 });
+        note("win", {});
+      },
+      open() { hit(pick(HITS.knock), 1.25, 0.08); },
+      close() { hit(pick(HITS.knock), 1.05, 0.07); },
+      theme() { hit(pick(HITS.thud), 0.6, 0.5, { echo: 0.35 }); hit(pick(HITS.rubble), 0.7, 0.3, { delay: 0.05 }); },
+    };
+  })(),
   destijl: {
     hover() { tone({ type: "square", f: 1760, dur: 0.008, g: 0.018, filter: { f: 2400 } }); },
     select() { seq([660, 660, 990], (f, i) => tone({ type: "square", f, dur: 0.02, g: 0.06, delay: i * 0.04, filter: { f: 1800 } })); },
@@ -333,16 +469,25 @@ export function createLabAudio(voiceId) {
   const play = (event, ...args) => playLabVoice(voiceId, event, ...args);
   let disposed = false;
   const guard = (fn) => (...a) => { if (!disposed) fn(...a); };
-  return {
-    ensureStarted() { startLabAudio(); },
-    beginGameFadeIn() {}, setZoom() {}, setTension() {}, beginFadeOut() {}, resetWindDown() {},
+  // A voice made of recordings (the Monolith's) starts fetching them now,
+  // and decodes them once the page has its context.
+  const prepare = () => { const v = VOICES[voiceId]; if (v && v.prepare) try { v.prepare(); } catch (e) { /* silent, then */ } };
+  prepare();
+  const audio = {
+    ensureStarted() { startLabAudio(); prepare(); },
+    // (Begin Game is a press: the sound starts there, the first piece
+    // picked up heard, and the Monolith's recordings decoded by then.)
+    beginGameFadeIn() { startLabAudio(); prepare(); },
+    setZoom() {}, setTension() {}, beginFadeOut() {}, resetWindDown() {},
     setMuted(m) { setLabMuted(m); },
     setVolume(v) { setLabVolume(v); }, // (the dock's fader)
     playSelect: guard(() => play("select")),
     playDeselect: guard(() => play("deselect")),
     playBlocked: guard(() => play("blocked")),
-    playRollStart: guard((vol, durMs) => play("roll", massOf(vol), (durMs || 400) / 1000)),
-    playLanding: guard((vol) => play("land", massOf(vol))),
+    // (The piece's cubes and, landing, the face it comes down on, for a
+    // voice that pitches by them: the Monolith's, as the wooden pieces do.)
+    playRollStart: guard((vol, durMs) => play("roll", massOf(vol), (durMs || 400) / 1000, vol)),
+    playLanding: guard((vol, contact) => play("land", massOf(vol), vol, contact)),
     playCapture: guard(() => play("capture")),
     playWin: guard(() => play("win")),
     playMenu: guard(() => play("open")), fadeOutMenu() {}, stopMenu() {},
@@ -361,4 +506,9 @@ export function createLabAudio(voiceId) {
     // Theme switches keep the shared context; only this voice goes quiet.
     dispose() { disposed = true; },
   };
+  // A glide (the Cabeza, a slid block) where the voice has one: the chassis
+  // plays it instead of a roll and a landing where the theme says its
+  // slides glide (slidesGlide), and nothing where a voice has none.
+  if (VOICES[voiceId] && VOICES[voiceId].slide) audio.playSlide = guard((vol, durMs) => play("slide", vol, (durMs || 500) / 1000));
+  return audio;
 }

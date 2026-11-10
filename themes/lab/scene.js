@@ -13,6 +13,8 @@ import {
 } from "../../engine/constants.js";
 import { makeRoundedBox, makePolycubeSmooth, voxCubeCenters } from "../../engine/geometry.js";
 import { paintBoard, pieceSurface, markTexture, squareName, paintGroundSheet } from "./paint.js";
+import { buildMonolithLand } from "./monoliths.js";
+import { hewnBox, hewnDisc, seedOf, snapTurn } from "./hewn.js";
 
 const hex = (css) => new THREE.Color(css).getHex();
 
@@ -201,8 +203,31 @@ export function createScene(spec) {
     return { x: 0, y: (piece.z * PIECE_SCALE) / 2, z: 0, w: piece.w * PIECE_SCALE * 0.9, d: piece.h * PIECE_SCALE * 0.9 };
   }
 
+  /* Rough-hewn pieces (the Monolith's, pieces.hewn; user: "the blocks,
+     themselves need to be rough-hewn, not perfect looking"): each its own
+     stone (seeded by its id), its faces uneven and its edges knocked
+     about (hewn.js). A rolled piece keeps its own: the chassis hands back
+     the mesh it rolled, turned a quarter, before building the piece
+     again, and that turn is carried into the new one's frame, so the same
+     chips come down where they went over. (An odd-shaped piece keeps the
+     chassis's smooth solid.) */
+  const hewnTurns = new Map(); // piece id -> { mesh, turn }
+  function hewnGeometry(piece, isDisc) {
+    if (!P.hewn || piece.vox) return null;
+    const seed = seedOf(piece.id);
+    if (isDisc) return { geo: hewnDisc((DISC_DIAM * CABEZA_SCALE) / 2, DISC_H * CABEZA_SCALE, { seed, rough: 0.012, chip: 0.035, chipW: 0.05, freq: 7 }), turn: null };
+    const prev = hewnTurns.get(piece.id);
+    const turn = new THREE.Quaternion();
+    if (prev) snapTurn(turn.copy(prev.mesh.quaternion).multiply(prev.turn));
+    const S = PIECE_SCALE;
+    return { geo: hewnBox(piece.w * S, piece.z * S, piece.h * S, { seed, turn, seg: S / 9, rough: 0.035 * S, chip: 0.1 * S, chipW: 0.16 * S, freq: 3, uvUnit: S }), turn };
+  }
+
   function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
-    const mesh = new THREE.Mesh(geo, pieceMaterial(isDark, isDisc));
+    const hewn = hewnGeometry(piece, isDisc);
+    if (hewn) geo.dispose(); // (the chassis's smooth one, not used)
+    const mesh = new THREE.Mesh(hewn ? hewn.geo : geo, pieceMaterial(isDark, isDisc));
+    if (hewn && hewn.turn) hewnTurns.set(piece.id, { mesh, turn: hewn.turn });
     mesh.position.set(center.x, y, center.z);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -296,15 +321,23 @@ export function createScene(spec) {
       });
       mesh(flatGeo(bx), basic(accent));
       if (isCrush) mesh(flatGeo([{ x: 0, z: 0, w: hx * 0.5, d: 0.03 }, { x: 0, z: 0, w: 0.03, d: hz * 0.5 }]), basic(accent));
-    } else if (K === "triangle") {
-      // Bauhaus: a yellow triangle pointing the way the piece goes.
-      const v = dirVec(dir);
-      const s = Math.min(hx, hz) * (isCrush ? 1.2 : 0.95);
-      const shape = new THREE.Shape();
-      shape.moveTo(0, s * 0.62); shape.lineTo(s * 0.56, -s * 0.38); shape.lineTo(-s * 0.56, -s * 0.38); shape.closePath();
-      const tri = mesh(new THREE.ShapeGeometry(shape), basic(isCrush ? hex(C.accentPrimary) : hex(C.accentTertiary)));
-      tri.rotation.x = -Math.PI / 2;
-      tri.rotation.z = Math.atan2(-v.x, -v.z) + Math.PI;
+    } else if (K === "stones") {
+      // The Monolith: a little circle of standing stones, in sandstone's
+      // gold; a crush, in the dusk's ember, with a capstone laid in the
+      // middle. Lit, so they read as stones (each its own height, as the
+      // same seven every time: a fixed pattern, not chance).
+      const ring = Math.min(hx, hz) * 0.62, n = 7, bx = [];
+      const TALL = [1, 0.7, 0.9, 0.6, 1, 0.75, 0.85];
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + 0.25;
+        bx.push({ x: Math.cos(a) * ring, z: Math.sin(a) * ring, w: 0.085, d: 0.07, h: 0.06 + 0.06 * TALL[i], y: 0 });
+      }
+      if (isCrush) bx.push({ x: 0, z: 0, w: ring * 0.9, d: ring * 0.5, h: 0.06, y: 0 });
+      const mat = new THREE.MeshStandardMaterial({ color: isCrush ? hex(C.accentPrimary) : hex(C.accentTertiary), roughness: 0.92, metalness: 0, transparent: true, opacity: 0 });
+      mats.push(mat);
+      // (Standing on the slab, whose top is at 0; the flat marks float
+      // just over it at 0.056.)
+      mesh(boxesGeometry(bx), mat, 0);
     } else if (K === "recess") {
       // De Stijl: the field sinks, lined in yellow.
       mesh(flatGeo([{ x: 0, z: 0, w: hx * 1.9, d: hz * 1.9 }]), basic(0x0e0e0e, {}), 0.052);
@@ -378,7 +411,7 @@ export function createScene(spec) {
   /* ---------------- black holes and missing squares, in the theme's terms */
   function buildBlackHoleVisual({ center, radius }) {
     const g = new THREE.Group();
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(radius, 48), new THREE.MeshBasicMaterial({ color: hex(spec.id === "minimalMono" ? "#000000" : C.textPrimary === "#EAE6DF" ? "#111111" : C.textPrimary), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 }));
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(radius, 48), new THREE.MeshBasicMaterial({ color: hex(C.hole || (spec.id === "minimalMono" ? "#000000" : C.textPrimary === "#EAE6DF" ? "#111111" : C.textPrimary)), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 }));
     disc.rotation.x = -Math.PI / 2; disc.position.set(center.x, 0.058, center.z);
     const ring = new THREE.Mesh(new THREE.RingGeometry(radius * 1.02, radius * 1.14, 48), new THREE.MeshBasicMaterial({ color: hex(C.accentPrimary) }));
     ring.rotation.x = -Math.PI / 2; ring.position.set(center.x, 0.059, center.z);
@@ -411,6 +444,14 @@ export function createScene(spec) {
     };
     const R = Math.max(SLAB_X, SLAB_Z);
     const kind = spec.ground;
+    // The Monolith's land (monoliths.js): its own plain, sky and fog, so
+    // no underlay. The fog goes on the scene with the ground (ambient.js).
+    if (kind === "monoliths") {
+      const land = buildMonolithLand({ below });
+      land.group.userData.makeFog = land.fog;
+      group.add(land.group);
+      return group;
+    }
     // A far underlay in the direction's ground colour, so the setup
     // screen's low view never runs off the edge of a sheet.
     const under = new THREE.Mesh(new THREE.PlaneGeometry(R * 16, R * 16), new THREE.MeshBasicMaterial({ color: hex(UNDERLAY[kind] || C.bgPrimary) }));
@@ -426,22 +467,6 @@ export function createScene(spec) {
         box(-SLAB_X / 2 - 0.3, 0, 0.12, SLAB_Z * 0.4, 0.2, hex(C.accentPrimary), below);
       }
       if (kind === "sheet") box(0, 0, SLAB_X + 0.12, SLAB_Z + 0.12, 0.004, 0x000000, below);
-    } else if (kind === "bauhausForms") {
-      plane(R * 4, R * 4, new THREE.MeshStandardMaterial({ color: hex(C.bgPrimary), roughness: 1 }));
-      // Primary forms at different heights beside the board, as if it
-      // were set on a workshop table among the preliminary course's
-      // exercises: circle, square, triangle, and a charcoal bar.
-      const HX = SLAB_X / 2, HZ = SLAB_Z / 2;
-      const circ = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.3, 64), new THREE.MeshStandardMaterial({ color: hex(C.accentPrimary), roughness: 0.6 }));
-      circ.position.set(HX + 2.4, below + 0.15, -HZ + 1.6); circ.receiveShadow = circ.castShadow = true; group.add(circ);
-      box(HX + 2.2, HZ - 1.4, 2.2, 2.2, 0.55, hex(C.accentSecondary), below, { roughness: 0.6 });
-      const triS = new THREE.Shape(); triS.moveTo(0, 1.25); triS.lineTo(1.2, -0.8); triS.lineTo(-1.2, -0.8); triS.closePath();
-      const tri = new THREE.Mesh(new THREE.ExtrudeGeometry(triS, { depth: 0.22, bevelEnabled: false }), new THREE.MeshStandardMaterial({ color: hex(C.accentTertiary), roughness: 0.6 }));
-      tri.rotation.x = -Math.PI / 2; tri.position.set(HX + 2.3, below, 0.2); tri.castShadow = tri.receiveShadow = true; group.add(tri);
-      box(0, -HZ - 1.1, SLAB_X * 0.6, 0.22, 0.12, 0x1f1d1b, below);
-      box(-HX - 1.2, HZ - 1.2, 0.5, 2.4, 0.3, hex(C.accentPrimary), below, { roughness: 0.6 });
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.08, 12, 64), new THREE.MeshStandardMaterial({ color: 0x1f1d1b, roughness: 0.5 }));
-      ring.rotation.x = -Math.PI / 2; ring.position.set(0, below + 0.08, HZ + 1.8); ring.castShadow = true; group.add(ring);
     } else if (kind === "mondrian") {
       plane(R * 4, R * 4, new THREE.MeshStandardMaterial({ color: 0xf4f2ec, roughness: 0.6 }));
       // The board is one rectangle in a larger composition: black bars run

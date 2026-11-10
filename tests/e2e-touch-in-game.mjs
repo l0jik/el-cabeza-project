@@ -44,7 +44,7 @@ const WORLDS = [
   ["Plano", `${D}/el-cabeza-plano.html`, {}],
   ["Luna", `${D}/el-cabeza-luna.html`, {}],
   ["Ciudad", `${D}/el-cabeza-ciudad.html`, {}],
-  ["Lab (Bauhaus)", `${D}/el-cabeza-lab.html?theme=bauhaus`, {}],
+  ["Lab (Monolith)", `${D}/el-cabeza-lab.html?theme=monolith`, {}],
   ["Parrish, Tá muid beo", `${D}/el-cabeza-parrish.html?look=orinoco`, {}],
   ["Parrish, Go deo na ndeor", `${D}/el-cabeza-parrish.html?look=watermark`, {}],
 ];

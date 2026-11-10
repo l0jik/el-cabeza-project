@@ -446,7 +446,11 @@ function arrowLabWanted() {
    noises, only the ones that use the wooden pieces"): every other world
    keeps its own start and landing for every move, Parrish too (user:
    "Parrish should keep its own sounds"). Tests that set
-   window.__EC_TEST_MOVE_SOUNDS__ = [] see each one asked for. */
+   window.__EC_TEST_MOVE_SOUNDS__ = [] see each one asked for.
+   A world whose pieces aren't wood but slide the same way says so with
+   theme.slidesGlide (the Lab's Monolith: real stone, its slides a grind
+   held for the glide, nothing struck; user: "real massive: thud / boom /
+   scraping sounds"). */
 const slidesOnly = (piece) => !!piece && !!PIECE_META[piece.type] && PIECE_META[piece.type].shape === "disc";
 const slides = (piece, dir) => slidesOnly(piece) || (!!dir && isSlideKey(dir));
 function noteMoveSound(kind, piece, played) {
@@ -4493,7 +4497,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     if (!p) return;
     const a = audioRef.current;
     try {
-      if (theme.woodPieces && slidesOnly(p)) { if (a.playSlide) a.playSlide(cubeCount(p), SLIDE_MS); }
+      if ((theme.woodPieces || theme.slidesGlide) && slidesOnly(p)) { if (a.playSlide) a.playSlide(cubeCount(p), SLIDE_MS); }
       else a.playLanding(cubeCount(p), contactArea(p));
     } catch (e) { /* audio not started */ }
   }
@@ -8642,7 +8646,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     // the face it came down on (how low a wood theme's knock is). Not a
     // slide (the Cabeza's, or any piece's) where the pieces are wood:
     // nothing comes down (slides).
-    if (!(theme.woodPieces && (slidesOnly(piece) || move.isSlide))) {
+    if (!((theme.woodPieces || theme.slidesGlide) && (slidesOnly(piece) || move.isSlide))) {
       audioRef.current.playLanding(cubeCount(piece), contactArea(move.candidate));
       noteMoveSound("landing", piece, true);
     }
@@ -8821,7 +8825,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
        rather than ROLL_MS, though both constants share one value today. */
     // (A slide, the Cabeza's or any piece's, where the pieces are wood:
     // the world's slide, if it has one, never a roll's start.)
-    if (theme.woodPieces && slides(state, dir)) {
+    if ((theme.woodPieces || theme.slidesGlide) && slides(state, dir)) {
       const slide = audioRef.current.playSlide;
       if (slide) audioRef.current.playSlide(cubeCount(state), SLIDE_MS);
       noteMoveSound("slide", state, !!slide);
@@ -11231,7 +11235,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     };
     if (step.teleports && step.from) {
       stateOf.set(step.pieceId, step.from);
-      if (!(theme.woodPieces && slides(step.from, step.dir))) audioRef.current.playLanding(cubeCount(step.from), contactArea(step.from));
+      if (!((theme.woodPieces || theme.slidesGlide) && slides(step.from, step.dir))) audioRef.current.playLanding(cubeCount(step.from), contactArea(step.from));
       putBack(360);
       return;
     }

@@ -493,12 +493,12 @@ console.log("before the story's over");
 
 console.log("the Lab");
 {
-  const { p, ctx, errs } = await open("el-cabeza-lab.html?theme=bauhaus");
-  check("the gate, in Bauhaus", !!(await gateOn(p)) && (await p.locator('[data-testid="reality-gate"]').getAttribute("data-world")) === "lab-bauhaus");
-  await p.waitForTimeout(800); await shot(p, "lab-bauhaus");
+  const { p, ctx, errs } = await open("el-cabeza-lab.html?theme=monolith");
+  check("the gate, in the Monolith", !!(await gateOn(p)) && (await p.locator('[data-testid="reality-gate"]').getAttribute("data-world")) === "lab-monolith");
+  await p.waitForTimeout(800); await shot(p, "lab-monolith");
   await p.locator('[data-testid="gate-realities"]').click();
-  check("Other realities from the gate: the menu, you are here", !!(await poll(async () => /you are here/i.test(await p.locator('[data-testid="reality-lab-bauhaus"]').innerText()), 4000)));
-  await p.locator('[data-testid="reality-lab-bauhaus"]').click();
+  check("Other realities from the gate: the menu, you are here", !!(await poll(async () => /you are here/i.test(await p.locator('[data-testid="reality-lab-monolith"]').innerText()), 4000)));
+  await p.locator('[data-testid="reality-lab-monolith"]').click();
   check("...you are here: stay, the two buttons again", !!(await poll(() => p.locator('[data-testid="gate-standard"]').isVisible(), 4000)));
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();

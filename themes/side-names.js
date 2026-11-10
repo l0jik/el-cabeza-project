@@ -36,9 +36,10 @@ export const SIDE_NAMES = {
   luna: pair("Mare", "Terra", ["#2C3038", "#ECEEF0"], ["dark", "light"]), // the moon's dark seas and bright highlands
   noir: pair("Shadow", "Silver", ["#2B2B2B", "#C4C4C4"], ["dark", "light"]), // the night's shadows and the silver screen
   ciudad: pair("Slate", "Chalk", ["#5A6A78", "#ECEAE4"], ["grey-blue", "white"]), // the city's grey-blue and white buildings
-  // Theme Lab (only Iron and Ink, of its names, aren't colours already)
+  // Theme Lab (Iron and Concrete, Ink and Paper, Basalt and Sandstone
+  // aren't colours already, so each says its side)
   swiss: pair("Black", "White", ["#111111", "#FAFAF8"]),
-  bauhaus: pair("Red", "Blue", ["#C8332A", "#1F4EA3"]),
+  monolith: pair("Basalt", "Sandstone", ["#2C2E33", "#C4A47A"], ["dark", "light"]), // the land's two stones
   destijl: pair("Red", "Blue", ["#D7261E", "#1B3FA0"]),
   brutalist: pair("Iron", "Concrete", ["#2B2A28", "#C9C5BC"], ["dark", "light"]),
   newTypography: pair("Ink", "Paper", ["#141210", "#F1EADB"], ["dark", "light"]),

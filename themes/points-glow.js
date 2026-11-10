@@ -46,7 +46,7 @@ export const POINTS_GLOW = {
   "parrish-watermark": { dark: "#a0653a", light: "#d4a86c" }, // walnut and ash by the candle
   // Theme Lab
   swiss: { dark: "#8c8c8c", light: "#ffffff" },
-  bauhaus: { dark: "#de5a45", light: "#4f86cc" },
+  monolith: { dark: "#8d939e", light: "#e2c79c" }, // basalt's grey and sandstone's sand, lit
   destijl: { dark: "#d7261e", light: "#3a5ccc" },
   brutalist: { dark: "#8e8b86", light: "#d5d3ce" },
   newTypography: { dark: "#8c8781", light: "#f4ecdc" },
@@ -73,7 +73,7 @@ export const WORLD_LIGHT = {
   noir: { dark: "#c8c8c8", light: "#ffffff" }, // a lamp's light, a lit window
   ciudad: { dark: "#a9c8ff", light: "#ffd08a" }, // an office's cool light, a home's warm one
   swiss: { dark: "#e63946", light: "#ffffff" },
-  bauhaus: { dark: "#d1362a", light: "#3f78ff" },
+  monolith: { dark: "#9fb4d9", light: "#f0a868" }, // the moon's light, the dusk's
   destijl: { dark: "#d7261e", light: "#3d66ff" },
   brutalist: { dark: "#ff3b00", light: "#e4ddd0" },
   newTypography: { dark: "#d0021b", light: "#fff6e6" },

@@ -75,51 +75,75 @@ export const LAB_SPECS = [
     audio: "swiss",
   },
   {
-    id: "bauhaus",
+    /* The Monolith, in Bauhaus's place (user: "we're getting rid of
+       Bauhaus and replacing it with something imposing & neolithic
+       monoliths", with a picture of great dark stones on a cracked plain
+       at dusk; "2 contrasting color palettes ... like a natural board
+       game": the two sides are the land's two stones, basalt and
+       sandstone). The land is themes/lab/monoliths.js, its sound real
+       stone recorded (audio.js's monolith voice, monolith-sounds.js). */
+    id: "monolith",
     // The dock in this direction's voice (chassis DOCK_WORDS).
-    words: {"views": ["Player", "Plan", "Room"], "endGame": "Stop work", "newGame": "Build again", "moveLog": "Workshop log", "plainRules": "First principles", "nextGame": "Next", "endedCaption": "Form follows function.", "wonCaption": "Less, but better."},
+    words: {"views": ["Player", "Plan", "Room"], "endGame": "Leave the stones", "newGame": "Raise the stones", "moveLog": "Carvings", "plainRules": "Old ways", "nextGame": "Next", "endedCaption": "The stones keep their silence.", "wonCaption": "Set in stone."},
     num: "02",
-    name: "Bauhaus",
-    short: "BAUHAUS",
-    tagline: "Circle, square, triangle. Form follows function, in primary paint.",
+    name: "Monolith",
+    short: "MONOLITH",
+    tagline: "Great stones on a barren plain at dusk: basalt against sandstone, the board a slab of the rock.",
     colors: {
-      bgPrimary: "#E9E3D5", bgSecondary: "#D8D0BD", surface: "#F3EEE2",
-      textPrimary: "#1F1D1B", textSecondary: "#5B564E",
-      accentPrimary: "#D1362A", accentSecondary: "#1F4EA3", accentTertiary: "#E8B321",
-      boardSurface: "#D9D3C4", boardGrid: "#3A3834",
-      pieceDark: "#C8332A", pieceLight: "#1F4EA3", inkOnDark: "#F3EEE2", inkOnLight: "#F3EEE2",
+      bgPrimary: "#14161C", bgSecondary: "#1C1F27", surface: "#22252E",
+      textPrimary: "#E9E4D8", textSecondary: "#A39E95",
+      accentPrimary: "#D98C5F", accentSecondary: "#8EA2C4", accentTertiary: "#C7A06A",
+      boardSurface: "#5A5A5C", boardGrid: "#17181B",
+      pieceDark: "#2C2E33", pieceLight: "#C4A47A", inkOnDark: "#E9E4D8", inkOnLight: "#1E1F23",
+      // A black hole is a pit in the slab, darker than anything round it.
+      hole: "#08090B",
     },
     typography: {
-      url: FONT("family=Jost:wght@400;500;600;700;800"),
-      display: "'Jost', 'Futura', 'Century Gothic', sans-serif",
-      body: "'Jost', 'Futura', 'Century Gothic', sans-serif",
-      mono: "'Jost', 'Futura', sans-serif",
-      displayWeight: 700, tracking: "0.01em", labelTracking: "0.16em", labelCase: "lowercase",
+      url: FONT("family=Cinzel:wght@500;700;900&family=Alegreya+Sans:wght@400;500;700;800"),
+      display: "'Cinzel', 'Trajan Pro', 'Times New Roman', serif",
+      body: "'Alegreya Sans', 'Gill Sans', 'Trebuchet MS', sans-serif",
+      mono: "'Alegreya Sans', 'Gill Sans', sans-serif",
+      displayWeight: 700, tracking: "0.06em", labelTracking: "0.22em", labelCase: "uppercase",
     },
     spacing: { unit: 8, gutter: 22 },
-    borders: { width: 2, radius: 0, color: "#1F1D1B" },
-    shadows: { x: 0, y: 6, blur: 16, opacity: 0.18, color: "31,29,27" },
+    borders: { width: 1, radius: 2, color: "#454955" },
+    shadows: { x: 0, y: 16, blur: 36, opacity: 0.55, color: "0,0,0" },
     board: {
-      paint: "bauhausPaper", grid: "ink", gridOpacity: 0.7, sideColor: 0x2e2c29, roughness: 0.95,
-      goal: "band", coords: null,
+      paint: "monolithSlab", grid: "groove", gridOpacity: 0.9, sideColor: 0x3d3e42, roughness: 0.96,
+      goal: "worn", coords: null,
     },
     pieces: {
-      edgeRadius: 0.04, outline: null,
-      dark: { color: 0xc8332a, roughness: 0.55, metalness: 0, clearcoat: 0.25 },
-      light: { color: 0x1f4ea3, roughness: 0.55, metalness: 0, clearcoat: 0.25 },
-      mark: "shape",
+      edgeRadius: 0.03, outline: null,
+      dark: { color: 0x3a3c42, roughness: 0.88, metalness: 0, texture: "basalt" },
+      light: { color: 0xc4a47a, roughness: 0.96, metalness: 0, texture: "sandstone" },
+      mark: "petroglyph",
+      // Each a stone of its own, rough-hewn (user: "the blocks, themselves
+      // need to be rough-hewn, not perfect looking"; scene.js, hewn.js).
+      hewn: true,
     },
-    indicator: "triangle", selection: "yellowDisc", landing: "ring",
-    ground: "bauhausForms",
-    hud: "bauhaus",
-    animation: { speed: 240, ease: "cubic-bezier(.34,1.3,.64,1)", enter: "stack" },
-    materials: "Cold-pressed paper board; manufactured painted plastic pieces.",
+    indicator: "stones", selection: "emberRing", landing: "dust",
+    ground: "monoliths",
+    hud: "monolith",
+    animation: { speed: 320, ease: "cubic-bezier(.2,.7,.2,1)", enter: "rise" },
+    materials: "A slab of the plain's own rock; basalt and sandstone, split along their joints.",
     lighting: {
-      toneMapping: "aces", exposure: 1.05, pitch: 0.78,
-      ambient: { color: 0xfff6e8, intensity: 0.24 }, hemi: { sky: 0xfffaf0, ground: 0x8a7c66, intensity: 0.34 },
-      key: { color: 0xfff1dc, intensity: 1.15 }, fill: { color: 0xe8efff, intensity: 0.32 }, back: { color: 0xffffff, intensity: 0.2 },
+      // Dusk: the moon's cool light from above (key), the sky's blue in
+      // the shadows (hemi), and the last of the sun low behind Dark's end
+      // warming every edge that faces it (back).
+      toneMapping: "aces", exposure: 0.95, pitch: 1.12,
+      ambient: { color: 0x7d86a6, intensity: 0.14 }, hemi: { sky: 0x5d6a92, ground: 0x2a221d, intensity: 0.34 },
+      key: { color: 0xc6d0ec, intensity: 0.86 }, fill: { color: 0x7a88b2, intensity: 0.18 }, back: { color: 0xff9a72, intensity: 1.15 },
     },
-    audio: "bauhaus",
+    /* Down to the ground, the stones over you (the chassis keeps 1.25),
+       and free to walk the plain inside the ring of great stones: the
+       camera's box stays clear of them (monoliths.js ROOM_CLEAR) and
+       above every boulder within it (BOULDER_TOP). */
+    camera: { maxPitch: 1.45, freeCamera: { reach: 20, yMin: -0.5, yMax: 6, room: { x: [-24, 24], y: [0.9, 120], z: [-24, 24] } } },
+    // Slides glide over the slab, no roll and no landing: the stone drags.
+    slidesGlide: true,
+    // (Who recorded them, on the About card: assets/monolith/src/CREDITS.md.)
+    soundCredits: "The Monolith’s sounds are recordings of real stone, from freesound.org, all CC0, cut and levelled for the game: heavy thumps on stone by vestibule-door; rocks thrown on a pile of rocks by Nox_Sound; a brick dropped on bricks by jackthemurray; a concrete smash and a brick moved over rubble by magnuswaker; a rock slide on Cathedral Mountain by betchkal; rocks tumbling down stone stairs by Fission9; a heavy stone door by PostProdDog; and stone rubbed on stone by Tim_Verberne.",
+    audio: "monolith",
   },
   {
     id: "destijl",

@@ -153,3 +153,47 @@ reason.
   (tools/singularity_way_in.mjs renders them offline in the browser from
   the game's own soundscape: createSoundscape({ context }) builds into an
   OfflineAudioContext, every stage at unity).
+- **The Lab's Monolith speaks in real stone, recorded** (2026-11-10;
+  user: "I want the sound palette to be non-synthesizer generated. I
+  want real massive: thud / boom / scraping sounds that follow the
+  implementation instructions previously outlined, per weight dictating
+  pitch, etc."). Nine CC0 recordings from freesound.org
+  (assets/monolith/src/, CREDITS.md: who made each, and its page), cut by
+  tools/monolith_sounds.mjs (Node and ffmpeg: cuts, fades, a high-pass
+  under the rumble, levels, nothing synthesized) into three files the Lab
+  page carries beside it, each with its Opus twin: hits (one a second:
+  five heavy thumps on stone, four rocks and a brick knocked, two rubble
+  thumps), falls (a concrete smash, a rockfall's blocky chunks, rocks
+  tumbling down stone stairs), drags (a stone door's slab grinding aside,
+  stone rubbed on stone, each baked into a seamless loop: its last 0.3 s
+  crossfaded, equal power, into the 0.3 s before its start).
+  themes/lab/monolith-sounds.js is the layout both read and the weight
+  rules, the wooden pieces' (wood-sfx.js massOf, landingSize): a landing
+  is pitched by playing slower, 1.2 for a cube down to 0.6 for an Opa
+  coming down flat (landingRate = 1.2 / cbrt(landingSize): gentler than
+  wood's 1/sqrt, since a recording slowed past an octave smears), as loud
+  as its cubes (0.55 to 1); a roll's grind lower the heavier (dragRate);
+  slides (the Cabeza, slid blocks) a grind held for the glide, nothing
+  struck (theme.slidesGlide). A heavy piece's grind is the door's slab, a
+  light one's stone rubbed on stone, the two mixed between; a landing is a
+  thump with a rock's knock over it (less the heavier), rubble under it
+  from three cubes up, and the echo off the stones round the plain (two
+  dull delayed taps, no convolver). A crush: the smash, a deep thump,
+  rocks tumbling after; a win: the smash and a thump slowed, the rockfall
+  after. Each hit plays from its attack to where it has died away (found
+  in the decoded file: monolith-sounds.js attackIn, endIn), never the
+  silence after it. The files are fetched as the direction comes up and
+  decoded once there's a context (Begin Game makes it now, in every
+  direction: createLabAudio's beginGameFadeIn); until then the voice is
+  silent rather than stand in with a synthesizer. Opened from disk a page
+  can't fetch them (the Lab plays them only served, as GitHub Pages does);
+  tests/e2e-monolith.mjs serves dist over http. Levels set by rendering
+  every Lab voice's cues offline from audio.js itself (an
+  OfflineAudioContext standing in for the page's context; the loudest
+  100 ms, full range and through a 300 Hz high-pass for a phone's
+  speaker; scratch loud.mjs): the smash at full strength put a crush and
+  a win 10 dB over every other direction's, now level with the loudest
+  of theirs (about -26 and -22 dBFS); an Opa's landing sits about 2.5 dB
+  over Brutalism's heaviest, a cube's 3 under its lightest (the
+  Monolith's weight spans 7 dB, theirs about 2); on a phone's speaker
+  the stone stays 10 to 15 dB clearer than the others' sine thuds.
