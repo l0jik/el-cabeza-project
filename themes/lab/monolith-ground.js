@@ -17,9 +17,12 @@
      rock, level, its edge as irregular as the rest (it takes in every
      plate the board and its set-out bench need), so nothing marks where
      a board would stop.
-   - The grid chiseled into that floor: each line a groove wandering and
-     jagged, wide and narrow, its edges chipped, a spall broken out here
-     and there, a pit where two meet, hairline cracks running off; one
+   - The grid chiseled into that floor: each line a groove cut in runs of
+     a square or a few, each its own way (a long gently arcing crack, a
+     clean cut, a worn stretch, a crack that turns once or twice, a step
+     aside, a fine crack), never far off true; its edges chipped, a spall
+     broken out here and there, a pit where two meet, hairline cracks
+     running off; one
      wall lit and one in shade as the moon's light falls on them (the light
      turns with the land, so the painting always agrees with it); the two
      goal rows worn a shade darker. Painted on a sheet laid over the floor,
@@ -73,26 +76,107 @@ export function grooveSheet({ cols, rows, sq, detail = 1, M = 0.32 }) {
     g.closePath(); g.fill();
   }
 
-  /* A line's path: from (x0, z0) to (x1, z1), wandering off true (a slow
-     wander; on it a jagged run, straight a little way and then off at
-     another angle, as a crack goes; now and then a kink), its width
-     there. */
+  /* How each run of a groove is cut (user, of the last: "It's like
+     sawtooth. We're not looking for sawtooth. It's just kind of like
+     sometimes there can be one with like a long, kind of slightly arcing
+     crack. As long as the overall grid is adhered to, there can be more
+     variety in how the cracking or the chiseling is done. Make it look
+     more interesting."). A line goes in runs of one to a few squares, each
+     cut its own way:
+       arc     a long crack bowing gently to one side;
+       chisel  a clean cut, near straight, crisp-walled;
+       worn    wandering a little, its walls worn soft and shallow;
+       kinked  a crack that turns once or twice, each leg straight;
+       step    a cut that steps aside partway, as along a fault;
+       fine    a narrow crack, dark, ragged only up close.
+     `len` its length in squares, `w` its width (a share of the line's),
+     `tone` how dark its floor, `lit` its lit wall, `chips` how often its
+     lips are chipped, `halo` the fresh stone round it. Never much more
+     than a tenth of a square off true, so the squares stay squares. */
+  const STYLES = {
+    arc: { len: [2, 5], w: [0.75, 1.05], tone: 0.92, lit: 0.85, chips: 0.3, halo: 0.8 },
+    chisel: { len: [1, 3], w: [1.05, 1.35], tone: 1, lit: 1.05, chips: 0.1, halo: 1.1 },
+    worn: { len: [1, 3], w: [1.25, 1.6], tone: 0.5, lit: 0.4, chips: 0.18, halo: 0.3 },
+    kinked: { len: [1, 2.5], w: [0.7, 0.95], tone: 1, lit: 0.75, chips: 0.5, halo: 0.9 },
+    step: { len: [1, 2], w: [0.8, 1.05], tone: 0.95, lit: 0.9, chips: 0.4, halo: 1 },
+    fine: { len: [1, 3], w: [0.36, 0.5], tone: 1, lit: 0.4, chips: 0.12, halo: 0.3 },
+  };
+  const DEAL = ["arc", "arc", "arc", "chisel", "chisel", "worn", "worn", "kinked", "kinked", "step", "fine", "fine"];
+  // (The border reads as the board's edge: never a fine crack.)
+  const DEAL_EDGE = ["arc", "arc", "chisel", "chisel", "worn", "step", "kinked"];
+  const ss = (a, b, u) => ease((u - a) / (b - a));
+  const splits = [];
+  /* A line's path: from (x0, z0) to (x1, z1) in runs, each its own cut;
+     at each point its place, width, and how it's cut there. */
   function path(x0, z0, x1, z1, seed, border) {
     const len = Math.hypot(x1 - x0, z1 - z0), ux = (x1 - x0) / len, uz = (z1 - z0) / len, px = -uz, pz = ux;
+    // Its runs: where each starts and ends, how it's cut, where it goes.
+    const runs = [];
+    let t0 = 0, o0 = (R() - 0.5) * 0.03, last = null;
+    while (t0 < len - 1e-6) {
+      const deal = border ? DEAL_EDGE : DEAL;
+      let kind = deal[Math.floor(R() * deal.length)];
+      if (kind === last) kind = deal[Math.floor(R() * deal.length)];
+      const st = STYLES[kind];
+      let t1 = t0 + sq * (st.len[0] + R() * (st.len[1] - st.len[0]));
+      if (len - t1 < sq * 0.45) t1 = len;
+      const o1 = t1 >= len ? (R() - 0.5) * 0.03 : (R() - 0.5) * 0.07;
+      const run = { kind, st, t0, t1, o0, o1, w: st.w[0] + R() * (st.w[1] - st.w[0]), sign: R() < 0.5 ? -1 : 1 };
+      const L = t1 - t0;
+      if (kind === "arc") run.bow = run.sign * Math.min(0.1, 0.045 + R() * 0.025 * L / sq + R() * 0.02);
+      if (kind === "kinked") {
+        const k = 1 + Math.floor(R() * (L > sq * 1.5 ? 3 : 2)), us = [];
+        for (let i = 0; i < k; i++) us.push(0.15 + R() * 0.7);
+        us.sort((a, b) => a - b);
+        run.knots = [[0, 0], ...us.map((u) => [u, (R() - 0.5) * 0.15]), [1, 0]];
+      }
+      if (kind === "step") { run.at = 0.3 + R() * 0.4; run.hw = Math.min(0.2, 0.05 / L); run.jump = run.sign * (0.045 + R() * 0.035); }
+      // Now and then a second crack alongside for a while, split off and back.
+      if (kind !== "fine" && R() < 0.14) run.split = { a: 0.1 + R() * 0.3, b: 0.55 + R() * 0.35, by: run.sign * -(0.035 + R() * 0.02) };
+      runs.push(run);
+      t0 = t1; o0 = o1; last = kind;
+    }
     const n = Math.ceil(len / 0.045), dt = len / n, pts = [];
-    let kink = 0, zig = 0, slope = 0, run = 0;
+    let r = 0;
     for (let i = 0; i <= n; i++) {
       const t = i * dt;
-      if ((run -= dt) <= 0) {
-        run = 0.05 + R() * 0.12; slope = (R() - 0.5) * 1.4;
-        if (Math.abs(zig) > 0.03) slope = -Math.sign(zig) * Math.abs(slope); // (back toward true)
+      while (r < runs.length - 1 && t > runs[r].t1) r++;
+      const run = runs[r], L = run.t1 - run.t0, u = Math.min(1, Math.max(0, (t - run.t0) / L));
+      // (Its small roughness fading out at the run's ends, so runs join.)
+      const env = Math.min(1, u * 6, (1 - u) * 6);
+      let off = run.o0 + (run.o1 - run.o0) * u;
+      switch (run.kind) {
+        case "arc": off += run.bow * 4 * u * (1 - u) + env * 0.004 * (n1(t * 9, seed + 3) - 0.5) * 2; break;
+        case "chisel": off += env * 0.005 * (n1(t * 5, seed + 5) - 0.5) * 2; break;
+        case "worn": off += Math.sin(Math.PI * u) * 0.04 * (n1(t * 2.4, seed + 7) - 0.5) * 2; break;
+        case "kinked": {
+          const K = run.knots;
+          let k = 0;
+          while (k < K.length - 2 && u > K[k + 1][0]) k++;
+          const f = (u - K[k][0]) / (K[k + 1][0] - K[k][0]);
+          off += K[k][1] + (K[k + 1][1] - K[k][1]) * f + env * 0.003 * (n1(t * 11, seed + 9) - 0.5) * 2;
+          break;
+        }
+        case "step": off += run.jump * (ss(run.at - run.hw, run.at + run.hw, u) - u); break;
+        case "fine": off += env * (0.01 * (n1(t * 13, seed + 11) - 0.5) * 2 + 0.005 * (n1(t * 29, seed + 13) - 0.5) * 2); break;
       }
-      zig = Math.max(-0.05, Math.min(0.05, zig + slope * dt));
-      if (R() < 0.06) kink += (R() - 0.5) * 0.05;
-      kink *= 0.93;
-      const off = 0.08 * (n1(t * 1.25, seed) - 0.5) * 2 + zig + kink;
-      const w = (border ? 0.1 : 0.062) * (0.6 + 0.8 * n1(t * 2.2, seed + 23)) * (0.85 + 0.3 * R());
-      pts.push({ x: x0 + ux * t + px * off, z: z0 + uz * t + pz * off, w, px, pz });
+      const w = (border ? 0.1 : 0.062) * run.w * (0.7 + 0.6 * n1(t * 2.2, seed + 23));
+      pts.push({ x: x0 + ux * t + px * off, z: z0 + uz * t + pz * off, w, px, pz, tone: run.st.tone, lit: run.st.lit, chips: run.st.chips, halo: run.st.halo, run: r, u, off });
+    }
+    // Blend width and look across each run's join (a few points either side).
+    for (const key of ["w", "tone", "lit", "chips", "halo"]) {
+      const raw = pts.map((p) => p[key]);
+      for (let i = 0; i < pts.length; i++) { let s = 0, c = 0; for (let j = Math.max(0, i - 3); j <= Math.min(pts.length - 1, i + 3); j++) { s += raw[j]; c++; } pts[i][key] = s / c; }
+    }
+    // The second cracks, alongside.
+    for (const [ri, run] of runs.entries()) {
+      if (!run.split) continue;
+      const sp = pts.filter((p) => p.run === ri && p.u >= run.split.a && p.u <= run.split.b).map((p) => {
+        const v = Math.sin((Math.PI * (p.u - run.split.a)) / (run.split.b - run.split.a));
+        const o = run.split.by * v + 0.004 * (n1(p.x * 17 + p.z * 13, seed + 31) - 0.5) * 2;
+        return { ...p, x: p.x + px * o, z: p.z + pz * o, w: p.w * 0.32 };
+      });
+      if (sp.length > 2) splits.push(sp);
     }
     return pts;
   }
@@ -103,37 +187,42 @@ export function grooveSheet({ cols, rows, sq, detail = 1, M = 0.32 }) {
   // The light's way across the sheet: the moon's from +x and +z, so a
   // groove's wall on the -x and -z side faces it, the other is in shade.
   const L = [-0.62, -0.78];
-  const stroke = (pts, colour, k, shift) => {
+  // (`alpha` a point's own share of the stroke: how its run is cut.)
+  const stroke = (pts, colour, k, shift, alpha = null) => {
     g.strokeStyle = colour;
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1], b = pts[i], s = (a.px * L[0] + a.pz * L[1]) >= 0 ? 1 : -1;
       const sh = shift * s;
+      g.globalAlpha = alpha ? Math.max(0, Math.min(1, alpha(a))) : 1;
       g.lineWidth = Math.max(1, (a.w + b.w) * 0.5 * k * ppu);
       g.beginPath();
       g.moveTo(X(a.x + a.px * a.w * sh), Y(a.z + a.pz * a.w * sh));
       g.lineTo(X(b.x + b.px * b.w * sh), Y(b.z + b.pz * b.w * sh));
       g.stroke();
     }
+    g.globalAlpha = 1;
   };
   // The groove: fresh stone round it where the chisel broke the weathered
   // skin (paler), its shaded wall and floor, its core, the lit wall.
   // (The fresh stone only here and there along it, as the skin broke.)
   for (const pts of lines) {
     for (let i = 0; i < pts.length - 1; i += 6) {
-      const a = Math.max(0, n1(pts[i].x * 2.3 + pts[i].z * 1.7, 811) - 0.35) * 0.24;
+      const a = Math.max(0, n1(pts[i].x * 2.3 + pts[i].z * 1.7, 811) - 0.35) * 0.24 * pts[i].halo;
       if (a > 0.01) stroke(pts.slice(i, i + 7), `rgba(246,238,224,${a.toFixed(3)})`, 2.4, 0.2);
     }
   }
-  for (const pts of lines) stroke(pts, "rgba(4,4,6,0.5)", 1.2, -0.16);
-  for (const pts of lines) stroke(pts, "rgba(30,27,24,0.78)", 0.9, 0.0);
-  for (const pts of lines) stroke(pts, "rgba(8,8,9,0.85)", 0.5, -0.18);
-  for (const pts of lines) stroke(pts, "rgba(240,231,214,0.46)", 0.3, 0.4);
+  for (const pts of lines) stroke(pts, "rgba(4,4,6,0.5)", 1.2, -0.16, (p) => p.tone);
+  for (const pts of lines) stroke(pts, "rgba(30,27,24,0.78)", 0.9, 0.0, (p) => p.tone);
+  for (const pts of lines) stroke(pts, "rgba(8,8,9,0.85)", 0.5, -0.18, (p) => 0.55 + 0.45 * p.tone);
+  for (const pts of lines) stroke(pts, "rgba(240,231,214,0.52)", 0.3, 0.4, (p) => p.lit * 0.9);
+  for (const sp of splits) { stroke(sp, "rgba(8,8,9,0.8)", 1, 0); stroke(sp, "rgba(240,231,214,0.3)", 0.4, 0.6); }
   // Its edges chipped: small flakes off either lip, dark in their hollow,
-  // a lit rim where the light catches them; now and then a spall.
+  // a lit rim where the light catches them; now and then a spall. (More
+  // off a crack that turns, few off a clean cut.)
   for (const pts of lines) {
     for (let i = 0; i < pts.length; i += 2) {
       const p = pts[i];
-      if (R() > 0.55) continue;
+      if (R() > p.chips) continue;
       const side = R() < 0.5 ? -1 : 1, big = R() < 0.07;
       const r = (big ? 0.04 + R() * 0.04 : 0.012 + R() * 0.022);
       const cx = p.x + p.px * side * (p.w * 0.5 + r * 0.35), cz = p.z + p.pz * side * (p.w * 0.5 + r * 0.35);

@@ -215,11 +215,22 @@ blocks, themselves need to be rough-hewn, not perfect looking."
       basalt toward Dark's end and sandstone toward Light's further out,
       a hint of each even under the board.
     - The grid chiseled in (grooveSheet: a canvas over the grid, clear but
-      the grooves, laid at 0.003): each line wandering off true (about a
-      tenth of a square), on that a jagged run as a crack goes (straight a
-      little way, then off at another angle, turned back toward true past
-      0.03, never more than 0.05 off the wander) and now and then a kink,
-      wide and narrow, the border's wider; fresh paler stone round it
+      the grooves, laid at 0.003): each line cut in runs of a square or a
+      few, each its own way (user, of the zigzag that came first: "It's
+      like sawtooth. We're not looking for sawtooth. It's just kind of
+      like sometimes there can be one with like a long, kind of slightly
+      arcing crack. As long as the overall grid is adhered to, there can
+      be more variety in how the cracking or the chiseling is done"):
+      `arc` a long crack bowing gently to one side (2 to 5 squares), `chisel`
+      a clean cut near straight, crisp, its fresh stone plain, `worn` a
+      wide soft shallow stretch wandering a little, `kinked` a crack that
+      turns once to thrice, each leg straight, `step` a cut that steps
+      aside partway as along a fault, `fine` a narrow dark crack ragged
+      only up close (never on the border). Each run starts where the last
+      ended and heads for a new offset near true; width and look blend
+      across the join; now and then a second crack splits off alongside
+      and back. Never much more than a tenth of a square off true. Wide
+      and narrow, the border's wider; fresh paler stone round it
       here and there where the skin broke, a shaded wall, a dark core, a
       lit wall (the moon's light from +x, +z; it turns with the land, so
       the painting always agrees with it); chipped lips, a spall now and
