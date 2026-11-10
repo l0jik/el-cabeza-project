@@ -66,6 +66,23 @@
   (Chromium 141 ran the effect before the next task every time, even
   with the CPU slowed 4x; CI runs Chrome for Testing 153). Keep any new
   hook that acts on game state reading it the same way.
+- **A move lands when its animation ends, not when it's asked for**
+  (2026-11-10). `__EC_TEST_MOVE__` only starts the roll (it returns true
+  whenever the piece exists, even if beginMove refuses it); the board,
+  the counter and the turn change at the commit, when the roll's
+  animation ends, and a move asked for while one is under way is refused
+  without a word. On a slow machine that's seconds after the call: CI run
+  319 (cd5c10f, a Monolith-only change), shard 4, e2e-points [standard]
+  "a roll spends one" read 2 with the Turrito still standing at 1,1 a
+  fixed 1.4 s after the call. Reproduced here with the CPU slowed 10x
+  (`Emulation.setCPUThrottlingRate` through a CDP session): the same
+  reading, then the refund and the turn's end failing after it; at 6x
+  the roll landed 2.1 s after the call in Standard (the den's heavy
+  frames), 1.3 s in Futuris. e2e-points now waits for the piece to land
+  (`move`: its square or footprint changes, then a beat) and polls for
+  each state it checks (`until`); it passes at 10x. A test that moves and
+  then reads should wait for the landing the same way, never a fixed
+  sleep.
 - Playwright launches via a pinned local Chromium path
   (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome` as of this
   session) — don't `playwright install`.

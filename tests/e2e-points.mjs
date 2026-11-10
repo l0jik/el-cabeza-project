@@ -56,6 +56,29 @@ const leftAndTurrito = (page) => page.evaluate(() => {
   return `${el ? el.getAttribute("data-left") : "no counter"}; Turrito ${p ? `${p.row},${p.col} ${p.w}x${p.h}x${p.z}` : "gone"}`;
 });
 
+/* A move, waited for till it lands. The hook starts the roll; the board
+   changes only when the roll's animation ends and the move commits, and a
+   move asked for while one is still under way is refused. On a slow
+   machine that can be two seconds or more after the call: CI run 319,
+   shard 4, "a roll spends one" read 2 with the Turrito still standing at
+   1,1 a fixed 1.4 s after the call; here, the CPU slowed 6x, the roll
+   landed 2.1 s after the call in Standard (the den's heavy frames), 1.3 s
+   in Futuris, and the turn's last roll, called 1.4 s after the one before,
+   was refused. So wait for the piece to land (its square or footprint
+   changes), then a beat for the turn to settle. */
+const pieceAt = (page, id) => page.evaluate((id) => { const p = (window.__EC_TEST_PIECES__ || []).find((q) => q.id === id); return p ? `${p.row},${p.col} ${p.w}x${p.h}x${p.z}` : "gone"; }, id);
+async function move(page, id, dir) {
+  const before = await pieceAt(page, id);
+  await page.evaluate(([i, d]) => window.__EC_TEST_MOVE__(i, d), [id, dir]);
+  for (const end = Date.now() + 12000; Date.now() < end && (await pieceAt(page, id)) === before;) await page.waitForTimeout(100);
+  await page.waitForTimeout(500);
+}
+// Till `fn` holds (or `ms` pass): what it says then.
+async function until(fn, ms = 6000) {
+  const end = Date.now() + ms;
+  for (;;) { const v = await fn().catch(() => null); if (v || Date.now() > end) return v; await new Promise((r) => setTimeout(r, 150)); }
+}
+
 for (const theme of ["futuris", "standard"]) {
   console.log(`[${theme}]`);
   const context = await browser.newContext({ viewport: { width: 1000, height: 900 } });
@@ -89,20 +112,17 @@ for (const theme of ["futuris", "standard"]) {
   const darkEmber = await ember(page);
   check(`...in the dark pieces' colour (${theme === "futuris" ? "Photon's teal" : "walnut"}: ${darkEmber && darkEmber.glow})`, !!darkEmber && darkEmber.side === "dark" && darkEmber.glow === pieces.dark, JSON.stringify(darkEmber));
 
-  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
-  await page.waitForTimeout(1400);
-  check("a roll spends one", (await left(page)) === 1, await leftAndTurrito(page));
+  await move(page, "dark-turrito", "S");
+  check("a roll spends one", !!(await until(async () => (await left(page)) === 1)), await leftAndTurrito(page));
   if (theme === "futuris") await page.screenshot({ path: "/tmp/e2e-points.png" });
 
-  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "N"));
-  await page.waitForTimeout(1400);
-  check("rolling back to where it was refunds it", (await left(page)) === 2, await leftAndTurrito(page));
+  await move(page, "dark-turrito", "N");
+  check("rolling back to where it was refunds it", !!(await until(async () => (await left(page)) === 2)), await leftAndTurrito(page));
 
-  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
-  await page.waitForTimeout(1400);
-  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "E"));
-  await page.waitForTimeout(1600);
-  check("after a full turn it refills for the next player", (await left(page)) === 2 && (await page.evaluate(() => (window.__EC_TEST_LOG__ || []).length)) === 1, String(await left(page)));
+  await move(page, "dark-turrito", "S");
+  await move(page, "dark-turrito", "E");
+  check("after a full turn it refills for the next player",
+    !!(await until(async () => (await left(page)) === 2 && (await page.evaluate(() => (window.__EC_TEST_LOG__ || []).length)) === 1)), await leftAndTurrito(page));
   const lightEmber = await ember(page);
   check(`...in the light pieces' colour (${theme === "futuris" ? "Plasma's white, not amber" : "ash"}: ${lightEmber && lightEmber.glow})`, !!lightEmber && lightEmber.side === "light" && lightEmber.glow === pieces.light, JSON.stringify(lightEmber));
 
@@ -130,9 +150,8 @@ for (const theme of ["futuris", "standard"]) {
   await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
   await closeDock(page);
   await page.waitForTimeout(1500);
-  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "S"));
-  await page.waitForTimeout(2500);
-  const won = await page.evaluate(() => [...document.querySelectorAll("span")].some((el) => /wins|you win|you lose/i.test(el.textContent || "")));
+  await move(page, "dark-cabeza", "S");
+  const won = await until(() => page.evaluate(() => [...document.querySelectorAll("span")].some((el) => /wins|you win|you lose/i.test(el.textContent || ""))));
   check("a Cabeza stepping onto its far row wins", won);
   check("after the win the counter stays up, holding the last turn (1 action left)", (await left(page)) === 1, String(await left(page)));
   if (theme === "futuris") await page.screenshot({ path: "/tmp/e2e-points-won.png" });
@@ -166,8 +185,8 @@ for (const theme of ["futuris", "standard"]) {
   await page.waitForTimeout(1200);
   const note = page.locator('[data-testid="unused-points-note"]');
   check("no note before the move", (await note.count()) === 0);
-  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-opa", "S"));
-  await page.waitForTimeout(1600);
+  await move(page, "dark-opa", "S");
+  await until(async () => (await note.count()) > 0);
   const text = (await note.count()) ? await note.textContent() : "";
   check("an Opa roll ends the turn with a note saying why", /1 action unused: an Opa moves only once per turn/.test(text), text);
   await note.click();
