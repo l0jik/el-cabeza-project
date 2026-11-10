@@ -135,9 +135,10 @@ export const LAB_SPECS = [
       key: { color: 0xc6d0ec, intensity: 0.86 }, fill: { color: 0x7a88b2, intensity: 0.18 }, back: { color: 0xff9a72, intensity: 1.15 },
     },
     /* Down to the ground, the stones over you (the chassis keeps 1.25),
-       and free to walk the plain inside the ring of great stones: the
-       camera's box stays clear of them (monoliths.js ROOM_CLEAR) and
-       above every boulder within it (BOULDER_TOP). */
+       and free to walk the land round the board: the camera's box (in
+       the board's frame, so it turns with the land) has every rock
+       outside it or under its floor (monoliths.js ROOM_HALF, ROOM_FLOOR,
+       ROOM_CLEAR). */
     camera: { maxPitch: 1.45, freeCamera: { reach: 20, yMin: -0.5, yMax: 6, room: { x: [-24, 24], y: [0.9, 120], z: [-24, 24] } } },
     // Slides glide over the slab, no roll and no landing: the stone drags.
     slidesGlide: true,

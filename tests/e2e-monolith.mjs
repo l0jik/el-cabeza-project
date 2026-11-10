@@ -3,14 +3,21 @@
    monoliths"; "I want the sound palette to be non-synthesizer generated.
    I want real massive: thud / boom / scraping sounds ... per weight
    dictating pitch"; "the blocks, themselves need to be rough-hewn, not
-   perfect looking"). themes/lab: specs.js, monoliths.js, hewn.js,
-   monolith-sounds.js and audio.js's monolith voice.
+   perfect looking"). themes/lab: specs.js, monoliths.js, rockforms.js,
+   hewn.js, monolith-sounds.js and audio.js's monolith voice.
 
    The weight rules and the recordings' layout, then the page, served over
    http (as GitHub Pages serves it: a page opened from disk can't fetch the
    recordings beside it):
-   - the land: sky, moon, plain, the board's shelf, the stones, their
-     shadows, rubble, and the fog; no stone or rubble inside the box the
+   - the land (user: "when you rotate the board the entire 3D world
+     rotates"; "the board to be chiseled into the surface of the ground";
+     "make sure that all the different shapes of the pieces, including
+     Cabeza Nova, are represented"): it hangs on the board group, so it
+     turns with the board, and the lights turn with it; sky, moon, ground,
+     rock, its shadows, rubble, the fog; every piece's shape standing in
+     it (a computer's: on both sides), rock of other kinds between; the
+     board set into the rock (the slab its floor, its outline gone, the
+     cut wall round it); no ground, rock or rubble inside the room the
      camera is kept in, above its floor (no view is ever inside a stone);
    - the pieces hewn: no face flat, every corner knocked off, nothing past
      its own squares; and a piece that rolls keeps its own shape (its
@@ -71,6 +78,66 @@ await new Promise((r) => server.once("listening", r));
 const BASE = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--autoplay-policy=no-user-gesture-required"] });
 
+// The land as it stands, once built (every formation in): what's in it,
+// where, and whether any of it is inside the camera's room.
+const landOf = (pg) => poll(() => pg.evaluate(() => {
+  const t = window.__EC_TEST_THREE__ && window.__EC_TEST_THREE__();
+  const g = t && t.scene.getObjectByName("lab-monolith-land");
+  if (!g || !g.userData.ready) return null;
+  const has = Object.fromEntries(["monolith-sky", "monolith-moon", "monolith-ground", "monolith-rocks", "monolith-shadows", "monolith-rubble"].map((n) => [n, !!g.getObjectByName(n)]));
+  // Every point of the ground, the rock and the rubble, in the land's own
+  // frame (the board's, which the camera's room turns with): inside the
+  // room (specs.js camera.freeCamera.room, x and z within 24, two more to
+  // spare) none above its floor (0.9).
+  let points = 0, inRoom = 0;
+  const look = (e, a) => {
+    for (let i = 0; i < a.length; i += 3) {
+      const x = e[0] * a[i] + e[4] * a[i + 1] + e[8] * a[i + 2] + e[12], y = e[1] * a[i] + e[5] * a[i + 1] + e[9] * a[i + 2] + e[13], z = e[2] * a[i] + e[6] * a[i + 1] + e[10] * a[i + 2] + e[14];
+      points++;
+      if (Math.abs(x) <= 26 && Math.abs(z) <= 26 && y >= 0.9) inRoom++;
+    }
+  };
+  for (const o of g.children) {
+    if (!o.isMesh || /sky|moon|shadows/.test(o.name)) continue;
+    const a = o.geometry.attributes.position.array;
+    if (o.isInstancedMesh) {
+      const m = o.instanceMatrix.array;
+      for (let k = 0; k < o.count; k++) look(m.slice(k * 16, k * 16 + 16), a);
+    } else look(o.matrix.elements, a);
+  }
+  // The board set into it: the ground's first ring on the slab's own edge,
+  // a little under its face; the rock round it LIP over the face (a cut wall).
+  const slab = t.boardGroup.getObjectByName("ec-slab"), gp = g.getObjectByName("monolith-ground").geometry.attributes.position.array;
+  const hx = slab.geometry.parameters.width / 2, hz = slab.geometry.parameters.depth / 2;
+  let onEdge = 0, edgeUnder = 0, rim = 0, rimHigh = 0;
+  for (let i = 0; i < gp.length; i += 3) {
+    const x = gp[i], y = gp[i + 1], z = gp[i + 2];
+    const dx = Math.max(Math.abs(x) - hx, 0), dz = Math.max(Math.abs(z) - hz, 0), d = Math.hypot(dx, dz);
+    if (d < 1e-4 && (Math.abs(Math.abs(x) - hx) < 1e-4 || Math.abs(Math.abs(z) - hz) < 1e-4)) { onEdge++; if (y < 0) edgeUnder++; }
+    else if (d > 0.05 && d < 2) { rim++; if (y > 0.05 && y < 0.16) rimHigh++; }
+  }
+  const F = g.userData.formations, types = {};
+  F.filter((f) => f.type).forEach((f) => { (types[f.type] = types[f.type] || []).push(f.side); });
+  const f = t.scene.fog, sky = g.getObjectByName("monolith-sky");
+  const outline = ["ec-slab-edges", "ec-top-ring"].map((n) => t.boardGroup.getObjectByName(n)).filter(Boolean);
+  return {
+    onBoard: g.parent === t.boardGroup, has, points, inRoom, types, kinds: [...new Set(F.filter((x) => x.kind !== "piece").map((x) => x.kind))],
+    formations: F.length, onEdge, edgeUnder, rim, rimHigh, slabShown: slab.visible, outlineHidden: outline.length > 0 && outline.every((o) => !o.visible),
+    fog: f ? { isFog: !!f.isFog, near: f.near, far: f.far } : null, skyFogless: !!sky && sky.material.fog === false, stats: g.userData.stats,
+  };
+}), 120000, 500);
+const SHAPES = ["cabeza", "turrito", "opa", "flaco", "chato", "block1x3", "block2x3", "codo", "arcoChico", "arcoAlto", "arcoAncho", "rayo", "zeta", "hombro", "cruce"];
+function landChecks(land, where, { bothSides = false } = {}) {
+  check(`${where}: the land hangs on the board group (it turns with the board)`, !!land && land.onBoard);
+  check(`${where}: sky, moon, ground, rock, its shadows, rubble`, !!land && Object.values(land.has).every(Boolean), JSON.stringify(land && land.has));
+  check(`${where}: every piece's shape stands in the land, the standard five and Cabeza Nova's ten${bothSides ? ", on both sides" : ""}`, !!land && SHAPES.every((s) => land.types[s] && (!bothSides || (land.types[s].includes("light") && land.types[s].includes("dark")))), JSON.stringify(land && land.types));
+  check(`${where}: and rock of other kinds between (${land && land.kinds.join(", ")})`, !!land && land.kinds.length >= (bothSides ? 9 : 6));
+  check(`${where}: the board set into the rock: the slab its floor, its outline gone, the ground's first ring on its edge under its face (${land && land.edgeUnder}/${land && land.onEdge}), the rock round it a cut wall over it (${land && land.rimHigh}/${land && land.rim})`, !!land && land.slabShown && land.outlineHidden && land.onEdge >= 40 && land.edgeUnder === land.onEdge && land.rim > 100 && land.rimHigh / land.rim > 0.95);
+  check(`${where}: the fog the land runs out into (the sky never fogged)`, !!land && !!land.fog && land.fog.isFog && land.fog.near >= 30 && land.fog.far > land.fog.near && land.skyFogless, JSON.stringify(land && land.fog));
+  check(`${where}: no ground, rock or rubble inside the camera's room above its floor (${land && land.points} points looked at)`, !!land && land.points > 10000 && land.inRoom === 0, land && `${land.inRoom} inside`);
+  if (land) console.log(`   ${where}: ${land.formations} formations, built in ${Math.round(land.stats.buildMs)} ms, ${land.stats.vertices} points of rock`);
+}
+
 console.log("the page");
 {
   const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
@@ -84,39 +151,22 @@ console.log("the page");
   check("the Lab opens on the Monolith", !!(await poll(() => page.evaluate(() => !!window.__LAB__ && window.__LAB__.id === "monolith" && !!document.querySelector('[data-testid="lab-hud"]') && !!window.__EC_TEST_THREE__), 30000)));
 
   // ---- the land
-  const land = await poll(() => page.evaluate(() => {
-    const t = window.__EC_TEST_THREE__();
-    const g = t && t.scene.getObjectByName("lab-monolith-land");
-    if (!g) return null;
-    g.updateMatrixWorld(true);
-    const has = Object.fromEntries(["monolith-sky", "monolith-moon", "monolith-plain", "monolith-shelf", "monolith-stones", "monolith-shadows"].map((n) => [n, !!g.getObjectByName(n)]));
-    // Every point of every stone and every piece of rubble, where it
-    // stands: inside the camera's box (specs.js camera.freeCamera.room,
-    // x and z within 24, two more to spare) none above its floor (0.9).
-    let points = 0, inRoom = 0, stoneMeshes = 0, rubble = 0;
-    const at = (e, x, y, z) => [e[0] * x + e[4] * y + e[8] * z + e[12], e[1] * x + e[5] * y + e[9] * z + e[13], e[2] * x + e[6] * y + e[10] * z + e[14]];
-    const look = (e, a) => { for (let i = 0; i < a.length; i += 3) { const [x, y, z] = at(e, a[i], a[i + 1], a[i + 2]); points++; if (Math.abs(x) <= 26 && Math.abs(z) <= 26 && y >= 0.9) inRoom++; } };
-    g.getObjectByName("monolith-stones").traverse((o) => { if (o.isMesh) { stoneMeshes++; look(o.matrixWorld.elements, o.geometry.attributes.position.array); } });
-    g.traverse((o) => {
-      if (!o.isInstancedMesh) return;
-      rubble += o.count;
-      const m = o.instanceMatrix.array, w = o.matrixWorld.elements, a = o.geometry.attributes.position.array;
-      for (let k = 0; k < o.count; k++) {
-        const e = m.slice(k * 16, k * 16 + 16);
-        const c = (i, j) => w[i] * e[j] + w[i + 4] * e[j + 1] + w[i + 8] * e[j + 2] + w[i + 12] * e[j + 3]; // (world x instance)
-        const E = [];
-        for (let j = 0; j < 16; j += 4) E.push(c(0, j), c(1, j), c(2, j), c(3, j));
-        look(E, a);
-      }
-    });
-    const f = t.scene.fog;
-    const sky = g.getObjectByName("monolith-sky");
-    return { has, stoneMeshes, rubble, points, inRoom, fog: f ? { isFog: !!f.isFog, near: f.near, far: f.far } : null, skyFogless: sky && sky.material.fog === false };
-  }), 20000);
-  check("the land: sky, moon, plain, the board's shelf, the stones, their shadows", !!land && Object.values(land.has).every(Boolean), JSON.stringify(land && land.has));
-  check(`...rubble over the plain (${land && land.rubble})`, !!land && land.rubble >= 100);
-  check("...and the fog the plain runs out into (the sky never fogged)", !!land && !!land.fog && land.fog.isFog && land.fog.near >= 30 && land.fog.far > land.fog.near && land.skyFogless, JSON.stringify(land && land.fog));
-  check(`no stone or rubble inside the camera's box above its floor (${land && land.points} points looked at)`, !!land && land.points > 1000 && land.inRoom === 0, land && `${land.inRoom} inside`);
+  const land = await landOf(page);
+  landChecks(land, "here");
+  // Turned: the land goes round with the board, the moon's and the dusk's
+  // light with it (a shadow stays where it falls).
+  await page.evaluate(() => window.__EC_TEST_CAM__({ theta: 1.3, snap: true }));
+  const turned = await poll(() => page.evaluate(() => {
+    const t = window.__EC_TEST_THREE__(), g = t.scene.getObjectByName("lab-monolith-land"), b = g && g.userData.lightBase;
+    const a = t.boardGroup.rotation.y;
+    if (!b || Math.abs(a + 1.3) > 1e-3) return null;
+    const rot = (v) => [v.x * Math.cos(a) + v.z * Math.sin(a), v.y, -v.x * Math.sin(a) + v.z * Math.cos(a)];
+    const off = (l, v) => { const e = rot(v); return Math.hypot(l.position.x - e[0], l.position.y - e[1], l.position.z - e[2]); };
+    return { a, onBoard: g.parent === t.boardGroup, key: off(t.lights.key, b.key), fill: off(t.lights.fill, b.fill), back: off(t.lights.back, b.back) };
+  }), 10000);
+  check("turned, the land goes round with the board, and the lights with it", !!turned && turned.onBoard && turned.key < 1e-3 && turned.fill < 1e-3 && turned.back < 1e-3, JSON.stringify(turned));
+  await page.evaluate(() => window.__EC_TEST_CAM__({ theta: 0, snap: true }));
+  await page.waitForTimeout(500);
 
   // ---- the pieces, hewn
   const PIECE_SCALE = 0.87;
@@ -239,6 +289,18 @@ console.log("the page");
   const credits = await poll(() => page.evaluate(() => { const e = document.querySelector('[data-testid="info-sound-credits"]'); return e && e.innerText; }), 8000);
   check("the About card credits the recordings", !!credits && /freesound\.org/.test(credits) && /CC0/.test(credits) && /vestibule-door/.test(credits) && /Tim_Verberne/.test(credits), credits || "");
   check("no page errors", errs.length === 0, errs.slice(0, 4).join(" | "));
+  await page.close();
+}
+
+console.log("a computer's land");
+{
+  const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  await page.goto(`${BASE}/el-cabeza-lab.html?theme=monolith&quality=high`);
+  landChecks(await landOf(page), "a computer's", { bothSides: true });
+  check("a computer's: no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
   await page.close();
 }
 

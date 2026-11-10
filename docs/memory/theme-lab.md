@@ -54,7 +54,9 @@ Architecture (engine → presentation adapter → config → primitives):
   itself only shows moves), landing marks (a piece mesh rebuilt somewhere
   new = landed) and capture marks (id gone), Neo-Brutalism's hard offset
   shadows. Ground and fx live in the scene, NOT the board group, so they
-  don't turn when the board turns to face a player.
+  don't turn when the board turns to face a player. (Except the
+  Monolith's land: a ground carrying userData.land hangs on the board
+  group and turns with it, sky and lights too; below.)
 - `themes/lab/hud.js` + `css.js`: one HUD markup (id, turn number, side
   to move, moves/points/pieces/taken/time, last six moves, result) that
   nine stylesheets compose nine ways; semantic custom properties on :root
@@ -154,27 +156,84 @@ blocks, themselves need to be rough-hewn, not perfect looking."
   moonlight #8EA2C4, sandstone gold #C7A06A. Words: "Leave the stones",
   "Raise the stones", "Carvings", "Old ways", "The stones keep their
   silence.", "Set in stone." (es/vi in i18n).
-- The land (themes/lab/monoliths.js, all painted, fixed seeds): a sky
-  dome (the dusk low over Dark's end, -z; night over the rest, stars, low
-  cloud; never fogged or tone mapped), a crescent moon low to the right
-  of a player's line, a cracked plain (joints nearly square, as Muley
-  Point's), the board on a shelf of the plain's rock, a ring of great
-  stones (standing, leaning on a prop under the side they lean to,
-  stacked, fallen, great blocks; basalt beyond Dark's end, sandstone
-  beyond Light's, mixed at the flanks), their long shadows baked onto the
-  plain away from the dusk and stopped short of the shelf, boulders and
-  rubble, and a fog (34 to 148) set on the scene while it's mounted
-  (ambient.js puts the one before back). Every stone is seated so its
-  four lowest corners are under the plain (no corner of a leaning or
-  fallen one stands off it). mergeStatic makes the stones two meshes.
+- The land (themes/lab/monoliths.js, rockforms.js; all of it painted and
+  modelled there, from fixed seeds, the same land every visit). Then
+  (user): "I don't want just the board to spin ... when you rotate the
+  board the entire 3D world rotates instead of just the board"; "the
+  board to be chiseled into the surface of the ground"; "the megaliths of
+  all different shapes that represent the different types of pieces in
+  the game to be represented in the landscape ... natural formations of
+  rocks ... like a natural landscape you feel like you're in"; "not just
+  the five shapes, though"; "make the background ones more varied, and
+  make sure that all the different shapes of the pieces, including
+  Cabeza Nova, are represented".
+  - It hangs on the chassis's board group (ambient.js: a ground with
+    userData.land goes on t.boardGroup), as the den's room and Luna's
+    ground do: the chassis turns the board, never the camera, so the
+    whole place turns with it, sky and moon too. The key, fill and back
+    lights are turned with it every tick (land.tick: their chassis
+    positions, taken on the first tick, turned by the board's turn; put
+    back on dispose), so a shadow stays where it falls and the painted
+    long shadows always agree with the light. (So the dusk is low over
+    Dark's end in the land: from Light's end you look into it, the
+    stones dark against it and their shadows coming at you; from Dark's
+    end it's behind you and warms every face toward you.)
+  - The board set into the rock: the chassis's slab is the basin's floor
+    (its painted face), the terrain's first ring lies exactly on the
+    slab's edge just under its face (-0.03) and the next stands LIP
+    (0.1) over it, the cut wall; the slab's outline (ec-slab-edges,
+    ec-top-ring) hidden every tick (the chassis remakes them). Polar
+    rings out from the slab's rectangle: a platform of slickrock
+    cracked along its joints (basalt toward Dark's end, sandstone toward
+    Light's), a ledge, a second, then the plain rolling out to R_OUT
+    (170), past the sky (150); the fog (40 to 148) takes the edge. Built
+    again when the board changes size (`${SLAB_X}x${SLAB_Z}`).
+  - Every piece's shape stands in it as natural rock (PIECE_FORMS: the
+    standard five and Cabeza Nova's ten, each from its cube layout,
+    engine/anomaly.js's, or a disc on edge): the Flaco and the 1x3
+    fallen, the 2x3 a standing slab, the Turrito on a pedestal worn
+    narrow under it, the arches upright, the Cruce on its stem. Each
+    side's set behind its own end, within 1.25 rad of it: basalt beyond
+    Dark's, sandstone beyond Light's, faced to the board. A weak device
+    (quality() detail 0; SwiftShader counts) gets each shape once,
+    sides alternating.
+  - Between and beyond, other rock (OTHER): capped spires (hoodoos),
+    fins, slickrock domes, balanced rocks, boulder heaps, a free arch,
+    jointed shelves (Muley Point's), 62 to 112 out; mesas and buttes on
+    the horizon, 112 to 150 (166 at most).
+  - rockforms.js: each formation a distance function (rounded boxes,
+    ellipsoids, columns, smooth unions; a piece's from its cubes,
+    cubesSdf), weathered (fracture planes cut first, then wear in two
+    scales, bedding (strata), joints, a notch at the foot), meshed by
+    surface nets, its ambient occlusion and its colours (STONE palettes:
+    bands, desert varnish, lichen) baked per vertex, its map laid on
+    triplanar in its own frame (rockMaterial; stable while the land
+    turns), shaded flat (broken stone's facets).
+  - Long shadows painted on the ground away from the dusk, stopped short
+    of the platform (shadowRibbon); rubble and scree (three hewn shapes,
+    instanced, coloured each).
+  - Built after the land comes up, a few formations at a time (about
+    28 ms of work, then the next on a timer; each lot merged into one
+    mesh), so a switch to the Monolith never stalls; group.userData.ready
+    and .stats (buildMs, vertices, batches) say when and what. Measured:
+    a computer 52 formations in about 0.7 s of work, 91k rock vertices;
+    a weak device 30 in about 0.2 s.
+  - The sky dome (the dusk low over Dark's end, -z; night over the rest,
+    stars, low cloud; never fogged or tone mapped, drawn first), the
+    crescent moon low over Dark's end, a little right of a player's
+    line, its bearing kept clear of rock (planLand underMoon: it's a few
+    degrees up and drawn under everything, so a formation on its line
+    hid it); the fog set on the scene while it's mounted (ambient.js
+    puts the one before back).
 - The camera: Player view at pitch 1.12 (lower than the other eight, so
-  the stones' feet and shadows come into the top of the picture), down to
-  1.45 by dragging (ground level, the stones over you, the moon in the
-  dusk), and free to walk the plain (theme.freeCamera: reach 20, the
-  camera kept in x, z within 24 and above 0.9). The great stones stand
-  from ROOM_CLEAR (38) out, past that box's corners; the boulders inside
-  it are no taller than BOULDER_TOP (0.3); so no view is ever inside a
-  stone (e2e-monolith checks every point of every stone and rubble).
+  the land comes into the top of the picture), down to 1.45 by dragging
+  (ground level), and free to walk the land (theme.freeCamera: reach 20,
+  the camera kept in x, z within ROOM_HALF (24) and above ROOM_FLOOR
+  (0.9), a box in the board's frame, so it turns with the land). Every
+  rock stands outside it or under its floor: the tall ones from
+  ROOM_CLEAR (37) out, past the box's corners; nothing of the ground or
+  the rubble inside it rises past its floor (e2e-monolith looks at every
+  point of the ground, rock and rubble).
 - Rough-hewn (hewn.js): every block, piece or stone, is a subdivided box
   moved inward only, by smooth value noise (its faces wander in by up to
   a few hundredths of a cube) plus knocks along its edges and deeper at
@@ -190,6 +249,23 @@ blocks, themselves need to be rough-hewn, not perfect looking."
   flat in the middle where its spiral is pecked (paint.js "petroglyph":
   the Cabeza's only, pale on basalt, dark on sandstone). Odd-shaped
   MATTER pieces keep the chassis's smooth solid.
+- A piece's surface is natural stone's (the shape kept): a few flakes
+  off its arrises (hewn.js flakePlanes: planes in the stone's own frame
+  across a corner, slanted to run out along one of its edges; what
+  stood past one laid flat on it, moved in along its normal, so never
+  out of the squares), and its colours baked per vertex (stoneTint):
+  sandstone's bedding through the whole stone (planar, a little tilted;
+  painted on the map it ran across one face and down the next, so the
+  map has none), its varnish in streaks; basalt's weathered rind in grey
+  patches and a mottle; fresh stone where a flake came off or an arris
+  was knocked (paler sand, darker basalt); the hollows a little darker.
+  The map is its bump map too (its grains and pits in relief), painted
+  to tile without a seam (paint.js blotches/speckle `wrap`: a face's
+  map repeats across its middle, where the seam showed as a line, the
+  bump map's too). All in the stone's own frame, so it rolls with it;
+  its noise read turned off the stone's axes (hewn.js skew: value
+  noise sliced along its lattice's planes, as a block's faces slice
+  it, showed squares and a line down every face).
 - Its marks: a little circle of seven standing stones for a legal move
   (lit, sandstone gold; a crush in ember with a capstone), an ember ring
   round the chosen piece, dust on a landing. The board (paint.js
@@ -207,9 +283,17 @@ blocks, themselves need to be rough-hewn, not perfect looking."
   woodPieces). Credited on the About card (spec.soundCredits;
   assets/monolith/src/CREDITS.md).
 - Test: tests/e2e-monolith.mjs (served over http; the weight rules, the
-  layout of the recordings, the land and the camera's box, the hewn
-  pieces and a roll keeping one's shape, the recordings fetched and
-  decoded, landings by face and weight, the rolls' grinds, the Cabeza's
-  glide, the credits, old Bauhaus links). The channel picture
-  (assets/den/channels/lab-monolith.jpg) is the low view.
+  layout of the recordings; the land, at a weak device's detail and at a
+  computer's (?quality=high): on the board group, every part there,
+  every piece's shape (on both sides at a computer's), the other kinds,
+  the board set in (the ground's first ring on the slab's edge under its
+  face, the cut wall over it, the outline hidden), the fog, nothing in
+  the camera's room; turned, the lights turned with it; the hewn pieces
+  and a roll keeping one's shape, the recordings fetched and decoded,
+  landings by face and weight, the rolls' grinds, the Cabeza's glide,
+  the credits, old Bauhaus links). The channel picture
+  (assets/den/channels/lab-monolith.jpg) is the low view from Light's
+  end, nearly square on (the moon turns with the land: further round,
+  it leaves the picture), shot once the rock is all built
+  (tools/channel_shots.mjs `ready`).
 

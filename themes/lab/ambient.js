@@ -37,8 +37,14 @@ export function createAmbient(spec, scene, live) {
     disposers.push(() => { alive = false; });
 
     const ground = scene.buildGround();
-    t.scene.add(ground);
-    disposers.push(() => { t.scene.remove(ground); ground.traverse((o) => { o.geometry && o.geometry.dispose(); if (o.material) { if (o.material.map && !o.material.map.__shared) o.material.map.dispose(); o.material.dispose(); } }); });
+    // A ground that turns with the board (the Monolith's land: user, "when
+    // you rotate the board the entire 3D world rotates instead of just the
+    // board") hangs on the board group, as the den's room and Luna's
+    // ground do, and is ticked; the other directions' stay still in the
+    // scene, the board turning on them.
+    const land = ground.userData.land || null;
+    (land ? t.boardGroup : t.scene).add(ground);
+    disposers.push(() => { if (ground.parent) ground.parent.remove(ground); if (land) land.dispose(t); ground.traverse((o) => { o.geometry && o.geometry.dispose(); if (o.material) { if (o.material.map && !o.material.map.__shared) o.material.map.dispose(); o.material.dispose(); } }); });
     // A ground with a fog of its own (the Monolith's): on the scene while
     // it's mounted, and the one before put back after.
     let landFog = null;
@@ -211,6 +217,7 @@ export function createAmbient(spec, scene, live) {
     let armed = false;
 
     function tick(now) {
+      if (land) land.tick(t, now);
       const game = live.game;
       const group = t.pieceGroup;
       if (!group) return;

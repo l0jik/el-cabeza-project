@@ -105,25 +105,41 @@ const colName = (c) => {
 };
 export const squareName = (row, col) => `${colName(col)}${BOARD_ROWS - row}`;
 
-function speckle(g, W, H, n, color, rmin, rmax, seed) {
+/* (wrap: whatever runs over an edge comes in again at the other, so the
+   picture tiles without a seam: a hewn piece's map repeats across the
+   middle of every face, where a seam showed as a line, its bump map
+   too.) */
+const HERE = [[0, 0]], ROUND = [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+const off = (x, y, rad, W, H) => x + rad < 0 || x - rad > W || y + rad < 0 || y - rad > H;
+
+function speckle(g, W, H, n, color, rmin, rmax, seed, wrap = false) {
   const r = rng(seed);
   g.fillStyle = color;
   for (let i = 0; i < n; i++) {
-    g.beginPath();
-    g.arc(r() * W, r() * H, rmin + r() * (rmax - rmin), 0, Math.PI * 2);
-    g.fill();
+    const x = r() * W, y = r() * H, rad = rmin + r() * (rmax - rmin);
+    for (const [ox, oy] of wrap ? ROUND : HERE) {
+      if (off(x + ox * W, y + oy * H, rad, W, H)) continue;
+      g.beginPath();
+      g.arc(x + ox * W, y + oy * H, rad, 0, Math.PI * 2);
+      g.fill();
+    }
   }
 }
 
-function blotches(g, W, H, n, rgb, amax, seed, scale = 0.25) {
+function blotches(g, W, H, n, rgb, amax, seed, scale = 0.25, wrap = false) {
   const r = rng(seed);
   for (let i = 0; i < n; i++) {
     const x = r() * W, y = r() * H, rad = (0.05 + r() * scale) * Math.max(W, H);
-    const gr = g.createRadialGradient(x, y, 0, x, y, rad);
-    gr.addColorStop(0, `rgba(${rgb},${(r() * amax).toFixed(3)})`);
-    gr.addColorStop(1, `rgba(${rgb},0)`);
-    g.fillStyle = gr;
-    g.fillRect(0, 0, W, H);
+    const a = (r() * amax).toFixed(3);
+    for (const [ox, oy] of wrap ? ROUND : HERE) {
+      const cx = x + ox * W, cy = y + oy * H;
+      if (off(cx, cy, rad, W, H)) continue;
+      const gr = g.createRadialGradient(cx, cy, 0, cx, cy, rad);
+      gr.addColorStop(0, `rgba(${rgb},${a})`);
+      gr.addColorStop(1, `rgba(${rgb},0)`);
+      g.fillStyle = gr;
+      g.fillRect(0, 0, W, H);
+    }
   }
 }
 
@@ -561,17 +577,18 @@ export function pieceSurface(kind) {
     speckle(g, S, S, 300, "rgba(90,84,76,0.3)", 0.4, 1.2, 532);
   } else if (kind === "basalt") {
     // Fine-grained and dark: a faint mottle, pale vesicles, dark grains.
-    blotches(g, S, S, 12, "70,72,80", 0.3, 541, 0.3);
-    speckle(g, S, S, 900, "rgba(30,30,34,0.4)", 0.3, 1.1, 542);
-    speckle(g, S, S, 160, "rgba(255,255,255,0.55)", 0.4, 1.3, 543);
+    // (Tiling without a seam, as the sandstone: the hewn pieces' maps.)
+    blotches(g, S, S, 12, "70,72,80", 0.3, 541, 0.3, true);
+    speckle(g, S, S, 900, "rgba(30,30,34,0.4)", 0.3, 1.1, 542, true);
+    speckle(g, S, S, 160, "rgba(255,255,255,0.55)", 0.4, 1.3, 543, true);
   } else if (kind === "sandstone") {
-    // Grains, and a little bedding: soft bands of a warmer and a paler
-    // sand, and iron's rust in blooms.
-    const r = rng(551);
-    for (let y = 0; y < S; y += 4 + r() * 14) { g.fillStyle = `rgba(${r() < 0.5 ? "150,112,70" : "255,248,230"},${(0.05 + r() * 0.08).toFixed(3)})`; g.fillRect(0, y, S, 2 + r() * 6); }
-    blotches(g, S, S, 8, "160,96,52", 0.18, 552, 0.25);
-    speckle(g, S, S, 1100, "rgba(110,86,60,0.3)", 0.3, 1, 553);
-    speckle(g, S, S, 500, "rgba(255,250,236,0.45)", 0.3, 0.9, 554);
+    // Grains and iron's rust in blooms. (Its bedding isn't painted here:
+    // a face's map runs whichever way the face does, so bands came out
+    // across one face and down the next. It's in the stone itself, the
+    // same through every face: hewn.js stoneTint.)
+    blotches(g, S, S, 8, "160,96,52", 0.18, 552, 0.25, true);
+    speckle(g, S, S, 1100, "rgba(110,86,60,0.3)", 0.3, 1, 553, true);
+    speckle(g, S, S, 500, "rgba(255,250,236,0.45)", 0.3, 0.9, 554, true);
   }
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;

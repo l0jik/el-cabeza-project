@@ -1,52 +1,79 @@
 /* The Monolith's land: the Lab's second direction, in Bauhaus's place
    (user: "we're getting rid of Bauhaus and replacing it with something
-   imposing & neolithic monoliths", with a picture: great dark stones
-   standing and leaning on a cracked, barren plain at dusk, a crescent
-   moon, a long shadow coming at you; and, of the land they were after:
-   "the formations are natural, but somehow create imposing unreal
-   topography & terrain ... as if being viewed from ground level"; the
-   stones of Muley Point, Utah, the rock split into blocks along its own
-   joints).
+   imposing & neolithic monoliths", with a picture: great dark stones on a
+   cracked, barren plain at dusk, a crescent moon, a long shadow coming at
+   you; of the land they were after, the jointed rock of Muley Point, Utah,
+   "imposing unreal topography & terrain ... as if being viewed from
+   ground level").
 
-   The board is set on a shelf of the plain's own rock. Round it:
-     - the plain: cracked stone, the cracks running square as the rock's
-       joints do, out to a horizon the fog takes;
-     - the stones: blocks split from the bedrock, standing, leaning,
-       fallen, stacked and broken. Two kinds, as the two sides are:
-       basalt beyond Dark's end (the far side from the player's own seat),
-       sandstone beyond Light's, the two mixed at the flanks. The great
-       ones stand from ROOM_CLEAR out, past the box the camera is kept in
-       (specs.js camera.freeCamera.room), and the boulders inside it are
-       all lower than the camera may go, so no view is ever inside a
-       stone;
-     - their long shadows on the plain, cast away from the dusk;
-     - rubble at their feet and over the plain;
-     - the sky: the last of the dusk low over Dark's end, the night coming
+   Then (user): "I don't want just the board to spin ... when you rotate
+   the board the entire 3D world rotates instead of just the board"; "the
+   board to be chiseled into the surface of the ground"; "the megaliths of
+   all different shapes that represent the different types of pieces in
+   the game to be represented in the landscape ... natural formations of
+   rocks ... like a natural landscape you feel like you're in"; "make the
+   background ones more varied, and make sure that all the different
+   shapes of the pieces, including Cabeza Nova, are represented".
+
+   So the land hangs on the chassis's board group, as the den's room and
+   Luna's ground do: the chassis turns the board, never the camera, and
+   the whole place turns with it, sky and moon too; the key, fill and back
+   lights are turned with it (tick), so a shadow stays where it falls.
+
+     - The board is set into a platform of the land's own rock, a little
+       below it: the chassis's slab is its floor (its painted face), the
+       rock's cut wall stands round it (the terrain's first ring is the
+       slab's own edge), the slab's outline lines hidden. The platform,
+       slickrock cracked along its joints (basalt on Dark's side,
+       sandstone on Light's), runs out to a ledge, a second below it, then
+       the plain, rolling, out to a horizon the fog takes. Built again
+       when the board changes size.
+     - Every piece of the game, the standard five and Cabeza Nova's ten,
+       stands in the land as natural rock (rockforms.js), each side's
+       behind its own end: basalt beyond Dark's, sandstone beyond Light's
+       (a weak device gets each shape once). Between them and beyond, a
+       land of other rock: capped spires, fins, domes, balanced rocks,
+       boulder heaps, a free arch, jointed blocks, and mesas and buttes on
+       the horizon.
+     - Their long shadows on the ground, away from the dusk, stopped short
+       of the platform; rubble and scree.
+     - The sky: the last of the dusk low over Dark's end, the night coming
        over, a crescent moon, the first stars, low cloud.
-   All painted on canvases here, nothing fetched, and made from fixed
-   seeds: the same land every visit. A weak device (tienda-quality.js
-   detail 0) gets smaller textures and less rubble, the same stones. */
+
+   Nothing tall stands within the camera's reach: the room it's kept in
+   (specs.js camera.freeCamera.room, ROOM_HALF each way, above
+   ROOM_FLOOR) has every rock outside it or under its floor. The
+   formations are built a few at a time after the land comes up (one
+   frame's work each), so a switch to the Monolith never stalls. All of it
+   painted and modelled here, from fixed seeds: the same land every
+   visit. */
 import * as THREE from "three";
+import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { SLAB_X, SLAB_Z } from "../../engine/constants.js";
 import { rng } from "./paint.js";
-import { mergeStatic } from "../merge-static.js";
 import { quality } from "../tienda-quality.js";
 import { hewnBox } from "./hewn.js";
+import { cubesSdf, weathered, rockGeometry, rockMaterial, STONE, noise3, sdRoundBox, sdEllipsoid, sdColumn, smin, smax } from "./rockforms.js";
 
-// The dusk lies this way (Dark's end of the board, -z), low on the horizon.
-const DUSK = new THREE.Vector3(0, 0, -1);
-// The land's own palette (the sides' stones are the spec's pieces).
-// The great stones stand from here out (their nearest faces beyond the
-// corners of the camera's room, specs.js); the boulders inside it are no
-// taller than BOULDER_TOP above the board's top.
-export const ROOM_CLEAR = 38;
-export const BOULDER_TOP = 0.3;
+// The rock round the board stands this far above its face (the cut wall).
+export const LIP = 0.1;
+// The camera's room (specs.js camera.freeCamera.room) and how far out the
+// tall rock must stand to be outside it at every corner.
+export const ROOM_HALF = 24;
+export const ROOM_FLOOR = 0.9;
+export const ROOM_CLEAR = Math.ceil(ROOM_HALF * Math.SQRT2 + 3);
+const R_OUT = 170; // the ground's edge, past the sky's (the fog takes it)
+const SKY_R = 150;
+const UP = new THREE.Vector3(0, 1, 0);
+// The moon: low over Dark's end, a little to the right of a player's line
+// (the read-out takes the left), where a low view sees it. MOON_A is its
+// bearing as planLand reckons one (x = cos a, z = sin a).
+const MOON = new THREE.Vector3(0.32, 0.12, -0.94).normalize();
+const MOON_A = Math.atan2(MOON.z, MOON.x);
+
 export const LAND = {
   sky: { zenith: "#0B0E16", high: "#161B29", mid: "#262B3F", glow: "#C98E93", glowWarm: "#E2A98A", band: "#4A4656" },
   fog: 0x3e3c4b,
-  plain: 0x57534e,
-  basalt: 0x2f3136,
-  sandstone: 0xa58c6c,
 };
 
 const canvas = (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; };
@@ -103,7 +130,7 @@ function plainTexture() {
     for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) {
       g.beginPath(); g.moveTo(pts[0][0] + ox, pts[0][1] + oy);
       for (const [x, y] of pts.slice(1)) g.lineTo(x + ox, y + oy);
-      g.lineWidth = w; g.strokeStyle = `rgba(28,26,24,${a})`; g.stroke();
+      g.lineWidth = w; g.strokeStyle = `rgba(28,26,24,${a * 0.62})`; g.stroke();
       g.beginPath(); g.moveTo(pts[0][0] + ox + 1.2, pts[0][1] + oy + 1.2);
       for (const [x, y] of pts.slice(1)) g.lineTo(x + ox + 1.2, y + oy + 1.2);
       g.lineWidth = Math.max(0.5, w * 0.4); g.strokeStyle = `rgba(235,230,220,${a * 0.35})`; g.stroke();
@@ -215,234 +242,507 @@ function shadowTexture() {
   return (CACHE.shadow = shared(t));
 }
 
-/* --------------------------------------------------------------- shapes */
+/* ---------------------------------------------------------------- the ground */
 
-/* A great stone, hewn (hewn.js; user: "the blocks, themselves need to be
-   rough-hewn, not perfect looking"): its faces wandering in by up to a
-   tenth of its thickness, its edges and corners broken back, a standing
-   one narrower toward its top and its top cut on a slant. The texture
-   keeps one size on every face (4 units a repeat). */
-function stoneGeometry(w, h, d, R, { standing = false } = {}) {
-  const t = Math.min(w, h, d);
-  return hewnBox(w, h, d, {
-    seed: Math.floor(R() * 1e9), seg: quality().detail === 0 ? 1.3 : 0.75,
-    rough: 0.08 + t * 0.06, chip: 0.1 + t * 0.13, chipW: 0.25 + t * 0.2, freq: 0.42,
-    taper: standing ? 0.05 + R() * 0.1 : 0, slant: standing ? [(R() - 0.5) * 0.5, (R() - 0.5) * 0.3] : null, uvUnit: 4,
-  });
+const ease = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+const mix3 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+
+// How far a point lies out from the board's edge (0 on it, or within it).
+function outFromBoard(x, z, hx, hz) {
+  const dx = Math.max(Math.abs(x) - hx, 0), dz = Math.max(Math.abs(z) - hz, 0);
+  return Math.hypot(dx, dz);
+}
+// Where the platform ends (P out from the board), the bench below it
+// (T wide), and how far each ledge drops: by direction, a ledge's own
+// ragged line.
+function ledgeLine(x, z) {
+  const a = Math.atan2(z, x), c = Math.cos(a), s = Math.sin(a);
+  return {
+    P: 13 + 7 * (noise3(c * 1.3 + 4, s * 1.3, 0.5, 41) - 0.5) + 3 * (noise3(c * 4.2, s * 4.2, 1.5, 43) - 0.5),
+    T: 6 + 5 * (noise3(c * 2.1, s * 2.1, 2.5, 47) - 0.5),
+    d1: 1.3 + 0.9 * noise3(c * 3.1, s * 3.1, 3.5, 51),
+    d2: 1.8 + 1.4 * noise3(c * 2.6, s * 2.6, 4.5, 53),
+  };
+}
+/* The ground's height at (x, z) of the land, round a board hx by hz:
+   under the board's edge the cut wall's foot, then the platform a
+   little uneven, its two ledges (a rounded lip, a steep face, scree at
+   the foot), the plain rolling beyond. */
+export function groundAt(x, z, hx, hz) {
+  const d = outFromBoard(x, z, hx, hz);
+  if (d < 1e-3) return -0.03;
+  const { P, T, d1, d2 } = ledgeLine(x, z);
+  let h = LIP + 0.044 * (noise3(x * 0.33, 0.7, z * 0.33, 61) - 0.5);
+  h -= d1 * ease((d - P + 0.7) / 1.4) + d2 * ease((d - P - T + 1.1) / 2.2);
+  const far = ease((d - P - T - 3) / 14);
+  h += far * (2.4 * (noise3(x * 0.016, 1.1, z * 0.016, 67) - 0.5) + 0.9 * (noise3(x * 0.07, 2.1, z * 0.07, 71) - 0.5));
+  return h;
 }
 
-/* The land round the board. `below` is the underside of the board's
-   slab; the plain lies a little lower (GROUND) and the board's shelf
-   rises from it. Returns { group, fog }: the fog a function, made fresh
-   for each mount (ambient.js sets it on the scene and puts back the one
-   before). */
-export function buildMonolithLand({ below }) {
+// The land's own stone under foot: basalt toward Dark's end, sandstone
+// toward Light's, a ragged line between; dust on the plain.
+function groundColour(x, y, z, d, P, slope) {
+  const side = ease((z + 4 + 12 * (noise3(x * 0.04, 3.3, z * 0.04, 73) - 0.5)) / 10);
+  let c = mix3([0.27, 0.28, 0.3], [0.74, 0.62, 0.48], side);
+  c = mix3(c, [0.52, 0.41, 0.33], ease((d - P - 5) / 9) * 0.7);
+  if (slope > 0.25) {
+    const b = 0.5 + 0.5 * Math.sin(y * 2.6 + 3 * noise3(x * 0.05, 0, z * 0.05, 79));
+    c = mix3(c, mix3([0.34, 0.27, 0.22], [0.66, 0.55, 0.43], b * (0.35 + 0.65 * side)), ease((slope - 0.25) * 2.5));
+  }
+  if (d < 0.05) c = mix3(c, [0.7, 0.68, 0.64], 0.45); // (the cut wall: fresh stone)
+  const m = 0.84 + 0.32 * noise3(x * 0.22, 0.3, z * 0.22, 83);
+  return [c[0] * m, c[1] * m, c[2] * m];
+}
+
+/* The ground as one mesh: rings from the board's own edge (the first
+   ring is the slab's outline, so the cut wall meets it exactly) out to
+   the land's edge, round in the end. */
+function terrainGeometry(hx, hz, detail) {
+  const M = detail === 0 ? 168 : 296;
+  const TAU = Math.PI * 2;
+  let angles = Array.from({ length: M }, (_, j) => (j / M) * TAU);
+  const corners = [[hx, hz], [-hx, hz], [-hx, -hz], [hx, -hz]].map(([x, z]) => (Math.atan2(z, x) + TAU) % TAU);
+  angles = angles.filter((a) => corners.every((c) => Math.min(Math.abs(a - c), TAU - Math.abs(a - c)) > (0.45 * TAU) / M)).concat(corners).sort((a, b) => a - b);
+  const D = [0, 0.006, 0.1, 0.3, 0.6, 1, 1.5, 2.1, 2.8, 3.6, 4.5, 5.5, 6.6, 7.8, 9, 10.2, 11.4, 12.6, 13.8, 15, 16.2, 17.4, 18.6, 19.8, 21,
+    22.4, 24, 26, 28.5, 31.5, 35, 39, 44, 50, 57, 65, 74, 84, 95, 107, 120, 134, 145];
+  const last = D[D.length - 1], A = angles.length;
+  const pos = new Float32Array(D.length * A * 3), dist = new Float32Array(D.length * A), lip = new Float32Array(D.length * A);
+  angles.forEach((a, j) => {
+    const c = Math.cos(a), s = Math.sin(a);
+    const r0 = Math.min(Math.abs(c) > 1e-9 ? hx / Math.abs(c) : Infinity, Math.abs(s) > 1e-9 ? hz / Math.abs(s) : Infinity);
+    D.forEach((di, i) => {
+      const r = i === 0 ? r0 : r0 + (di * (R_OUT - r0)) / last;
+      const x = c * r, z = s * r, k = i * A + j;
+      pos[k * 3] = x; pos[k * 3 + 1] = groundAt(x, z, hx, hz); pos[k * 3 + 2] = z;
+      dist[k] = i === 0 ? 0 : outFromBoard(x, z, hx, hz);
+      lip[k] = ledgeLine(x, z).P;
+    });
+  });
+  const idx = [];
+  for (let i = 0; i < D.length - 1; i++) for (let j = 0; j < A; j++) {
+    const j1 = (j + 1) % A;
+    const a = i * A + j, b = i * A + j1, c = (i + 1) * A + j1, d = (i + 1) * A + j;
+    idx.push(a, b, d, b, c, d);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  const nor = geo.attributes.normal.array, col = new Float32Array(pos.length);
+  for (let k = 0; k < D.length * A; k++) {
+    const [r, g, b] = groundColour(pos[k * 3], pos[k * 3 + 1], pos[k * 3 + 2], dist[k], lip[k], 1 - nor[k * 3 + 1]);
+    col[k * 3] = r; col[k * 3 + 1] = g; col[k * 3 + 2] = b;
+  }
+  geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  geo.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(D.length * A * 2), 2));
+  return geo;
+}
+
+/* ---------------------------------------------------------------- the forms */
+
+// The game's cube layouts ("x,row,height", engine/anomaly.js) as cells
+// [x, up, depth]; a box of them.
+const V = (s) => s.split(";").map((t) => t.split(",").map(Number)).map(([x, row, up]) => [x, up, row]);
+const BOX = (w, up, d) => { const out = []; for (let x = 0; x < w; x++) for (let y = 0; y < up; y++) for (let z = 0; z < d; z++) out.push([x, y, z]); return out; };
+/* Every piece in the game, the standard five and Cabeza Nova's ten, as
+   the land's rock: its pose for Light's sandstone, then (where it has
+   one) another for Dark's basalt. Standing, mostly, where the rock would:
+   the Flaco and the 1×3 a pillar and a fallen column, the Chato a fin,
+   the Turrito a block balanced on a pedestal, the Cabeza a disc stood on
+   edge, the Codo an overhang, the Arcos arches, the Rayo stepped out
+   over itself, the Zeta and the Cruce (a capped spire) balanced on one
+   cube, the Hombro a corner with its spire. */
+export const PIECE_FORMS = [
+  ["cabeza", { disc: true }],
+  ["turrito", { cells: BOX(1, 1, 1), pedestal: true }],
+  ["opa", { cells: BOX(2, 2, 2) }],
+  ["flaco", { cells: BOX(1, 2, 1) }, { cells: BOX(2, 1, 1), fallen: true }],
+  ["chato", { cells: BOX(1, 2, 2) }],
+  ["block1x3", { cells: BOX(1, 3, 1) }, { cells: BOX(3, 1, 1), fallen: true }],
+  ["block2x3", { cells: BOX(3, 1, 2) }, { cells: BOX(3, 2, 1) }],
+  ["codo", { cells: V("0,0,0;0,0,1;1,0,1"), face: true }],
+  ["arcoChico", { cells: V("0,0,0;0,0,1;1,0,1;2,0,0;2,0,1"), face: true }],
+  ["arcoAlto", { cells: V("0,0,0;0,0,1;0,0,2;1,0,2;2,0,0;2,0,1;2,0,2"), face: true }],
+  ["arcoAncho", { cells: V("0,0,0;0,0,1;1,0,1;2,0,1;3,0,0;3,0,1"), face: true }],
+  ["rayo", { cells: V("0,0,0;1,0,0;1,0,1;2,0,1"), face: true }],
+  ["zeta", { cells: V("0,0,0;0,0,1;1,0,1;2,0,1;2,0,2"), face: true }],
+  ["hombro", { cells: V("0,0,0;1,0,0;0,1,0;0,0,1") }],
+  ["cruce", { cells: V("1,0,0;0,0,1;1,0,1;2,0,1"), face: true }],
+];
+
+/* A piece's form as rock: its distance function and size, its cube a
+   C units. */
+function pieceRock(pose, C, R) {
+  if (pose.disc) {
+    const r = C * 1.05, w = C * 0.32, e = Math.min(0.9, w * 0.35);
+    const sdf = (x, y, z) => {
+      const q = Math.hypot(y - r * 0.82, z) - (r - e), t = Math.abs(x) - (w - e);
+      return Math.min(Math.max(q, t), 0) + Math.hypot(Math.max(q, 0), Math.max(t, 0)) - e;
+    };
+    return { sdf, size: [w * 2, r * 1.82, r * 2] };
+  }
+  const { sdf: cubes, size } = cubesSdf(pose.cells, C, C * (0.05 + R() * 0.04));
+  if (!pose.pedestal) return { sdf: cubes, size };
+  // A balanced rock: the block on a pedestal worn narrow under it.
+  const ph = C * (0.75 + R() * 0.3);
+  const sdf = (x, y, z) => {
+    const ped = Math.hypot(x, z) - C * (0.26 + 0.12 * Math.max(0, (ph - y) / ph)) * (1 + 0.15 * Math.sin(y * 1.7));
+    const p = Math.max(ped, y - ph - C * 0.2, -y - 1);
+    return smin(cubes(x, y - ph, z), p, C * 0.25);
+  };
+  return { sdf, size: [size[0], size[1] + ph, size[2]] };
+}
+
+/* The land's other rock, each kind its own distance function and size. */
+const OTHER = {
+  mesa(R) {
+    const W = 16 + R() * 18, D = 12 + R() * 12, H = 10 + R() * 15;
+    return { sdf: (x, y, z) => smin(sdRoundBox(x, y - H / 2, z, W / 2, H / 2, D / 2, 1.5), sdEllipsoid(x, y + H * 0.05, z, W / 2 + H * 0.4, H * 0.32, D / 2 + H * 0.4), H * 0.22), size: [W + H * 0.8, H, D + H * 0.8], layer: 2.2 + R() * 1.4, strata: 0.8, wear: 0.7 };
+  },
+  butte(R) {
+    const W = 9 + R() * 8, D = 8 + R() * 7, H = 17 + R() * 16;
+    return { sdf: (x, y, z) => smin(sdRoundBox(x, y - H / 2, z, W / 2, H / 2, D / 2, 1.6), sdEllipsoid(x, y + H * 0.04, z, W / 2 + H * 0.4, H * 0.3, D / 2 + H * 0.4), H * 0.2), size: [W + H * 0.8, H, D + H * 0.8], layer: 2 + R() * 1.2, strata: 0.75, wear: 0.6 };
+  },
+  spire(R) {
+    // A capped spire (a hoodoo): a column waisted under a wider cap.
+    const r = 1.3 + R() * 1.3, H = 10 + R() * 12, cr = r * (1.7 + R() * 0.5);
+    return {
+      sdf: (x, y, z) => {
+        const waist = r * (1 - 0.35 * Math.exp(-(((y - H * 0.78) / (H * 0.12)) ** 2)) + 0.25 * Math.max(0, (H * 0.3 - y) / H));
+        const col = Math.max(Math.hypot(x, z) - waist, y - H, -y - 1);
+        return smin(col, sdEllipsoid(x, y - H, z, cr, r * 0.75, cr * 0.9), r * 0.4);
+      },
+      size: [cr * 2, H + r * 0.75, cr * 1.8], layer: 0.9 + R() * 0.5, strata: 0.45, wear: 0.25,
+    };
+  },
+  fins(R) {
+    // Fins: thin walls of rock side by side, joined at the foot.
+    const n = 2 + Math.floor(R() * 3), t = 1.6 + R() * 1.4, L = 12 + R() * 12, H = 8 + R() * 8, gap = t * 2.4;
+    const hs = Array.from({ length: n }, () => H * (0.7 + R() * 0.3));
+    const W = (n - 1) * gap + t;
+    return {
+      sdf: (x, y, z) => {
+        let d = Infinity;
+        for (let i = 0; i < n; i++) d = Math.min(d, sdRoundBox(x - (i * gap - W / 2 + t / 2), y - hs[i] / 2, z, t / 2, hs[i] / 2, L / 2, t * 0.45));
+        return smin(d, sdRoundBox(x, y, z, W / 2 + 1, 1.2, L / 2 + 1, 1), 1.4);
+      },
+      size: [W + 2, H, L + 2], layer: 1.2 + R() * 0.6, strata: 0.35, wear: 0.35,
+    };
+  },
+  dome(R) {
+    // A slickrock dome, its sandstone bedded at a slant.
+    const rx = 9 + R() * 8, ry = 5 + R() * 4, rz = 8 + R() * 6;
+    return { sdf: (x, y, z) => sdEllipsoid(x, y + ry * 0.25, z, rx, ry, rz), size: [rx * 2, ry * 0.75, rz * 2], layer: 0.8 + R() * 0.5, strata: 0.25, tilt: 0.3 + R() * 0.4, wear: 0.35 };
+  },
+  balanced(R) {
+    const br = 2.6 + R() * 2, ph = 3 + R() * 3, pr = br * 0.42;
+    return {
+      sdf: (x, y, z) => smin(sdEllipsoid(x, y - ph - br * 0.7, z, br * 1.2, br * 0.85, br), Math.max(Math.hypot(x, z) - pr * (1 + 0.5 * Math.max(0, (ph - y) / ph)), y - ph - br * 0.4, -y - 1), br * 0.3),
+      size: [br * 2.4, ph + br * 1.55, br * 2], layer: 0.9, strata: 0.2, wear: 0.3,
+    };
+  },
+  boulders(R) {
+    const n = 4 + Math.floor(R() * 4), parts = [];
+    for (let i = 0; i < n; i++) { const r = 1.2 + R() * 2.4, a = R() * Math.PI * 2, d = R() * 4.5; parts.push([Math.cos(a) * d, r * 0.55, Math.sin(a) * d, r * (0.9 + R() * 0.4), r * (0.6 + R() * 0.3), r]); }
+    return {
+      sdf: (x, y, z) => { let d = Infinity; for (const [px, py, pz, rx, ry, rz] of parts) d = smin(d, sdEllipsoid(x - px, y - py, z - pz, rx, ry, rz), 0.8); return d; },
+      size: [16, 7, 16], layer: 1, strata: 0.1, wear: 0.3,
+    };
+  },
+  arch(R) {
+    // A free arch: a fin with a window worn through it.
+    const L = 16 + R() * 8, t = 3 + R() * 2, H = 10 + R() * 5;
+    return {
+      sdf: (x, y, z) => smax(sdRoundBox(x, y - H / 2, z, L / 2, H / 2, t / 2, t * 0.4), -sdEllipsoid(x, y - H * 0.38, z, L * 0.3, H * 0.36, t * 3), 1),
+      size: [L, H, t], layer: 1.3 + R() * 0.6, strata: 0.4, wear: 0.4, face: true,
+    };
+  },
+  jointed(R) {
+    // Muley Point's rock: a low shelf split into blocks along its joints.
+    const W = 14 + R() * 12, D = 10 + R() * 10, H = 3 + R() * 3.5, s1 = 3 + R() * 2, s2 = 3 + R() * 2;
+    const joints = [];
+    for (let x = -W / 2 + s1; x < W / 2; x += s1 * (0.8 + R() * 0.4)) joints.push({ x, z: 0, nx: 1, nz: 0.08 * (R() - 0.5), w: 0.18 });
+    for (let z = -D / 2 + s2; z < D / 2; z += s2 * (0.8 + R() * 0.4)) joints.push({ x: 0, z, nx: 0.08 * (R() - 0.5), nz: 1, w: 0.18 });
+    return { sdf: (x, y, z) => sdRoundBox(x, y - H / 2, z, W / 2, H / 2, D / 2, 0.7), size: [W, H, D], layer: 0.9, strata: 0.25, wear: 0.3, joints };
+  },
+};
+// The background's kinds, near and far, and how many of each.
+const MID = ["spire", "spire", "spire", "spire", "spire", "fins", "fins", "dome", "dome", "balanced", "balanced", "boulders", "boulders", "boulders", "arch", "jointed", "jointed"];
+const FAR = ["mesa", "mesa", "mesa", "mesa", "butte", "butte", "butte", "butte"];
+
+/* ---------------------------------------------------------------- the plan */
+
+/* Where every formation stands and what it is, worked out at once (cheap:
+   numbers only); the rock itself is built a few at a time after. Each is
+   kept clear of the others, and of the camera's room: its nearest edge
+   outside ROOM_CLEAR. */
+function planLand(q) {
+  const R = rng(20261110);
+  const placed = [];
+  const fits = (x, z, rho) => placed.every((p) => Math.hypot(p.x - x, p.z - z) > p.rho + rho + 3);
+  /* Nothing stands in the moon's way: it's low (a few degrees up) and
+     drawn under all the rock, so anything on its bearing would hide it.
+     Kept clear: its own breadth, the formation's, and some for a view
+     from off the middle (the camera's orbit). */
+  const underMoon = (a, r, rho) => Math.abs(Math.atan2(Math.sin(a - MOON_A), Math.cos(a - MOON_A))) < 0.18 + (rho + 3) / r;
+  function place(rho, a0, a1, rMin, rMax, edge = SKY_R - 4) {
+    for (let tries = 0; tries < 220; tries++) {
+      const a = a0 + R() * (a1 - a0), r = Math.max(ROOM_CLEAR + rho + 2, rMin) + R() * Math.max(0, rMax - Math.max(ROOM_CLEAR + rho + 2, rMin));
+      const x = Math.cos(a) * r, z = Math.sin(a) * r;
+      if (r + rho > edge || underMoon(a, r, rho)) continue;
+      if (fits(x, z, rho)) return { x, z, a };
+      if (tries > 150) rMax += 1.5;
+    }
+    return null;
+  }
+  const jobs = [];
+  const sides = q.detail === 0 ? null : ["light", "dark"];
+  PIECE_FORMS.forEach(([type, first, second], i) => {
+    const forSides = sides || [i % 2 ? "dark" : "light"];
+    for (const side of forSides) {
+      const pose = side === "dark" && second ? second : first;
+      const C = 5 + R() * 2.4;
+      const { sdf, size } = pieceRock(pose, C, R);
+      const rho = Math.hypot(size[0], size[2]) / 2 + (pose.fallen ? 2 : 0.8);
+      // Each side's behind its own end: Light's toward +z, Dark's toward -z.
+      const mid = side === "light" ? Math.PI / 2 : -Math.PI / 2;
+      const spot = place(rho, mid - 1.25, mid + 1.25, 0, ROOM_CLEAR + rho + 34);
+      if (!spot) continue;
+      placed.push({ x: spot.x, z: spot.z, rho });
+      // (A shape that reads face on turned to the board; the disc's flat side too.)
+      const rotY = pose.disc ? Math.PI - spot.a + (R() - 0.5) * 0.5 : pose.face ? Math.atan2(-Math.cos(spot.a), -Math.sin(spot.a)) + (R() - 0.5) * 0.5 : R() * Math.PI * 2;
+      jobs.push({
+        label: `${type}:${side}`, type, side, kind: "piece", sdf, size, C, seed: 1000 + jobs.length * 37,
+        st: side === "dark" ? STONE.basalt : STONE.sandstone, x: spot.x, z: spot.z, rho, rotY,
+        lean: pose.fallen ? 0.12 + R() * 0.12 : (R() - 0.5) * 0.06, sink: pose.fallen ? C * 0.25 : 0.4 + R() * 0.6,
+        weather: { wear: C * 0.03, freq: 1.5 / C, layer: 0.9 + R() * 0.8, strata: C * 0.04, notch: pose.fallen || pose.disc ? 0 : 0.3 + R() * 0.25, notchAt: 0.7 },
+        joints: 1 + Math.floor(R() * 3),
+      });
+    }
+  });
+  // The rest of the land: near, every way between the pieces' ranks, in
+  // stones of every kind; far, mesas and buttes on the horizon.
+  const ST = [STONE.redrock, STONE.cream, STONE.sandstone, STONE.grey, STONE.redrock, STONE.basalt];
+  const mids = q.detail === 0 ? MID.filter((_, i) => i % 2 === 0) : MID;
+  const fars = q.detail === 0 ? FAR.filter((_, i) => i % 3 !== 2) : FAR;
+  // (The far ones may reach past the sky's foot, out over the ground's last stretch, into the fog.)
+  [...mids.map((k) => [k, 62, 112, SKY_R - 4]), ...fars.map((k) => [k, 112, 150, R_OUT - 4])].forEach(([kind, rMin, rMax, edge], i) => {
+    const f = OTHER[kind](R);
+    const rho = Math.hypot(f.size[0], f.size[2]) / 2 + 1;
+    const spot = place(rho, 0, Math.PI * 2, rMin, rMax, edge);
+    if (!spot) return;
+    placed.push({ x: spot.x, z: spot.z, rho });
+    // (Basalt where Dark's side is, the warm stones elsewhere.)
+    const st = spot.z < -20 && R() < 0.5 ? STONE.basalt : ST[Math.floor(R() * ST.length)];
+    const rotY = f.face ? Math.atan2(-Math.cos(spot.a), -Math.sin(spot.a)) + (R() - 0.5) * 0.6 : R() * Math.PI * 2;
+    const joints = f.joints ? f.joints : null;
+    jobs.push({
+      label: `${kind}:${i}`, kind, sdf: f.sdf, size: f.size, C: Math.min(f.size[0], f.size[2], 8), seed: 5000 + i * 53, st, x: spot.x, z: spot.z, rho, rotY,
+      lean: (R() - 0.5) * 0.04, sink: kind === "dome" ? 0 : 0.3 + R() * 0.5,
+      weather: { wear: f.wear, freq: 0.22, layer: f.layer, strata: f.strata, tilt: f.tilt || 0, notch: kind === "spire" || kind === "balanced" ? 0 : 0.45, notchAt: 0.8 },
+      jointList: joints, joints: joints ? 0 : kind === "mesa" || kind === "butte" ? 2 + Math.floor(R() * 2) : 0,
+    });
+  });
+  return jobs;
+}
+
+/* One formation built: its rock, placed in the land, and its long shadow. */
+function buildJob(job, q, hx, hz) {
+  const { size } = job;
+  const R = rng(job.seed);
+  // Joints: vertical cracks through it, at planes across its footprint.
+  const joints = job.jointList || Array.from({ length: job.joints }, () => {
+    const a = R() * Math.PI;
+    return { x: (R() - 0.5) * size[0] * 0.6, z: (R() - 0.5) * size[2] * 0.6, nx: Math.cos(a), nz: Math.sin(a), w: 0.09 + R() * 0.08, from: size[1] * (0.15 + R() * 0.4) };
+  });
+  // Fractures: planes that break off a corner or an edge (each bites a
+  // little way into the side it faces), so its faces are flat and its
+  // edges sharp, as broken rock's are.
+  const cuts = [];
+  for (let k = 0, n = job.kind === "piece" ? 5 + Math.floor(R() * 6) : 4 + Math.floor(R() * 6); k < n; k++) {
+    let nx = R() - 0.5, ny = (R() - 0.3) * 0.9, nz = R() - 0.5;
+    const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+    const sup = Math.abs(nx) * size[0] / 2 + Math.abs(ny) * size[1] / 2 + Math.abs(nz) * size[2] / 2;
+    cuts.push([nx, ny, nz, ny * (size[1] / 2) + sup * (0.8 - R() * 0.14)]);
+  }
+  const f = weathered(job.sdf, { seed: job.seed, ...job.weather, joints, cuts });
+  const m = job.weather.wear + job.weather.strata + 1.2;
+  // (A finer grid near and for the pieces, coarser far; coarser still on a weak device.)
+  const cell = Math.max(job.kind === "piece" ? job.C / 7.5 : Math.max(size[0], size[1], size[2]) / 34, 0.45) * (q.detail === 0 ? 1.6 : 1);
+  // Where it stands: its footprint's lowest ground, less how far it's sunk.
+  let ground = Infinity;
+  for (const [u, v] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) ground = Math.min(ground, groundAt(job.x + (u * size[0]) / 2.5, job.z + (v * size[2]) / 2.5, hx, hz));
+  const matrix = new THREE.Matrix4().compose(
+    new THREE.Vector3(job.x, ground - job.sink, job.z),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(0, job.rotY, job.lean, "YXZ")),
+    new THREE.Vector3(1, 1, 1),
+  );
+  const geo = rockGeometry(f, [-size[0] / 2 - m, -1.6, -size[2] / 2 - m], [size[0] / 2 + m, size[1] + m, size[2] / 2 + m], cell, { st: job.st, seed: job.seed, matrix, clipBelow: 0 });
+  return { geo, shadow: shadowRibbon(job, ground, hx, hz) };
+}
+
+/* A long shadow on the ground, away from the dusk (+z), following the
+   ground's rise and fall and stopped short of the platform. */
+function shadowRibbon(job, ground, hx, hz) {
+  const H = job.size[1];
+  if (H < 6) return null;
+  const w = Math.min(job.size[0], job.size[2]) * 0.9, L = Math.min(H * 1.7, 64), N = 14;
+  const pts = [];
+  for (let k = 0; k <= N; k++) {
+    const z = job.z + (L * k) / N, x = job.x;
+    if (k > 1 && outFromBoard(x, z, hx, hz) < ledgeLine(x, z).P + 3) break;
+    pts.push([x, z, k / N]);
+  }
+  if (pts.length < 3) return null;
+  const pos = [], uv = [], idx = [];
+  pts.forEach(([x, z, t], k) => {
+    const half = (w / 2) * (1 + 0.45 * t);
+    for (const s of [-1, 1]) { const px = x + s * half; pos.push(px, groundAt(px, z, hx, hz) + 0.08, z); uv.push(s < 0 ? 0 : 1, t); }
+    if (k) { const b = (k - 1) * 2; idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3); }
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/* ---------------------------------------------------------------- the land */
+
+const HIDE = new Set(["ec-slab-edges", "ec-top-ring"]); // (the slab's outline: its floor is the board, its edges are the rock's)
+
+/* The land: { group (hang it on the board group), fog(), tick(t, now),
+   dispose() }. group.userData.formations lists what stands in it (each
+   { kind, type, side }), group.userData.ready once it all does. */
+export function createMonolithLand() {
+  const q = quality();
   const group = new THREE.Group();
   group.name = "lab-monolith-land";
-  const q = quality();
-  const R = rng(20261110);
-  const GROUND = below - 0.55; // the plain; the board's shelf rises from it
-  const HX = SLAB_X / 2, HZ = SLAB_Z / 2;
+  group.userData.formations = [];
+  group.userData.ready = false;
+  group.userData.stats = { buildMs: 0, vertices: 0, batches: 0 }; // (the work the formations took, for tests and tuning)
 
   /* The sky and the moon: never fogged, never tone mapped (as painted). */
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(150, 48, 24), new THREE.MeshBasicMaterial({ map: skyTexture(), side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false }));
-  sky.name = "monolith-sky"; sky.renderOrder = -10; sky.userData.noMerge = true;
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(SKY_R, 48, 24), new THREE.MeshBasicMaterial({ map: skyTexture(), side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false }));
+  sky.name = "monolith-sky"; sky.renderOrder = -10;
   group.add(sky);
   const moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: moonTexture(), fog: false, depthWrite: false, transparent: true, toneMapped: false }));
-  // Low over Dark's end, a little to the right of a player's line (the
-  // read-out takes the left), where a low view sees it.
-  moon.position.copy(new THREE.Vector3(0.32, 0.12, -0.94).normalize().multiplyScalar(138));
+  moon.position.copy(MOON).multiplyScalar(SKY_R - 12);
   moon.scale.setScalar(26); moon.name = "monolith-moon"; moon.renderOrder = -9;
   group.add(moon);
 
-  /* The plain. */
-  const plainTex = plainTexture().clone(); plainTex.needsUpdate = true; plainTex.repeat.set(26, 26); plainTex.__shared = false;
-  const plain = new THREE.Mesh(new THREE.CircleGeometry(152, 72), new THREE.MeshStandardMaterial({ color: LAND.plain, map: plainTex, roughness: 1, metalness: 0 }));
-  plain.rotation.x = -Math.PI / 2; plain.position.y = GROUND; plain.receiveShadow = true; plain.name = "monolith-plain"; plain.userData.noMerge = true;
-  group.add(plain);
+  const groundMat = rockMaterial(plainTexture(), 1 / 12);
+  // (Shaded flat, face by face: broken stone's facets and edges, where
+  // smooth shading made every block look worn soft as clay.)
+  const rockMat = rockMaterial(stoneTexture(), 1 / 7.5, { flatShading: true });
+  const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const rubbleMat = new THREE.MeshStandardMaterial({ map: stoneTexture(), roughness: 0.97, metalness: 0 });
+  // (Three shapes of broken stone, coarse: there are hundreds of them.)
+  const RUBBLE = [0, 1, 2].map((k) => hewnBox(1, 1, 1, { seed: 9100 + k, seg: 0.34, rough: 0.08, chip: 0.2, chipW: 0.32, freq: 2.2, uvUnit: 1 }));
 
-  const stoneTex = stoneTexture();
-  const mats = {
-    basalt: new THREE.MeshStandardMaterial({ color: LAND.basalt, map: stoneTex, roughness: 0.96, metalness: 0 }),
-    sandstone: new THREE.MeshStandardMaterial({ color: LAND.sandstone, map: stoneTex, roughness: 0.98, metalness: 0 }),
-  };
-
-  /* The board's shelf: a slab of the plain's rock a little wider than the
-     board, its edge broken. */
-  {
-    const pts = [], n = 44, ax = HX + 0.9, az = HZ + 0.9;
+  /* The ground and the rubble on it, for the board's size now. */
+  let ground = null, rubble = [], dims = "", hx = 0, hz = 0;
+  function buildGround() {
+    hx = SLAB_X / 2; hz = SLAB_Z / 2; dims = `${SLAB_X}x${SLAB_Z}`;
+    if (ground) { group.remove(ground); ground.geometry.dispose(); }
+    rubble.forEach((im) => { group.remove(im); im.dispose(); }); rubble = [];
+    ground = new THREE.Mesh(terrainGeometry(hx, hz, q.detail), groundMat);
+    ground.name = "monolith-ground"; ground.receiveShadow = true;
+    group.add(ground);
+    // Rubble: a little on the platform (clear of the board and its bench),
+    // scree and fallen blocks over the plain.
+    const R = rng(7713), dummy = new THREE.Object3D(), lists = [[], [], []], colours = [[], [], []];
+    const n = q.detail === 0 ? 170 : 420;
     for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
-      // A rounded square, the corners chipped, each point a little in or out.
-      const k = 1 / Math.max(Math.abs(c), Math.abs(s));
-      const jitter = 0.18 + R() * 0.55;
-      pts.push(new THREE.Vector2(c * k * (ax + jitter) * (Math.abs(c) > 0.98 || Math.abs(s) > 0.98 ? 1 : 0.985), s * k * (az + jitter) * (Math.abs(c) > 0.98 || Math.abs(s) > 0.98 ? 1 : 0.985)));
-    }
-    const shelf = new THREE.Mesh(new THREE.ExtrudeGeometry(new THREE.Shape(pts), { depth: 0.56, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.08, bevelSegments: 1 }), new THREE.MeshStandardMaterial({ color: 0x55534f, map: stoneTex, roughness: 0.97 }));
-    shelf.rotation.x = Math.PI / 2; shelf.position.y = below; shelf.receiveShadow = true; shelf.castShadow = false; shelf.name = "monolith-shelf"; shelf.userData.noMerge = true;
-    group.add(shelf);
-  }
-
-  /* The stones. Every placement is kept clear of the board and its shelf,
-     and only the low ones come in near (a camera within the ring sees the
-     board past them). */
-  const stones = new THREE.Group(); stones.name = "monolith-stones";
-  group.add(stones);
-  const shadows = []; // [x, z, width, length, angle]
-  const kindAt = (x, z) => (z < -10 ? "basalt" : z > 10 ? "sandstone" : R() < 0.5 ? "basalt" : "sandstone");
-  // Set into the ground: the four lowest corners of the block, as it's
-  // turned, at least `sink` under the plain, so no corner of a leaning or
-  // fallen stone stands off it.
-  const corner = new THREE.Vector3(), turn = new THREE.Matrix4();
-  const seat = (m, w, h, d, sink) => {
-    turn.makeRotationFromEuler(m.rotation);
-    const ys = [];
-    for (let i = 0; i < 8; i++) ys.push(corner.set((i & 1 ? 0.5 : -0.5) * w, (i & 2 ? 0.5 : -0.5) * h, (i & 4 ? 0.5 : -0.5) * d).applyMatrix4(turn).y);
-    ys.sort((a, b) => a - b);
-    return GROUND - ys[3] - sink;
-  };
-  const block = (x, z, w, h, d, { rotY = 0, leanX = 0, leanZ = 0, sink = 0.35, kind, standing = false } = {}) => {
-    const m = new THREE.Mesh(stoneGeometry(w, h, d, R, { standing }), mats[kind || kindAt(x, z)]);
-    m.rotation.set(leanX, rotY, leanZ);
-    m.position.set(x, seat(m, w, h, d, sink), z);
-    m.castShadow = true; m.receiveShadow = true;
-    stones.add(m);
-    return m;
-  };
-  // A long shadow away from the dusk, kept off the board.
-  const shadowOf = (x, z, w, h) => {
-    if (h < 3) return;
-    const away = new THREE.Vector2(-DUSK.x, -DUSK.z).normalize();
-    // How far it may run before it would reach the board's shelf.
-    let len = h * 2.3;
-    for (let s = 0; s < len; s += 0.5) {
-      const px = x + away.x * s, pz = z + away.y * s;
-      if (Math.abs(px) < HX + 3 && Math.abs(pz) < HZ + 3) { len = Math.max(0, s - 1.5); break; }
-    }
-    if (len > 2) shadows.push([x, z, w * 1.1, len]);
-  };
-
-  // The great stones: a ring of them, sector by sector, out past the camera.
-  const SECTORS = 24;
-  for (let i = 0; i < SECTORS; i++) {
-    const a = (i / SECTORS) * Math.PI * 2 + R() * 0.18;
-    const far = R() < 0.4;
-    const rad = far ? ROOM_CLEAR + 20 + R() * 30 : ROOM_CLEAR + R() * 16;
-    const x = Math.cos(a) * rad, z = Math.sin(a) * rad;
-    const kind = kindAt(x, z);
-    const pick = R();
-    const rotY = R() * Math.PI;
-    if (pick < 0.36) {
-      // A standing slab, tall.
-      const w = 3 + R() * 4, d = 2 + R() * 3, h = 12 + R() * 16;
-      block(x, z, w, h, d, { rotY, leanX: (R() - 0.5) * 0.08, leanZ: (R() - 0.5) * 0.08, kind, standing: true });
-      shadowOf(x, z, w, h);
-    } else if (pick < 0.56) {
-      // A great block, near a cube.
-      const s = 7 + R() * 6;
-      block(x, z, s * (0.9 + R() * 0.3), s * (0.8 + R() * 0.4), s * (0.9 + R() * 0.3), { rotY, kind, sink: 0.6 });
-      shadowOf(x, z, s, s);
-    } else if (pick < 0.72) {
-      // A leaning slab, propped on a shorter block under the side it
-      // leans to (a turn about its own z takes its top toward its -x, for
-      // a lean the right way round; the prop's near face meets the slab's
-      // at the prop's top).
-      const w = 3 + R() * 3, d = 2 + R() * 2, h = 14 + R() * 10;
-      const lean = (0.18 + R() * 0.2) * (R() < 0.5 ? -1 : 1), L = Math.abs(lean), sg = Math.sign(lean);
-      const sink = 0.5, hp = h * 0.32, wp = w * 0.9;
-      block(x, z, w, h, d, { rotY, leanZ: lean, kind, sink, standing: true });
-      const face = -(w / 2) * Math.cos(L) + (h / 2) * Math.sin(L) - (hp + w * Math.sin(L) + sink) * Math.tan(L);
-      const off = (face - wp / 2) * sg;
-      block(x + Math.cos(rotY) * off, z - Math.sin(rotY) * off, wp, hp, d * 1.2, { rotY: rotY + 0.1, kind });
-      shadowOf(x, z, w, h * 0.9);
-    } else if (pick < 0.86) {
-      // A column of stacked blocks, each a little askew, each sitting on
-      // the one below.
-      let top = 0;
-      const w = 4 + R() * 3, d = 3 + R() * 3;
-      for (let k = 0; k < 2 + Math.floor(R() * 2); k++) {
-        const h = 5 + R() * 6;
-        const m = block(x + (R() - 0.5) * 0.8, z + (R() - 0.5) * 0.8, w * (1 - k * 0.08), h, d * (1 - k * 0.08), { rotY: rotY + (R() - 0.5) * 0.12, leanX: k ? (R() - 0.5) * 0.05 : 0, kind, sink: 0.4 });
-        if (k) m.position.y = GROUND + top + h / 2 - 0.08;
-        top = m.position.y - GROUND + h / 2;
-      }
-      shadowOf(x, z, w, top);
-    } else {
-      // A fallen slab, flat on its face, one end a little raised, half sunk.
-      const w = 3 + R() * 3, h = 12 + R() * 10, d = 2.5 + R() * 2;
-      block(x, z, w, h, d, { rotY, leanX: Math.PI / 2 - 0.12, kind, sink: d * 0.35 });
-    }
-  }
-  // Boulders nearer in, low and broad, none higher than BOULDER_TOP.
-  for (let i = 0; i < 14; i++) {
-    const a = R() * Math.PI * 2, rad = 13 + R() * 18;
-    const x = Math.cos(a) * rad, z = Math.sin(a) * rad;
-    if (Math.abs(x) < HX + 3 && Math.abs(z) < HZ + 3) continue;
-    const s = 1.2 + R() * 2.2;
-    const m = block(x, z, s * (1 + R() * 0.8), 0.5 + R() * 0.6, s * (0.8 + R() * 0.7), { rotY: R() * Math.PI, leanX: (R() - 0.5) * 0.16, leanZ: (R() - 0.5) * 0.16, sink: 0.15 });
-    m.updateMatrixWorld(true);
-    const top = new THREE.Box3().setFromObject(m).max.y;
-    if (top > BOULDER_TOP) m.position.y -= top - BOULDER_TOP;
-  }
-  mergeStatic(stones);
-
-  /* The long shadows, baked into one mesh. */
-  if (shadows.length) {
-    const pos = [], uvs = [], idx = [];
-    const away = new THREE.Vector2(-DUSK.x, -DUSK.z).normalize(), side = new THREE.Vector2(-away.y, away.x);
-    shadows.forEach(([x, z, w, len], i) => {
-      const y = GROUND + 0.02 + i * 0.0005;
-      const p0x = x - side.x * w / 2, p0z = z - side.y * w / 2, p1x = x + side.x * w / 2, p1z = z + side.y * w / 2;
-      // Widening a little as it goes.
-      const e0x = p0x + away.x * len - side.x * w * 0.3, e0z = p0z + away.y * len - side.y * w * 0.3;
-      const e1x = p1x + away.x * len + side.x * w * 0.3, e1z = p1z + away.y * len + side.y * w * 0.3;
-      pos.push(p0x, y, p0z, p1x, y, p1z, e1x, y, e1z, e0x, y, e0z);
-      uvs.push(0, 0, 1, 0, 1, 1, 0, 1);
-      const b = i * 4;
-      idx.push(b, b + 2, b + 1, b, b + 3, b + 2);
-    });
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-    geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
-    geo.setIndex(idx);
-    geo.computeVertexNormals();
-    const sh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
-    sh.name = "monolith-shadows"; sh.renderOrder = 1; sh.userData.noMerge = true;
-    group.add(sh);
-  }
-
-  /* Rubble: at the stones' feet and over the plain, never on the shelf;
-     broken stone, three shapes of it, each knocked about more than the
-     great stones are. */
-  {
-    const n = q.detail === 0 ? 160 : 420;
-    const SHAPES = [0, 1, 2].map((k) => hewnBox(1, 1, 1, { seed: 9100 + k, seg: 0.2, rough: 0.08, chip: 0.2, chipW: 0.32, freq: 2.2, uvUnit: 1 }));
-    const both = { basalt: [], sandstone: [] };
-    const dummy = new THREE.Object3D();
-    for (let i = 0; i < n; i++) {
-      const a = R() * Math.PI * 2, rad = 10 + Math.pow(R(), 0.7) * 90;
-      const x = Math.cos(a) * rad, z = Math.sin(a) * rad;
-      if (Math.abs(x) < HX + 2 && Math.abs(z) < HZ + 2) continue;
-      const s = 0.12 + Math.pow(R(), 2.2) * (rad > 30 ? 2.4 : 0.9);
-      dummy.position.set(x, GROUND + s * 0.3, z);
+      const onPlatform = i < n * 0.25;
+      const a = R() * Math.PI * 2, r = onPlatform ? Math.hypot(hx, hz) + 3 + R() * 14 : 30 + Math.pow(R(), 0.8) * 110;
+      const x = Math.cos(a) * r, z = Math.sin(a) * r, d = outFromBoard(x, z, hx, hz), P = ledgeLine(x, z).P;
+      if (onPlatform ? d < 3 || d > P - 1.5 : d < P + 1) continue;
+      const s = onPlatform ? 0.08 + Math.pow(R(), 2) * 0.28 : 0.25 + Math.pow(R(), 2.4) * 2.2;
+      dummy.position.set(x, groundAt(x, z, hx, hz) + s * 0.25, z);
       dummy.rotation.set(R() * 0.6, R() * Math.PI, R() * 0.6);
       dummy.scale.set(s * (0.7 + R() * 0.8), s * (0.4 + R() * 0.6), s * (0.7 + R() * 0.8));
       dummy.updateMatrix();
-      both[kindAt(x, z)].push(dummy.matrix.clone());
+      const k = i % 3;
+      lists[k].push(dummy.matrix.clone());
+      const side = ease((z + 6) / 14);
+      const c = mix3([0.3, 0.31, 0.34], [0.8, 0.66, 0.5], side);
+      colours[k].push(new THREE.Color(c[0], c[1], c[2]));
     }
-    for (const [kind, list] of Object.entries(both)) {
-      SHAPES.forEach((geo, k) => {
-        const mine = list.filter((_, i) => i % SHAPES.length === k);
-        if (!mine.length) return;
-        const im = new THREE.InstancedMesh(geo, mats[kind], mine.length);
-        mine.forEach((m, i) => im.setMatrixAt(i, m));
-        im.name = `monolith-rubble-${kind}`; im.receiveShadow = true; im.userData.noMerge = true;
-        group.add(im);
-      });
-    }
+    lists.forEach((list, k) => {
+      if (!list.length) return;
+      const im = new THREE.InstancedMesh(RUBBLE[k], rubbleMat, list.length);
+      list.forEach((m, i) => { im.setMatrixAt(i, m); im.setColorAt(i, colours[k][i]); });
+      im.name = "monolith-rubble"; im.receiveShadow = true;
+      group.add(im); rubble.push(im);
+    });
   }
+  buildGround();
+
+  /* The formations, a frame's work at a time. */
+  const jobs = planLand(q);
+  let alive = true, timer = null, at = 0;
+  const batches = [];
+  function buildSome() {
+    timer = null;
+    if (!alive) return;
+    const t0 = performance.now(), geos = [], shadows = [];
+    while (at < jobs.length && (performance.now() - t0 < 28 || !geos.length)) {
+      const job = jobs[at++];
+      const { geo, shadow } = buildJob(job, q, hx, hz);
+      geos.push(geo);
+      if (shadow) shadows.push(shadow);
+      group.userData.formations.push({ kind: job.kind, type: job.type || null, side: job.side || null, x: job.x, z: job.z, rho: job.rho });
+    }
+    const rocks = new THREE.Mesh(BufferGeometryUtils.mergeBufferGeometries(geos, false), rockMat);
+    geos.forEach((g) => g.dispose());
+    group.userData.stats.vertices += rocks.geometry.attributes.position.count;
+    group.userData.stats.batches++;
+    rocks.name = "monolith-rocks";
+    group.add(rocks); batches.push(rocks);
+    if (shadows.length) {
+      const sh = new THREE.Mesh(BufferGeometryUtils.mergeBufferGeometries(shadows, false), shadowMat);
+      shadows.forEach((g) => g.dispose());
+      sh.name = "monolith-shadows"; sh.renderOrder = 1;
+      group.add(sh); batches.push(sh);
+    }
+    group.userData.stats.buildMs += performance.now() - t0;
+    if (at < jobs.length) timer = setTimeout(buildSome, 0);
+    else group.userData.ready = true;
+  }
+  timer = setTimeout(buildSome, 0);
+
+  /* The lights, turned with the board (as Luna's sun): set where the
+     chassis puts them, at the board's own heading. */
+  let base = null;
+  const tmp = new THREE.Vector3();
+  const hidden = new Set();
   return {
     group,
-    fog: () => new THREE.Fog(LAND.fog, 34, 148),
+    fog: () => new THREE.Fog(LAND.fog, 40, 148),
+    tick(t) {
+      if (`${SLAB_X}x${SLAB_Z}` !== dims) buildGround();
+      for (const c of t.boardGroup.children) if (HIDE.has(c.name) && c.visible) { c.visible = false; hidden.add(c); }
+      const L = t.lights;
+      if (L && L.key) {
+        if (!base) base = { key: L.key.position.clone(), fill: L.fill.position.clone(), back: L.back.position.clone() };
+        const a = t.boardGroup.rotation.y;
+        for (const k of ["key", "fill", "back"]) {
+          tmp.copy(base[k]).applyAxisAngle(UP, a);
+          if (!L[k].position.equals(tmp)) L[k].position.copy(tmp);
+        }
+        group.userData.lightsTurn = a;
+      }
+      group.userData.lightBase = base;
+    },
+    dispose(t) {
+      alive = false;
+      if (timer) clearTimeout(timer);
+      if (t && t.lights && base) for (const k of ["key", "fill", "back"]) t.lights[k].position.copy(base[k]);
+      hidden.forEach((c) => { c.visible = true; });
+      RUBBLE.forEach((g) => g.dispose());
+      [groundMat, rockMat, shadowMat, rubbleMat].forEach((m) => m.dispose());
+    },
   };
 }

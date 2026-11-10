@@ -13,7 +13,7 @@ import {
 } from "../../engine/constants.js";
 import { makeRoundedBox, makePolycubeSmooth, voxCubeCenters } from "../../engine/geometry.js";
 import { paintBoard, pieceSurface, markTexture, squareName, paintGroundSheet } from "./paint.js";
-import { buildMonolithLand } from "./monoliths.js";
+import { createMonolithLand } from "./monoliths.js";
 import { hewnBox, hewnDisc, seedOf, snapTurn } from "./hewn.js";
 
 const hex = (css) => new THREE.Color(css).getHex();
@@ -155,6 +155,9 @@ export function createScene(spec) {
     });
     const tex = pieceSurface(m.texture);
     if (tex) mat.map = tex;
+    // (A hewn stone's grain in relief too: its pits and grains catch the
+    // light, where a map alone lies flat on a smooth face.)
+    if (tex && P.hewn) { mat.bumpMap = tex; mat.bumpScale = 0.018; }
     /* Edge lines (Minimal Mono: white on the black pieces, black on the
        white; user: "Black pieces in minimal mono need edge delineation
        because they're just a black mass", then "Minimal mono white
@@ -210,23 +213,37 @@ export function createScene(spec) {
      the mesh it rolled, turned a quarter, before building the piece
      again, and that turn is carried into the new one's frame, so the same
      chips come down where they went over. (An odd-shaped piece keeps the
-     chassis's smooth solid.) */
+     chassis's smooth solid.)
+     And natural stone's surface (the land's own, as the user asked of
+     the Monolith: "natural formations of rock"; the pieces keep their
+     shapes): a few flakes off its arrises, flat scars of fresh stone, and
+     the stone's colours through it, sandstone's bedding and varnish,
+     basalt's weathered rind (hewn.js flakePlanes, stoneTint), all in its
+     own frame, so they roll with it too. */
   const hewnTurns = new Map(); // piece id -> { mesh, turn }
-  function hewnGeometry(piece, isDisc) {
+  function hewnGeometry(piece, isDark, isDisc) {
     if (!P.hewn || piece.vox) return null;
-    const seed = seedOf(piece.id);
-    if (isDisc) return { geo: hewnDisc((DISC_DIAM * CABEZA_SCALE) / 2, DISC_H * CABEZA_SCALE, { seed, rough: 0.012, chip: 0.035, chipW: 0.05, freq: 7 }), turn: null };
+    const seed = seedOf(piece.id), stone = (isDark ? P.dark : P.light).texture || null;
+    if (isDisc) return { geo: hewnDisc((DISC_DIAM * CABEZA_SCALE) / 2, DISC_H * CABEZA_SCALE, { seed, rough: 0.012, chip: 0.035, chipW: 0.05, freq: 7, stone }), turn: null };
     const prev = hewnTurns.get(piece.id);
     const turn = new THREE.Quaternion();
     if (prev) snapTurn(turn.copy(prev.mesh.quaternion).multiply(prev.turn));
-    const S = PIECE_SCALE;
-    return { geo: hewnBox(piece.w * S, piece.z * S, piece.h * S, { seed, turn, seg: S / 9, rough: 0.035 * S, chip: 0.1 * S, chipW: 0.16 * S, freq: 3, uvUnit: S }), turn };
+    const S = PIECE_SCALE, cubes = piece.w * piece.z * piece.h;
+    return {
+      geo: hewnBox(piece.w * S, piece.z * S, piece.h * S, {
+        seed, turn, seg: S / 11, rough: 0.045 * S, chip: 0.085 * S, chipW: 0.15 * S, freq: 3, uvUnit: S,
+        flakes: 3 + (cubes >= 2 ? 1 : 0) + (cubes >= 6 ? 1 : 0), flakeDepth: 0.2 * S, flakeReach: 0.5 * S, stone,
+      }),
+      turn,
+    };
   }
 
   function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
-    const hewn = hewnGeometry(piece, isDisc);
+    const hewn = hewnGeometry(piece, isDark, isDisc);
     if (hewn) geo.dispose(); // (the chassis's smooth one, not used)
     const mesh = new THREE.Mesh(hewn ? hewn.geo : geo, pieceMaterial(isDark, isDisc));
+    // (The stone's own colours, where it has them: hewn.js stoneTint.)
+    if (hewn && hewn.geo.attributes.color) mesh.material.vertexColors = true;
     if (hewn && hewn.turn) hewnTurns.set(piece.id, { mesh, turn: hewn.turn });
     mesh.position.set(center.x, y, center.z);
     mesh.castShadow = true;
@@ -444,13 +461,14 @@ export function createScene(spec) {
     };
     const R = Math.max(SLAB_X, SLAB_Z);
     const kind = spec.ground;
-    // The Monolith's land (monoliths.js): its own plain, sky and fog, so
-    // no underlay. The fog goes on the scene with the ground (ambient.js).
+    // The Monolith's land (monoliths.js): its own ground, sky and fog, so
+    // no underlay; it turns with the board (ambient.js hangs it on the
+    // board group, ticks it, and sets its fog on the scene).
     if (kind === "monoliths") {
-      const land = buildMonolithLand({ below });
+      const land = createMonolithLand();
+      land.group.userData.land = land;
       land.group.userData.makeFog = land.fog;
-      group.add(land.group);
-      return group;
+      return land.group;
     }
     // A far underlay in the direction's ground colour, so the setup
     // screen's low view never runs off the edge of a sheet.

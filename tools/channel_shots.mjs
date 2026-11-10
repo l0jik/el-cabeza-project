@@ -32,9 +32,13 @@ const SHOTS = [
   ["parrish-orinoco", dist("el-cabeza-parrish.html?look=orinoco"), 9000],
   ["parrish-watermark", dist("el-cabeza-parrish.html?look=watermark"), 9000],
   // (The Monolith low over the board, the stones over it and the moon low
-  // in the dusk: the view a player tilts down to, as Luna's.)
+  // in the dusk: the view a player tilts down to, as Luna's; from Light's
+  // end, nearly square on, since the moon turns with the land and further
+  // round it leaves the picture.)
   ...LAB.map((id) => [`lab-${id}`, dist(`el-cabeza-lab.html?theme=${id}${id === "monolith" ? "&quality=high" : ""}`), id === "monolith" ? 9000 : 6000,
-    ...(id === "monolith" ? [{ cam: { theta: 0.42, phi: 1.4, radius: 15, snap: true } }] : [])]),
+    // (The Monolith's land builds its rock a few formations a frame:
+    // the picture waits for the last of it.)
+    ...(id === "monolith" ? [{ cam: { theta: 0.06, phi: 1.4, radius: 15, snap: true }, ready: () => { const t = window.__EC_TEST_THREE__ && window.__EC_TEST_THREE__(); const g = t && t.scene.getObjectByName("lab-monolith-land"); return !!(g && g.userData.ready); } }] : [])]),
 ];
 /* The store's card, branded (user: "add some 'Big Glutts' store branding
    on this Theme Switcher card, to give it more of an instant, relatable
@@ -86,6 +90,7 @@ for (const [id, url, wait, prep] of SHOTS) {
   if (prep && prep.cam) await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
   await page.goto(url);
   await page.waitForTimeout(wait);
+  if (prep && prep.ready) await page.waitForFunction(prep.ready, null, { timeout: 180000 }).catch(() => console.log("not ready, shot anyway:", id));
   if (prep && prep.cam) { await page.evaluate((c) => window.__EC_TEST_CAM__ && window.__EC_TEST_CAM__(c), prep.cam); await page.waitForTimeout(2500); }
   if (prep && prep.click) { await page.locator(prep.click).click(); await page.waitForTimeout(prep.after || 3000); }
   if (prep && prep.hideUi) { await page.addStyleTag({ content: HIDE_UI }); await page.waitForTimeout(600); }
