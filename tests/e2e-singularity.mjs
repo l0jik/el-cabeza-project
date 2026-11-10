@@ -981,20 +981,25 @@ if (state.activeCategory === "laws") {
   check("...Set 2 chosen: the line says so (blue), its pair pulsing now",
     /^Now placing Set 2 \(blue\)/.test((await page.locator('[data-testid="blackhole-picker-status"]').innerText()).trim()) && (await livePair()) === "2,2",
     `${await page.locator('[data-testid="blackhole-picker-status"]').innerText()} · ${await livePair()}`);
-  // (A square beside it on its row that's free: one of the missing squares,
-  // placed at random, can sit there, and isn't barred, just taken.)
+  // (A free square beside it, touching it by a side or a corner, as
+  // holesTouch bars: on its row first, then the rows either side where a
+  // hole can go at all. One of the missing squares or Set 2's hole, placed
+  // at random, can sit beside it, taken rather than barred; and the
+  // hand-placed one is the picker's last free square, often at the
+  // board's edge, where one side is off the board.)
   const nearCell = await page.evaluate(([r, c]) => {
-    for (const dc of [1, -1]) {
-      const el = document.querySelector(`[data-testid="bh-cell-${r}-${c + dc}"]`);
-      if (el && !el.dataset.occupiedBy && !el.dataset.holeSet) return el.dataset.testid;
+    const holeRow = (rr) => !!document.querySelector(`[data-testid^="bh-cell-${rr}-"][data-selectable="true"]`);
+    for (const [dr, dc] of [[0, 1], [0, -1], [-1, 0], [1, 0], [-1, 1], [-1, -1], [1, 1], [1, -1]]) {
+      const el = document.querySelector(`[data-testid="bh-cell-${r + dr}-${c + dc}"]`);
+      if (el && !el.dataset.occupiedBy && !el.dataset.holeSet && holeRow(r + dr)) return el.dataset.testid;
     }
-    return `bh-cell-${r}-${c + 1}`;
+    return null;
   }, [Number(m[1]), Number(m[2])]);
   hc = await holeCells();
+  const nearBarred = nearCell ? await page.locator(`[data-testid="${nearCell}"]`).getAttribute("data-wall-blocked") : null;
   check("...Set 2 chosen: both still shown, Set 1's dimmed, a square beside the hand-placed one barred",
-    (await page.locator('[data-testid="blackhole-picker"] [data-chosen]').count()) === 2 && hc.every((c) => c.dim === (c.set === "1")) &&
-      (await page.locator(`[data-testid="${nearCell}"]`).getAttribute("data-wall-blocked")) === "true",
-    `${nearCell}: ${await page.locator(`[data-testid="${nearCell}"]`).getAttribute("data-wall-blocked")} ${JSON.stringify(hc)}`);
+    !!nearCell && (await page.locator('[data-testid="blackhole-picker"] [data-chosen]').count()) === 2 && hc.every((c) => c.dim === (c.set === "1")) && nearBarred === "true",
+    `${nearCell || `no free square beside bh-cell-${m[1]}-${m[2]}`}: ${nearBarred} ${JSON.stringify(hc)}`);
   const clearCell = await page.evaluate(() => {
     const cells = [...document.querySelectorAll('[data-testid="blackhole-picker"] [data-selectable="true"]')].filter((el) => !el.dataset.holeSet);
     const one = [...document.querySelectorAll('[data-testid="blackhole-picker"] [data-hole-set="1"]')].map((el) => el.dataset.testid.split("-").slice(2).map(Number));
