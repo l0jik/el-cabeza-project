@@ -390,13 +390,16 @@ const CHROME = {
   // (The Actions counter and the unused-actions note each on a slab of
   // their own, as the read-out's turn number is: bone words bare over the
   // lit plain and the grey board could go under 4.5 to 1. The note lifted
-  // clear of the counter, and on a phone over two lines.)
+  // clear of the counter, and on a phone over two lines. On a phone the
+  // side's "(dark)" sits small under its name, so the counter's slab is
+  // deeper there to hold it: it hung below the slab.)
   monolith: `[data-testid="dock-panel"] { border-top: 2px solid var(--accent-primary) !important; } .ec-title { letter-spacing: 0.1em !important; } .ec-btn { letter-spacing: 0.06em !important; }
   [data-testid="points-counter"], [data-testid="unused-points-note"] { background: #1C1F27; border: 1px solid #454955; border-radius: 3px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 22px rgba(0,0,0,0.5); }
   [data-testid="points-counter"] { padding: 4px 12px 4px 14px; bottom: 16px !important; }
   [data-testid="unused-points-note"] { padding: 4px 12px; }
   body:has([data-testid="points-counter"]) [data-testid="unused-points-note"] { bottom: 56px !important; }
-  @media (max-width: 600px) { [data-testid="unused-points-note"] { white-space: normal !important; text-wrap: balance; text-align: center; line-height: 1.45; width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; } }`,
+  @media (max-width: 600px) { [data-testid="unused-points-note"] { white-space: normal !important; text-wrap: balance; text-align: center; line-height: 1.45; width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; }
+    [data-testid="points-counter"] { padding-bottom: 17px; } body:has([data-testid="points-counter"]) [data-testid="unused-points-note"] { bottom: 70px !important; } }`,
   destijl: `[data-testid="dock-panel"] { box-shadow: inset 0 0 0 6px #0E0E0E !important; border: 0 !important; } [data-testid="victory-placard"] { border: 8px solid #0E0E0E !important; } [data-testid="victory-placard"]::before { content: ""; position: absolute; left: 0; top: 0; width: 34%; height: 18px; background: var(--accent-primary); }`,
   brutalist: `.ec-btn { border: 3px solid #111 !important; box-shadow: 4px 4px 0 #111 !important; text-transform: uppercase; } .ec-btn:active { transform: translate(4px, 4px) !important; box-shadow: none !important; } [data-testid="dock-panel"] { border-width: 4px !important; }`,
   newTypography: `[data-testid="dock-panel"] { border-width: 0 0 0 !important; border-top: 6px solid #141210 !important; } .ec-title { font-stretch: 62%; }`,
