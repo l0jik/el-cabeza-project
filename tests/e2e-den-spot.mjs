@@ -154,9 +154,14 @@ check(`...its first frame on the set as the dot opens, not 2 s on out of the sno
 {
   // (Frozen: its video still at the top till a moment before it starts,
   // when it rolls from the top to meet the sound.)
+  // (Watched for at least 3 s, at least a dozen frames, none moved: how
+  // many frames a runner draws in that time is its speed, not the hold's;
+  // a loaded CI runner drew 30 in the 4.5 s where "more than 30" was asked,
+  // all 30 still, and failed it, CI run 312.)
   const held = run.samples.filter((x) => run.plays && x.at < run.plays - 500);
   const moved = held.filter((x) => x.t == null || x.t > 0.05 || x.ad > 0);
-  check(`...held there, a frozen frame (${held.length} frames, ${moved.length} moved)`, held.length > 30 && moved.length === 0, JSON.stringify(moved.slice(0, 3)));
+  const span = held.length ? Math.round(held[held.length - 1].at - held[0].at) : 0;
+  check(`...held there, a frozen frame (${held.length} frames over ${span} ms, ${moved.length} moved)`, held.length >= 12 && span >= 3000 && moved.length === 0, JSON.stringify(moved.slice(0, 3)));
   // (On the glass, once the dot's open: the picture, not dark glass.)
   const seen = run.glass.filter((g) => g.at - run.on >= 1300 && run.plays && g.at < run.plays - 300);
   const dark = seen.filter((g) => g.mean < 65 || g.spread < 45);
