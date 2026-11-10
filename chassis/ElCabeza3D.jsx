@@ -453,6 +453,26 @@ function arrowLabWanted() {
    scraping sounds"). */
 const slidesOnly = (piece) => !!piece && !!PIECE_META[piece.type] && PIECE_META[piece.type].shape === "disc";
 const slides = (piece, dir) => slidesOnly(piece) || (!!dir && isSlideKey(dir));
+/* Whether a drag on the chosen piece, its net way on the screen (ux, uy),
+   points at a slide that would push a piece, or try to: the way the slide
+   gesture would take it (a legal slide within ~60deg first, then the
+   nearest refused one, as onMove snaps them), and that way into a piece
+   (a shove, a diagonal shove refused, or a refusal Why not names with a
+   piece in the way). A drag back toward the start square that does is a
+   push, not Undo Move (onMove). */
+function pushesThatWay(slideDrag, ux, uy) {
+  if (!slideDrag) return false;
+  const nearest = (list) => {
+    let best = 0.5, hit = null;
+    for (const d of list) { const dot = ux * d.dirX + uy * d.dirY; if (dot > best) { best = dot; hit = d; } }
+    return hit;
+  };
+  const legal = nearest(slideDrag.dirs);
+  if (legal) return !!(legal.shoves || legal.blocked);
+  const refused = nearest(slideDrag.refused);
+  const r = refused && refused.reason;
+  return !!(r && ((r.pushed && r.pushed.length) || (r.blockers && r.blockers.length)));
+}
 function noteMoveSound(kind, piece, played) {
   if (typeof window !== "undefined" && Array.isArray(window.__EC_TEST_MOVE_SOUNDS__)) window.__EC_TEST_MOVE_SOUNDS__.push({ kind, id: piece && piece.id, type: piece && piece.type, played });
 }
@@ -9867,7 +9887,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
                   const len = Math.hypot(vx, vy) || 1;
                   return { dirX: vx / len, dirY: vy / len };
                 };
-                const dirs = slideEntries.map(([key, m]) => ({ key, ...toward(baseDirOfSlideKey(key)), blocked: m.blocked || null, candidate: m.candidate || null }));
+                const dirs = slideEntries.map(([key, m]) => ({ key, ...toward(baseDirOfSlideKey(key)), blocked: m.blocked || null, candidate: m.candidate || null, shoves: !!(m.shoves && m.shoves.length) }));
                 slideDrag = { dirs, refused: refused.map((x) => ({ ...x, ...toward(x.dir) })), chosen: null, refusedPick: null, blockedKey: null, remaining: slideRemaining };
                 slideDownX = ev.clientX;
                 slideDownY = ev.clientY;
@@ -10097,7 +10117,16 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
           const totalLen = Math.hypot(totalDx, totalDy);
           if (totalLen > DRAG_DEAD_ZONE_PX) {
             const dot = (totalDx / totalLen) * undoDragTarget.dirX + (totalDy / totalLen) * undoDragTarget.dirY;
-            if (dot > 0.55) {
+            /* Back toward the start square, but also into a piece a slide
+               that way would push: the push, not Undo Move (user, a
+               Hombro rolled down round the other side's Cabeza, dragged
+               back up into it: "my hombro cannot push the opponent's
+               cabeza here. It keeps wanting to flip it back up"). Made
+               if the rules allow it; if not (after a move there's never
+               3 actions left for a slide and a push), Why not says why
+               when it's let go. A drag back with nothing in the way still
+               takes the move back, and the Undo Move button always does. */
+            if (dot > 0.55 && !pushesThatWay(slideDrag, totalDx / totalLen, totalDy / totalLen)) {
               // Within ~56 degrees of dead-on toward the origin square.
               undoDragTarget = null;
               slideDrag = null;

@@ -417,5 +417,20 @@ immediately.
   it; no timer. Also put away by another piece chosen, the board changed
   (a move, an undo), the turn, Why not off (docs/memory/piece-guide.md). A press of an own piece
   with no move (whyNoMove) shows it at the piece, with no X.
-- Tests: tests/e2e-why-not.mjs; tests/e2e-shoving.mjs section 5 (the
-  diagonal X now stays with its note until the next click).
+- A drag back toward the square the moved piece started the turn on is
+  Undo Move (undoDragTarget, checked first in onMove), except when the
+  same way points into a piece a slide would push or try to push
+  (pushesThatWay: the slide gesture's own pick, a legal way within ~60deg
+  first, then the nearest refused one; a shove, a refused diagonal shove,
+  or a reason with `pushed` or `blockers`). That's the push: made if the
+  rules allow it, else its X and, let go, Why not's note. After a move
+  that's always the note (a slide and a push are 3 actions, and a moved
+  piece has 2 at most). User, 2026-11-10, a Monolith phone clip, a
+  Hombro rolled down round the other side's Cabeza and dragged back up
+  into it: "my hombro cannot push the opponent's cabeza here. It keeps
+  wanting to flip it back up". With Why not off nothing's refused-armed,
+  so such a drag still undoes.
+- Tests: tests/e2e-why-not.mjs (section 1b: the Hombro, on a computer and
+  by touch; a drag back with nothing in the way still undoes);
+  tests/e2e-shoving.mjs section 5 (the diagonal X now stays with its note
+  until the next click).
