@@ -66,6 +66,17 @@
   (Chromium 141 ran the effect before the next task every time, even
   with the CPU slowed 4x; CI runs Chrome for Testing 153). Keep any new
   hook that acts on game state reading it the same way.
+- **The store's PA card has 10 s, and a slow machine eats them**
+  (2026-11-11). e2e-store-nudge's swipe check waits for the in-stock card
+  to be up 3.3 s, then swipes it; CI run 324 (61f4c13, a Why-not change)
+  shard 2 read it gone with data-going "true", left by its own timer.
+  Reproduced with the CPU slowed 4x and 6x: the checks before the swipe
+  took the card to 7.8 to 8.7 s up, and sending the swipe (six touch
+  events) 2.2 to 2.4 s more, past its 10 s. That section now holds the
+  cards up a minute (`__EC_TEST_PA_UP_MS__`, read where the card's timers
+  are set, themes/tienda-shopping.js); nothing there waits for a card to
+  leave by itself. Passes at 4x; at 6x here the closing card is then
+  slower than the test's 20 s wait, which CI's runner isn't.
 - **A move lands when its animation ends, not when it's asked for**
   (2026-11-10). `__EC_TEST_MOVE__` only starts the roll (it returns true
   whenever the piece exists, even if beginMove refuses it); the board,

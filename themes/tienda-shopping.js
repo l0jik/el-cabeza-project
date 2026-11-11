@@ -472,12 +472,14 @@ export function StorePA({ active, game, audio, onPurchase }) {
     wait();
     return () => clearTimeout(id);
   }, [active, spoken, speak, ask]);
-  // The words stay a while, then go.
+  // The words stay a while, then go. (A test can hold them up longer,
+  // __EC_TEST_PA_UP_MS__: on a slow machine the checks before a swipe and
+  // the swipe itself can outlast the card's 10 s.)
   React.useEffect(() => {
     if (!say) return undefined;
-    const long = say === "closing";
-    const a = setTimeout(() => setGoing(true), long ? 12000 : 10000);
-    const b = setTimeout(() => { setSay(null); setGoing(false); }, long ? 12700 : 10700);
+    const up = typeof window.__EC_TEST_PA_UP_MS__ === "number" ? window.__EC_TEST_PA_UP_MS__ : say === "closing" ? 12000 : 10000;
+    const a = setTimeout(() => setGoing(true), up);
+    const b = setTimeout(() => { setSay(null); setGoing(false); }, up + 700);
     return () => { clearTimeout(a); clearTimeout(b); };
   }, [say]);
   React.useEffect(() => { if (!active) { setSay(null); thoughtOff(); } }, [active, thoughtOff]);

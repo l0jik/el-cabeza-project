@@ -156,6 +156,11 @@ console.log("\nthe PA's cards: swiped away after 3 s, not before");
   await ctx.addInitScript(() => {
     window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NUDGE_MS__ = 600000;
     window.__EC_TEST_PA_MS__ = 3000; window.__EC_TEST_CLOSING_MS__ = 12000; window.__EC_TEST_PA_SWIPE_MS__ = 600000;
+    // (Each card held up a minute, not 10 s: CI run 324, shard 2, the
+    // in-stock card left by itself, data-going "true", before the swipe
+    // got there. Reproduced with the CPU slowed 6x: the checks before it
+    // took the card to 8.7 s up, and sending the swipe took 2.4 s more.)
+    window.__EC_TEST_PA_UP_MS__ = 60000;
     try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("el-cabeza:first-game-tour", "done"); } } catch (e) { /* none */ }
     // When each card came up, and whether it was fading out when it went.
     window.__PA_AT__ = {}; window.__PA_GONE__ = {};
