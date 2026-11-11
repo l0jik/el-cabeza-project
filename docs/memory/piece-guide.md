@@ -25,10 +25,13 @@ separated out."
   the language badge and the layout switch moved one slot left, the
   players' line and the footer links reserve one more slot), the calm
   menu's Help on the board (`whynot`, after `guide`), the phone bar's menu
-  (`shell-menu-why-not`), the first-game tour's lists. On unless switched
-  off; with nothing saved yet it follows the guide's saved value, so a
-  player who'd switched the guide off (when it held the note) keeps the
-  notes off.
+  (`shell-menu-why-not`), the first-game tour's lists. On unless the
+  player switches it off, whatever the guide (user, 2026-11-11: "'Why
+  Not? ' Should always be turned on by default. The user will need to
+  disengage if they do not want it."): only its own saved "0" turns it
+  off. (From 11-02 to 11-11, with nothing saved it followed the guide's
+  saved value, so a player who'd switched the guide off had the notes
+  off too.)
 - "Too much on the screen at one time": while a note is up the piece card
   steps aside (`pieceCardShown` has `!whyNot`), back when the note goes.
   The phone bar's piece text sits in the bar, not over the board, and
@@ -97,5 +100,6 @@ tests/e2e-piece-card-place.mjs (City phone, Luna desktop), e2e-why-not.mjs
 (the tag, the card stepping aside, the note off the Cruce, a click on the
 note, a drag and the wheel leaving it up, still up after 5 s, a click or
 a tap outside and Escape putting it away, mid-turn too; Why not off,
-guide off with Why not on, the old guide-off player), e2e-rings.mjs (Why
+guide off with Why not on, a guide-off player who never touched Why not:
+on all the same), e2e-rings.mjs (Why
 not's row, the icon lines), e2e-first-look.mjs, e2e-first-game-tour.mjs.

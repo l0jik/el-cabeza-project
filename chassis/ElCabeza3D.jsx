@@ -368,11 +368,14 @@ function savePieceGuide(on) {
    switch since 2026-11-02 (user: "the why it won't work should be its own
    separate setting, because if it's folded into Piece Guide, There's too
    much on the screen at one time"); it was the Piece guide's. On unless
-   switched off; a player who'd switched the guide off, with it then, keeps
-   it off. */
+   the player switches it off (user, 2026-11-11: "'Why Not? ' Should always
+   be turned on by default. The user will need to disengage if they do not
+   want it."): only its own switch, saved, turns it off. (Till then a
+   player who'd switched the Piece guide off, and never this, had it off
+   with the guide.) */
 const WHY_NOT_KEY = "el-cabeza:why-not";
 function loadWhyNot() {
-  try { const v = window.localStorage.getItem(WHY_NOT_KEY); return v == null ? loadPieceGuide() : v !== "0"; } catch (e) { return true; }
+  try { return window.localStorage.getItem(WHY_NOT_KEY) !== "0"; } catch (e) { return true; }
 }
 function saveWhyNot(on) {
   try { window.localStorage.setItem(WHY_NOT_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }

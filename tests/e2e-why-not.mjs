@@ -33,8 +33,10 @@
       back, as ever. On a computer and by touch.
    2. Why not switched off: the same drag, no note and no X, the piece
       card still there. The Piece guide off and Why not on: the note, and
-      no card. A player who'd switched the guide off before this (no
-      Why not saved yet): no note, as then.
+      no card. A player who'd switched the guide off and never touched
+      Why not: the note all the same (user: "'Why Not? ' Should always be
+      turned on by default. The user will need to disengage if they do
+      not want it."); it was off with the guide till then.
    3. A phone, by touch: the note above the X, clear of the finger; a
       finger's drag on the board leaves it up, a tap outside it puts it
       away.
@@ -399,7 +401,7 @@ for (const phone of [false, true]) {
   await s.ctx.close();
 }
 {
-  console.log("[guide off before, why not never set]");
+  console.log("[guide off before, why not never set: on all the same]");
   const s = await open({ guide: false });
   const { page, errs } = s;
   await aim(page, false, [5.2, 5.4]);
@@ -407,7 +409,7 @@ for (const phone of [false, true]) {
   await tap(s, from.x, from.y);
   const mid = await dragEast(s, from, [5, 5]);
   const n = await note(page);
-  check("a player who'd switched the guide off (when it held the note): no X, no note, as then", !mid.x && !n.up && !n.x, JSON.stringify({ mid, n }));
+  check("a player who'd switched the guide off and never touched Why not: the X, then the note all the same (on by default)", mid.x && n.up && n.code === "heavy" && n.tag === "Why not", JSON.stringify({ mid, n }));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await s.ctx.close();
 }
