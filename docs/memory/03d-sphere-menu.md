@@ -240,13 +240,14 @@ lands on one; the pre-game Anomaly button also avoids the live
   onMove disambiguating by direction: a drag clearly back toward the
   start square undoes, any other direction snaps to a slide, so
   roll→slide works under 3 Actions; except a drag back toward the start
-  that points at a slide: one the rules allow (2026-11-10: "I want to
-  slide it, but it's just taking the drag as a reversal of the move I
-  just made"), or one they refuse with a piece in its way, a push (the
-  user's Hombro rolled round the other side's Cabeza: "It keeps wanting
-  to flip it back up"): that's the slide, made or explained, not an undo
-  (chassis slidesThatWay); a drag back no slide takes still undoes, and
-  the Undo Move button always does), **Diagonal Slide** (a 6th toggle
+  that points at a slide the rules allow (2026-11-10: "I want to slide
+  it, but it's just taking the drag as a reversal of the move I just
+  made"): that's the slide, not an undo (chassis slideThatWay); one they
+  refuse with a piece in its way, a push (the user's Hombro rolled round
+  the other side's Cabeza: "It keeps wanting to flip it back up"),
+  undoes and then Why not's note says why the push couldn't be made
+  (2026-11-11: "It should undo your move and show the note"); the Undo
+  Move button always undoes), **Diagonal Slide** (a 6th toggle
   that adds diagonals to Slide), and **Black Hole Squares** (always two
   linked wormholes; entry gated on a 1-cell ground footprint; a wormhole
   entry EJECTS the piece one cell past the far hole on the same relative

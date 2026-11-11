@@ -14,8 +14,16 @@ import { PIECE_META } from "../engine/constants.js";
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 /* `mover`: the piece that tried. `sideName(owner)`: what the world calls
-   a side ("Pink", "Walnut"). Returns { title, body }. */
-export function whyNotWords(reason, { mover, sideName }) {
+   a side ("Pink", "Walnut"). `taken`: the move before it was taken back
+   instead (a drag back the way the piece came, pointing at a push the
+   rules refuse; user, of the choice: "It should undo your move and show
+   the note"): titled so, the reason after it, its actions in the past
+   ("You had 2 left."). Returns { title, body }. */
+export function whyNotWords(reason, { mover, sideName, taken = false }) {
+  const w = reasonWords(reason, { mover, sideName, past: taken });
+  return taken ? { title: t("Move taken back"), body: `${w.title}. ${w.body}` } : w;
+}
+function reasonWords(reason, { mover, sideName, past }) {
   const name = (p) => (PIECE_META[p.type] ? PIECE_META[p.type].name : p.type);
   // "your Turrito", "the Pink Cruce" (the Cabeza its own line: Spanish
   // gives it its own article).
@@ -27,7 +35,9 @@ export function whyNotWords(reason, { mover, sideName }) {
   const whom = (ps) => listOf(ps.map(who));
   const me = name(mover);
   const r = reason;
-  const left = r.left === 0 ? t("You have none left.") : r.left === 1 ? t("You have 1 left.") : t("You have {n} left.", { n: r.left });
+  const left = past
+    ? (r.left === 0 ? t("You had none left.") : r.left === 1 ? t("You had 1 left.") : t("You had {n} left.", { n: r.left }))
+    : (r.left === 0 ? t("You have none left.") : r.left === 1 ? t("You have 1 left.") : t("You have {n} left.", { n: r.left }));
   const inTheWay = (ps) => cap(t(ps.length > 1 ? "{who} are in the way" : "{who} is in the way", { who: whom(ps) }));
   switch (r.code) {
     case "cost": {

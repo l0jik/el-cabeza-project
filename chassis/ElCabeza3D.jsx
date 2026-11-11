@@ -453,23 +453,24 @@ function arrowLabWanted() {
    scraping sounds"). */
 const slidesOnly = (piece) => !!piece && !!PIECE_META[piece.type] && PIECE_META[piece.type].shape === "disc";
 const slides = (piece, dir) => slidesOnly(piece) || (!!dir && isSlideKey(dir));
-/* Whether a drag on the chosen piece, its net way on the screen (ux, uy),
-   points at a slide, as onMove snaps them: one the rules allow within
-   ~60deg (a slide, a shove, or a diagonal shove refused, its X), or else
-   the nearest one they refuse, if a piece is in its way (a push Why not
-   names). A drag back toward the start square that does is that slide,
-   not Undo Move (onMove). */
-function slidesThatWay(slideDrag, ux, uy) {
-  if (!slideDrag) return false;
+/* What a drag on the chosen piece, its net way on the screen (ux, uy),
+   points at, as onMove snaps it: a slide the rules allow within ~60deg
+   (a slide, a shove, or a diagonal shove refused, its X): { legal };
+   else the nearest one they refuse, if a piece is in its way (a push Why
+   not names): { refused } (its reason); else null. A drag back toward
+   the start square at a legal slide is that slide; at a refused push,
+   Undo Move and then Why not's note on the push (onMove). */
+function slideThatWay(slideDrag, ux, uy) {
+  if (!slideDrag) return null;
   const nearest = (list) => {
     let best = 0.5, hit = null;
     for (const d of list) { const dot = ux * d.dirX + uy * d.dirY; if (dot > best) { best = dot; hit = d; } }
     return hit;
   };
-  if (nearest(slideDrag.dirs)) return true;
+  if (nearest(slideDrag.dirs)) return { legal: true };
   const refused = nearest(slideDrag.refused);
   const r = refused && refused.reason;
-  return !!(r && ((r.pushed && r.pushed.length) || (r.blockers && r.blockers.length)));
+  return r && ((r.pushed && r.pushed.length) || (r.blockers && r.blockers.length)) ? { refused: r } : null;
 }
 function noteMoveSound(kind, piece, played) {
   if (typeof window !== "undefined" && Array.isArray(window.__EC_TEST_MOVE_SOUNDS__)) window.__EC_TEST_MOVE_SOUNDS__.push({ kind, id: piece && piece.id, type: piece && piece.type, played });
@@ -1740,9 +1741,32 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     if (audioRef.current && audioRef.current.playBlocked) audioRef.current.playBlocked();
     return true;
   };
+  /* The same, for a move just taken back instead (a drag back the way the
+     piece came, at a push the rules refuse: onMove): titled so, its
+     actions in the past (chassis/why-not.js `taken`), its X on the square
+     the push aimed at; said to the board it was taken back to, with
+     nothing chosen, so the undo itself doesn't put it away. */
+  const showWhyNotTaken = (reason, piece, board) => {
+    if (!reason || !piece || !whyNotOn || !isPlaying || tourStep || replaying || currentPlayer === foeSide || piece.owner !== currentPlayer) return false;
+    const words = whyNotWords(reason, { mover: piece, sideName, taken: true });
+    const placed = placeBoardX(reason.cells, reason.top);
+    whyNotXRef.current = placed;
+    const back = board.find((p) => p.id === piece.id) || piece;
+    let at;
+    if (placed) {
+      const p = three.current.slideBlockGroup.position;
+      at = { x: p.x, y: p.y, z: p.z };
+    } else {
+      const c = pieceCenter(back);
+      at = { x: c.x, y: (back.z || 1) * PIECE_SCALE + 0.1, z: c.z };
+    }
+    setWhyNot({ key: Date.now(), code: reason.code, taken: true, pieceId: null, avoid: piece.id, title: words.title, body: words.body, at, board, side: currentPlayer });
+    if (audioRef.current && audioRef.current.playBlocked) audioRef.current.playBlocked();
+    return true;
+  };
   // (For the pointer handlers, bound less often than this renders.)
   const whyNotRef = useRef(null);
-  whyNotRef.current = { show: showWhyNot, hide: hideWhyNot, placeX: placeBoardX, on: whyNotOn };
+  whyNotRef.current = { show: showWhyNot, showTaken: showWhyNotTaken, hide: hideWhyNot, placeX: placeBoardX, on: whyNotOn };
   // Switched off from the banner itself: a moment's note where it was.
   const [checkOffNote, setCheckOffNote] = useState(0);
   useEffect(() => {
@@ -5194,7 +5218,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       const sides = coarse ? [above, leftOf, right, below] : [right, leftOf, above, below];
       const fits = ([l, t]) => l >= 10 && t >= 10 && l + w <= vw - 10 && t + h <= vh - 10;
       const onScreen = ([l, t]) => [Math.max(10, Math.min(vw - w - 10, l)), Math.max(10, Math.min(vh - h - 10, t))];
-      const pr = pieceScreenRect(whyNot.pieceId);
+      const pr = pieceScreenRect(whyNot.pieceId || whyNot.avoid); // (a taken-back move's: clear of the piece that went back)
       const clear = ([l, t]) => !pr || !overlapArea({ left: l, top: t, right: l + w, bottom: t + h }, { left: pr.left - 6, top: pr.top - 6, right: pr.right + 6, bottom: pr.bottom + 6 });
       const first = sides.find(fits) || sides[0];
       const [left, top] = onScreen(sides.filter(fits).find(clear) || sides.map(onScreen).find(clear) || first);
@@ -10115,26 +10139,29 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
           const totalLen = Math.hypot(totalDx, totalDy);
           if (totalLen > DRAG_DEAD_ZONE_PX) {
             const dot = (totalDx / totalLen) * undoDragTarget.dirX + (totalDy / totalLen) * undoDragTarget.dirY;
-            /* Back toward the start square, but pointing at a slide: the
-               slide, not Undo Move (a drag on the piece is the slide's
-               gesture). One the rules allow (user, after a roll, with 3
+            /* Back toward the start square: Undo Move, unless it points
+               at a slide the rules allow, which it makes (a drag on the
+               piece is the slide's gesture; user, after a roll, with 3
                actions, so 2 left for a slide: "I want to slide it, but
                it's just taking the drag as a reversal of the move I just
-               made"), or one they refuse with a piece in its way, a push
-               (user, a Hombro rolled down round the other side's Cabeza,
-               dragged back up into it: "my hombro cannot push the
-               opponent's cabeza here. It keeps wanting to flip it back
-               up"): its X, and Why not's note when it's let go (after a
-               move there's never 3 actions left for a slide and a push).
-               A drag back that no slide takes still takes the move back,
-               and the Undo Move button always does. */
-            if (dot > 0.55 && !slidesThatWay(slideDrag, totalDx / totalLen, totalDy / totalLen)) {
+               made"). Pointing at a push they refuse (user, a Hombro
+               rolled down round the other side's Cabeza, dragged back up
+               into it: "my hombro cannot push the opponent's cabeza here.
+               It keeps wanting to flip it back up"; after a move there's
+               never 3 actions left for a slide and a push), the move's
+               taken back and Why not's note then says why the push
+               couldn't be made from there (user, of the choice: "It
+               should undo your move and show the note"). The Undo Move
+               button always undoes. */
+            const way = dot > 0.55 ? slideThatWay(slideDrag, totalDx / totalLen, totalDy / totalLen) : null;
+            if (dot > 0.55 && !(way && way.legal)) {
               // Within ~56 degrees of dead-on toward the origin square.
+              const mover = way && way.refused ? pieces.find((p) => p.id === selectedId) : null;
               undoDragTarget = null;
               slideDrag = null;
               updateSlideArrow(null);
               dragging = false;
-              handleUndoTurn();
+              handleUndoTurn(mover ? (board) => whyNotRef.current.showTaken(way.refused, mover, board) : null);
               return;
             }
           }
@@ -11278,7 +11305,9 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     });
   }
 
-  function handleUndoTurn() {
+  // (`then(board)`: called once the turn's taken back, with the board it
+  // was taken back to: Why not's note on a refused push, onMove.)
+  function handleUndoTurn(then = null) {
     if (!turnSnapshot || busy || anim.current || currentPlayer === foeSide || awaitingBegin || replayingRef.current) return;
     pendingIntentRef.current = null; // whatever was queued for this turn no longer applies
 
@@ -11293,6 +11322,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       setHoveredId(null);
       setHoverShadow(null);
       setBusy(false);
+      if (then) then(turnSnapshot);
     };
 
     if (pendingSteps.length === 0) {

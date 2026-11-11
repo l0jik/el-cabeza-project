@@ -20,9 +20,11 @@
       still up after 5 s; mid-turn a tap on an empty square (the Cruce
       still chosen) puts it away; the same drag again, then Escape.
    1b. A push back the way it came (the user's Hombro, rolled down round
-      the Pink Cabeza, dragged back up into it, 3 actions): the X and
-      "Not enough actions" (3: slide 2, push 1; 2 left), the Hombro left
-      where it rolled. On a computer and by touch.
+      the Pink Cabeza, dragged back up into it, 3 actions): the move taken
+      back (user's pick: "It should undo your move and show the note"),
+      then the note, "Move taken back": not enough actions (3: slide 2,
+      push 1; you had 2 left), its X on the Cabeza's square. On a computer
+      and by touch.
    1c. A slide back the way it came (user: "I want to slide it, but it's
       just taking the drag as a reversal of the move I just made"): with
       3 actions, a roll left, then a drag back the way it came slides it
@@ -264,10 +266,13 @@ const outside = (page, box) => page.evaluate(([cells, box]) => {
 // cabeza here. It keeps wanting to flip it back up"). The drag pointed
 // back toward the square it started the turn on, and that took the move
 // back (Undo Move by dragging) before the push's refusal could be said.
-// Now a drag back into a piece a slide would push is the push: here
-// refused, 3 actions (slide 2, push 1) with 2 left, and said; the Hombro
-// stays. (A drag back with nothing in the way: 1c.) On a computer, then by
-// touch. ----
+// Then (2026-11-10) a drag back into a piece a slide would push was the
+// push: here refused, 3 actions (slide 2, push 1) with 2 left, and said,
+// the Hombro left where it rolled. Now (the user's pick of the two: "It
+// should undo your move and show the note") the move's taken back, as a
+// drag back does, and the note then says why the push couldn't be made
+// from there. (A drag back with nothing in the way, or at a slide the
+// rules allow: 1c.) On a computer, then by touch. ----
 const HOMBRO = [
   P("light-hombro", "hombro", "light", 3, 4, 2, 2, 2, "0,0,1;0,1,0;0,1,1;1,1,1"),
   P("dark-cabeza", "cabeza", "dark", 5, 5, 1, 1, 1),
@@ -292,13 +297,17 @@ for (const phone of [false, true]) {
   await aim(page, phone, [4.5, 4.5]);
   const up = await page.evaluate(() => window.__EC_TEST_CUBE_POS__(6, 4, 1));
   const mid = await dragToward(s, up, [6, 4], [-1, 0]);
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(1800);
   h = await hombro();
-  check("dragged back up into the Cabeza: the X while it points there, no arrow", mid.x && !mid.arrow, JSON.stringify(mid));
-  check("...the Hombro stays where it rolled (the move isn't taken back)", h.row === 5 && h.col === 4 && h.vox === "0,0,0;0,1,0;0,1,1;1,1,0", JSON.stringify(h));
+  check("dragged back up into the Cabeza: no slide's arrow", !mid.arrow, JSON.stringify(mid));
+  check("...the move taken back: the Hombro where it started the turn, as it stood", h.row === 3 && h.col === 4 && h.vox === "0,0,1;0,1,0;0,1,1;1,1,1", JSON.stringify(h));
   const n = await note(page);
-  check("...let go: not enough actions", n.up && n.code === "cost" && n.title === "Not enough actions", JSON.stringify(n));
-  check("...pushing the Pink Cabeza: 3 actions (slide 2, push 1), 2 left", /pushes the Pink Cabeza: 3 actions \(slide 2, push 1\)\. You have 2 left\./.test(n.body), n.body);
+  check("...then the note: Move taken back, not enough actions", n.up && n.code === "cost" && n.title === "Move taken back" && /^Not enough actions\. /.test(n.body), JSON.stringify(n));
+  check("...pushing the Pink Cabeza from there: 3 actions (slide 2, push 1), you had 2 left", /pushes the Pink Cabeza: 3 actions \(slide 2, push 1\)\. You had 2 left\./.test(n.body), n.body);
+  check("...its X on the Cabeza's square", n.x, JSON.stringify(n));
+  // It stays up till a tap outside it, as any note.
+  await page.waitForTimeout(1500);
+  check("...still up a moment on", (await note(page)).up);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await s.ctx.close();
 }
