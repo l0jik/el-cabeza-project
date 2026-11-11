@@ -148,6 +148,37 @@ desktop walk through the nine (the log's numbers at least 6 CSS px inside
 an edged card, at least 4 between the stats card and the log card when
 both are bordered). Shots before and after in the scratchpad lablog/.
 
+The rules above the moves, larger on a big screen (2026-11-11, user, a
+screenshot of the Monolith's read-out brought up, its moves then its
+rules: "On desktop / Chromebook / large screen, this text is too small &
+difficult to read. Also, the rules should be on top and the movement
+listing beneath. This should be consistent across all similar menu types
+(I'm thinking only just Lab worlds)."). In all nine (one component,
+hud.js): the Rules line (LabRules, in play) comes before the moves
+(.lab-log), set off from them as from the numbers (`:where(.lab-hud
+.lab-rules + .lab-log)`, a margin, padding and the look's rule, at no
+weight, so the five card looks keep their cards). On a computer's or a
+Chromebook's screen (BIG_SCREEN, `(min-width: 900px) and
+(min-aspect-ratio: 1501/1000)`, the complement of the compact layout) the
+rules and the moves are a quarter larger (`zoom: 1.25` on each: every
+look's own type and spacing scaled together; the read-out's width kept,
+lines rewrapped; a law 13px to about 16 on the screen, Minimal Mono's
+11px moves to about 14). Brought up there, the read-out fits the screen:
+taller than the room under the lab's bar, it scrolls as one, the rules
+then the moves (LabHud's layout effect, every render; a scroll box only
+when it must, as one clips the cards' shadows; back to its top when put
+down; the wheel over it scrolls it, the board's zoom listens on the
+canvas only). The rules' own list then has no height of its own; on a
+phone (the moves put away) it still scrolls within the room below it, as
+before. At 1366x768 all nine scroll a little (Brutalism's numbers alone
+reach 494px); at 1920x1080 Swiss, the Monolith and Minimal Mono fit whole,
+the two Brutalisms scroll about 50px. Other worlds have no such panel
+(their rules are in the corner menu, chassis/corner-menu.js; their moves
+in their own logs). Test: e2e-lab, the read-out on a Chromebook's screen
+(1366x768, all nine: the rules above the moves, a law at least 15.5px and
+a move at least 13.5 on the screen, the read-out within the screen, the
+last move reached scrolled to its foot).
+
 ### The Monolith (02, in Bauhaus's place; 2026-11-10)
 
 User, with a picture (great dark stones standing and leaning on a cracked,

@@ -325,6 +325,82 @@ async function waitSwitched(page, id) {
   await context.close();
 }
 
+// The read-out on a Chromebook's screen, brought up in play (user, a
+// screenshot of the Monolith's: "On desktop / Chromebook / large screen,
+// this text is too small & difficult to read. Also, the rules should be on
+// top and the movement listing beneath. This should be consistent across
+// all similar menu types (I'm thinking only just Lab worlds)."): in every
+// direction the rules above the moves, their words a quarter larger (13px
+// to about 16 on the screen), the read-out within the screen, scrolling to
+// the moves where it must.
+{
+  console.log("\nthe read-out on a Chromebook's screen: the rules above the moves, larger, on the screen");
+  const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
+  const page = await context.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.addInitScript(() => { window.__EC_LAWS__ = { threeActions: true, slide: true, shoving: true, punto: true }; try { localStorage.setItem("el-cabeza:piece-guide", "0"); } catch (e) { /* none */ } });
+  await openLab(page, "swiss");
+  await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), [
+    { id: "dark-cabeza", type: "cabeza", owner: "dark", row: 0, col: 4, w: 1, h: 1, z: 1 }, { id: "dark-turrito", type: "turrito", owner: "dark", row: 1, col: 1, w: 1, h: 1, z: 1 },
+    { id: "light-cabeza", type: "cabeza", owner: "light", row: 9, col: 5, w: 1, h: 1, z: 1 }, { id: "light-turrito", type: "turrito", owner: "light", row: 8, col: 8, w: 1, h: 1, z: 1 },
+  ]);
+  await page.waitForTimeout(400);
+  await openDockPanel(page);
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click();
+  await page.mouse.move(700, 700);
+  await page.waitForTimeout(2200);
+  // A few turns, so there are moves to list: each side's Turrito, three rolls a turn.
+  const plan = { dark: ["S", "E", "S", "E", "S", "E"], light: ["N", "W", "N", "W", "N", "W"] }, at = { dark: 0, light: 0 };
+  for (let t = 0; t < 9; t++) {
+    const side = await page.evaluate(() => window.__EC_TEST_TO_MOVE__());
+    const id = `${side}-turrito`, before = await pieceOf(page, id);
+    await page.evaluate(([i, d]) => window.__EC_TEST_MOVE__(i, d), [id, plan[side][at[side]++]]);
+    await landed(page, id, before);
+    await page.waitForTimeout(300);
+  }
+  const ids = await page.evaluate(() => window.__LAB__.ids);
+  const order = [], small = [], off = [], unreached = [];
+  for (const id of ids) {
+    if ((await labId(page)) !== id) { await page.evaluate((x) => window.__LAB__.switchTo(x), id); await waitSwitched(page, id); await page.waitForTimeout(800); }
+    await page.mouse.move(700, 700);
+    await page.waitForTimeout(300);
+    const hb = await page.locator('[data-testid="lab-hud"]').boundingBox();
+    await page.mouse.move(hb.x + 20, hb.y + 20);
+    await poll(() => page.evaluate(() => document.querySelector('[data-testid="lab-hud"]').dataset.compact === "open"), 5000);
+    await page.waitForTimeout(1100); // (its glide up to full size)
+    const m = await page.evaluate(() => {
+      const hud = document.querySelector('[data-testid="lab-hud"]'), rules = hud.querySelector(".lab-rules"), log = hud.querySelector(".lab-log");
+      if (!rules || !log) return null;
+      const law = rules.querySelector("li button"), mv = log.querySelector("li");
+      // (On the screen: its font size times its zoom.)
+      const px = (e) => parseFloat(getComputedStyle(e).fontSize) * (parseFloat(getComputedStyle(e.closest(".lab-rules, .lab-log")).zoom) || 1);
+      const hr = hud.getBoundingClientRect();
+      return { above: rules.getBoundingClientRect().bottom <= log.getBoundingClientRect().top + 1, law: law ? +px(law).toFixed(1) : 0, move: +px(mv).toFixed(1), hudBottom: Math.round(hr.bottom), h: innerHeight };
+    });
+    if (!m) { order.push(`${id}: no rules or no moves`); continue; }
+    if (!m.above) order.push(id);
+    if (m.law < 15.5 || m.move < 13.5) small.push(`${id} ${m.law}/${m.move}`);
+    if (m.hudBottom > m.h) off.push(`${id} ${m.hudBottom}`);
+    // Scrolled to its foot (as the wheel would), the last move inside it.
+    const seen = await page.evaluate(() => {
+      const hud = document.querySelector('[data-testid="lab-hud"]');
+      hud.scrollTop = hud.scrollHeight;
+      const hr = hud.getBoundingClientRect(), lr = hud.querySelector(".lab-log li:last-child").getBoundingClientRect();
+      const ok = lr.bottom <= hr.bottom + 1 && lr.top >= hr.top - 1 && hr.bottom <= innerHeight;
+      hud.scrollTop = 0;
+      return ok;
+    });
+    if (!seen) unreached.push(id);
+  }
+  check(`in all ${ids.length}, the rules above the moves`, order.length === 0, order.join(", "));
+  check("...their words larger on the screen (a law about 16px, a move at least 13.5)", small.length === 0, small.join("; "));
+  check("...the read-out, brought up, within the screen", off.length === 0, off.join("; "));
+  check("...and the last move reached, scrolled to its foot where it must", unreached.length === 0, unreached.join(", "));
+  check("no page errors", errs.length === 0, errs.slice(0, 4).join(" | "));
+  await context.close();
+}
+
 // The switch card on a phone (user, a phone screenshot of the Monolith's,
 // its description one line running off both sides: "The description needs
 // to wrap ... all the ones in the lab need to be checked for this"): every

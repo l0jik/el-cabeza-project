@@ -149,6 +149,20 @@ const HUD_BASE = `
   .lab-hud .lab-rules .lab-rules-change:focus-visible { outline: 2px solid var(--accent-primary, currentColor); outline-offset: 2px; }
   /* (On a touch screen, a finger's room round it, unseen.) */
   @media (pointer: coarse) { .lab-hud .lab-rules .lab-rules-change { position: relative; } .lab-hud .lab-rules .lab-rules-change::after { content: ""; position: absolute; inset: -8px -6px; } }
+  /* The rules above the moves (user: "the rules should be on top and the
+     movement listing beneath"): the moves set off from them as the rules
+     are from the numbers, at no weight, so a look that draws each part as
+     a card (.lab-hud > *, its own margins and borders) keeps its cards. */
+  :where(.lab-hud .lab-rules + .lab-log) { margin-top: 14px; padding-top: 10px; border-top: var(--border-width, 1px) solid var(--border-color, currentColor); }
+  /* On a computer's or a Chromebook's screen, the rules and the moves a
+     quarter larger (user: "On desktop / Chromebook / large screen, this
+     text is too small & difficult to read"): each look's own type and
+     spacing all scaled together (zoom), the read-out's width kept, its
+     lines rewrapped. (Not on a phone: there the moves are put away and
+     the rules lie over the board, NARROW_RULES.) */
+  @media (min-width: 900px) and (min-aspect-ratio: 1501/1000) {
+    .lab-hud .lab-rules, .lab-hud .lab-log { zoom: 1.25; }
+  }
   /* Compact: a phone, or any screen without room beside the board. */
   @media (max-aspect-ratio: 3/2), (max-width: 899px) {
     .lab-hud { left: calc(10px + env(safe-area-inset-left)); right: calc(10px + env(safe-area-inset-right)); top: 58px; width: auto; }

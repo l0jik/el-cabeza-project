@@ -19,10 +19,10 @@
    the direction puts it, full size.
 
    In play it also carries the game's rules (the corner menu every other
-   world has, chassis/corner-menu.js, here in the read-out's own type):
-   tucked away, one line summing them up; brought up, the laws and their
-   settings, each side's pieces, the board. A law's name opens its rules
-   card.
+   world has, chassis/corner-menu.js, here in the read-out's own type),
+   above the last few moves: tucked away, one line summing them up;
+   brought up, the laws and their settings, each side's pieces, the board.
+   A law's name opens its rules card.
 
    It only reads the game (x.game, handed over by the chassis); it
    changes nothing. The session clock and the count of pieces at the
@@ -47,6 +47,11 @@ function flap(text) {
   return h("span", { className: "lab-flap", "aria-hidden": "true" }, [...String(text)].map((ch, i) => h("b", { key: i }, ch === " " ? " " : ch)));
 }
 
+// A computer's or a Chromebook's screen, room beside the board (the
+// complement of css.js's compact layout): the rules and the moves larger
+// there (css.js), and the read-out, brought up, scrolls when it must.
+const BIG_SCREEN = "(min-width: 900px) and (min-aspect-ratio: 1501/1000)";
+
 // A rules card, opened the way every part of the page opens one (the
 // chassis listens; chassis/RulesCards.jsx).
 const openRules = (tab, focus = null) => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab, focus } }));
@@ -63,14 +68,19 @@ function LabRules({ rules, open, change = null }) {
     const dd = hud.querySelector(".lab-stats dd"), dt = hud.querySelector(".lab-stats dt");
     if (dd) box.style.setProperty("--lab-rules-ink", getComputedStyle(dd).color);
     if (dt) box.style.setProperty("--lab-rules-sub", getComputedStyle(dt).color);
-    // Brought up, the read-out sits full size under the lab's bar: the
-    // list has the room left below it on the screen (clear of the corner
-    // buttons) and scrolls within that, rather than running off the foot
-    // of a short screen. (Measured where it will be, not mid-glide.)
+    // Brought up on a phone, the read-out sits full size under the lab's
+    // bar and the rules lie over the board: the list has the room left
+    // below it on the screen (clear of the corner buttons) and scrolls
+    // within that, rather than running off the foot of a short screen.
+    // Measured where it will be, not mid-glide: every length read off the
+    // screen over the read-out's scale now (its scale property), so at its
+    // full size. (On a computer's screen the read-out itself scrolls when
+    // it must, the rules and the moves beneath them as one: LabHud.)
     const list = listRef.current;
     if (!list) return;
-    let off = 0;
-    for (let el = list; el && el !== hud; el = el.offsetParent) off += el.offsetTop;
+    if (window.matchMedia && window.matchMedia(BIG_SCREEN).matches) { list.style.maxHeight = ""; return; }
+    const hr = hud.getBoundingClientRect(), k = (hud.offsetWidth && hr.width / hud.offsetWidth) || 1;
+    const off = (list.getBoundingClientRect().top - hr.top) / k;
     const bar = document.querySelector('[data-testid="lab-bar"]');
     const b = bar ? bar.getBoundingClientRect() : null;
     const top = (b && b.height ? b.bottom : 10) + 8;
@@ -210,6 +220,25 @@ export function LabHud({ spec, x }) {
     return () => clearTimeout(t);
   }, [open, compact, poke]);
   React.useEffect(() => { if (!compact) setOpen(false); }, [compact]);
+  /* Brought up on a computer's screen, it fits the screen: taller than the
+     room below the lab's bar, it scrolls as one, the rules and then the
+     moves beneath them (user: "the rules should be on top and the
+     movement listing beneath"; on a short screen, a Chromebook's, the
+     moves were off its foot). Only when it must: a scroll box would clip
+     the cards' shadows. Put down, it's back at its top. Looked at every
+     render (the moves grow, the rules change). */
+  React.useLayoutEffect(() => {
+    const el = hudRef.current;
+    if (!el || typeof window === "undefined") return;
+    const big = window.matchMedia && window.matchMedia(BIG_SCREEN).matches;
+    const was = el.style.maxHeight;
+    el.style.maxHeight = ""; el.style.overflowY = "";
+    if (!(compact && open && big)) { if (was) el.scrollTop = 0; return; }
+    const bar = document.querySelector('[data-testid="lab-bar"]');
+    const b = bar ? bar.getBoundingClientRect() : null;
+    const room = Math.max(160, Math.round(window.innerHeight - (b && b.height ? b.bottom : 10) - 8 - 12));
+    if (el.scrollHeight > room) { el.style.maxHeight = `${room}px`; el.style.overflowY = "auto"; el.style.overscrollBehavior = "contain"; el.style.scrollbarWidth = "thin"; }
+  });
 
   if (!game) return null;
   const setup = game.awaitingBegin;
@@ -265,6 +294,10 @@ export function LabHud({ spec, x }) {
     ),
     h("dl", { className: "lab-stats" }, stats.map(([k, v, cls]) => h("div", { key: k, className: cls || undefined, "data-stat": k.toLowerCase() }, h("dt", { className: "lab-label" }, k), h("dd", null, v)))),
     spec.hud === "destijl" ? h("div", { className: "lab-note lab-label" }, game.selectedType ? `${game.selectedType}` : "·") : null,
+    // The rules, then the moves beneath them (user: "the rules should be on
+    // top and the movement listing beneath. This should be consistent
+    // across all similar menu types"; they came after the moves).
+    compact && game.rules ? h(LabRules, { rules: game.rules, open, change: x.changeRules || null }) : null,
     recent.length
       ? h("ol", { className: "lab-log", "aria-label": "Recent moves" }, recent.map((e) => h("li", { key: e.n },
         h("span", { className: "n" }, pad2(e.n)),
@@ -273,7 +306,6 @@ export function LabHud({ spec, x }) {
     // (Against the computer or online, yours: the chassis's youResult.)
     h("div", { className: "lab-over", role: "status" }, game.status === "finished" && game.winner ? (game.youResult ? inWords(game.youResult === "win" ? "You win" : "You lose") : inWords("{side} wins", { side: SIDE[game.winner] })) : "", game.winReason ? h("div", { className: "lab-label", style: { marginTop: 6 } }, game.winReason) : null,
       // (Whom they beat, the AI's level: the chassis's winFoeNote.)
-      game.winFoeNote ? h("div", { className: "lab-label", style: { marginTop: 4, opacity: 0.8 } }, game.winFoeNote) : null),
-    compact && game.rules ? h(LabRules, { rules: game.rules, open, change: x.changeRules || null }) : null
+      game.winFoeNote ? h("div", { className: "lab-label", style: { marginTop: 4, opacity: 0.8 } }, game.winFoeNote) : null)
   );
 }
