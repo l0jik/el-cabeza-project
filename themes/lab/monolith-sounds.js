@@ -17,12 +17,13 @@
              (both held as loops)
 
    This file is the layout both the tool and the game read (where each
-   sound sits in its file), and the weight rules, the same as the wooden
-   pieces' (themes/wood-sfx.js): how loud a landing is follows the
-   piece's cubes; how low, the face it lands on and a little the whole
-   piece (landingSize). A recording is lowered by playing it slower, so
-   the exponent is gentler than wood's 1/sqrt: past an octave down, a
-   re-pitched thud smears. */
+   sound sits in its file), and the weight rules, after the wooden
+   pieces' (themes/wood-sfx.js): how low a landing is follows the face it
+   lands on and a little the whole piece (landingSize); how loud, its
+   cubes and how far it fell (slamOf). A recording is lowered by playing
+   it slower, so the exponent is gentler than wood's 1/sqrt: past an
+   octave down, a re-pitched thud smears (the weight under it, an octave
+   below that, is only its low end: audio.js). */
 import { massOf, landingSize } from "../wood-sfx.js";
 
 export const MONOLITH_FILES = {
@@ -51,14 +52,41 @@ export const DRAGS = {
 export const DRAGS_LENGTH = 9;
 export const XFADE = 0.3;
 
-/* The playback rate of a landing: 1.2 for a single cube, down to 0.6 for
-   an Opa coming down flat (size 8), each re-pitch within an octave. */
-export function landingRate(units, contact) {
-  return 1.2 / Math.cbrt(landingSize(units, contact));
+/* Heavier (user: "the impact sounds, not good. They need to be, they need
+   to have more weight. These are massive monolithic stones slamming down.
+   ... they need to be weighted appropriately as they fall"): every stone
+   lands lower than the recording (a single cube no longer above it), and
+   how hard it lands follows how far it fell as well as what it weighs.
+
+   How far a rolled stone falls, in cubes: going over its edge its middle
+   rises to half the diagonal of its end (the height it stood, the height
+   it comes to lie) and drops to half its new height. A cube 0.21; a
+   Flaco tipped off its end 0.62, stood up onto it 0.12; an Opa 0.41.
+   (z0, z1: its height before and after; engine/shapes.js rollDrop.) */
+export function fallOf(z0, z1) {
+  return (Math.hypot(z0, z1) - z1) / 2;
 }
-/* How loud: from 0.55 (one cube) to 1 (eight). */
-export function landingLevel(units) {
-  return 0.55 + 0.45 * (Math.log2(massOf(units)) / 3);
+// A piece set down by hand (no roll to fall from): a short drop.
+export const SET_DOWN_FALL = 0.2;
+/* How hard a landing strikes, 0 to 1: its cubes times how far it fell, on
+   a log scale from a Turrito's roll (0.2) to an Opa's (3.3). */
+export function slamOf(units, fall) {
+  const e = massOf(units) * Math.max(0.05, fall == null ? SET_DOWN_FALL : fall);
+  return Math.max(0, Math.min(1, Math.log2(e / 0.2) / Math.log2(3.3 / 0.2)));
+}
+/* The playback rate of a landing's thump: 0.86 for a single cube down to
+   0.51 for an Opa coming down flat (landingSize 8), within an octave. */
+export function landingRate(units, contact) {
+  return 0.86 / Math.pow(landingSize(units, contact), 0.25);
+}
+/* How loud: from 0.6 (a cube rolled over) to 1 (an Opa), by the slam. */
+export function landingLevel(units, fall) {
+  return 0.6 + 0.4 * slamOf(units, fall);
+}
+/* How deep, 0 to 1: the face it comes down on and a little the whole
+   piece (landingSize: 1 a cube, 8 an Opa flat), for the weight under it. */
+export function landingDepth(units, contact) {
+  return Math.log2(landingSize(units, contact)) / 3;
 }
 /* The rate a dragged piece grinds at: lower as it's heavier. */
 export function dragRate(units) {

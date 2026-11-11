@@ -20,7 +20,7 @@ import {
   boardVerticalOverlapFraction, clampVerticalTarget, pivotFor,
   setGhostLineTarget,
 } from "../engine/geometry.js";
-import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmPoint, maskAt, pressOffsets } from "../engine/shapes.js";
+import { cubeCount, contactArea, rollDrop, pivotCellOf, pivotPiece, pivotArmPoint, maskAt, pressOffsets } from "../engine/shapes.js";
 import { buildSlidePath, dispose as disposeSlidePath } from "./slide-path.js";
 import { whyNotSlide, whyNoMove } from "../engine/why-not.js";
 import { whyNotWords } from "./why-not.js";
@@ -5012,6 +5012,14 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
   // The phone layout on its side (short and wide): the bar runs down the
   // right edge.
   const shellLandscape = shell && viewportW > viewportH && viewportH <= SHELL_SIDE_MAX_H;
+  // The piece in its corner, on a computer's screen (a mouse, a wide
+  // window): 75% larger, user: "The minimized 3D piece badge in the
+  // bottom right corner, that needs to be enlarged just a little bit when
+  // you're on desktop ... 75% of their current size. An additional, I
+  // mean." Its box, its margins past the edges, the call's glow round it
+  // and the tour's ring round it all by this (dockPieceStyle; the corner
+  // fan follows the box it measures, menu-fan.js).
+  const dockCornerK = viewportW >= 900 && !isCoarsePointer() ? 1.75 : 1;
   // The language badge (LanguageBadge): one of the dock's foot icons on a
   // computer; on a phone, whose foot row is full, at the end of the turn line.
   const langInFoot = !shell && viewportW >= 600;
@@ -5520,8 +5528,8 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       // The piece in the corner: its box runs past the screen's edges with
       // the piece in its middle, so the ring and the label go round the
       // piece (inset).
-      t2.boxes.push({ key: "dock", sel: "[data-dock-piece]", inset: 26, tone: "mine" });
-      tag("dock", { el: "[data-dock-piece]", inset: 26 }, isCoarsePointer() ? t("Tap to open your menu") : t("Click to open your menu"), "mine", "above");
+      t2.boxes.push({ key: "dock", sel: "[data-dock-piece]", inset: Math.round(26 * dockCornerK), tone: "mine" });
+      tag("dock", { el: "[data-dock-piece]", inset: Math.round(26 * dockCornerK) }, isCoarsePointer() ? t("Tap to open your menu") : t("Click to open your menu"), "mine", "above");
     } else if (tourStep === "panel" && ringsOpen) {
       // Calm Rings: the line over the corner fan, then its wedges; each
       // ringed in turn as its card lights its line.
@@ -8688,11 +8696,12 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     }
 
     // Cubes, not box volume (an odd shape weighs what it's made of), and
-    // the face it came down on (how low a wood theme's knock is). Not a
-    // slide (the Cabeza's, or any piece's) where the pieces are wood:
-    // nothing comes down (slides).
+    // the face it came down on (how low a wood theme's knock is); and, a
+    // roll, how far it fell going over (how hard the Monolith's stones
+    // land; none for a pivot or a jump). Not a slide (the Cabeza's, or any
+    // piece's) where the pieces are wood: nothing comes down (slides).
     if (!((theme.woodPieces || theme.slidesGlide) && (slidesOnly(piece) || move.isSlide))) {
-      audioRef.current.playLanding(cubeCount(piece), contactArea(move.candidate));
+      audioRef.current.playLanding(cubeCount(piece), contactArea(move.candidate), !move.isSlide && !isSlideKey(dir) && !isPivotKey(dir) && !move.teleports ? rollDrop(piece, move.candidate) : undefined);
       noteMoveSound("landing", piece, true);
     }
 
@@ -12282,7 +12291,9 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     // the bottom right corner"; then right into it, user: "move it further
     // into the corner on all": the box's empty margin, round the piece,
     // past the edges, so the piece itself sits in the corner.)
-    left: dockPieceIsCorner ? "calc(100% - 108px)" : "50%",
+    // (On a computer's screen all 1.75x, dockCornerK: 210x186 at
+    // calc(100% - 189px), -18px.)
+    left: dockPieceIsCorner ? `calc(100% - ${Math.round(108 * dockCornerK)}px)` : "50%",
     // Piece-view (pre-game) bottom lowered from 20 -> 8 per feedback that
     // it sat slightly too high; corner (post-game watermark) is unrelated
     // and keeps its own value. Corner size went 100x88 -> 50x44 (halved)
@@ -12291,12 +12302,12 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     // 120x105.6) per feedback that the corner badge had grown too large
     // again. left's offset scales with it (~1.18x ratio kept at every
     // size change, see comment below) — 120 * 1.18 = 141.6, rounded.
-    bottom: dockPieceIsCorner ? -10 : 8, // (the corner was 18, then 8; now past the edge, see left)
+    bottom: dockPieceIsCorner ? -Math.round(10 * dockCornerK) : 8, // (the corner was 18, then 8; now past the edge, see left)
     // On a narrow phone the pre-game piece narrows so its canvas stays
     // clear of the How to play button in the lower left (which ends
     // 87px in); the piece itself is centred and still fits.
-    width: dockPieceIsCorner ? 120 : "min(260px, calc(100vw - 184px))",
-    height: dockPieceIsCorner ? 106 : 220,
+    width: dockPieceIsCorner ? Math.round(120 * dockCornerK) : "min(260px, calc(100vw - 184px))",
+    height: dockPieceIsCorner ? Math.round(106 * dockCornerK) : 220,
     // (Moved by the menu lab while its menu's out: dockShift.)
     transform: dockPieceIsCorner ? "translateX(0) scale(1)"
       : dockShift ? `translate(calc(-50% + ${dockShift.x || 0}px), ${dockShift.y || 0}px) scale(${dockShift.scale || 1})`
@@ -13979,13 +13990,14 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
          of its world's light breathing behind it, its own layer (the
          piece's frame is clipped to the piece's outline, which would cut
          a glow drawn there off at its edge), centred on the corner box
-         (dockPieceStyle: 120x106 at calc(100% - 108px), -10px); and the
+         (dockPieceStyle: 120x106 at calc(100% - 108px), -10px; on a
+         computer's screen all 1.75x, dockCornerK, the glow too); and the
          piece glowing at its edge. Still, for a reader who wants no
          motion. Gone with the rest in a cut-scene (the rule above the
          points counter) and wherever there's no game. */}
       {dockCall && (
         <>
-          <style>{`[data-testid="dock-call-aura"]{position:fixed;z-index:1;pointer-events:none;border-radius:50%;width:156px;height:156px;left:calc(100% - 126px);bottom:-35px;background:radial-gradient(circle,color-mix(in srgb,var(--ec-dock-glow) 62%,transparent) 0%,color-mix(in srgb,var(--ec-dock-glow) 30%,transparent) 34%,color-mix(in srgb,var(--ec-dock-glow) 10%,transparent) 54%,transparent 70%);animation:ecDockCallAura 2.4s ease-in-out infinite}
+          <style>{`[data-testid="dock-call-aura"]{position:fixed;z-index:1;pointer-events:none;border-radius:50%;width:${Math.round(156 * dockCornerK)}px;height:${Math.round(156 * dockCornerK)}px;left:calc(100% - ${Math.round(126 * dockCornerK)}px);bottom:-${Math.round(35 * dockCornerK)}px;background:radial-gradient(circle,color-mix(in srgb,var(--ec-dock-glow) 62%,transparent) 0%,color-mix(in srgb,var(--ec-dock-glow) 30%,transparent) 34%,color-mix(in srgb,var(--ec-dock-glow) 10%,transparent) 54%,transparent 70%);animation:ecDockCallAura 2.4s ease-in-out infinite}
 @keyframes ecDockCallAura{0%,100%{opacity:.5;transform:scale(.86)}50%{opacity:1;transform:scale(1.06)}}
 [data-dock-piece][data-dock-call="true"] canvas{animation:ecDockCallHalo 2.4s ease-in-out infinite}
 @keyframes ecDockCallHalo{0%,100%{filter:brightness(1.06) drop-shadow(0 0 1.5px var(--ec-dock-glow))}50%{filter:brightness(1.22) drop-shadow(0 0 4px var(--ec-dock-glow))}}

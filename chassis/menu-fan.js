@@ -1506,8 +1506,12 @@ export function mountCalm(v, env) {
   /* ---- the ring ---- */
   function measure(n) {
     const big = vw >= 900 && vh >= 620;
+    // (The corner piece larger on a computer's screen, 1.75x, the chassis's
+    // dockCornerK: the fan out from its edge as before, as wide; out by
+    // the box measured, 106 high at 1x.)
+    const base = big ? 62 : 58, out = corner ? Math.round(base * Math.max(1, (env.pieceH || 106) / 106)) - base : 0;
     geo = corner
-      ? { big, r0: big ? 62 : 58, r1: clamp(Math.min(big ? 232 : 206, c.x - 12, c.y - 150), 150, 232), a0: -177, a1: -90, at: 0.6 }
+      ? { big, r0: base + out, r1: clamp(Math.min((big ? 232 : 206) + out, c.x - 12, c.y - 150), 150 + out, 232 + out), a0: -177, a1: -90, at: 0.6 }
       : { big, r0: big ? 68 : 64, r1: clamp(Math.min(big ? 214 : 188, vw / 2 - 8, c.y - 96), 132, 214), a0: -180, a1: 0, at: 0.58 };
     geo.step = (geo.a1 - geo.a0) / n;
     geo.top = c.y - geo.r1;
@@ -2056,6 +2060,8 @@ export function fanMenu(host, { testid = "dock-menu" } = {}) {
     size = { vw, vh };
     const home = host.home ? host.home() : { x: vw / 2, y: vh - 118 };
     const { shift, center } = v.place(phase, vw, vh, restAt(), home);
+    // (The piece's height as it rests: the corner fan round it, mountCalm.)
+    const pb = host.piece && host.piece(), pieceH = pb ? Math.round(pb.getBoundingClientRect().height) : 0;
     setShift(shift);
     const layer = el("div", { className: `ml-layer ml-v-${v.id}`, "data-testid": testid, "data-version": v.n, "data-phase": phase, "data-open": "true" });
     const back = el("div", { className: "ml-back", "data-testid": `${testid}-back` });
@@ -2070,7 +2076,7 @@ export function fanMenu(host, { testid = "dock-menu" } = {}) {
     const lead = shift && !shift.raise && !still ? 300 : 0;
     prepareDock(host, phase).then(() => {
       if (menu !== m) return;
-      m.fan = (v.mount || mountFan)(v, { host, layer, back, center, vw, vh, phase, still, keep, lead, close: () => close() });
+      m.fan = (v.mount || mountFan)(v, { host, layer, back, center, vw, vh, phase, still, keep, lead, pieceH, close: () => close() });
       void layer.offsetWidth;
       requestAnimationFrame(() => { if (menu === m) layer.classList.add("ml-on"); });
     });

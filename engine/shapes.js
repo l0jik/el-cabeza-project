@@ -626,6 +626,17 @@ export function contactArea(piece) {
   return piece.vox ? parseVox(piece.vox).filter(([, , l]) => l === 0).length : piece.w * piece.h;
 }
 
+/* How far a piece's middle drops as it rolls over an edge, in cubes: it
+   rises to half the diagonal of its end (the height it stood, the height
+   it comes to lie, which is how far it reached the way it rolled) and
+   falls to half its new height. A cube 0.21; a 1x1x2 tipped off its end
+   0.62, stood up onto it 0.12; the 2x2x2 0.41. How hard the Monolith's
+   stones land follows it (themes/lab/monolith-sounds.js). */
+export function rollDrop(before, after) {
+  const z0 = before.z || 1, z1 = after.z || 1;
+  return (Math.hypot(z0, z1) - z1) / 2;
+}
+
 /* Every distinct way a cube-built piece can be turned: its cubes in all
    24 turns a solid has (turned over too, but never reflected: no piece
    becomes its mirror image), each set back against the corner, the same

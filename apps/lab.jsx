@@ -398,7 +398,7 @@ function LabApp() {
 
 const AUDIO_NOTES = {
   swiss: "Crisp square-wave clicks.",
-  monolith: "Real stone, recorded: thuds, knocks, a smash and a rockfall, stone dragged over stone. The heavier the piece, the lower and louder it lands, the slower it grinds.",
+  monolith: "Real stone, recorded: thuds, knocks, a smash and a rockfall, stone dragged over stone. The heavier the piece and the further it falls, the lower and harder it lands; only a slide grinds.",
   destijl: "Short electronic pulse trains.",
   brutalist: "Distorted sawtooth, struck metal, heavy thuds.",
   newTypography: "Type-bar strikes, carriage return, a bell.",

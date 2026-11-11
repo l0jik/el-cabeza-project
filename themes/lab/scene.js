@@ -17,6 +17,7 @@ import { createMonolithLand } from "./monoliths.js";
 import { seedOf, snapTurn } from "./hewn.js";
 import { cutStone, cellsOf, turnTo, stoneMaterial } from "./roughcut.js";
 import { quality } from "../tienda-quality.js";
+import { MONOLITH_MARKERS, markerKind, buildMonolithMarker } from "./monolith-markers.js";
 
 const hex = (css) => new THREE.Color(css).getHex();
 
@@ -330,7 +331,9 @@ export function createScene(spec) {
     const mesh = (geo, mat, y = 0.056) => { geos.push(geo); const m = new THREE.Mesh(geo, mat); m.position.y = y; root.add(m); return m; };
     const flatGeo = (boxes) => boxesGeometry(boxes.map((b) => ({ h: 0, y: 0, ...b })));
     const accent = hex(C.accentPrimary);
-    const K = spec.indicator;
+    // (The Monolith's five to choose from, monolith-markers.js: one tried
+    // with ?marker=<name> on the page.)
+    const K = spec.ground === "monoliths" ? markerKind(spec.indicator) : spec.indicator;
     let tick = () => {};
     let level = 0;
 
@@ -360,6 +363,12 @@ export function createScene(spec) {
       // (Standing on the slab, whose top is at 0; the flat marks float
       // just over it at 0.056.)
       mesh(boxesGeometry(bx), mat, 0);
+    } else if (Object.prototype.hasOwnProperty.call(MONOLITH_MARKERS, K)) {
+      const mk = buildMonolithMarker(K, { hx, hz, isCrush, dir: dirVec(dir) });
+      root.add(mk.group);
+      mats.push(...mk.mats);
+      geos.push(...mk.geos);
+      tick = mk.tick;
     } else if (K === "recess") {
       // De Stijl: the field sinks, lined in yellow.
       mesh(flatGeo([{ x: 0, z: 0, w: hx * 1.9, d: hz * 1.9 }]), basic(0x0e0e0e, {}), 0.052);
@@ -424,8 +433,13 @@ export function createScene(spec) {
       // The chassis's hot/cold opacity (about 0.35 cold, 0.9 hot) is
       // pushed up: these markers are printed and painted things, and at
       // a third of their strength they read as stains.
-      setOpacity(v) { level = v > 0.02 ? 1 : 0; mats.forEach((m) => { m.opacity = Math.min(1, v * 2.1); }); },
-      tick(now) { tick(now); },
+      // (A material's userData.k: its share of that; userData.flick: a
+      // flicker its tick sets.)
+      setOpacity(v) { level = v > 0.02 ? 1 : 0; mats.forEach((m) => { m.userData.base = Math.min(1, v * 2.1); m.opacity = m.userData.base * (m.userData.k ?? 1) * (m.userData.flick ?? 1); }); },
+      tick(now) {
+        tick(now);
+        for (const m of mats) if (m.userData.flick != null) m.opacity = (m.userData.base || 0) * (m.userData.k ?? 1) * m.userData.flick;
+      },
       dispose() { geos.forEach((g) => g.dispose()); mats.forEach((m) => m.dispose()); root.traverse((o) => { if (o.geometry && !geos.includes(o.geometry)) o.geometry.dispose(); }); },
     };
   }

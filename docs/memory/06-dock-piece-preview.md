@@ -11,6 +11,18 @@ the meander; double-tap/click bounces and morphs into the settings panel;
 Begin Game reverses the morph and relocates the piece to a small corner
 watermark for the rest of the game (reopen via hover/hold there).
 
+The corner box (chassis dockPieceStyle): 120 x 106 at calc(100% - 108px),
+10 px past the bottom, the piece in its middle. On a computer (a mouse,
+900 px wide or more: dockCornerK 1.75; phones and tablets keep 1) all of
+it 75% larger, 210 x 186 at calc(100% - 189px), 18 px past the bottom
+(user, 2026-11-11: "The minimized 3D piece badge in the bottom right
+corner, that needs to be enlarged just a little bit when you're on
+desktop ... 75% of their current size. An additional, I mean."); the
+call's glow after a game (156 px at calc(100% - 126px), -35px) and the
+first game's tour ring round it (inset 26) with it. The corner fan
+measures the box as it opens (fanMenu `pieceH`) and keeps its ring out
+past the piece, as wide as before.
+
 New Game straight on into the next (2026-10-27, chassis beginNextRef):
 Retain Current Game Settings, in every world, and any New Game a world's
 ambient asks for (`newGameBegins()`: the den with the hall on its way)
@@ -343,7 +355,8 @@ view, replay; CALM_SPARE fills in). The big button (Begin, Try a Game,
 New game, the world's wood via dress()) above the ring; after a game how
 it ended in a dark line above that. In play (B): the piece stays in its
 corner, raised (z 15), a quarter fan out of it (-177° to -90°, r0 58,
-r1 206; 62 / 232 big): View, Sound, More; the line over it says once
+r1 206; 62 / 232 big; both out by as much as the corner piece's box is
+taller than 106, rounded: 109 / 279 on a computer's 1.75x): View, Sound, More; the line over it says once
 whose move and who's who ("Your move · You: Ash (light) · Computer:
 Easy", "Walnut (dark) to move · Two players"); the "you" item is gone
 from the menu. A wedge with choices (and Opponent, Starting position,

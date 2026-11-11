@@ -2093,7 +2093,7 @@ export default {
   "Keys: [ ] step · 1–9 jump · H hide interface · M sound · L this panel · Esc close.": "Phím: [ ] chuyển · 1–9 nhảy tới · H ẩn giao diện · M âm thanh · L bảng này · Esc đóng.",
   "The game carries over every switch.": "Ván cờ được giữ nguyên qua mỗi lần chuyển.",
   "Crisp square-wave clicks.": "Tiếng tách giòn của sóng vuông.",
-  "Real stone, recorded: thuds, knocks, a smash and a rockfall, stone dragged over stone. The heavier the piece, the lower and louder it lands, the slower it grinds.": "Đá thật, được thu âm: tiếng thịch, tiếng gõ, một tiếng vỡ và một trận đá lở, đá kéo lê trên đá. Quân càng nặng, tiếng rơi càng trầm và càng to, tiếng nghiến càng chậm.",
+  "Real stone, recorded: thuds, knocks, a smash and a rockfall, stone dragged over stone. The heavier the piece and the further it falls, the lower and harder it lands; only a slide grinds.": "Đá thật, được thu âm: tiếng thịch, tiếng gõ, một tiếng vỡ và một trận đá lở, đá kéo lê trên đá. Quân càng nặng và rơi càng cao, tiếng rơi càng trầm và càng mạnh; chỉ khi trượt mới có tiếng nghiến.",
   "Short electronic pulse trains.": "Chuỗi xung điện tử ngắn.",
   "Distorted sawtooth, struck metal, heavy thuds.": "Sóng răng cưa méo, kim loại va đập, tiếng thịch nặng.",
   "Type-bar strikes, carriage return, a bell.": "Tiếng gõ phím chữ, tiếng xuống dòng, một tiếng chuông.",

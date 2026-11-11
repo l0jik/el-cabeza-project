@@ -25,9 +25,14 @@
      its own squares; and a piece that rolls keeps its own shape (its
      chips come down where they went over);
    - its recordings fetched (the Opus twins) and decoded;
-   - a landing pitched by its face and its weight, louder the heavier; a
-     roll's grind lower for a heavier piece; the Cabeza's slide a grind
+   - a landing pitched by its face and its weight, harder the heavier
+     and the further it fell going over (user: "These are massive
+     monolithic stones slamming down ... they need to be weighted
+     appropriately as they fall"); a roll silent till it lands (user:
+     "Rolling should not make a slide sound"); the Cabeza's slide a grind
      held, nothing struck;
+   - the move markers: the standing stones, and each of the five to
+     choose from with ?marker= (monolith-markers.js);
    - the About card credits the recordings;
    - an old link to Bauhaus, or Bauhaus saved as the last choice, opens
      the Monolith;
@@ -39,20 +44,27 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { openDockPanel } from "./dock-helpers.mjs";
-import { landingRate, landingLevel, dragRate, HIT_COUNT, HIT_SLOT, FALLS, FALLS_LENGTH, DRAGS, DRAGS_LENGTH, XFADE } from "../themes/lab/monolith-sounds.js";
+import { landingRate, landingLevel, landingDepth, fallOf, slamOf, dragRate, HIT_COUNT, HIT_SLOT, FALLS, FALLS_LENGTH, DRAGS, DRAGS_LENGTH, XFADE } from "../themes/lab/monolith-sounds.js";
+import { rollDrop } from "../engine/shapes.js";
 import { LAB_SPECS } from "../themes/lab/specs.js";
 
 let fails = 0;
 const check = (name, ok, extra = "") => { console.log(`  ${ok ? "ok  " : "FAIL"} ${name}${!ok && extra ? "  " + extra : ""}`); if (!ok) fails++; };
+const near = (a, b) => typeof a === "number" && Math.abs(a - b) < 0.005;
 const poll = async (fn, ms = 8000, step = 200) => { const end = Date.now() + ms; for (;;) { const v = await fn().catch(() => null); if (v) return v; if (Date.now() > end) return null; await new Promise((r) => setTimeout(r, step)); } };
 
 console.log("the weight rules");
 {
-  check("a single cube lands at 1.2, an Opa flat at 0.6: within an octave", Math.abs(landingRate(1, 1) - 1.2) < 1e-9 && Math.abs(landingRate(8, 4) - 0.6) < 1e-9);
+  check("every stone lands lower than the recording: a single cube at 0.86, an Opa flat at 0.51, within an octave", Math.abs(landingRate(1, 1) - 0.86) < 1e-9 && Math.abs(landingRate(8, 4) - 0.86 / Math.pow(8, 0.25)) < 1e-9 && landingRate(8, 4) / landingRate(1, 1) > 0.5);
   check("on its end a Flaco lands higher than on its side (the face)", landingRate(2, 1) > landingRate(2, 2) * 1.15);
   check("heavier, lower: one cube, two, four, eight", landingRate(1, 1) > landingRate(2, 2) && landingRate(2, 2) > landingRate(4, 4) && landingRate(4, 4) > landingRate(8, 4));
-  check("heavier, louder: 0.55 for a cube to 1 for eight", Math.abs(landingLevel(1) - 0.55) < 1e-9 && Math.abs(landingLevel(8) - 1) < 1e-9 && landingLevel(2) < landingLevel(4));
-  check("a heavier piece grinds lower", dragRate(8) < dragRate(2) && dragRate(2) < dragRate(1));
+  check("deeper, by the face and the piece: none for a cube, all for an Opa flat", Math.abs(landingDepth(1, 1)) < 1e-9 && Math.abs(landingDepth(8, 4) - 1) < 1e-9 && landingDepth(2, 1) < landingDepth(2, 2));
+  check("how far a stone falls going over: a cube 0.21, a Flaco off its end 0.62, onto it 0.12, an Opa 0.41", near(fallOf(1, 1), 0.207) && near(fallOf(2, 1), 0.618) && near(fallOf(1, 2), 0.118) && near(fallOf(2, 2), 0.414));
+  check("...the chassis's the same (rollDrop: its height before and after)", near(rollDrop({ z: 2 }, { z: 1 }), fallOf(2, 1)) && near(rollDrop({ z: 1 }, { z: 2 }), fallOf(1, 2)));
+  check("how hard it lands, its cubes times its fall: a Turrito's roll least, an Opa's most", slamOf(1, fallOf(1, 1)) < 0.05 && Math.abs(slamOf(8, fallOf(2, 2)) - 1) < 0.01);
+  check("...a Flaco tipped off its end harder than stood up onto it; a Chato laid flat harder than a Flaco", slamOf(2, fallOf(2, 1)) > slamOf(2, fallOf(1, 2)) + 0.4 && slamOf(4, fallOf(2, 1)) > slamOf(2, fallOf(2, 1)));
+  check("louder by it: 0.6 a cube rolled over to 1 an Opa", Math.abs(landingLevel(1, fallOf(1, 1)) - 0.6) < 0.01 && Math.abs(landingLevel(8, fallOf(2, 2)) - 1) < 0.01 && landingLevel(2, fallOf(1, 2)) < landingLevel(2, fallOf(2, 1)));
+  check("a heavier piece grinds lower (a slide)", dragRate(8) < dragRate(2) && dragRate(2) < dragRate(1));
 }
 console.log("the recordings' layout");
 {
@@ -257,6 +269,61 @@ console.log("the page");
   check("its recordings fetched and decoded, all three", !!loaded && loaded.hits && loaded.falls && loaded.drags, JSON.stringify(loaded));
   check("...the Opus twins, where the browser plays Opus", ["hits", "falls", "drags"].every((k) => fetched[`${k}.opus`] === 200), JSON.stringify(fetched));
 
+  // ---- the move markers: the standing stones, and the five to choose
+  // from (user: "Show me 5 other options what we can choose. Something
+  // that might be thematic."), each tried with ?marker= on the page
+  const markersOf = () => page.evaluate(() => {
+    const out = [];
+    window.__EC_TEST_THREE__().scene.traverse((o) => {
+      if (!o.userData || o.userData.kind !== "ghostLine" || o.userData.fadingOut) return;
+      const m = { meshes: 0, points: 0, lit: 0, carved: 0, glow: 0, shaft: 0, sheet: 0 };
+      o.traverse((q) => {
+        if (q.isPoints) { m.points++; return; }
+        if (!q.isMesh) return;
+        m.meshes++;
+        if (q.material.isMeshStandardMaterial) m.lit++;
+        if (q.material.normalMap) m.carved++;
+        if (q.material.blending === 2) m.glow++;
+        if (q.geometry && q.geometry.type === "CylinderGeometry") m.shaft++;
+        if (q.geometry && q.geometry.type === "PlaneGeometry") m.sheet++;
+      });
+      out.push(m);
+    });
+    return out;
+  });
+  const LOOKS = {
+    stones: (m) => m.lit === 1 && !m.carved && !m.points && !m.sheet,
+    cupring: (m) => m.lit === 1 && m.carved === 1 && !m.points,
+    hand: (m) => m.lit === 1 && m.sheet === 1 && !m.carved && !m.points && !m.glow,
+    fire: (m) => !m.lit && m.glow === 1 && m.points === 1,
+    beam: (m) => !m.lit && m.glow === 2 && m.shaft === 1 && m.points === 1,
+    margin: (m) => m.lit === 1 && m.carved === 1 && !m.points,
+  };
+  // (At the game's start: mid-turn a tap can't put the chosen piece down.
+  // The Turrito out in the open, where it can go four ways; the board put
+  // back after.)
+  const startPieces = await page.evaluate(() => window.__EC_TEST_PIECES__.map((p) => ({ ...p })));
+  const chooser = `${await page.evaluate(() => window.__EC_TEST_TO_MOVE__())}-turrito`;
+  await page.evaluate(([ps, id]) => window.__EC_TEST_SET_PIECES__(ps.map((p) => (p.id === id ? { ...p, row: 4, col: 4 } : p))), [startPieces, chooser]);
+  await page.waitForTimeout(800);
+  // (A tap on the chosen piece puts it down; another picks it up, its
+  // markers built again, as the kind the page now asks for.)
+  const tapChooser = async () => { const at = await page.evaluate((i) => window.__EC_TEST_SCREEN_POS__(i), chooser); if (at) await page.mouse.click(at.x, at.y); };
+  // (Put down by a tap on an empty square well away from it: the chosen
+  // piece's card may stand over the piece itself.)
+  const tapAway = async () => { const at = await page.evaluate(() => window.__EC_TEST_SQUARE_POS__(5, 0)); if (at) await page.mouse.click(at.x, at.y); };
+  for (const kind of Object.keys(LOOKS)) {
+    await page.evaluate((k) => { const u = new URL(location.href); if (k === "stones") u.searchParams.delete("marker"); else u.searchParams.set("marker", k); history.replaceState(null, "", u.toString()); }, kind);
+    if ((await markersOf()).length) { await tapAway(); await poll(async () => ((await markersOf()).length ? null : true), 4000, 150); }
+    await tapChooser();
+    const seen = await poll(async () => { const list = await markersOf(); return list.length && list.every(LOOKS[kind]) ? list : null; }, 8000, 200);
+    check(`the move markers, ${kind}${kind === "stones" ? " (the spec's, till one's chosen)" : ""}: one on each landing, as it should look`, !!seen && seen.length >= 2, JSON.stringify(seen || (await markersOf())));
+  }
+  if ((await markersOf()).length) await tapAway();
+  await page.evaluate(() => { const u = new URL(location.href); u.searchParams.delete("marker"); history.replaceState(null, "", u.toString()); });
+  await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), startPieces);
+  await page.waitForTimeout(800);
+
   const toMove = () => page.evaluate(() => window.__EC_TEST_TO_MOVE__());
   const pieceOf = (id) => page.evaluate((i) => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === i) || null), id);
   // A step, then its landing and the piece built again where it came down.
@@ -297,12 +364,12 @@ console.log("the page");
   const sounds = await page.evaluate(() => window.__EC_TEST_MOVE_SOUNDS__);
   const lands = notes.filter((n) => n.part === "land");
   const onEnd = lands.find((n) => n.units === 2 && n.contact === 1), onSide = lands.find((n) => n.units === 2 && n.contact === 2), flat = lands.find((n) => n.units === 8);
-  console.log("   landings:", JSON.stringify(lands.map((n) => ({ u: n.units, c: n.contact, rate: +n.rate.toFixed(3), level: +n.level.toFixed(3) }))));
+  console.log("   landings:", JSON.stringify(lands.map((n) => ({ u: n.units, c: n.contact, fall: n.fall == null ? null : +n.fall.toFixed(3), rate: +n.rate.toFixed(3), level: +n.level.toFixed(3), slam: +n.slam.toFixed(3) }))));
   check("the Flaco on its end lands higher than back on its side", !!onEnd && !!onSide && onEnd.rate > onSide.rate);
-  check("the Opa (eight cubes) lands lowest and loudest", !!flat && !!onSide && flat.rate < onSide.rate * 0.8 && flat.level > onSide.level, JSON.stringify({ flat, onSide }));
-  const rolls = notes.filter((n) => n.part === "drag" && n.swell === "rise");
-  const r2 = rolls.find((n) => n.units === 2), r8 = rolls.find((n) => n.units === 8);
-  check("a roll grinds as it tips, the Opa's lower than the Flaco's", !!r2 && !!r8 && r8.rate < r2.rate, JSON.stringify(rolls));
+  check("...stood up onto its end it fell little; tipped back off it, far, and lands harder", !!onEnd && !!onSide && near(onEnd.fall, fallOf(1, 2)) && near(onSide.fall, fallOf(2, 1)) && onSide.slam > onEnd.slam + 0.4 && onSide.level > onEnd.level, JSON.stringify({ onEnd, onSide }));
+  check("the Opa (eight cubes) lands lowest and hardest", !!flat && !!onSide && flat.rate < onSide.rate * 0.85 && flat.level > onSide.level && flat.slam > 0.99, JSON.stringify({ flat, onSide }));
+  const rollsAsked = sounds.filter((s) => s.kind === "rollStart").length;
+  check("a roll silent till it lands: no grind as a stone tips", rollsAsked >= 3 && !notes.some((n) => n.part === "drag" && n.swell === "rise"), JSON.stringify({ rollsAsked, drags: notes.filter((n) => n.part === "drag") }));
   const cabSounds = sounds.filter((s) => s.id === cabeza);
   check("the Cabeza's slide: a grind held for the glide, nothing struck", cabSounds.some((s) => s.kind === "slide" && s.played) && !cabSounds.some((s) => s.kind === "landing" || s.kind === "rollStart") && notes.some((n) => n.part === "drag" && n.swell === "hold"), JSON.stringify(cabSounds));
 

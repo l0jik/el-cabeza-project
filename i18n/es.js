@@ -2079,7 +2079,7 @@ export default {
   "Keys: [ ] step · 1–9 jump · H hide interface · M sound · L this panel · Esc close.": "Teclas: [ ] avanzar · 1–9 saltar · H ocultar interfaz · M sonido · L este panel · Esc cerrar.",
   "The game carries over every switch.": "La partida se mantiene en cada cambio.",
   "Crisp square-wave clicks.": "Clics nítidos de onda cuadrada.",
-  "Real stone, recorded: thuds, knocks, a smash and a rockfall, stone dragged over stone. The heavier the piece, the lower and louder it lands, the slower it grinds.": "Piedra real, grabada: golpes sordos, chasquidos, un estallido y un derrumbe, piedra arrastrada sobre piedra. Cuanto más pesada la pieza, más grave y más fuerte cae, y más lento se arrastra.",
+  "Real stone, recorded: thuds, knocks, a smash and a rockfall, stone dragged over stone. The heavier the piece and the further it falls, the lower and harder it lands; only a slide grinds.": "Piedra real, grabada: golpes sordos, chasquidos, un estallido y un derrumbe, piedra arrastrada sobre piedra. Cuanto más pesada la pieza y desde más alto cae, más grave y más fuerte golpea; solo se arrastra al deslizarse.",
   "Short electronic pulse trains.": "Breves trenes de pulsos electrónicos.",
   "Distorted sawtooth, struck metal, heavy thuds.": "Diente de sierra distorsionado, metal golpeado, golpes pesados.",
   "Type-bar strikes, carriage return, a bell.": "Golpes de tipos, retorno de carro, una campanilla.",

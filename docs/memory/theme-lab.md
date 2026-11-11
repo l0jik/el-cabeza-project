@@ -396,6 +396,29 @@ blocks, themselves need to be rough-hewn, not perfect looking."
   round the chosen piece, dust on a landing. (paint.js monolithSlab, the
   slab's painted face, is still the board texture the chassis makes, but
   the slab it's on is hidden.)
+- Five other move markers to choose from (user: "the potential move
+  placement markers when you select a piece, I don't like those on the
+  monolith. Show me 5 other options what we can choose. Something that
+  might be thematic."), themes/lab/monolith-markers.js, tried with
+  ?marker=NAME on the Lab's page (markerKind; scene.js buildMoveIndicator
+  takes it for the spec whose ground is "monoliths"); the standing stones
+  stay the spec's until the user picks. cupring (cup-and-ring marks: a
+  cup pecked in each square, two rings, a channel back toward the coming
+  stone, cup to cup along a long one), hand (a red-ochre hand stencil, as
+  in the Cueva de las Manos, one a square, the fingers the way the stone
+  goes), fire (a pool of firelight, flickering, embers rising), beam (a
+  pale shaft of light on the square, its floor lit, dust turning in it),
+  margin (a mason's drafted margin round the footprint, the chisel's
+  strokes across it). Each crush drawn out to the corners and past the
+  edges, where the Cabeza under it leaves rock showing: three rings and
+  four corner cups glowing; deep red sprayed wide, a hand at each corner
+  reaching in; a hotter, wider pool with the cracks glowing; the shaft
+  red, the last of the sun; the margin in ember with a cross cut corner
+  to corner. Painted once on canvases at 300 px a unit (a carving's depth
+  a height field, its normal map lit by the moon; the paint and the
+  glows plain), kept per kind, footprint and crush for the page; a
+  material's userData.k its share of the chassis's opacity, userData.flick
+  a flicker its tick sets (scene.js setOpacity, tick).
 - On a phone the Lab's bar sits over the top of the screen, where the
   game puts its own notes (the check alert, its Show again chip, its
   note, the replay's bar); user, a Monolith phone screenshot, the bar
@@ -424,7 +447,7 @@ blocks, themselves need to be rough-hewn, not perfect looking."
   corners off, nothing past their squares, shaded flat, their own
   colours, the Cabezas bare) and a roll keeping one's shape, the
   recordings fetched and decoded,
-  landings by face and weight, the rolls' grinds, the Cabeza's glide,
+  landings by face, weight and fall, rolls silent, the Cabeza's glide,
   the credits, old Bauhaus links). The channel picture
   (assets/den/channels/lab-monolith.jpg) is the low view from Light's
   end, nearly square on (the moon turns with the land: further round,

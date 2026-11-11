@@ -168,18 +168,33 @@ reason.
   stone rubbed on stone, each baked into a seamless loop: its last 0.3 s
   crossfaded, equal power, into the 0.3 s before its start).
   themes/lab/monolith-sounds.js is the layout both read and the weight
-  rules, the wooden pieces' (wood-sfx.js massOf, landingSize): a landing
-  is pitched by playing slower, 1.2 for a cube down to 0.6 for an Opa
-  coming down flat (landingRate = 1.2 / cbrt(landingSize): gentler than
-  wood's 1/sqrt, since a recording slowed past an octave smears), as loud
-  as its cubes (0.55 to 1); a roll's grind lower the heavier (dragRate);
-  slides (the Cabeza, slid blocks) a grind held for the glide, nothing
-  struck (theme.slidesGlide). A heavy piece's grind is the door's slab, a
-  light one's stone rubbed on stone, the two mixed between; a landing is a
-  thump with a rock's knock over it (less the heavier), rubble under it
-  from three cubes up, and the echo off the stones round the plain (two
-  dull delayed taps, no convolver). A crush: the smash, a deep thump,
-  rocks tumbling after; a win: the smash and a thump slowed, the rockfall
+  rules, after the wooden pieces' (wood-sfx.js massOf, landingSize).
+  Heavier since (user: "These are massive monolithic stones slamming
+  down ... they need to be weighted appropriately as they fall"): a
+  landing is pitched by playing slower, 0.86 for a cube down to 0.51 for
+  an Opa coming down flat (landingRate = 0.86 / landingSize^0.25: every
+  stone below the recording; a recording slowed past an octave smears),
+  and as loud as its cubes times how far it fell going over (slamOf: the
+  chassis passes rollDrop, engine/shapes.js, half the end's diagonal less
+  half its new height: a cube 0.21, a Flaco tipped off its end 0.62,
+  stood onto it 0.12, an Opa 0.41; 0.6 to 1). A landing is the thump; the
+  same thump an octave further down under it, only below 140 Hz, more of
+  it the deeper the face and the harder the fall (the weight); a knock
+  (not the brightest) dulled under 3.2 kHz, the grit a phone's speaker
+  carries; after a hard fall (slam over 0.3) the rubble shaken loose; and
+  the echo off the stones round the plain (two dull delayed taps, no
+  convolver), more the harder. Measured offline (OfflineAudioContext, the
+  Lab's own graph): a Turrito about as loud as before but deeper and
+  longer (0.66 s within 30 dB), a Flaco or Chato tipped off its end some
+  6 dB over before, an Opa 3 dB, level with a crush; on a phone's band
+  none quieter than before. A roll is silent till it lands (user:
+  "Rolling should not make a slide sound"); slides (the Cabeza, slid
+  blocks; user: "only for pieces slides or for the cabeza") a grind held
+  for the glide, lower the heavier (dragRate), nothing struck
+  (theme.slidesGlide). A heavy piece's grind is the door's slab, a light
+  one's stone rubbed on stone, the two mixed between. A crush: the smash,
+  a deep thump with its weight under it, rocks tumbling after; a win: the
+  smash and a thump slowed, the rockfall
   after. Each hit plays from its attack to where it has died away (found
   in the decoded file: monolith-sounds.js attackIn, endIn), never the
   silence after it. The files are fetched as the direction comes up and

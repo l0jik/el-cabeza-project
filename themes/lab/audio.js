@@ -20,7 +20,7 @@
    playHover, playTurn and playTheme. */
 
 import { fetchSoundBytes, decodeBytes } from "../../chassis/sound-files.js";
-import { MONOLITH_FILES, HIT_COUNT, HITS, FALLS, DRAGS, attackIn, endIn, landingRate, landingLevel, dragRate } from "./monolith-sounds.js";
+import { MONOLITH_FILES, HIT_COUNT, HITS, FALLS, DRAGS, attackIn, endIn, landingRate, landingLevel, landingDepth, slamOf, dragRate } from "./monolith-sounds.js";
 
 const MAX_VOICES = 24;
 const S = {
@@ -242,21 +242,31 @@ const VOICES = {
      pitch"). Recordings (monolith-sounds.js, tools/monolith_sounds.mjs),
      loaded once for the page and kept across switches; until they're in,
      it stays silent rather than stand in with a synthesizer.
-     - a landing: one of five thumps on stone, pitched by the face it
-       comes down on and a little by the whole piece, as loud as its cubes
-       (landingRate, landingLevel: the wooden pieces' rules); a rock's knock
-       over it, less of one the heavier the piece; from three cubes up,
-       rubble under it too; and the echo off the stones
-     - a roll: the edge grinding as it tips (the door's slab for a heavy
-       piece, stone rubbed on stone for a light one), rising and falling
-       over the roll, lower as the piece is heavier
-     - a slide (the Cabeza, any slid block): the same grind held for the
-       glide, nothing struck at its end (the chassis's slidesGlide)
+     - a landing (user: "These are massive monolithic stones slamming
+       down ... they need to be weighted appropriately as they fall"): one
+       of five thumps on stone, lowered by the face it comes down on and a
+       little by the whole piece (landingRate); under it the same thump an
+       octave down, only its low end, more of it the deeper the face and
+       the harder the fall (the weight); the grit where stone meets stone,
+       dulled; after a hard fall the rubble it shakes loose; and the echo
+       off the stones, longer the harder it lands. How loud, its cubes
+       times how far it fell (slamOf: an Opa going over, a Flaco tipped
+       off its end, hit hardest; a Turrito's roll least)
+     - a roll: nothing as it tips (user: "Rolling should not make a slide
+       sound"); its landing is its sound
+     - a slide (the Cabeza, any slid block; user: "only for pieces slides
+       or for the cabeza"): the edge grinding held for the glide (the
+       door's slab for a heavy piece, stone rubbed on stone for a light
+       one), lower as the piece is heavier, nothing struck at its end (the
+       chassis's slidesGlide)
      - a crush: the concrete smash, a deep thump, rocks tumbling after
      - a win: the boom (the smash and a thump, slowed), the rockfall after */
   monolith: (() => {
     const L = { bytes: null, decoding: null, hits: null, falls: null, drags: null, attacks: [], ends: [] };
     const pick = (list) => list[Math.floor(Math.random() * list.length)];
+    // (The knocks but the brightest, a rock thrown on rocks: a landing's
+    // grit, lowered and dulled.)
+    const GRIT = HITS.knock.filter((k) => k !== 6);
     const note = (part, info) => { if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__ && Array.isArray(window.__EC_TEST_MONOLITH__)) window.__EC_TEST_MONOLITH__.push({ part, ...info }); };
     const hit = (slot, rate, g, extra = {}) => {
       if (!L.hits) return;
@@ -294,24 +304,30 @@ const VOICES = {
       select() { hit(pick(HITS.knock), 1.1 * jitter(0.04), 0.22); hit(pick(HITS.thud), 1.45, 0.1); },
       deselect() { hit(pick(HITS.knock), 0.95 * jitter(0.04), 0.16); },
       blocked() { hit(pick(HITS.thud), 1.45, 0.2); hit(pick(HITS.thud), 1.32, 0.15, { delay: 0.11 }); },
-      roll(m, secs, units) { drag(units, Math.max(0.2, secs || 0.5), "rise", 0.16 + 0.22 * m); },
+      // (No roll: a stone going over its edge is silent till it lands.)
       slide(units, secs) { drag(units, Math.max(0.25, secs || 0.5), "hold", 0.14 + 0.2 * ((Math.max(1, Math.min(8, units || 1)) - 1) / 7)); },
-      land(m, units, contact) {
-        const rate = landingRate(units, contact) * jitter(0.03), level = landingLevel(units);
-        // (Measured offline against the other eight: a cube's landing level
-        // with theirs, an Opa's a few dB over their heaviest, as massive
-        // should be; on a phone's speaker the recordings carry where their
-        // sine thuds don't.)
-        hit(pick(HITS.thud), rate, 0.46 * level, { echo: 0.28 });
-        hit(pick(HITS.knock), rate * 1.05, 0.2 * level * (1.25 - m));
-        if ((units || 1) >= 3) hit(pick(HITS.rubble), rate * 0.9, 0.26 * level * Math.min(1, ((units || 1) - 2) / 6), { echo: 0.15 });
-        note("land", { units, contact, rate, level });
+      land(m, units, contact, fall) {
+        const u = Math.max(1, Math.min(8, units || 1)), rate = landingRate(u, contact) * jitter(0.03);
+        const slam = slamOf(u, fall), level = landingLevel(u, fall), deep = landingDepth(u, contact);
+        const slot = pick(HITS.thud);
+        // (Measured offline, scratch: a Turrito's roll a little over the
+        // old cube's landing, an Opa's a few dB over the old Opa's, the
+        // weight under them mostly below 120 Hz; on a phone's speaker the
+        // body and the grit carry.)
+        hit(slot, rate, 0.36 * level, { echo: 0.26 + 0.24 * slam });
+        hit(slot, rate * 0.55, (0.18 + 0.34 * Math.max(deep, slam)) * level, { filter: { type: "lowpass", f: 140, q: 0.9 } });
+        hit(pick(GRIT), rate * 0.95, (0.25 + 0.05 * slam) * level, { filter: { type: "lowpass", f: 3200 } });
+        if (slam > 0.3) hit(pick(HITS.rubble), rate * 0.85, 0.3 * ((slam - 0.3) / 0.7) * level, { delay: 0.045 + Math.random() * 0.035, echo: 0.2 });
+        note("land", { units, contact, fall, rate, level, slam });
       },
       // (A crush and a win at the other directions' loudest, measured
       // offline: the smash at full strength stood 10 dB over them.)
       capture() {
         fall("smash", 0.88, 0.24, { echo: 0.3 });
-        hit(pick(HITS.thud), 0.55, 0.3, { echo: 0.25 });
+        const slot = pick(HITS.thud);
+        hit(slot, 0.55, 0.3, { echo: 0.25 });
+        // (Its weight under it, as a landing's, over the heaviest landing.)
+        hit(slot, 0.3, 0.42, { filter: { type: "lowpass", f: 140, q: 0.9 } });
         fall("tumble", 1, 0.15, { delay: 0.16 });
         note("capture", {});
       },
@@ -487,7 +503,8 @@ export function createLabAudio(voiceId) {
     // (The piece's cubes and, landing, the face it comes down on, for a
     // voice that pitches by them: the Monolith's, as the wooden pieces do.)
     playRollStart: guard((vol, durMs) => play("roll", massOf(vol), (durMs || 400) / 1000, vol)),
-    playLanding: guard((vol, contact) => play("land", massOf(vol), vol, contact)),
+    // (And how far it fell, rolled over: the Monolith's weight by it.)
+    playLanding: guard((vol, contact, fall) => play("land", massOf(vol), vol, contact, fall)),
     playCapture: guard(() => play("capture")),
     playWin: guard(() => play("win")),
     playMenu: guard(() => play("open")), fadeOutMenu() {}, stopMenu() {},
