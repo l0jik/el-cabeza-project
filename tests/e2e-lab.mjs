@@ -325,6 +325,48 @@ async function waitSwitched(page, id) {
   await context.close();
 }
 
+// The switch card on a phone (user, a phone screenshot of the Monolith's,
+// its description one line running off both sides: "The description needs
+// to wrap ... all the ones in the lab need to be checked for this"): every
+// direction's number, name and description on the screen, 8px clear of its
+// edges, the long ones wrapped; in Spanish too, translated (the tables know
+// the whole line; the card shows its first half, which was left English).
+for (const lang of ["", "es"]) {
+  console.log(`\nthe switch card on a phone${lang ? ", in Spanish" : ""}: every direction's on the screen`);
+  const context = await browser.newContext({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  await page.goto(`file:///home/user/el-cabeza-project/dist/el-cabeza-lab.html?theme=swiss${lang ? `&lang=${lang}` : ""}`);
+  await poll(() => page.evaluate(() => !!window.__LAB__), 20000);
+  await page.waitForTimeout(1200);
+  // (Still while it's measured: the card's own animations off.)
+  await page.addStyleTag({ content: ".lab-curtain, .lab-curtain * { animation: none !important; }" });
+  const ids = await page.evaluate(() => window.__LAB__.ids);
+  const off = [], wrapped = [], english = [];
+  for (const id of [...ids.slice(1), ids[0]]) {
+    await poll(() => page.evaluate(() => !window.__LAB__.busy()), 20000);
+    await page.evaluate((x) => window.__LAB__.switchTo(x), id);
+    const m = await poll(() => page.evaluate(() => {
+      const n = document.querySelector('[data-testid="lab-curtain"] .lab-cur-name');
+      if (!n) return null;
+      // The words themselves, line by line (not their boxes).
+      const ext = (e) => { const rg = document.createRange(); rg.selectNodeContents(e); const qs = [...rg.getClientRects()]; return { l: Math.min(...qs.map((q) => q.left)), r: Math.max(...qs.map((q) => q.right)), lines: new Set(qs.map((q) => Math.round(q.top))).size }; };
+      return { title: ext(n.querySelector("b")), desc: ext(n.querySelector("small")), text: n.querySelector("small").textContent, w: innerWidth };
+    }), 10000, 30);
+    if (!m) { off.push(`${id}: no card`); continue; }
+    for (const [what, x] of [["name", m.title], ["description", m.desc]]) if (x.l < 8 || x.r > m.w - 8) off.push(`${id} ${what} ${Math.round(x.l)}..${Math.round(x.r)}`);
+    if (m.desc.lines > 1) wrapped.push(id);
+    if (lang && /^(The board|Matte polymer|Raw board|Parchment|Anodised|Flat painted|Pure matte)/.test(m.text)) english.push(`${id}: ${m.text}`);
+  }
+  check(`every direction's name and description on the screen, 8px clear (${ids.length})`, off.length === 0, off.join("; "));
+  check(`...the long descriptions wrapped (${wrapped.join(", ")})`, wrapped.includes("monolith") && wrapped.length >= 3, wrapped.join(", "));
+  if (lang) check("...every description in Spanish", english.length === 0, english.join("; "));
+  check("no page errors", errs.length === 0, errs.slice(0, 4).join(" | "));
+  await context.close();
+}
+
 await browser.close();
 console.log(failures ? `\n${failures} lab check(s) failed` : "\nall lab checks passed");
 process.exit(failures ? 1 : 0);

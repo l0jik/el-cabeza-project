@@ -17,7 +17,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { languageReady, useLanguage } from "../chassis/i18n.js";
+import { languageReady, useLanguage, t } from "../chassis/i18n.js";
 import ElCabeza3D from "../chassis/ElCabeza3D.jsx";
 import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js";
 import { LAB_SPECS } from "../themes/lab/specs.js";
@@ -117,9 +117,15 @@ const LAB_CSS = `
   .lab-curtain[data-enter="rise"].in { animation: lab-cur-in 260ms ease-in both; }
   .lab-curtain[data-enter="rise"] .lab-cur-name { animation: lab-rise 560ms cubic-bezier(.2,.7,.2,1) both; }
   @keyframes lab-rise { from { transform: translate(-50%, -20%); opacity: 0; } to { transform: translate(-50%, -50%); opacity: 1; } }
-  .lab-curtain .lab-cur-name { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; white-space: nowrap; }
-  .lab-curtain .lab-cur-name b { display: block; font-size: clamp(34px, 7vw, 76px); line-height: 0.95; }
-  .lab-curtain .lab-cur-name small { display: block; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; margin-top: 10px; opacity: 0.7; }
+  /* (As wide as its words, but never wider than the screen less 16px a
+     side: on a phone the name and its description wrap, balanced, where
+     they ran off both sides on one line; user, a phone screenshot of
+     the Monolith's: "The description needs to wrap ... all the ones in
+     the lab need to be checked for this". An explicit width: a block
+     placed at left 50% would otherwise shrink to half the screen.) */
+  .lab-curtain .lab-cur-name { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; width: max-content; max-width: calc(100vw - 32px); }
+  .lab-curtain .lab-cur-name b { display: block; font-size: clamp(28px, 7vw, 76px); line-height: 0.95; text-wrap: balance; overflow-wrap: anywhere; }
+  .lab-curtain .lab-cur-name small { display: block; font-size: 12px; letter-spacing: 0.2em; line-height: 1.5; text-transform: uppercase; margin-top: 10px; opacity: 0.7; text-wrap: balance; overflow-wrap: anywhere; }
   body.lab-ui-hidden .lab-hud, body.lab-ui-hidden [data-testid="dock-panel"], body.lab-ui-hidden [data-testid="how-to-play"], body.lab-ui-hidden button[aria-label$="full screen"],
   body.lab-ui-hidden [data-testid="points-counter"], body.lab-ui-hidden .ec-title, body.lab-ui-hidden [data-testid="piece-card"] { visibility: hidden !important; }
   body.lab-ui-hidden .lab-bar .lab-ctl:not(.lab-keep) { display: none; }
@@ -381,7 +387,8 @@ function LabApp() {
             <b style={{ fontWeight: curSpec.typography.displayWeight, letterSpacing: curSpec.typography.tracking, color: curSpec.colors.textPrimary }}>
               <span style={{ color: curSpec.colors.accentPrimary }}>{curSpec.num}</span> {curSpec.name}
             </b>
-            <small>{curSpec.materials.split(";")[0]}</small>
+            {/* (Translated whole, then cut: the language tables know the whole line, not its first half.) */}
+            <small>{t(curSpec.materials).split(";")[0]}</small>
           </div>
         </div>
       )}

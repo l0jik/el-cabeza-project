@@ -91,7 +91,22 @@ Reset presentation (view + interface, never the game), Return to game,
 L toggles the panel, Esc / outside press closes it. The theme is kept in
 ?theme= and localStorage. Each switch shows a short curtain in the new
 direction's colours and transition language (wipe, rise, bars,
-slam, set, flap, pop, fade, machine).
+slam, set, flap, pop, fade, machine): its number and name, and under
+them the first half of its materials line (to the ";"). The name block
+is as wide as its words but never wider than the screen less 16px a
+side, and both lines wrap, balanced (2026-11-11, user, a phone
+screenshot of the Monolith's, its description one line running off both
+sides: "The description needs to wrap. As you can see, staying a single
+line, it runs it off both the left and right side, and all the ones in
+the lab need to be checked for this."; it was `white-space: nowrap`, and
+on a 360 to 412 phone the Monolith's, De Stijl's, Corporate Swiss's,
+Ultimate Fusion's and, at 360, Swiss's ran off; an explicit `width:
+max-content`, since a block set at left 50% otherwise shrinks to half the
+screen). The line is translated whole, then cut (`t(materials)`): the
+language tables know the whole line, and the cut half had stayed English
+in Spanish and Vietnamese for all but the two without a ";". e2e-lab:
+every direction's card on a 360 phone, in English and Spanish, 8px clear
+of the edges, the long ones wrapped, Spanish translated.
 
 Test: `tests/e2e-lab.mjs` (state identical across all nine switches,
 mid-turn; play continues; switch during a step waits; the nine differ in
