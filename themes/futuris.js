@@ -2436,8 +2436,6 @@ export const dockWords = {
   replay: "Replay a trace",
   plainRules: "Purge rules",
   nextGame: "Next link",
-  endedCaption: "session closed",
-  wonCaption: "transmission complete",
 };
 
 export const styleSheet = `

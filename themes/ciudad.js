@@ -614,8 +614,6 @@ export const dockWords = {
   replay: "Replay a record",
   plainRules: "Zoning code",
   nextGame: "Break new ground",
-  endedCaption: "Work stopped.",
-  wonCaption: "Ribbon cut.",
 };
 
 export function renderGlobalDefs() {

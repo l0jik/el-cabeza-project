@@ -319,6 +319,7 @@ console.log("The store, on a phone: Calm Rings is the menu");
   check("after the game, the corner piece calls", await page.evaluate(() => document.querySelector("[data-dock-piece]").dataset.dockCall === "true"));
   m = await openMenu(page);
   const ng = await page.evaluate(() => document.querySelector('[data-testid="new-game"]').textContent.replace(/[^a-z]/gi, "").toLowerCase());
+  check("...no line over its big button (the world's flavour line gone: user, \"We don't need this. Remove it.\")", !!m && m.status === "", JSON.stringify(m && m.status));
   check("...the half ring out from it: New game over it (the store's own words), who to play next on it, the call answered", !!m && m.phase === "over" && !!m.primary && m.primary.replace(/[^a-z]/gi, "").toLowerCase() === ng && m.keys.includes("opponent") && m.keys[0] === "more" && (await page.evaluate(() => document.querySelector("[data-dock-piece]").dataset.dockCall !== "true")), JSON.stringify(m));
   check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
   await ctx.close();

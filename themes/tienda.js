@@ -298,8 +298,6 @@ export const dockWords = {
   replay: "Replay a game",
   plainRules: "Plain rules",
   nextGame: "Next customer",
-  endedCaption: "Please leave pieces on the board.",
-  wonCaption: "Nice game. Complete set $7.97, aisle 9.",
 };
 
 export const styleSheet = `

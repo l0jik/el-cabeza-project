@@ -246,8 +246,13 @@ export function readDock(host, phase) {
     }
   }
   if (phase === "over") {
+    // (After a game no line over the big button but news: the panel's one
+    // caption left, an online game's other player gone. The world's own
+    // flavour line went, user: "I don't think this is an actual button.
+    // This looks like just flavor text. We don't need this. Remove it.";
+    // and the result's not said again in a pill there, as it never was.)
     const cap = one('[data-testid="dock-caption"]');
-    if (cap) header = words(cap);
+    header = cap ? words(cap) : "";
     const ng = one('[data-testid="new-game"]');
     if (ng) primary = { label: words(ng), disabled: off(ng), press: () => ng.click() };
   }

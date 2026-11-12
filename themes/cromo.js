@@ -542,8 +542,6 @@ export const dockWords = {
   replay: "Replay a sitting",
   plainRules: "Bare rules",
   nextGame: "Next sitting",
-  endedCaption: "The stones rest.",
-  wonCaption: "Cut clean.",
 };
 
 export const styleSheet = `

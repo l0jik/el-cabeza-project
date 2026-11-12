@@ -1,7 +1,8 @@
 /* The dock by the moment (chassis DOCK_WORDS, user: the old panel was a
    cluttered relic). In play: the camera views as one small row and End
-   game as a quiet link, no New Game. After a game: a line under the
-   result, one big button for the next game, quiet links (the move log,
+   game as a quiet link, no New Game. After a game: no line in the
+   world's own voice (flavour, gone: user, "We don't need this. Remove
+   it."), one big button for the next game, quiet links (the move log,
    the next game's opponent folded under one link), no Reset Game, no
    players read-out. Each theme says it in its own words (theme.dockWords).
 
@@ -15,14 +16,14 @@ const check = (l, c, extra) => { if (!c) failures++; console.log(`  ${c ? "ok  "
 
 // [page, opening tap, the words this theme says]
 const PAGES = [
-  ["standard", null, { endGame: "Call it a night", newGame: "Set them up again", caption: "We'll finish it some other time." }],
-  ["tienda", '[data-testid="tienda-open-box"]', { endGame: "Put them down", newGame: "Set up the demo again", caption: "Please leave pieces on the board." }],
-  ["futuris", null, { endGame: "Disconnect", newGame: "Reboot", caption: "session closed" }],
-  ["cromo", null, { endGame: "Lay down", newGame: "Set the stones", caption: "The stones rest." }],
-  ["plano", null, { endGame: "Roll up the plans", newGame: "A fresh sheet", caption: "Plans rolled up." }],
-  ["luna", null, { endGame: "End mission", newGame: "New mission", caption: "Mission scrubbed." }],
-  ["ciudad", null, { endGame: "Call it a day", newGame: "Break ground", caption: "Work stopped." }],
-  ["lluvia", '[data-testid="lluvia-straight-to-board"]', { endGame: "Walk away", newGame: "Another round", caption: "Mưa vẫn rơi" }],
+  ["standard", null, { endGame: "Call it a night", newGame: "Set them up again" }],
+  ["tienda", '[data-testid="tienda-open-box"]', { endGame: "Put them down", newGame: "Set up the demo again" }],
+  ["futuris", null, { endGame: "Disconnect", newGame: "Reboot" }],
+  ["cromo", null, { endGame: "Lay down", newGame: "Set the stones" }],
+  ["plano", null, { endGame: "Roll up the plans", newGame: "A fresh sheet" }],
+  ["luna", null, { endGame: "End mission", newGame: "New mission" }],
+  ["ciudad", null, { endGame: "Call it a day", newGame: "Break ground" }],
+  ["lluvia", '[data-testid="lluvia-straight-to-board"]', { endGame: "Walk away", newGame: "Another round" }],
 ];
 
 const has = async (page, id) => (await page.locator(`[data-testid="${id}"]`).count()) > 0;
@@ -47,7 +48,7 @@ for (const [name, opening, w] of PAGES) {
   await page.locator('[data-testid="end-game"]').click();
   await page.waitForTimeout(700);
   check(`after: the one big button, in its words ("${w.newGame}")`, (await has(page, "new-game")) && (await txt(page, "new-game")).toLowerCase() === w.newGame.toLowerCase(), await txt(page, "new-game").catch(() => ""));
-  check(`after: its line ("${w.caption}")`, (await txt(page, "dock-caption")).includes(w.caption), await txt(page, "dock-caption").catch(() => ""));
+  check("after: no line in its own voice (flavour, gone)", !(await has(page, "dock-caption")), await txt(page, "dock-caption").catch(() => ""));
   check("after: no Reset Game, no players read-out, no End game", (await page.locator('[data-testid="dock-panel"] button', { hasText: /^Reset Game$/i }).count()) === 0 && !(await has(page, "dock-players")) && !(await has(page, "end-game")));
   check("after: the move log and the next game as quiet links", (await has(page, "move-log")) && (await has(page, "next-game")));
   check("after: the opponent folded away", (await page.locator('[data-testid="dock-panel"] button', { hasText: /^Human$/ }).count()) === 0 && (await page.locator('[data-testid="dock-panel"] [aria-label="Back to opponent selection"]').count()) === 0);

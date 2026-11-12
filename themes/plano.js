@@ -355,8 +355,6 @@ export const dockWords = {
   replay: "Replay a sheet",
   plainRules: "General notes",
   nextGame: "Next sheet",
-  endedCaption: "Plans rolled up.",
-  wonCaption: "Approved.",
 };
 
 export function renderGlobalDefs() {

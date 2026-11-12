@@ -342,8 +342,6 @@ export const dockWords = {
   replay: "Replay a canvas",
   plainRules: "The plain rules",
   nextGame: "Another canvas",
-  endedCaption: "Left unfinished, for now.",
-  wonCaption: "The last stroke. Well played.",
 };
 
 // The menus' shared pieces (styleSheet).

@@ -86,7 +86,8 @@ from its corner to the pre-game place (`centre: true`, drawn with the
 pre-game geometry) or raises it where it is (`raise: true`, z 15,
 opacity 1). `readDock(host, phase)` reads everything off the panel as
 settings (toggle, choice, open, action; disabled when the panel holds
-it back) with a header (turn status; after a game the caption) and the
+it back) with a header (turn status; after a game only an online
+game's other player gone, the dock's one caption left) and the
 one big button (Begin; New game); `prepareDock` first opens Next game's
 picker after a game and, with the computer picked before one, re-clicks
 it so the levels are in the panel. A setting pressed is the panel's own
@@ -352,8 +353,13 @@ More at the left end, the most wanted at the top, then right, left, far
 right (CALM_QUICK: before opponent, first, start, the world's extra
 (pieces, a world setting, the cart, nova); after opponent, movelog,
 view, replay; CALM_SPARE fills in). The big button (Begin, Try a Game,
-New game, the world's wood via dress()) above the ring; after a game how
-it ended in a dark line above that. In play (B): the piece stays in its
+New game, the world's wood via dress()) above the ring; after a game no
+line above it any more (it was the world's caption, flavour: user, "I
+don't think this is an actual button. This looks like just flavor text.
+We don't need this. Remove it. If there's anything similar to this on
+any other board, if it's just there for flavor text, get rid of it.";
+only an online game's "The other player left." still shows there). In
+play (B): the piece stays in its
 corner, raised (z 15), a quarter fan out of it (-177° to -90°, r0 58,
 r1 206; 62 / 232 big; both out by as much as the corner piece's box is
 taller than 106, rounded: 109 / 279 on a computer's 1.75x): View, Sound, More; the line over it says once

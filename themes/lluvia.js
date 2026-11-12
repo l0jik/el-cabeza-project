@@ -307,8 +307,6 @@ export const dockWords = {
   replay: "Replay a case",
   plainRules: "Strip the rules",
   nextGame: "Next rival",
-  endedCaption: "Mưa vẫn rơi. The rain keeps falling.",
-  wonCaption: "The city never notices who won.",
 };
 
 export const styleSheet = `

@@ -432,8 +432,6 @@ export const dockWords = {
   replay: "Run a reel",
   plainRules: "Production code",
   nextGame: "Next scene",
-  endedCaption: "Fade out.",
-  wonCaption: "The End.",
 };
 
 export function renderGlobalDefs() {

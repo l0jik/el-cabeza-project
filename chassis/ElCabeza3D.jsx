@@ -549,9 +549,6 @@ const DOCK_WORDS = {
   replay: "Replay a game",
   plainRules: "Plain rules",
   nextGame: "Next game",
-  // The line under the result: a manual end, a win.
-  endedCaption: "Game over.",
-  wonCaption: "Well played.",
 };
 
 /* How well a light of colour `glow` shows on `ground` (#rrggbb each):
@@ -14331,17 +14328,27 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
         </div>
 
         {/* By the moment (user: the old panel was a relic, cluttered).
-           After a game: a line under the result in the theme's own voice,
-           one big button for the next game, and quiet links for the rest
+           After a game: one big button for the next game (the line in the
+           theme's own voice over it is gone: flavour, user, below), and
+           quiet links for the rest
            (the move log, plain rules after a custom game, and the next
            game's opponent folded under one link). In play and after: the
            camera views as one small segmented row, Focus beside them, and
            in play End game as a quiet link at its end. */}
         {!awaitingBegin && !declutter && (
           <div data-dock-moment="over" style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4, flexShrink: 0 }}>
-            <div data-testid="dock-caption" data-dock-role="caption" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontStyle: "italic", fontSize: 13, color: COLORS.slate, textAlign: "center", lineHeight: 1.3 }}>
-              {online && online.status === "gone" ? "The other player left." : status === "finished" ? dockWords.wonCaption : dockWords.endedCaption}
-            </div>
+            {/* (No line in the world's own voice after a game any more,
+               "Set in stone.", "Well played." and the rest; user: "I don't
+               think this is an actual button. This looks like just flavor
+               text. We don't need this. Remove it. If there's anything
+               similar to this on any other board, if it's just there for
+               flavor text, get rid of it." Only what's news: the other
+               player gone from an online game.) */}
+            {online && online.status === "gone" && (
+              <div data-testid="dock-caption" data-dock-role="caption" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontStyle: "italic", fontSize: 13, color: COLORS.slate, textAlign: "center", lineHeight: 1.3 }}>
+                The other player left.
+              </div>
+            )}
             <button
               className="ec-btn"
               data-testid="new-game"

@@ -214,8 +214,6 @@ export const dockWords = {
   replay: "Replay a mission",
   plainRules: "Flight rules",
   nextGame: "Next mission",
-  endedCaption: "Mission scrubbed.",
-  wonCaption: "Base secured.",
 };
 
 export function renderGlobalDefs() {

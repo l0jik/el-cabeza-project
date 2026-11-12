@@ -283,8 +283,6 @@ export const dockWords = {
   replay: "Replay a game",
   plainRules: "Back to the box rules",
   nextGame: "Next game",
-  endedCaption: "We'll finish it some other time.",
-  wonCaption: "That's the game. Good one.",
 };
 
 export const styleSheet = `
