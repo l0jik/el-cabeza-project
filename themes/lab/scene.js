@@ -254,7 +254,9 @@ export function createScene(spec) {
     mesh.position.set(center.x, y, center.z);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    mesh.userData = { pieceId: piece.id, kind: "piece" };
+    // (The squares it stands on, cols x rows, for the marks round it:
+    // ambient.js.)
+    mesh.userData = { pieceId: piece.id, kind: "piece", cols: piece.w, rows: piece.h };
 
     if (P.mark) {
       const f = topFace(piece, isDisc);

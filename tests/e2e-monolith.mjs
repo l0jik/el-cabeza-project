@@ -34,6 +34,8 @@
    - the move markers: the hearth (the dressed margin, a subdued
      firelight on it), and each of the five it was chosen from with
      ?marker= (monolith-markers.js);
+   - the ring round a chosen stone three squares long its own size and
+     round it, the board square-on or turned (ambient.js);
    - a black hole on every square a pit with its rim round it, the rim
      never over the pit;
    - the About card credits the recordings;
@@ -50,6 +52,7 @@ import { openDockPanel } from "./dock-helpers.mjs";
 import { landingRate, landingLevel, landingDepth, fallOf, slamOf, dragRate, HIT_COUNT, HIT_SLOT, FALLS, FALLS_LENGTH, DRAGS, DRAGS_LENGTH, XFADE } from "../themes/lab/monolith-sounds.js";
 import { rollDrop } from "../engine/shapes.js";
 import { LAB_SPECS } from "../themes/lab/specs.js";
+import { SQUARE_SIZE } from "../engine/constants.js";
 
 let fails = 0;
 const check = (name, ok, extra = "") => { console.log(`  ${ok ? "ok  " : "FAIL"} ${name}${!ok && extra ? "  " + extra : ""}`); if (!ok) fails++; };
@@ -327,6 +330,42 @@ console.log("the page");
   }
   if ((await markersOf()).length) await tapAway();
   await page.evaluate(() => { const u = new URL(location.href); u.searchParams.delete("marker"); history.replaceState(null, "", u.toString()); });
+
+  // (The ring round a chosen stone three squares long: its own size, round
+  // it and turning with the board, square-on or turned; user, a recording
+  // of it jumping between two sizes as the board turned: "Why is the
+  // selection ring changing sizes?". It was sized off the stone's box along
+  // the scene's axes, rounded to whole squares: 2.5 squares square-on,
+  // rounded down to 2, and up to 3 at a turn of a degree or two.)
+  {
+    const long = chooser, camWas = await page.evaluate(() => window.__EC_TEST_CAM__());
+    await page.evaluate(([ps, id]) => window.__EC_TEST_SET_PIECES__(ps.map((p) => (p.id === id ? { ...p, type: "block1x3", w: 3, h: 1, z: 1, row: 4, col: 3 } : p))), [startPieces, long]);
+    await page.waitForTimeout(800);
+    const at = await page.evaluate((i) => window.__EC_TEST_SCREEN_POS__(i), long);
+    if (at) await page.mouse.click(at.x, at.y);
+    const ringOf = () => page.evaluate((id) => {
+      const t = window.__EC_TEST_THREE__(), m = t.pieceGroup.children.find((c) => c.userData.pieceId === id && c.userData.kind === "piece");
+      const fx = t.scene.getObjectByName("lab-monolith-fx");
+      const g = fx && fx.children.find((c) => c.visible && c.children.some((o) => o.geometry && o.geometry.type === "RingGeometry" && Math.abs(o.material.opacity - 0.95) < 0.01));
+      if (!m || !g) return null;
+      const ring = g.children.find((o) => o.geometry.type === "RingGeometry"), V = m.position.constructor;
+      const a = m.getWorldPosition(new V()), b = g.getWorldPosition(new V()), q = g.getWorldQuaternion(t.camera.quaternion.clone());
+      return { r: +ring.geometry.parameters.outerRadius.toFixed(3), off: +Math.hypot(a.x - b.x, a.z - b.z).toFixed(3), yaw: +(2 * Math.atan2(q.y, q.w)).toFixed(3), board: +t.boardGroup.rotation.y.toFixed(3) };
+    }, long);
+    await poll(ringOf, 4000, 150);
+    const seen = [];
+    for (const deg of [0, 1, 3, 10, 45, 90]) {
+      await page.evaluate((r) => window.__EC_TEST_CAM__({ theta: r, snap: true }), (deg * Math.PI) / 180);
+      await page.waitForTimeout(200);
+      seen.push({ deg, ...(await ringOf()) });
+    }
+    const want = (3 * SQUARE_SIZE - 0.1) / 2 + 0.16;
+    check(`the ring round a chosen stone three squares long: its own size (${want.toFixed(3)}), round it and turning with the board, square-on and turned`, seen.every((x) => Math.abs(x.r - want) < 0.005 && x.off < 0.05 && Math.abs(x.yaw - x.board) < 0.01), JSON.stringify(seen));
+    await page.evaluate((c) => window.__EC_TEST_CAM__({ theta: c.theta, snap: true }), camWas);
+    await page.waitForTimeout(200);
+    await tapAway();
+    await page.waitForTimeout(300);
+  }
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), startPieces);
   await page.waitForTimeout(800);
 

@@ -50,13 +50,25 @@ Architecture (engine → presentation adapter → config → primitives):
   chassis's hot/cold value ×2.1 (at ×1 they read as stains).
 - `themes/lab/ambient.js`: tone mapping/exposure per direction (flat
   ones use NoToneMapping so whites stay white), the ground, selection and
-  hover markers drawn from the piece mesh's world footprint (the chassis
-  itself only shows moves), landing marks (a piece mesh rebuilt somewhere
-  new = landed) and capture marks (id gone), Neo-Brutalism's hard offset
-  shadows. Ground and fx live in the scene, NOT the board group, so they
-  don't turn when the board turns to face a player. (Except the
+  hover markers (the chassis itself only shows moves), landing marks (a
+  piece mesh rebuilt somewhere new = landed) and capture marks (id gone),
+  Neo-Brutalism's hard offset shadows. The marks (fx) hang on the board
+  group and turn with it, each drawn round the piece's own squares
+  (cols x rows: scene.js puts the piece's w and h on its mesh's userData;
+  else counted off its size, PIECE_SCALE to a square), placed at its
+  footprint measured in the board's frame. They used to lie in the scene,
+  sized off the mesh's box along the scene's axes rounded to whole
+  squares: a piece is cut PIECE_SCALE (0.87) to a 1.056 square, so a
+  3-long one measured 2.47 squares square-on and rounded down to 2, and a
+  turn of 3 degrees widened its box past 2.5 and up to 3, the Monolith's
+  ring jumping between the two as the board turned (user's recording,
+  2026-11-12: "Why is the selection ring changing sizes?"); a frame round
+  a long piece stayed square to the screen while the board turned under
+  it. The hard shadows stay in the scene (shade), measured along its
+  axes: their offset is the light's. The ground stays in the scene too
+  (it doesn't turn when the board turns to face a player), except the
   Monolith's land: a ground carrying userData.land hangs on the board
-  group and turns with it, sky and lights too; below.)
+  group and turns with it, sky and lights too; below.
 - `themes/lab/hud.js` + `css.js`: one HUD markup (id, turn number, side
   to move, moves/points/pieces/taken/time, last six moves, result) that
   nine stylesheets compose nine ways; semantic custom properties on :root
@@ -401,8 +413,9 @@ blocks, themselves need to be rough-hewn, not perfect looking."
   boxes are gone; hewn.js only makes the land's rubble now. The piece
   maps still tile without a seam, paint.js `wrap`.)
 - Its marks: the hearth for a legal move (below), an ember ring round
-  the chosen piece, dust on a landing, the capture's ring where a piece
-  was taken. (paint.js monolithSlab, the slab's painted face, is still the
+  the chosen piece (its radius half the piece's longer side in squares
+  plus 0.16, whichever way the board is turned: ambient.js above), dust
+  on a landing, the capture's ring where a piece was taken. (paint.js monolithSlab, the slab's painted face, is still the
   board texture the chassis makes, but the slab it's on is hidden.)
 - Its move marker, the hearth (user, of the five below: "Let's do dressed
   margin with a subdued firelight."; spec indicator "hearth",

@@ -13,7 +13,7 @@
        graphic directions want their whites white) */
 
 import * as THREE from "three";
-import { SQUARE_SIZE } from "../../engine/constants.js";
+import { SQUARE_SIZE, PIECE_SCALE } from "../../engine/constants.js";
 import { repaintWhenFontsReady } from "./paint.js";
 
 const hex = (css) => new THREE.Color(css).getHex();
@@ -55,9 +55,23 @@ export function createAmbient(spec, scene, live) {
       disposers.push(() => { if (t.scene.fog === landFog) t.scene.fog = fogBefore; });
     }
 
+    // The marks round a piece (chosen, hovered, landed, taken) lie on the
+    // board and turn with it, each drawn round the piece's own squares
+    // (user, a phone recording of the Monolith's ring round a chosen stone
+    // three squares long jumping between two sizes as the board turned a
+    // degree or so: "Why is the selection ring changing sizes?"). They were
+    // laid in the scene and sized off the piece's box along the scene's
+    // axes, rounded to whole squares: a stone is cut a little inside its
+    // squares, so a 3-long one measured 2.5 squares square-on and rounded
+    // down to 2, and the slightest turn widened its box past 2.5 and up to
+    // 3. Neo-Brutalism's hard shadows stay in the scene (shade): their
+    // offset is the light's, and that doesn't turn with the board.
     const fx = new THREE.Group();
     fx.name = `lab-${spec.id}-fx`;
-    t.scene.add(fx);
+    (t.boardGroup || t.scene).add(fx);
+    const shade = new THREE.Group();
+    shade.name = `lab-${spec.id}-shade`;
+    t.scene.add(shade);
 
     /* ---------- marker shapes: built for a footprint of w x d */
     const flat = (boxes, color, opacity = 1, y = 0.06) => {
@@ -129,30 +143,41 @@ export function createAmbient(spec, scene, live) {
       return g;
     }
 
-    /* Footprint of a piece mesh on the board: world centre and w x d. */
+    /* Footprint of a piece mesh: its centre and w x d on the board (in
+       fx's frame, square-on however the board is turned), or, inWorld,
+       along the scene's axes; and the squares it stands on, cols x rows:
+       the piece's own (scene.js puts them on its mesh), else counted off
+       its size (a piece is cut PIECE_SCALE to a square). */
     const box = new THREE.Box3();
     const v = new THREE.Vector3();
-    function footprint(mesh) {
+    const into = new THREE.Matrix4();
+    function footprint(mesh, inWorld = false) {
       if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
       // (Where it is now: a mesh built this frame hasn't been drawn yet, so
-      // its world matrix would still say the board's middle.)
+      // its world matrix would still say the board's middle. Its parents'
+      // brought up to date with it, the board's among them.)
       mesh.updateWorldMatrix(true, false);
+      if (inWorld || !fx.parent) into.copy(mesh.matrixWorld);
+      else into.copy(fx.parent.matrixWorld).invert().multiply(mesh.matrixWorld);
       const bb = mesh.geometry.boundingBox;
       box.makeEmpty();
       for (let i = 0; i < 8; i++) {
-        v.set(i & 1 ? bb.max.x : bb.min.x, i & 2 ? bb.max.y : bb.min.y, i & 4 ? bb.max.z : bb.min.z).applyMatrix4(mesh.matrixWorld);
+        v.set(i & 1 ? bb.max.x : bb.min.x, i & 2 ? bb.max.y : bb.min.y, i & 4 ? bb.max.z : bb.min.z).applyMatrix4(into);
         box.expandByPoint(v);
       }
-      return { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, w: box.max.x - box.min.x, d: box.max.z - box.min.z, h: box.max.y };
+      const w = box.max.x - box.min.x, d = box.max.z - box.min.z, u = mesh.userData || {};
+      return {
+        x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, w, d, h: box.max.y,
+        cols: u.cols || Math.max(1, Math.round(w / PIECE_SCALE)), rows: u.rows || Math.max(1, Math.round(d / PIECE_SCALE)),
+      };
     }
-    const snap = (n) => Math.round(n / SQUARE_SIZE) * SQUARE_SIZE;
 
     const markers = { select: null, hover: null };
     const markerCache = new Map();
-    function markerFor(which, w, d) {
-      const key = `${which}:${snap(w).toFixed(2)}x${snap(d).toFixed(2)}`;
+    function markerFor(which, cols, rows) {
+      const key = `${which}:${cols}x${rows}`;
       if (!markerCache.has(key)) {
-        const m = buildSelection(spec.selection, Math.max(SQUARE_SIZE * 0.6, snap(w) - 0.1), Math.max(SQUARE_SIZE * 0.6, snap(d) - 0.1), which === "hover");
+        const m = buildSelection(spec.selection, Math.max(SQUARE_SIZE * 0.6, cols * SQUARE_SIZE - 0.1), Math.max(SQUARE_SIZE * 0.6, rows * SQUARE_SIZE - 0.1), which === "hover");
         m.visible = false; fx.add(m);
         markerCache.set(key, m);
       }
@@ -165,7 +190,7 @@ export function createAmbient(spec, scene, live) {
       if (!kind) return;
       const g = new THREE.Group();
       g.position.set(fp.x, 0, fp.z);
-      const w = Math.max(SQUARE_SIZE * 0.8, snap(fp.w)), d = Math.max(SQUARE_SIZE * 0.8, snap(fp.d));
+      const w = Math.max(SQUARE_SIZE * 0.8, fp.cols * SQUARE_SIZE), d = Math.max(SQUARE_SIZE * 0.8, fp.rows * SQUARE_SIZE);
       let upd = () => {};
       const mats = [];
       const reg = (m) => { m.traverse((o) => o.material && mats.push(o.material)); g.add(m); return m; };
@@ -234,7 +259,7 @@ export function createAmbient(spec, scene, live) {
         const prev = markers[which];
         if (!m) { if (prev) prev.visible = false; markers[which] = null; return; }
         const fp = footprint(m);
-        const marker = markerFor(which, fp.w, fp.d);
+        const marker = markerFor(which, fp.cols, fp.rows);
         if (prev && prev !== marker) prev.visible = false;
         marker.visible = true;
         marker.position.set(fp.x, 0, fp.z);
@@ -268,13 +293,13 @@ export function createAmbient(spec, scene, live) {
       if (spec.pieces.hardShadow) {
         meshes.forEach((m, id) => {
           let s = hardShadows.get(id);
-          if (!s) { s = new THREE.Mesh(shadowGeo, shadowMat); fx.add(s); hardShadows.set(id, s); }
-          const fp = footprint(m);
+          if (!s) { s = new THREE.Mesh(shadowGeo, shadowMat); shade.add(s); hardShadows.set(id, s); }
+          const fp = footprint(m, true);
           const lift = Math.max(0, fp.h - 0.8);
           s.scale.set(fp.w * 0.98, 1, fp.d * 0.98);
           s.position.set(fp.x + 0.12 + lift * 0.1, 0.053, fp.z + 0.12 + lift * 0.1);
         });
-        hardShadows.forEach((s, id) => { if (!meshes.has(id)) { fx.remove(s); hardShadows.delete(id); } });
+        hardShadows.forEach((s, id) => { if (!meshes.has(id)) { shade.remove(s); hardShadows.delete(id); } });
       }
 
       for (let i = bursts.length - 1; i >= 0; i--) {
@@ -294,8 +319,9 @@ export function createAmbient(spec, scene, live) {
       dispose() {
         renderer.toneMapping = prevTone; renderer.toneMappingExposure = prevExp;
         disposers.forEach((d) => d());
-        t.scene.remove(fx);
-        fx.traverse((o) => { if (o.geometry && o.geometry !== shadowGeo) o.geometry.dispose(); if (o.material && o.material !== shadowMat) o.material.dispose(); });
+        if (fx.parent) fx.parent.remove(fx);
+        t.scene.remove(shade);
+        [fx, shade].forEach((g) => g.traverse((o) => { if (o.geometry && o.geometry !== shadowGeo) o.geometry.dispose(); if (o.material && o.material !== shadowMat) o.material.dispose(); }));
         shadowGeo.dispose(); shadowMat.dispose();
       },
     };
