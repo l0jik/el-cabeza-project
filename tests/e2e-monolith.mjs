@@ -34,6 +34,8 @@
    - the move markers: the hearth (the dressed margin, a subdued
      firelight on it), and each of the five it was chosen from with
      ?marker= (monolith-markers.js);
+   - a black hole on every square a pit with its rim round it, the rim
+     never over the pit;
    - the About card credits the recordings;
    - an old link to Bauhaus, or Bauhaus saved as the last choice, opens
      the Monolith;
@@ -399,6 +401,33 @@ console.log("the page");
   check("a roll silent till it lands: no grind as a stone tips", rollsAsked >= 3 && !notes.some((n) => n.part === "drag" && n.swell === "rise"), JSON.stringify({ rollsAsked, drags: notes.filter((n) => n.part === "drag") }));
   const cabSounds = sounds.filter((s) => s.id === cabeza);
   check("the Cabeza's slide: a grind held for the glide, nothing struck", cabSounds.some((s) => s.kind === "slide" && s.played) && !cabSounds.some((s) => s.kind === "landing" || s.kind === "rollStart") && notes.some((n) => n.part === "drag" && n.swell === "hold"), JSON.stringify(cabSounds));
+
+  // ---- the black holes: a pit with its rim round it, on every square
+  // (user, a recording of the lower hole flashing pale: "possible Z
+  // fighting or something else causing the artifacting, flashing of the
+  // singularity hole..."; on some squares the pit's jagged edge poked past
+  // the rim's, the rim's middle couldn't be cut, and it covered the pit)
+  const rims = await page.evaluate(async () => {
+    const b = window.__EC_TEST_BOARD__ || { rows: 10, cols: 10 }, all = [];
+    for (let r = 0; r < b.rows; r++) for (let c = 0; c < b.cols; c++) all.push({ row: r, col: c });
+    window.__EC_TEST_SET_HOLES__(all);
+    await new Promise((res) => setTimeout(res, 1000));
+    const groups = [];
+    window.__EC_TEST_THREE__().scene.traverse((o) => { if (o.name === "lab-monolith-hole") groups.push(o); });
+    const side = (p, a, b2) => (p[0] - b2[0]) * (a[1] - b2[1]) - (a[0] - b2[0]) * (p[1] - b2[1]);
+    const inside = (p, a, b2, c) => { const d1 = side(p, a, b2), d2 = side(p, b2, c), d3 = side(p, c, a); return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0)); };
+    let covered = 0, withRim = 0;
+    for (const g of groups) {
+      const rim = g.children[1];
+      if (!rim) continue;
+      withRim++;
+      const pos = rim.geometry.attributes.position, idx = rim.geometry.index, P = (i) => [pos.getX(i), pos.getY(i)];
+      for (let t = 0; t < idx.count; t += 3) if (inside([0, 0], P(idx.getX(t)), P(idx.getX(t + 1)), P(idx.getX(t + 2)))) { covered++; break; }
+    }
+    window.__EC_TEST_SET_HOLES__([]);
+    return { squares: all.length, holes: groups.length, withRim, covered };
+  });
+  check(`a black hole on every square (${rims.holes}): each a pit with its rim round it, none covered by its rim`, rims.holes === rims.squares && rims.withRim === rims.holes && rims.covered === 0, JSON.stringify(rims));
 
   // ---- the About card
   await page.evaluate(() => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "about" } })));

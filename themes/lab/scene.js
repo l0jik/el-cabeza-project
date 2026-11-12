@@ -444,8 +444,21 @@ export function createScene(spec) {
     pit.rotation.x = -Math.PI / 2; pit.position.set(center.x, 0.005, center.z);
     g.add(pit);
     if (ring) {
-      // Its broken rim: fresh stone, paler, a band round the pit.
-      const shape = new THREE.Shape(jagged(ring.r, ring.k, seed + 7, 0.1));
+      // Its broken rim: fresh stone, paler, a band round the pit. Its
+      // outer edge kept outside the pit's at every angle (user, a phone
+      // recording of a Singularity game in the Monolith: "possible Z
+      // fighting or something else causing the artifacting, flashing of
+      // the singularity hole at the on the bottom half of the player
+      // screen."): jagged's wobble reaches 21% out (its % binds after the
+      // *), so on some squares the pit's outline poked past the rim's
+      // edge, the band's hole couldn't be cut, and the rim was drawn as a
+      // whole disc over the pit, the two a five-thousandth of a square
+      // apart, fighting for every pixel: a pale disc, the black flashing through.
+      // (Same angles both: each of the rim's points at least 6% past the
+      // pit's at its angle; else past its widest.)
+      const widest = Math.max(...outline.map((q) => q.length()));
+      const outer = jagged(ring.r, ring.k, seed + 7, 0.1).map((q, i) => q.clone().setLength(Math.max(q.length(), (ring.k === outline.length ? outline[i].length() : widest) * 1.06)));
+      const shape = new THREE.Shape(outer);
       shape.holes.push(new THREE.Path(outline.slice().reverse()));
       const rim = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({ color: ring.color, transparent: true, opacity: ring.opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }));
       rim.rotation.x = -Math.PI / 2; rim.position.set(center.x, 0.0052, center.z);

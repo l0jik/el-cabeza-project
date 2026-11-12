@@ -309,8 +309,17 @@ blocks, themselves need to be rough-hewn, not perfect looking."
       colour under the rest. Built again with the ground.
     - Black holes and missing squares cut into the floor (scene.js
       carvedPit, the Monolith's only): a jagged pit at 0.005 (the other
-      directions' discs stand at 0.058 over their slabs), a hole ringed
-      in ember.
+      directions' discs stand at 0.058 over their slabs), a hole ringed in
+      ember. The rim is a band, a ShapeGeometry with the pit's outline as
+      its hole; its outer edge is kept at least 6% past the pit's at every
+      angle (same 22 angles). jagged()'s wobble reaches 21% out (its % binds
+      after the *), and where the pit's edge poked past the rim's, earcut
+      couldn't cut the hole: the rim came out a whole disc 0.0002 over the
+      pit (a five-thousandth of a square), the two fighting for each pixel
+      (on 17 of 100 squares on a 10x10 board, 42 of 182 on 13x14): a pale
+      disc, the black flashing through as the camera moved (user's
+      recording, 2026-11-12). tests/e2e-monolith.mjs puts a hole on every
+      square and checks no rim's triangles cover its pit's middle.
     - The plain beyond, polar rings out to R_OUT (170), past the sky
       (150); the fog (40 to 148) takes the edge.
   - Every piece's shape stands in it as natural rock (PIECE_FORMS: the
