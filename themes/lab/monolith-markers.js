@@ -72,6 +72,9 @@ const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const edgeFade = (s, px, py) => { const e = Math.min(px, s.W - 1 - px, py, s.H - 1 - py) / PPU; return e >= 0.08 ? 1 : e <= 0 ? 0 : (e / 0.08) * (e / 0.08) * (3 - 2 * (e / 0.08)); };
 const smooth = (a, b, v) => { const t = clamp01((v - a) / (b - a)); return t * t * (3 - 2 * t); };
 
+// How strong the Monolith's markers are drawn, of what they were made at.
+export const MARKER_LEVEL = 0.75;
+
 // Pixels to a world unit on every sheet (a square is ~300 across).
 const PPU = 300;
 const CELL = SQUARE_SIZE * GHOST_SCALE;
@@ -547,6 +550,9 @@ export function buildMonolithMarker(kind, { hx, hz, isCrush, dir }) {
   // its strength, a few faint embers.
   const parts = kind === "hearth" ? [["margin", { order: 3 }], ["fire", { dim: 0.42, embers: 0.4, order: 4 }]] : [[kind, {}]];
   const ticks = parts.map(([k, o]) => layer(k, o)).filter(Boolean);
+  // All of it at three quarters (user: "Dim the move markers on monolith
+  // by 25%."): every material's share of the chassis's opacity.
+  mats.forEach((m) => { m.userData.k = (m.userData.k ?? 1) * MARKER_LEVEL; });
   const tick = (now) => { for (const t of ticks) t(now); };
   return { group, mats, geos, tick };
 }

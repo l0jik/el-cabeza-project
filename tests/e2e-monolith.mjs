@@ -278,8 +278,9 @@ console.log("the page");
     const out = [];
     window.__EC_TEST_THREE__().scene.traverse((o) => {
       if (!o.userData || o.userData.kind !== "ghostLine" || o.userData.fadingOut) return;
-      const m = { meshes: 0, points: 0, lit: 0, carved: 0, glow: 0, shaft: 0, sheet: 0 };
+      const m = { meshes: 0, points: 0, lit: 0, carved: 0, glow: 0, shaft: 0, sheet: 0, k: 0 };
       o.traverse((q) => {
+        if (q.material && q.material.userData) m.k = Math.max(m.k, q.material.userData.k ?? 1);
         if (q.isPoints) { m.points++; return; }
         if (!q.isMesh) return;
         m.meshes++;
@@ -294,7 +295,8 @@ console.log("the page");
     return out;
   });
   const LOOKS = {
-    hearth: (m) => m.lit === 1 && m.carved === 1 && m.glow === 1 && m.points === 1 && m.sheet === 2,
+    // (Drawn at three quarters, user: "Dim the move markers on monolith by 25%.")
+    hearth: (m) => m.lit === 1 && m.carved === 1 && m.glow === 1 && m.points === 1 && m.sheet === 2 && Math.abs(m.k - 0.75) < 1e-6,
     cupring: (m) => m.lit === 1 && m.carved === 1 && !m.points,
     hand: (m) => m.lit === 1 && m.sheet === 1 && !m.carved && !m.points && !m.glow,
     fire: (m) => !m.lit && m.glow === 1 && m.points === 1,

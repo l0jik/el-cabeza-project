@@ -401,7 +401,9 @@ blocks, themselves need to be rough-hewn, not perfect looking."
   0.42 of its strength, its flicker 0.6 as wide, its embers 0.4 as many
   and rising three quarters as far (the glow drawn after the margin, so
   the band's lit too); a crush, the margin's ember band and cross with
-  the crush's firelight, subdued the same. It replaced the little circle
+  the crush's firelight, subdued the same. All of it drawn at three
+  quarters (MARKER_LEVEL 0.75; user: "Dim the move markers on monolith by
+  25%."). It replaced the little circle
   of seven standing stones (lit, sandstone gold; a crush in ember with a
   capstone), gone from scene.js.
 - The ring in the board's middle at every move (user: "Whenever any piece
