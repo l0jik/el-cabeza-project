@@ -52,7 +52,10 @@ const piece = () => page.evaluate(() => {
   const r = el.getBoundingClientRect();
   return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, vw: innerWidth, deaf: getComputedStyle(el).pointerEvents === "none" };
 });
-const inCorner = (p) => !!p && p.w < 140 && p.x > p.vw - 120;
+// In its corner: the box 120 wide, its middle 48 in from the right; on a
+// computer's screen (a mouse, 900 wide or more: the chassis's dockCornerK)
+// all 1.75x, 210 wide and 84 in.
+const inCorner = (p) => !!p && [1, 1.75].some((k) => Math.abs(p.w - 120 * k) < 6 && Math.abs(p.x - (p.vw - 48 * k)) < 8);
 const atHome = (p, home) => !!p && !!home && Math.abs(p.x - home.x) < 3 && Math.abs(p.y - home.y) < 3 && Math.abs(p.w - home.w) < 2;
 // Its menu out: Rings, or the panel.
 const menuOpen = () => page.evaluate(() => !!document.querySelector('[data-testid="dock-menu"][data-open="true"], [data-testid="dock-panel"][data-open="true"]'));

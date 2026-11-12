@@ -217,7 +217,9 @@ console.log("the hall on its way: the game lost, New Game, Retain");
   await page.waitForTimeout(1200);
   const frames = await page.evaluate(() => { const l = window.__NG__ || []; window.__NG__ = null; return l; });
   check("Retain: the next game under way at once, no Begin pressed", !!on);
-  const big = frames.filter((f) => f.w === null || f.w > 150 || f.x < 700);
+  // (The corner piece 120 wide, or 210 on a computer's screen, this one's
+  // (the chassis's dockCornerK); the big one in the middle 260.)
+  const big = frames.filter((f) => f.w === null || f.w > 230 || f.x < 700);
   check(`...the dock piece in its corner all along, never the big one in the middle (${frames.length} frames, widest ${Math.max(0, ...frames.map((f) => f.w || 0))})`, frames.length > 10 && big.length === 0, JSON.stringify(big.slice(0, 5)));
   check("...the title kept small", frames.every((f) => f.title), JSON.stringify(frames.filter((f) => !f.title).slice(0, 3)));
   const h = await hall(page);
