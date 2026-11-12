@@ -125,7 +125,10 @@ export const LAB_SPECS = [
       // roughcut.js), the odd-shaped ones too.
       hewn: true,
     },
-    indicator: "stones", selection: "emberRing", landing: "dust",
+    // Its move marker the dressed margin, a subdued firelight on it (user,
+    // of five offered: "Let's do dressed margin with a subdued firelight.";
+    // monolith-markers.js "hearth"; the standing stones gone).
+    indicator: "hearth", selection: "emberRing", landing: "dust",
     ground: "monoliths",
     hud: "monolith",
     animation: { speed: 320, ease: "cubic-bezier(.2,.7,.2,1)", enter: "rise" },

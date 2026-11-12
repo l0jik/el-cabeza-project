@@ -31,8 +31,9 @@
      appropriately as they fall"); a roll silent till it lands (user:
      "Rolling should not make a slide sound"); the Cabeza's slide a grind
      held, nothing struck;
-   - the move markers: the standing stones, and each of the five to
-     choose from with ?marker= (monolith-markers.js);
+   - the move markers: the hearth (the dressed margin, a subdued
+     firelight on it), and each of the five it was chosen from with
+     ?marker= (monolith-markers.js);
    - the About card credits the recordings;
    - an old link to Bauhaus, or Bauhaus saved as the last choice, opens
      the Monolith;
@@ -269,9 +270,10 @@ console.log("the page");
   check("its recordings fetched and decoded, all three", !!loaded && loaded.hits && loaded.falls && loaded.drags, JSON.stringify(loaded));
   check("...the Opus twins, where the browser plays Opus", ["hits", "falls", "drags"].every((k) => fetched[`${k}.opus`] === 200), JSON.stringify(fetched));
 
-  // ---- the move markers: the standing stones, and the five to choose
-  // from (user: "Show me 5 other options what we can choose. Something
-  // that might be thematic."), each tried with ?marker= on the page
+  // ---- the move markers: the hearth, the dressed margin with a subdued
+  // firelight (user, of five offered: "Let's do dressed margin with a
+  // subdued firelight."), and each of the five, tried with ?marker= on the
+  // page
   const markersOf = () => page.evaluate(() => {
     const out = [];
     window.__EC_TEST_THREE__().scene.traverse((o) => {
@@ -292,7 +294,7 @@ console.log("the page");
     return out;
   });
   const LOOKS = {
-    stones: (m) => m.lit === 1 && !m.carved && !m.points && !m.sheet,
+    hearth: (m) => m.lit === 1 && m.carved === 1 && m.glow === 1 && m.points === 1 && m.sheet === 2,
     cupring: (m) => m.lit === 1 && m.carved === 1 && !m.points,
     hand: (m) => m.lit === 1 && m.sheet === 1 && !m.carved && !m.points && !m.glow,
     fire: (m) => !m.lit && m.glow === 1 && m.points === 1,
@@ -313,17 +315,38 @@ console.log("the page");
   // piece's card may stand over the piece itself.)
   const tapAway = async () => { const at = await page.evaluate(() => window.__EC_TEST_SQUARE_POS__(5, 0)); if (at) await page.mouse.click(at.x, at.y); };
   for (const kind of Object.keys(LOOKS)) {
-    await page.evaluate((k) => { const u = new URL(location.href); if (k === "stones") u.searchParams.delete("marker"); else u.searchParams.set("marker", k); history.replaceState(null, "", u.toString()); }, kind);
+    await page.evaluate((k) => { const u = new URL(location.href); if (k === "hearth") u.searchParams.delete("marker"); else u.searchParams.set("marker", k); history.replaceState(null, "", u.toString()); }, kind);
     if ((await markersOf()).length) { await tapAway(); await poll(async () => ((await markersOf()).length ? null : true), 4000, 150); }
     await tapChooser();
     const seen = await poll(async () => { const list = await markersOf(); return list.length && list.every(LOOKS[kind]) ? list : null; }, 8000, 200);
-    check(`the move markers, ${kind}${kind === "stones" ? " (the spec's, till one's chosen)" : ""}: one on each landing, as it should look`, !!seen && seen.length >= 2, JSON.stringify(seen || (await markersOf())));
+    check(`the move markers, ${kind}${kind === "hearth" ? " (the spec's: the margin, the firelight subdued on it)" : ""}: one on each landing, as it should look`, !!seen && seen.length >= 2, JSON.stringify(seen || (await markersOf())));
   }
   if ((await markersOf()).length) await tapAway();
   await page.evaluate(() => { const u = new URL(location.href); u.searchParams.delete("marker"); history.replaceState(null, "", u.toString()); });
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), startPieces);
   await page.waitForTimeout(800);
 
+  // (No capture's ring at a move: a piece its roll carries off isn't
+  // taken; user, of the ring that came up in the board's middle at every
+  // move: "Whenever any piece move, this ring shows up. Why does it do
+  // that? I don't think I like it." Any ring but the chosen piece's, its
+  // opacity fixed, is a burst.)
+  await page.evaluate(() => {
+    window.__EC_RINGS__ = [];
+    const fx = window.__EC_TEST_THREE__().scene.getObjectByName("lab-monolith-fx");
+    const look = () => {
+      if (!window.__EC_RINGS__) return;
+      if (fx) fx.traverse((o) => {
+        if (!o.isMesh || !o.geometry || o.geometry.type !== "RingGeometry") return;
+        let shown = true;
+        for (let q = o; q; q = q.parent) if (!q.visible) shown = false;
+        const op = o.material.opacity;
+        if (shown && Math.abs(op - 0.95) > 0.01 && Math.abs(op - 0.95 * 0.45) > 0.01) { const w = o.getWorldPosition(new o.position.constructor()); window.__EC_RINGS__.push([+w.x.toFixed(2), +w.z.toFixed(2), +op.toFixed(2)]); }
+      });
+      requestAnimationFrame(look);
+    };
+    requestAnimationFrame(look);
+  });
   const toMove = () => page.evaluate(() => window.__EC_TEST_TO_MOVE__());
   const pieceOf = (id) => page.evaluate((i) => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === i) || null), id);
   // A step, then its landing and the piece built again where it came down.
@@ -360,6 +383,8 @@ console.log("the page");
   check(`${cabeza} slid`, slid);
   await page.waitForTimeout(800);
 
+  const bursts = await page.evaluate(() => { const r = window.__EC_RINGS__ || []; window.__EC_RINGS__ = null; return r; });
+  check("no capture's ring at any of those moves (nothing was taken)", bursts.length === 0, JSON.stringify(bursts.slice(0, 6)));
   const notes = await page.evaluate(() => window.__EC_TEST_MONOLITH__);
   const sounds = await page.evaluate(() => window.__EC_TEST_MOVE_SOUNDS__);
   const lands = notes.filter((n) => n.part === "land");

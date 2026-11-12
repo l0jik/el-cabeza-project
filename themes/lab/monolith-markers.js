@@ -36,6 +36,8 @@ import * as THREE from "three";
 import { SQUARE_SIZE, GHOST_SCALE } from "../../engine/constants.js";
 
 export const MONOLITH_MARKERS = {
+  // The one the user chose: the dressed margin with a subdued firelight.
+  hearth: "Dressed margin, firelight",
   cupring: "Cup and ring",
   hand: "Ochre hands",
   fire: "Firelight",
@@ -436,98 +438,115 @@ export function buildMonolithMarker(kind, { hx, hz, isCrush, dir }) {
     group.add(m);
     return m;
   };
-  const key = `${kind}:${footKey(hx, hz)}:${isCrush ? 1 : 0}`;
-  let tick = () => {};
-
-  if (kind === "cupring") {
-    const art = cached(`${key}:${Math.round(Math.atan2(back.z, back.x) * 10)}`, () => cupringSheet(hx, hz, isCrush, back));
-    flat(art, { emissive: isCrush });
-  } else if (kind === "hand") {
-    const art = cached(`${key}:${Math.round(Math.atan2(v.x, v.z) * 10)}`, () => handSheet(hx, hz, isCrush, v));
-    flat(art);
-  } else if (kind === "fire") {
-    const art = cached(key, () => fireSheet(hx, hz, isCrush));
-    const pool = flat(art, { lit: false, add: true, y: 0.012 });
-    // Embers rising from it.
-    const { list } = cellsOf(hx, hz), n = list.length * (isCrush ? 12 : 7), R = stream(0xe3be + n);
-    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), seeds = [];
-    for (let k = 0; k < n; k++) {
-      const c = list[k % list.length];
-      seeds.push({ x: c.x + (R() - 0.5) * hx * 0.9 / Math.max(1, cellsOf(hx, hz).nx), z: c.z + (R() - 0.5) * hz * 0.9 / Math.max(1, cellsOf(hx, hz).nz), p: R(), s: 0.16 + R() * 0.2, w: R() * 6 });
+  const keyOf = (k) => `${k}:${footKey(hx, hz)}:${isCrush ? 1 : 0}`;
+  /* One layer of it: `dim` its share of the light (the hearth's firelight
+     subdued), `embers` of the embers, `order` when it's drawn (the glow
+     after the carving under it, so the band's lit too). Gives back its
+     tick, if it moves. */
+  const layer = (kind, { dim = 1, embers = 1, order = 3 } = {}) => {
+    const key = keyOf(kind);
+    let tick = null;
+    if (kind === "cupring") {
+      const art = cached(`${key}:${Math.round(Math.atan2(back.z, back.x) * 10)}`, () => cupringSheet(hx, hz, isCrush, back));
+      flat(art, { emissive: isCrush });
+    } else if (kind === "hand") {
+      const art = cached(`${key}:${Math.round(Math.atan2(v.x, v.z) * 10)}`, () => handSheet(hx, hz, isCrush, v));
+      flat(art);
+    } else if (kind === "fire") {
+      const art = cached(key, () => fireSheet(hx, hz, isCrush));
+      const pool = flat(art, { lit: false, add: true, y: 0.012, k: dim, order });
+      // Embers rising from it (a subdued fire, fewer, fainter, lower).
+      const { list } = cellsOf(hx, hz), n = Math.max(1, Math.round(list.length * (isCrush ? 12 : 7) * embers)), R = stream(0xe3be + n);
+      const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), seeds = [];
+      for (let k = 0; k < n; k++) {
+        const c = list[k % list.length];
+        seeds.push({ x: c.x + (R() - 0.5) * hx * 0.9 / Math.max(1, cellsOf(hx, hz).nx), z: c.z + (R() - 0.5) * hz * 0.9 / Math.max(1, cellsOf(hx, hz).nz), p: R(), s: 0.16 + R() * 0.2, w: R() * 6 });
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+      geos.push(geo);
+      const pm = new THREE.PointsMaterial({ size: isCrush ? 0.07 : 0.055, map: dotTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true });
+      pm.userData.k = Math.min(1, dim * 1.4);
+      mats.push(pm);
+      const pts = new THREE.Points(geo, pm);
+      pts.renderOrder = order + 1;
+      group.add(pts);
+      const base = isCrush ? [1, 0.42, 0.16] : [1, 0.62, 0.25];
+      // (Subdued, it flickers less, and its embers rise less far.)
+      const amp = dim < 1 ? 0.6 : 1, rise = (isCrush ? 0.75 : 0.55) * (dim < 1 ? 0.75 : 1);
+      tick = (now) => {
+        const t = now / 1000;
+        // The pool flickers: two slow waves and a quick one.
+        const f = 1 - 0.18 * amp + amp * (0.1 * Math.sin(t * 7.3) * Math.sin(t * 2.9 + 1) + 0.08 * Math.sin(t * 17.1 + Math.sin(t * 3.7)));
+        pool.material.userData.flick = f;
+        for (let k = 0; k < n; k++) {
+          const e = seeds[k], u = (e.p + t * e.s) % 1;
+          pos[k * 3] = e.x + Math.sin(t * 1.3 + e.w) * 0.03 * u;
+          pos[k * 3 + 1] = 0.02 + u * rise;
+          pos[k * 3 + 2] = e.z + Math.cos(t * 1.1 + e.w) * 0.03 * u;
+          const a = Math.sin(u * Math.PI) * (0.6 + 0.4 * Math.sin(t * 9 + e.w));
+          col[k * 3] = base[0] * a; col[k * 3 + 1] = base[1] * a; col[k * 3 + 2] = base[2] * a;
+        }
+        geo.attributes.position.needsUpdate = true;
+        geo.attributes.color.needsUpdate = true;
+      };
+    } else if (kind === "beam") {
+      const art = cached(key, () => beamFloorSheet(hx, hz, isCrush));
+      flat(art, { lit: false, add: true, y: 0.012, k: 1 });
+      // The shaft: a square column, open at its ends, fading upward.
+      const H = isCrush ? 1.7 : 1.35, r = Math.SQRT2 * 0.88;
+      const geo = new THREE.CylinderGeometry(r, r, H, 4, 1, true);
+      geo.rotateY(Math.PI / 4);
+      geo.scale(hx, 1, hz);
+      geo.translate(0, H / 2 + 0.01, 0);
+      geos.push(geo);
+      const mat = new THREE.MeshBasicMaterial({ map: shaftTexture(), color: isCrush ? 0xff7a4a : 0xb9cdf5, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+      mat.userData.k = isCrush ? 0.8 : 0.62;
+      mats.push(mat);
+      const shaft = new THREE.Mesh(geo, mat);
+      shaft.renderOrder = 4;
+      group.add(shaft);
+      // Dust turning in it.
+      const n = cellsOf(hx, hz).list.length * 9, R = stream(0xd057 + n);
+      const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), seeds = [];
+      for (let k = 0; k < n; k++) seeds.push({ x: (R() - 0.5) * hx * 1.5, z: (R() - 0.5) * hz * 1.5, p: R(), s: 0.03 + R() * 0.05, w: R() * 6 });
+      const dg = new THREE.BufferGeometry();
+      dg.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      dg.setAttribute("color", new THREE.BufferAttribute(col, 3));
+      geos.push(dg);
+      const dm = new THREE.PointsMaterial({ size: 0.03, map: dotTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true });
+      mats.push(dm);
+      const dust = new THREE.Points(dg, dm);
+      dust.renderOrder = 4;
+      group.add(dust);
+      const base = isCrush ? [1, 0.55, 0.35] : [0.85, 0.9, 1];
+      tick = (now) => {
+        const t = now / 1000;
+        mat.userData.flick = 0.9 + 0.1 * Math.sin(t * 0.9) * Math.sin(t * 1.7 + 2);
+        for (let k = 0; k < n; k++) {
+          const e = seeds[k], u = (e.p + t * e.s) % 1;
+          pos[k * 3] = e.x + Math.sin(t * 0.4 + e.w) * 0.06;
+          pos[k * 3 + 1] = 0.05 + (1 - u) * H * 0.85;
+          pos[k * 3 + 2] = e.z + Math.cos(t * 0.33 + e.w) * 0.06;
+          const a = Math.sin(u * Math.PI) * 0.8;
+          col[k * 3] = base[0] * a; col[k * 3 + 1] = base[1] * a; col[k * 3 + 2] = base[2] * a;
+        }
+        dg.attributes.position.needsUpdate = true;
+        dg.attributes.color.needsUpdate = true;
+      };
+    } else if (kind === "margin") {
+      const art = cached(key, () => marginSheet(hx, hz, isCrush));
+      flat(art, { emissive: isCrush, order });
     }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
-    geos.push(geo);
-    const pm = new THREE.PointsMaterial({ size: isCrush ? 0.07 : 0.055, map: dotTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true });
-    mats.push(pm);
-    const pts = new THREE.Points(geo, pm);
-    pts.renderOrder = 4;
-    group.add(pts);
-    const base = isCrush ? [1, 0.42, 0.16] : [1, 0.62, 0.25];
-    tick = (now) => {
-      const t = now / 1000;
-      // The pool flickers: two slow waves and a quick one.
-      const f = 0.82 + 0.1 * Math.sin(t * 7.3) * Math.sin(t * 2.9 + 1) + 0.08 * Math.sin(t * 17.1 + Math.sin(t * 3.7));
-      pool.material.userData.flick = f;
-      for (let k = 0; k < n; k++) {
-        const e = seeds[k], u = (e.p + t * e.s) % 1;
-        pos[k * 3] = e.x + Math.sin(t * 1.3 + e.w) * 0.03 * u;
-        pos[k * 3 + 1] = 0.02 + u * (isCrush ? 0.75 : 0.55);
-        pos[k * 3 + 2] = e.z + Math.cos(t * 1.1 + e.w) * 0.03 * u;
-        const a = Math.sin(u * Math.PI) * (0.6 + 0.4 * Math.sin(t * 9 + e.w));
-        col[k * 3] = base[0] * a; col[k * 3 + 1] = base[1] * a; col[k * 3 + 2] = base[2] * a;
-      }
-      geo.attributes.position.needsUpdate = true;
-      geo.attributes.color.needsUpdate = true;
-    };
-  } else if (kind === "beam") {
-    const art = cached(key, () => beamFloorSheet(hx, hz, isCrush));
-    flat(art, { lit: false, add: true, y: 0.012, k: 1 });
-    // The shaft: a square column, open at its ends, fading upward.
-    const H = isCrush ? 1.7 : 1.35, r = Math.SQRT2 * 0.88;
-    const geo = new THREE.CylinderGeometry(r, r, H, 4, 1, true);
-    geo.rotateY(Math.PI / 4);
-    geo.scale(hx, 1, hz);
-    geo.translate(0, H / 2 + 0.01, 0);
-    geos.push(geo);
-    const mat = new THREE.MeshBasicMaterial({ map: shaftTexture(), color: isCrush ? 0xff7a4a : 0xb9cdf5, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
-    mat.userData.k = isCrush ? 0.8 : 0.62;
-    mats.push(mat);
-    const shaft = new THREE.Mesh(geo, mat);
-    shaft.renderOrder = 4;
-    group.add(shaft);
-    // Dust turning in it.
-    const n = cellsOf(hx, hz).list.length * 9, R = stream(0xd057 + n);
-    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), seeds = [];
-    for (let k = 0; k < n; k++) seeds.push({ x: (R() - 0.5) * hx * 1.5, z: (R() - 0.5) * hz * 1.5, p: R(), s: 0.03 + R() * 0.05, w: R() * 6 });
-    const dg = new THREE.BufferGeometry();
-    dg.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    dg.setAttribute("color", new THREE.BufferAttribute(col, 3));
-    geos.push(dg);
-    const dm = new THREE.PointsMaterial({ size: 0.03, map: dotTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true });
-    mats.push(dm);
-    const dust = new THREE.Points(dg, dm);
-    dust.renderOrder = 4;
-    group.add(dust);
-    const base = isCrush ? [1, 0.55, 0.35] : [0.85, 0.9, 1];
-    tick = (now) => {
-      const t = now / 1000;
-      mat.userData.flick = 0.9 + 0.1 * Math.sin(t * 0.9) * Math.sin(t * 1.7 + 2);
-      for (let k = 0; k < n; k++) {
-        const e = seeds[k], u = (e.p + t * e.s) % 1;
-        pos[k * 3] = e.x + Math.sin(t * 0.4 + e.w) * 0.06;
-        pos[k * 3 + 1] = 0.05 + (1 - u) * H * 0.85;
-        pos[k * 3 + 2] = e.z + Math.cos(t * 0.33 + e.w) * 0.06;
-        const a = Math.sin(u * Math.PI) * 0.8;
-        col[k * 3] = base[0] * a; col[k * 3 + 1] = base[1] * a; col[k * 3 + 2] = base[2] * a;
-      }
-      dg.attributes.position.needsUpdate = true;
-      dg.attributes.color.needsUpdate = true;
-    };
-  } else if (kind === "margin") {
-    const art = cached(key, () => marginSheet(hx, hz, isCrush));
-    flat(art, { emissive: isCrush });
-  }
+    return tick;
+  };
+
+  // The hearth (the user's pick: "Let's do dressed margin with a subdued
+  // firelight."): the margin, then the firelight over it at under half
+  // its strength, a few faint embers.
+  const parts = kind === "hearth" ? [["margin", { order: 3 }], ["fire", { dim: 0.42, embers: 0.4, order: 4 }]] : [[kind, {}]];
+  const ticks = parts.map(([k, o]) => layer(k, o)).filter(Boolean);
+  const tick = (now) => { for (const t of ticks) t(now); };
   return { group, mats, geos, tick };
 }

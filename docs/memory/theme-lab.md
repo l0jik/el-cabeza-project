@@ -391,12 +391,33 @@ blocks, themselves need to be rough-hewn, not perfect looking."
   computer's detail. (The last round's flakes and baked tints on hewn
   boxes are gone; hewn.js only makes the land's rubble now. The piece
   maps still tile without a seam, paint.js `wrap`.)
-- Its marks: a little circle of seven standing stones for a legal move
-  (lit, sandstone gold; a crush in ember with a capstone), an ember ring
-  round the chosen piece, dust on a landing. (paint.js monolithSlab, the
-  slab's painted face, is still the board texture the chassis makes, but
-  the slab it's on is hidden.)
-- Five other move markers to choose from (user: "the potential move
+- Its marks: the hearth for a legal move (below), an ember ring round
+  the chosen piece, dust on a landing, the capture's ring where a piece
+  was taken. (paint.js monolithSlab, the slab's painted face, is still the
+  board texture the chassis makes, but the slab it's on is hidden.)
+- Its move marker, the hearth (user, of the five below: "Let's do dressed
+  margin with a subdued firelight."; spec indicator "hearth",
+  monolith-markers.js): the dressed margin, and over it the firelight at
+  0.42 of its strength, its flicker 0.6 as wide, its embers 0.4 as many
+  and rising three quarters as far (the glow drawn after the margin, so
+  the band's lit too); a crush, the margin's ember band and cross with
+  the crush's firelight, subdued the same. It replaced the little circle
+  of seven standing stones (lit, sandstone gold; a crush in ember with a
+  capstone), gone from scene.js.
+- The ring in the board's middle at every move (user: "Whenever any piece
+  move, this ring shows up. Why does it do that? I don't think I like
+  it."): the capture's ring (ambient.js burst "capture"), fired by
+  mistake. A roll or a slide carries the moving piece's mesh off the
+  pieces' group onto its carrier till it lands, so it went missing from
+  the group, which read as taken; and its place had been measured the
+  frame its mesh was built, before the renderer had given it a world
+  matrix, so the board's middle. Now a piece is taken only once its mesh
+  is gone from the scene (looked at every frame), and footprint() brings
+  a mesh's world matrix up to date before measuring. Sampled frame by
+  frame before and after (a phone, two rolls): the ring at 0,0 through
+  each roll, then none; a real capture (a second Cabeza, so the game
+  goes on) still rings where the Cabeza was. tests/e2e-monolith.mjs.
+- Five move markers it was chosen from (user: "the potential move
   placement markers when you select a piece, I don't like those on the
   monolith. Show me 5 other options what we can choose. Something that
   might be thematic."), themes/lab/monolith-markers.js, tried with
@@ -414,7 +435,8 @@ blocks, themselves need to be rough-hewn, not perfect looking."
   four corner cups glowing; deep red sprayed wide, a hand at each corner
   reaching in; a hotter, wider pool with the cracks glowing; the shaft
   red, the last of the sun; the margin in ember with a cross cut corner
-  to corner. Painted once on canvases at 300 px a unit (a carving's depth
+  to corner. Each still tried with ?marker=NAME (the hearth's parts too:
+  margin, fire). Painted once on canvases at 300 px a unit (a carving's depth
   a height field, its normal map lit by the moon; the paint and the
   glows plain), kept per kind, footprint and crush for the page; a
   material's userData.k its share of the chassis's opacity, userData.flick

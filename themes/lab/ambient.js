@@ -134,6 +134,9 @@ export function createAmbient(spec, scene, live) {
     const v = new THREE.Vector3();
     function footprint(mesh) {
       if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      // (Where it is now: a mesh built this frame hasn't been drawn yet, so
+      // its world matrix would still say the board's middle.)
+      mesh.updateWorldMatrix(true, false);
       const bb = mesh.geometry.boundingBox;
       box.makeEmpty();
       for (let i = 0; i < 8; i++) {
@@ -213,7 +216,6 @@ export function createAmbient(spec, scene, live) {
 
     /* ---------- tracking the piece meshes */
     const lastMesh = new Map(); // pieceId -> { mesh, fp }
-    let lastSig = "";
     let armed = false;
 
     function tick(now) {
@@ -241,7 +243,6 @@ export function createAmbient(spec, scene, live) {
 
       // Landings and captures: a piece whose mesh was rebuilt has landed
       // somewhere new; one whose id is gone was taken.
-      const sig = [...meshes.keys()].sort().join(",");
       meshes.forEach((m, id) => {
         const prev = lastMesh.get(id);
         if (armed && prev && prev.mesh !== m) {
@@ -250,15 +251,18 @@ export function createAmbient(spec, scene, live) {
         }
         if (!prev || prev.mesh !== m) lastMesh.set(id, { mesh: m, fp: footprint(m) });
       });
-      if (sig !== lastSig) {
-        lastMesh.forEach((entry, id) => {
-          if (!meshes.has(id)) {
-            if (armed && game && game.status === "playing") burst("capture", entry.fp, hex(C.accentPrimary));
-            lastMesh.delete(id);
-          }
-        });
-        lastSig = sig;
-      }
+      // A piece on its way (a roll or a slide carries its mesh off the
+      // pieces' group till it lands) hasn't been taken: still in the scene.
+      // Only one gone from it was (user, of the ring that came up in the
+      // board's middle at every move, this mark measured before the piece
+      // had a place: "Whenever any piece move, this ring shows up. Why does
+      // it do that? I don't think I like it."). Looked at every frame, so
+      // one carried off and then taken is still seen to go.
+      lastMesh.forEach((entry, id) => {
+        if (meshes.has(id) || entry.mesh.parent) return;
+        if (armed && game && game.status === "playing") burst("capture", entry.fp, hex(C.accentPrimary));
+        lastMesh.delete(id);
+      });
       armed = true;
 
       if (spec.pieces.hardShadow) {

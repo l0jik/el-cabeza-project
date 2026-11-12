@@ -331,7 +331,8 @@ export function createScene(spec) {
     const mesh = (geo, mat, y = 0.056) => { geos.push(geo); const m = new THREE.Mesh(geo, mat); m.position.y = y; root.add(m); return m; };
     const flatGeo = (boxes) => boxesGeometry(boxes.map((b) => ({ h: 0, y: 0, ...b })));
     const accent = hex(C.accentPrimary);
-    // (The Monolith's five to choose from, monolith-markers.js: one tried
+    // (The Monolith's, monolith-markers.js: its hearth, the dressed margin
+    // and a subdued firelight; each of the five it was chosen from tried
     // with ?marker=<name> on the page.)
     const K = spec.ground === "monoliths" ? markerKind(spec.indicator) : spec.indicator;
     let tick = () => {};
@@ -346,23 +347,6 @@ export function createScene(spec) {
       });
       mesh(flatGeo(bx), basic(accent));
       if (isCrush) mesh(flatGeo([{ x: 0, z: 0, w: hx * 0.5, d: 0.03 }, { x: 0, z: 0, w: 0.03, d: hz * 0.5 }]), basic(accent));
-    } else if (K === "stones") {
-      // The Monolith: a little circle of standing stones, in sandstone's
-      // gold; a crush, in the dusk's ember, with a capstone laid in the
-      // middle. Lit, so they read as stones (each its own height, as the
-      // same seven every time: a fixed pattern, not chance).
-      const ring = Math.min(hx, hz) * 0.62, n = 7, bx = [];
-      const TALL = [1, 0.7, 0.9, 0.6, 1, 0.75, 0.85];
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2 + 0.25;
-        bx.push({ x: Math.cos(a) * ring, z: Math.sin(a) * ring, w: 0.085, d: 0.07, h: 0.06 + 0.06 * TALL[i], y: 0 });
-      }
-      if (isCrush) bx.push({ x: 0, z: 0, w: ring * 0.9, d: ring * 0.5, h: 0.06, y: 0 });
-      const mat = new THREE.MeshStandardMaterial({ color: isCrush ? hex(C.accentPrimary) : hex(C.accentTertiary), roughness: 0.92, metalness: 0, transparent: true, opacity: 0 });
-      mats.push(mat);
-      // (Standing on the slab, whose top is at 0; the flat marks float
-      // just over it at 0.056.)
-      mesh(boxesGeometry(bx), mat, 0);
     } else if (Object.prototype.hasOwnProperty.call(MONOLITH_MARKERS, K)) {
       const mk = buildMonolithMarker(K, { hx, hz, isCrush, dir: dirVec(dir) });
       root.add(mk.group);
