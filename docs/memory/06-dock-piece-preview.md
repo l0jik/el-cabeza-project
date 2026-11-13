@@ -417,3 +417,39 @@ a value wraps; the least-bad place if nothing fits. Not while More's list
 hides the labels (closeMore's paint fits them). Checked with DejaVu Sans
 forced on the menu (the widest common face): e2e-rings 58/58, More at
 r 163, "All / settings" wrapped.
+
+Calm Rings' tooltips (2026-11-13; user, of a screenshot of the Monolith's
+ring after a game, More, View, Opponent, Carvings, Replay a game: "add
+pop-up tool-tips for the menu wedges to provide additional informational
+context, globally."). chassis/menu-fan.js mountCalm: one tooltip node in
+the stage (role tooltip, data-testid menu-fan-tooltip). What it says
+(tipOf): the setting's own line (its tip: TIPS, a world's own setting's
+tip, a dock button's title; the line its card and More's list say), so a
+world's name for a thing is said plainly (the Monolith's Carvings: "Every
+move of the game, in order."); More's new: "All the settings in one list:
+the game, the board, help on the board, sound and language, your games."
+Under it, smaller, what the wedge's own words don't say: Opponent who
+plays whom ("You play Sandstone (light). The computer plays Basalt
+(dark), on Medium."; two players: both sides named; online), a choice's
+choices ("Choose: Player · Plan", left out where the line names them all,
+as Starting position's does), "Opens its own page." for one that does,
+"Not available right now." for one held back. How it comes up: a mouse
+resting on a wedge (380 ms; from one wedge straight to the next at once,
+a tooltip out or gone under 500 ms ago), placed out past the ring's edge
+by the wedge's middle, kept on the screen; the keys' focus (the arrows),
+at once, the wedge aria-describedby it; a finger held 450 ms (pointer
+not a mouse), placed above the wedge's highest point, clear of the
+finger, kept 2.6 s after the finger lifts, and the tap after the hold not
+taken (w.held); the long press's own context menu and callout kept off.
+Gone on a tap, a card or More opened, the ring built again, Escape, the
+menu away. Never over the wedge's own card. Its colours the wedges'
+turned over (ink ground, paper words), so it stands off them in every
+world (the Monolith's dark wedges: a light tooltip; the store's cream
+ones: a dark one). New words in es and vi. tests/e2e-menu-tips.mjs (in
+CI as two, worlds and more): every world before a game, each wedge
+hovered (the twelve: the den, Futuris, the store, Lluvia, Cromo, Plano,
+Luna, Noir, the City, Parrish, the Lab's Monolith and De Stijl), then
+Noir (one wedge to the next, the keys, a click, the corner fan in play),
+the Monolith after a game, a finger held in the store (no tap, then it
+goes; a quick tap still opens the card), Spanish.
+

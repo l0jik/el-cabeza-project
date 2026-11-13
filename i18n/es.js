@@ -2212,6 +2212,12 @@ export default {
   "Previous setting": "Opción anterior",
   "Next setting": "Opción siguiente",
   "Not available right now.": "No está disponible ahora.",
+  // (Calm Rings' wedges, their tooltips: chassis/menu-fan.js tipOf.)
+  "All the settings in one list: the game, the board, help on the board, sound and language, your games.": "Todas las opciones en una lista: la partida, el tablero, las ayudas en el tablero, sonido e idioma, tus partidas.",
+  "Choose: {list}": "Elegí: {list}",
+  "Opens its own page.": "Se abre en su propia página.",
+  "You play someone online, on their own screen.": "Jugás contra alguien en línea, desde su propia pantalla.",
+  "You play {you}. The computer plays {them}.": "Jugás con {you}. La computadora juega con {them}.",
   "Tap it again to be sure.": "Tocalo de nuevo para confirmar.",
   "Turn the page ‹ ›": "Pasá de página ‹ ›",
   "Turn it for more": "Giralo para ver más",

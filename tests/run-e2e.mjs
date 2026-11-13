@@ -81,6 +81,8 @@ const E2E = [
   ["e2e-menu-lab.mjs"],
   // The dock's menu everywhere (Calm Rings): a few wedges in fixed places, More for all of it, the corner fan in play; in each phase.
   ["e2e-rings.mjs"],
+  // Its wedges' tooltips (user: "add pop-up tool-tips for the menu wedges ... globally"): every world's, then the keys, a finger held, in play and after a game.
+  ["e2e-menu-tips.mjs", "worlds"], ["e2e-menu-tips.mjs", "more"],
   // Cromo on a phone: the board's surface from the dock's menu, mid-game too; the dark side's dots; the title clear of the corner tab.
   ["e2e-cromo.mjs"],
   // The result said to you: "You win" / "You lose" against the computer (placard, status, move log, the Lab), the winner's name for two people, in Spanish too.

@@ -2225,6 +2225,12 @@ export default {
   "Previous setting": "Mục trước",
   "Next setting": "Mục sau",
   "Not available right now.": "Hiện chưa dùng được.",
+  // (Calm Rings' wedges, their tooltips: chassis/menu-fan.js tipOf.)
+  "All the settings in one list: the game, the board, help on the board, sound and language, your games.": "Tất cả cài đặt trong một danh sách: ván, bàn cờ, trợ giúp trên bàn cờ, âm thanh và ngôn ngữ, các ván của bạn.",
+  "Choose: {list}": "Chọn: {list}",
+  "Opens its own page.": "Mở trang riêng của nó.",
+  "You play someone online, on their own screen.": "Bạn chơi với một người trực tuyến, trên màn hình của họ.",
+  "You play {you}. The computer plays {them}.": "Bạn chơi {you}. Máy chơi {them}.",
   "Tap it again to be sure.": "Chạm lần nữa để chắc chắn.",
   "Turn the page ‹ ›": "Lật trang ‹ ›",
   "Turn it for more": "Xoay để xem thêm",

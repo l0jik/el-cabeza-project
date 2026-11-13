@@ -576,6 +576,14 @@ body.mf-quiet [data-testid="toggle-hint"]{display:none!important}
 .cr-line.cr-right{text-align:right}
 .cr-note{display:none}.cr-note.cr-shown{display:block}.cr-note.cr-warn{background:rgba(120,30,22,.9)}
 .cr-note.cr-top{top:12px;left:50%;right:auto;bottom:auto;transform:translateX(-50%);z-index:2;width:max-content}
+.cr-tt{position:fixed;left:0;top:0;z-index:6;box-sizing:border-box;width:max-content;max-width:min(272px,calc(100vw - 16px));padding:8px 12px 9px;border-radius:12px;background:var(--ml-ink);color:var(--ml-paper);font-size:13px;line-height:1.38;font-weight:500;text-align:left;box-shadow:0 8px 22px rgba(0,0,0,.32);pointer-events:none;opacity:0;visibility:hidden;transform:translateY(3px);transition:opacity .12s ease-out,transform .12s ease-out,visibility 0s linear .12s}
+.cr-tt.cr-tt-on{opacity:1;visibility:visible;transform:none;transition:opacity .12s ease-out,transform .12s ease-out,visibility 0s}
+.cr-tt .cr-tt-main{display:block}
+.cr-tt .cr-tt-more{display:block;margin-top:4px;font-size:12px;font-weight:400;color:color-mix(in srgb,var(--ml-paper) 74%,var(--ml-ink))}
+.cr-tt .cr-tt-more.cr-warn{color:var(--ml-paper);font-weight:600}
+.ml-still .cr-tt{transition:none}
+@media (prefers-reduced-motion:reduce){.cr-tt,.cr-tt.cr-tt-on{transition:none;transform:none}}
+.cr-w{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .cr-noting .cr-status{visibility:hidden}
 .cr-card{position:fixed;pointer-events:auto;box-sizing:border-box;padding:10px 14px 14px;border-radius:18px;background:var(--ml-paper);color:var(--ml-ink);box-shadow:0 14px 34px rgba(0,0,0,.32),0 0 0 1px var(--cr-rule);overflow-y:auto;overscroll-behavior:contain}
 .cr-in{animation:crIn .15s ease-out}
@@ -1486,7 +1494,7 @@ export function mountCalm(v, env) {
   // (open: a wedge's card, its key; more: the list out, with the choice
   // open in it and End game asked)
   let cardKey = null, cardNode = null, moreOpen = false, moreNode = null, listNode = null, openRow = null, asking = false, aboutRow = null;
-  const MORE = () => ({ key: "more", type: "more", name: t("More"), value: t("All settings"), icon: "more", tip: "" });
+  const MORE = () => ({ key: "more", type: "more", name: t("More"), value: t("All settings"), icon: "more", tip: t("All the settings in one list: the game, the board, help on the board, sound and language, your games.") });
   const find = (key) => (key === "more" ? MORE() : data.items.find((i) => i.key === key) || null);
 
   const stage = el("div", { className: "cr-stage", "data-testid": "menu-fan", "data-fan": v.id, "data-turning": "false", "data-cr": corner ? "corner" : "half" });
@@ -1495,7 +1503,9 @@ export function mountCalm(v, env) {
   const status = el("div", { className: "cr-line cr-status", "data-testid": "menu-fan-status" });
   const note = el("div", { className: "cr-line cr-note", "data-testid": "menu-fan-note", role: "status", "aria-live": "polite" });
   const primary = el("button", { type: "button", className: "ml-item ml-primary cr-primary", "data-testid": "menu-fan-primary" });
-  stage.append(svg, labs, status, note, primary);
+  // (A wedge's tooltip: tipOf, showTip below.)
+  const tipNode = el("div", { className: "cr-tt", role: "tooltip", id: `cr-tt-${Math.random().toString(36).slice(2, 9)}`, "data-testid": "menu-fan-tooltip" });
+  stage.append(svg, labs, status, note, primary, tipNode);
   layer.append(stage);
   const hold = (node) => node.addEventListener("pointerdown", (e) => e.stopPropagation());
   hold(primary);
@@ -1534,6 +1544,7 @@ export function mountCalm(v, env) {
     return out;
   }
   function buildRing() {
+    hideTip();
     const list = arrange(calmPick(data.items, phase));
     ringKeys = list.map((x) => x.key).join();
     measure(list.length);
@@ -1568,8 +1579,19 @@ export function mountCalm(v, env) {
       hold(g);
       // (Not the click of the tap on the piece that brought it out: a
       // wedge under that finger as the menu appears.)
-      g.addEventListener("click", (ev) => { ev.stopPropagation(); if (performance.now() - born > 250) tap(w); });
+      g.addEventListener("click", (ev) => { ev.stopPropagation(); if (w.held) { w.held = false; return; } if (performance.now() - born > 250) tap(w); });
       g.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); ev.stopPropagation(); tap(w); } });
+      // Its tooltip (tipOf): a mouse resting on it, the keys' focus, a
+      // finger held on it.
+      g.addEventListener("pointerenter", (ev) => { if (ev.pointerType === "mouse") hoverTip(w); });
+      g.addEventListener("pointerleave", (ev) => { if (ev.pointerType === "mouse") leaveTip(w); });
+      g.addEventListener("focus", () => { if (g.matches(":focus-visible")) showTip(w, "key"); });
+      g.addEventListener("blur", () => { if (tipFor === w.key && tipHow === "key") hideTip(); });
+      g.addEventListener("pointerdown", (ev) => { if (ev.pointerType !== "mouse") pressTip(w, ev); });
+      g.addEventListener("pointermove", (ev) => { if (press && press.id === ev.pointerId && Math.hypot(ev.clientX - press.x, ev.clientY - press.y) > 10) dropPress(); });
+      g.addEventListener("pointerup", (ev) => { if (press && press.id === ev.pointerId) liftPress(); });
+      g.addEventListener("pointercancel", (ev) => { if (press && press.id === ev.pointerId) liftPress(); });
+      g.addEventListener("contextmenu", (ev) => ev.preventDefault());
       return w;
     });
     stage.classList.toggle("cr-big", geo.big);
@@ -1652,6 +1674,123 @@ export function mountCalm(v, env) {
     w.lab.classList.toggle("cr-open", open);
   }
 
+  /* ---- a wedge's tooltip ---- */
+  /* (User, of the wedges: "add pop-up tool-tips for the menu wedges to
+     provide additional informational context, globally.") What the
+     setting is (its tip: the line its card and More's list say too, so a
+     world's own name for it, the Monolith's Carvings, is said plainly);
+     then, smaller, what its words on the wedge don't say: who plays whom,
+     the choices it has (where its line hasn't named them all), that it
+     opens a page of its own, or that it's held back now. With a mouse after a moment resting on the wedge (at
+     once from one wedge to the next); the keys' focus at once; on a touch
+     screen a finger held on it (the tap after the hold not taken as a
+     tap), the tip kept a moment after the finger's lifted. Never over the
+     wedge's own card, which says it at its head. */
+  const TIP_WAIT = 380, TIP_WARM = 500, TIP_HOLD = 450, TIP_LINGER = 2600;
+  let tipFor = null, tipHow = "", tipTimer = 0, tipGoneAt = -1e9, press = null;
+  function tipOf(it) {
+    let more = "", warn = false;
+    if (it.disabled) { more = t("Not available right now."); warn = true; }
+    else if (it.key === "opponent") more = whoIs(it);
+    else if (it.type === "choice" && (it.choices || []).length > 1 && it.choices.length <= 6 && !it.choices.every((ch) => (it.tip || "").toLowerCase().includes(String(ch.label).toLowerCase()))) more = t("Choose: {list}", { list: it.choices.map((ch) => ch.label).join(" · ") });
+    else if (it.type === "open") more = t("Opens its own page.");
+    return { main: it.tip || "", more, warn };
+  }
+  // Who plays whom, each side in full (the wedge says "AI · Basalt").
+  function whoIs(it) {
+    const on = (it.choices || []).find((ch) => ch.on);
+    if (!on) return "";
+    const full = (s) => (host.sideLabel ? host.sideLabel(s) : t(host.sideName(s)));
+    if (on.key === "human") return t("Two players, one screen: {dark} and {light}.", { dark: full("dark"), light: full("light") });
+    if (on.key === "online") return t("You play someone online, on their own screen.");
+    const them = on.key === "ai-dark" ? "dark" : "light", you = them === "dark" ? "light" : "dark", lv = find("level");
+    return lv && lv.value
+      ? t("You play {you}. The computer plays {them}, on {level}.", { you: full(you), them: full(them), level: lv.value })
+      : t("You play {you}. The computer plays {them}.", { you: full(you), them: full(them) });
+  }
+  function showTip(w, how) {
+    clearTimeout(tipTimer);
+    if (gone || moreOpen || cardKey === w.key || !wedges.includes(w)) return;
+    const { main, more, warn } = tipOf(w.key === "more" ? MORE() : find(w.key) || w.it);
+    if (!main && !more) { hideTip(); return; }
+    tipNode.innerHTML = `${main ? `<span class="cr-tt-main">${escapeHtml(main)}</span>` : ""}${more ? `<span class="cr-tt-more${warn ? " cr-warn" : ""}">${escapeHtml(more)}</span>` : ""}`;
+    tipNode.setAttribute("data-mf-tip", w.key);
+    tipNode.setAttribute("data-mf-how", how);
+    for (const x of wedges) if (x !== w) x.g.removeAttribute("aria-describedby");
+    w.g.setAttribute("aria-describedby", tipNode.id);
+    placeTip(w, how);
+    tipNode.classList.add("cr-tt-on");
+    tipFor = w.key;
+    tipHow = how;
+  }
+  function hideTip() {
+    clearTimeout(tipTimer);
+    if (!tipFor) return;
+    tipNode.classList.remove("cr-tt-on");
+    const w = wedges.find((x) => x.key === tipFor);
+    if (w) w.g.removeAttribute("aria-describedby");
+    tipFor = null;
+    tipHow = "";
+    tipGoneAt = performance.now();
+  }
+  // Where it goes: out past the ring's edge by the wedge's middle (a mouse,
+  // the keys); held by a finger, above the wedge's highest point, clear of
+  // the finger. Kept on the screen.
+  function placeTip(w, how) {
+    tipNode.style.left = "0px";
+    tipNode.style.top = "0px";
+    const bw = tipNode.offsetWidth, bh = tipNode.offsetHeight, { r1, step } = geo;
+    let x, y;
+    if (how === "touch") {
+      const s = w.mid - step / 2, e = w.mid + step / 2;
+      const hi = s <= -90 && e >= -90 ? -90 : Math.abs(s + 90) < Math.abs(e + 90) ? s : e;
+      x = polar(c, r1, w.mid).x - bw / 2;
+      y = polar(c, r1, hi).y - 12 - bh;
+    } else {
+      const a = polar(c, r1 + 10, w.mid), dx = Math.cos(rad(w.mid)), dy = Math.sin(rad(w.mid));
+      x = a.x + (dx * bw) / 2 - bw / 2;
+      y = a.y + (dy * bh) / 2 - bh / 2;
+    }
+    x = clamp(x, 8, Math.max(8, vw - 8 - bw));
+    y = clamp(y, 8, Math.max(8, vh - 8 - bh));
+    tipNode.style.left = `${Math.round(x)}px`;
+    tipNode.style.top = `${Math.round(y)}px`;
+  }
+  function hoverTip(w) {
+    clearTimeout(tipTimer);
+    if (tipFor || performance.now() - tipGoneAt < TIP_WARM) { showTip(w, "hover"); return; }
+    tipTimer = setTimeout(() => showTip(w, "hover"), TIP_WAIT);
+  }
+  function leaveTip(w) {
+    clearTimeout(tipTimer);
+    if (tipFor === w.key && tipHow === "hover") hideTip();
+  }
+  // A finger held: the tip after TIP_HOLD, if it hasn't moved off or let go.
+  function pressTip(w, ev) {
+    clearTimeout(tipTimer);
+    w.held = false;
+    if (tipFor && tipHow === "touch") hideTip();
+    press = { w, id: ev.pointerId, x: ev.clientX, y: ev.clientY, long: false };
+    tipTimer = setTimeout(() => {
+      if (!press || press.w !== w) return;
+      press.long = true;
+      w.held = true;
+      showTip(w, "touch");
+    }, TIP_HOLD);
+  }
+  function dropPress() {
+    if (press && press.long) { liftPress(); return; }
+    clearTimeout(tipTimer);
+    press = null;
+  }
+  function liftPress() {
+    const was = press;
+    press = null;
+    if (!was || !was.long) { clearTimeout(tipTimer); return; }
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => { if (tipHow === "touch") hideTip(); }, TIP_LINGER);
+  }
+
   /* ---- the line on the screen, the big button, a word after a tap ---- */
   // In play, whose move and who's who, said once (yours: Your move); after
   // a game, how it ended. Above the corner fan, or over the big button.
@@ -1709,6 +1848,7 @@ export function mountCalm(v, env) {
 
   /* ---- a wedge tapped ---- */
   function tap(w) {
+    hideTip();
     const it = w.key === "more" ? MORE() : find(w.key);
     if (!it) return;
     if (it.key === "more") { if (moreOpen) closeMore(); else openMore(); return; }
@@ -1744,6 +1884,7 @@ export function mountCalm(v, env) {
   };
   function openCard(key) {
     closeMore(true);
+    hideTip();
     cardKey = key;
     renderCard(true);
     paint();
@@ -1819,6 +1960,7 @@ export function mountCalm(v, env) {
   /* ---- More: everything, in one list ---- */
   function openMore() {
     closeCard();
+    hideTip();
     const fromKeys = wedges.some((x) => x.g === document.activeElement);
     moreOpen = true;
     stage.classList.add("cr-more-open");
@@ -1938,6 +2080,7 @@ export function mountCalm(v, env) {
     data = fresh;
     if (arrange(calmPick(data.items, phase)).map((x) => x.key).join() !== ringKeys) buildRing();
     else paint();
+    if (tipFor) { const w = wedges.find((x) => x.key === tipFor); if (w) showTip(w, tipHow); else hideTip(); }
     if (cardKey) renderCard();
     if (moreOpen) renderMore();
   }
@@ -1960,6 +2103,7 @@ export function mountCalm(v, env) {
     key(e) {
       const k = e.key;
       if (k === "Escape") {
+        hideTip();
         if (cardKey) { closeCard(); return true; }
         if (moreOpen && aboutRow) { aboutRow = null; renderMore(); return true; }
         if (moreOpen) { closeMore(); return true; }
@@ -1982,6 +2126,8 @@ export function mountCalm(v, env) {
     dispose() {
       gone = true;
       clearTimeout(noteTimer);
+      clearTimeout(tipTimer);
+      press = null;
       window.removeEventListener("el-cabeza:language-changed", onLanguage);
       if (document.fonts) document.fonts.removeEventListener("loadingdone", onFonts);
     },
