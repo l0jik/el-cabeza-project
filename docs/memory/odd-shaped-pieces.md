@@ -575,9 +575,9 @@ other; a box beside an Ancho's leg in its opening 0.0465 each; ordinary
 neighbours, a box in a Chico's opening: none. The chassis
 (ElCabeza3D.jsx pressRef): the pieces effect sets each cache entry's
 pressTo; a frame hook (t.frameHooks) eases mesh and shell there (80 ms,
-not while anim.current); animateStep begins with unpressAll(), every
-press off at once, so a move's animation and the rebuild after it work
-from the squares as before. Every world (the theme visuals are the
+not while anim.current); animateStep begins by taking the press off the
+pieces it moves and their partners (unpress; below), so a move's
+animation and the rebuild after it work from the squares as before. Every world (the theme visuals are the
 entry's mesh and shell). tests/e2e-press.mjs (Futuris, the City):
 middles 0.870 apart, not 1.056; one rolls away, the other back on its
 squares.
@@ -589,3 +589,19 @@ set aside.
 mover's square, not at a fixed 2.2 s: CI run 39616086474 read the City's
 roll before it was done; here it took 2.9 s, and 5.2 s at a sixth of the
 speed.)
+
+Only the pieces a move moves let go (2026-11-13; user, a recording of the
+Lab's De Stijl, blue blocks pressed into a red Arco hopping as the red
+Cabeza slid across the board: "Do you see how the blue pieces wiggle when
+the red Cabeza moves? That must be fixed."). unpressAll() took every press
+off as any move began, so every pressed piece on the board jumped 0.093
+back onto its squares at each move's start and eased back after its
+landing: about 5 px on that phone, there and back, every move. Now
+animateStep calls unpress(ids): off the mover and any it shoves, and off
+any piece whose press the board without them would change (pressOffsets
+on the cache's pieces, the movers left out), so a mover's partner still
+lets go with it as before; every other press stays, and a Cabeza (never
+pressed) moves none. tests/e2e-press.mjs (Futuris, the City, the Lab's De
+Stijl): a Cabeza slides elsewhere and both Arcos are where they're drawn
+every frame (it failed on the old code, 0.093 off in each world, and
+reads 0.0000 now); then one rolls away and the other lets go.

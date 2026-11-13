@@ -5,9 +5,13 @@
    leg sits exactly in the other's gap."
 
    Two Arco Chicos lying flat, each with a leg in the other's opening, in
-   two worlds: drawn 0.093 toward each other (their middles 0.870 apart,
-   not a square's 1.056), the squares unchanged; then one rolls away, and
-   both are back on their own squares. */
+   three worlds (Futuris, the City, the Lab's De Stijl): drawn 0.093
+   toward each other (their middles 0.870 apart, not a square's 1.056),
+   the squares unchanged; a Cabeza slides elsewhere, and the two stay
+   pressed, where they're drawn, every frame of it (user, of De Stijl's
+   blue blocks hopping as the red Cabeza moved: "Do you see how the blue
+   pieces wiggle when the red Cabeza moves? That must be fixed."); then
+   one rolls away, and the one left lets go, back on its own squares. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
@@ -32,13 +36,13 @@ const drawn = (page) => page.evaluate(() => {
   return { dark: at("dark-arco"), light: at("light-arco") };
 });
 
-for (const world of ["futuris", "ciudad"]) {
+for (const world of ["futuris", "ciudad", "lab.html?theme=destijl"]) {
   console.log(`\n${world}: two Arco Chicos, each leg in the other's opening`);
   const page = await browser.newPage({ viewport: { width: 1000, height: 900 } });
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
-  await page.goto(`file:///home/user/el-cabeza-project/dist/el-cabeza-${world}.html`);
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.setItem("el-cabeza:first-game-tour", "done"); } catch (e) { /* none */ } });
+  await page.goto(`file:///home/user/el-cabeza-project/dist/el-cabeza-${world.includes(".html") ? world : `${world}.html`}`);
   await page.waitForTimeout(2500);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);
   await page.waitForTimeout(300);
@@ -53,8 +57,31 @@ for (const world of ["futuris", "ciudad"]) {
   check("...and not moved along the rows", Math.abs(a.light.z - a.dark.z - -1.056) < 0.004, JSON.stringify(a));
   const sq = await page.evaluate(() => window.__EC_TEST_PIECES__.filter((p) => /arco/.test(p.id)).map((p) => `${p.id}@${p.row},${p.col}`).join(" "));
   check("the squares are the rules' own", sq === "dark-arco@5,3 light-arco@4,4", sq);
-  await page.screenshot({ path: `/tmp/e2e-press-${world}.png` });
-  // One rolls away (whoever's turn it is): both back on their squares.
+  // A Cabeza slides elsewhere (whoever's turn it is): the Arcos, pressed,
+  // drawn where they were all through its move, every frame.
+  {
+    const who = await page.evaluate(() => window.__EC_TEST_TO_MOVE__());
+    const cab = `${who}-cabeza`, cabFrom = await page.evaluate((id) => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === id)), cab);
+    await page.evaluate(() => {
+      const t = window.__EC_TEST_THREE__(), at = (id) => { const m = t.pieceGroup.children.find((c) => c.userData.pieceId === id && c.userData.kind === "piece"); return m ? [m.position.x, m.position.z] : null; };
+      window.__EC_PRESS_SEEN__ = [];
+      const look = () => { if (!window.__EC_PRESS_SEEN__) return; window.__EC_PRESS_SEEN__.push({ dark: at("dark-arco"), light: at("light-arco") }); requestAnimationFrame(look); };
+      requestAnimationFrame(look);
+    });
+    const slid = await page.evaluate(([id, dir]) => window.__EC_TEST_MOVE__(id, dir), [cab, who === "dark" ? "E" : "W"]);
+    let landed = false;
+    for (let i = 0; i < 60 && !landed; i++) {
+      await page.waitForTimeout(250);
+      landed = (await page.evaluate((id) => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === id)), cab)) !== cabFrom;
+    }
+    await page.waitForTimeout(600);
+    const seen = await page.evaluate(() => { const s = window.__EC_PRESS_SEEN__; window.__EC_PRESS_SEEN__ = null; return s; });
+    const off = (k, j) => Math.max(...seen.filter((f) => f[k]).map((f) => Math.abs(f[k][j] - (j ? a[k].z : a[k].x))));
+    const worst = Math.max(off("dark", 0), off("dark", 1), off("light", 0), off("light", 1));
+    check(`${who}'s Cabeza slides off elsewhere: the Arcos stay pressed where they're drawn, every frame (${seen.length} frames, ${worst.toFixed(4)} off at most)`, slid && landed && seen.length >= 4 && worst < 0.001, JSON.stringify({ slid, landed, frames: seen.length, worst }));
+  }
+  await page.screenshot({ path: `/tmp/e2e-press-${world.replace(/\W+/g, "-")}.png` });
+  // One rolls away (whoever's turn it is now): the one left lets go.
   const side = await page.evaluate(() => window.__EC_TEST_TO_MOVE__());
   const mover = `${side}-arco`, stay = side === "dark" ? "light" : "dark";
   const from = position.find((p) => p.id === mover);
@@ -69,9 +96,11 @@ for (const world of ["futuris", "ciudad"]) {
     if (moved && (moved.row !== from.row || moved.z !== from.z)) break;
     await page.waitForTimeout(250);
   }
-  await page.waitForTimeout(300);
-  const b = await drawn(page);
-  const back = b[stay].x - a[stay].x, want = stay === "dark" ? -0.093 : 0.093;
+  // (It lets go after the roll's landed, eased: read once it's still.)
+  const want = stay === "dark" ? -0.093 : 0.093;
+  let b = await drawn(page);
+  for (let i = 0; i < 30 && Math.abs(b[stay].x - a[stay].x - want) >= 0.004; i++) { await page.waitForTimeout(100); b = await drawn(page); }
+  const back = b[stay].x - a[stay].x;
   check(`the one left behind lets go, back onto its own squares (${back.toFixed(3)})`, Math.abs(back - want) < 0.004, back);
   check("the mover stands where the roll put it", !!moved && (moved.row !== from.row || moved.z !== from.z), JSON.stringify(moved));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));

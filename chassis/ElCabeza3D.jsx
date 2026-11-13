@@ -941,9 +941,15 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
      pressOffsets; user, of two Arcos side by side flickering: "Press them
      together"). Each cache entry also carries press (how far its mesh and
      shell are drawn off its squares now) and pressTo (where they're
-     going), eased between while nothing moves; a move takes every press
-     off as it begins (its animation works from the squares) and the
-     board's next build sets them again. */
+     going), eased between while nothing moves; a move takes the press off
+     the pieces it moves as it begins (its animation works from their
+     squares), and off those pressed to them, which let go with them
+     (unpress), and the board's next build sets them again. The rest stay
+     pressed all through it (user, of De Stijl's blue blocks, pressed into
+     a red Arco, hopping a tenth of a square back onto their own squares
+     each time the red Cabeza slid off across the board, and back after:
+     "Do you see how the blue pieces wiggle when the red Cabeza moves?
+     That must be fixed."). */
   const pressRef = useRef({ moving: false, last: 0, hooked: null });
   const commitRef = useRef(null);
   /* This turn's trail of positions (see commitRef): one entry per move
@@ -7801,14 +7807,19 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     }
   }, [pieces]);
 
-  // (Every press off at once, as a move begins: see pressRef.)
-  const unpressAll = () => {
-    pieceMeshCacheRef.current.forEach((e) => {
+  // (The press off the pieces a move moves, as it begins, and off any
+  // pressed to them: any whose press the board without the movers would
+  // change. See pressRef.)
+  const unpress = (ids) => {
+    const cache = pieceMeshCacheRef.current;
+    const rest = pressOffsets([...cache.values()].map((e) => e.pieceRef).filter((p) => p && !ids.has(p.id)));
+    cache.forEach((e, id) => {
+      const to = e.pressTo || PRESS_NONE, left = rest.get(id) || PRESS_NONE;
+      if (!ids.has(id) && Math.abs(to.x - left.x) < 1e-6 && Math.abs(to.z - left.z) < 1e-6) return;
       const at = e.press;
       if (at && (at.x || at.z)) [e.mesh, e.shell].forEach((o) => { if (o) { o.position.x -= at.x; o.position.z -= at.z; } });
       e.press = PRESS_NONE; e.pressTo = PRESS_NONE;
     });
-    pressRef.current.moving = false;
   };
 
   /* Placing pieces manually: the bench's pieces, each built as the world
@@ -8827,8 +8838,10 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
      lets steps be chained without a rebuild in between. */
   const animateStep = useCallback((state, key, onDone, shove = null) => {
     const t = three.current;
-    // (Pieces pressed together let go first: the move works from the squares.)
-    unpressAll();
+    // (The pieces it moves, the one moving and any it shoves, let go of a
+    // press first, and those pressed to them: the move works from their
+    // squares. Only those.)
+    unpress(new Set([state.id, ...(shove || []).map((q) => q.id)]));
     // (Two sets of black holes: the other set's way out is the same
     // movement into the hole.)
     const dir = plainKeyOf(key);
