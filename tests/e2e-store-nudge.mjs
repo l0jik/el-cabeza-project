@@ -319,13 +319,23 @@ const stateOf = (page) => page.evaluate(() => JSON.stringify({
 }));
 // One of the player's turns through the moves' own path, a step at a
 // time (each piece and way tried till one moves), till the turn passes;
-// then the computer's, till it's the player's again.
+// then the computer's, till it's the player's again. Never a piece back
+// the way it's already gone this turn: a move that puts the board back as
+// it was earlier in the turn rewinds the turn and gives its points back
+// (the chassis's turnTrailRef), so the Flaco north, then (north blocked,
+// the Chato's and the Turrito's too) back south, then north... went on
+// for all six steps, the turn never over and the computer never asked
+// (CI 41132593828 and 43431237937: the third move unanswered, the log at
+// 6, the player to move; reproduced on a board set up so).
+const BACK = { N: "S", S: "N", E: "W", W: "E" };
 async function playTurn(page) {
   const n0 = await logLen(page);
   whyNot = "";
+  const gone = new Set(), did = [];
   for (let step = 0; step < 6 && (await logLen(page)) === n0; step++) {
     let moved = false;
     for (const [id, dir] of MOVE_TRIES) {
+      if (gone.has(`${id} ${BACK[dir]}`)) continue;
       const before = await placeOf(page, id);
       if (!before) continue;
       await page.evaluate(([i, d]) => window.__EC_TEST_MOVE__(i, d), [id, dir]);
@@ -334,13 +344,13 @@ async function playTurn(page) {
         moved = (await placeOf(page, id)) !== before || (await logLen(page)) > n0;
         if (!moved) await page.waitForTimeout(120);
       }
-      if (moved) break;
+      if (moved) { gone.add(`${id} ${dir}`); did.push(`${id} ${dir}`); break; }
     }
-    if (!moved) { whyNot = `nothing moved at step ${step}: ${await stateOf(page)}`; return false; }
+    if (!moved) { whyNot = `nothing moved at step ${step} (after ${did.join(", ")}): ${await stateOf(page)}`; return false; }
     await page.waitForTimeout(500);
   }
   const ok = !!(await poll(async () => (await logLen(page)) >= n0 + 2 && (await page.evaluate(() => window.__EC_TEST_TO_MOVE__())) === "light", 60000, 250));
-  if (!ok) whyNot = `the turn not answered: ${await stateOf(page)}`;
+  if (!ok) whyNot = `the turn not answered (${did.join(", ")}): ${await stateOf(page)}`;
   return ok;
 }
 console.log("\nthree moves after the walkthrough: asked to take it to the register and leave");
