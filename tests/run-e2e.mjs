@@ -85,6 +85,8 @@ const E2E = [
   ["e2e-menu-tips.mjs", "worlds"], ["e2e-menu-tips.mjs", "more"],
   // Leave game (the game kept, the title's Continue), the game kept out of sight, Back asking first.
   ["e2e-leave.mjs"],
+  // Futuris's glass against something solid in front of it (a black hole's orb): not painted over it.
+  ["e2e-glass-layers.mjs"],
   // Cromo on a phone: the board's surface from the dock's menu, mid-game too; the dark side's dots; the title clear of the corner tab.
   ["e2e-cromo.mjs"],
   // The result said to you: "You win" / "You lose" against the computer (placard, status, move log, the Lab), the winner's name for two people, in Spanish too.

@@ -3601,7 +3601,16 @@ export function buildSlabMaterials(boardTex) {
 }
 
 // Shared by every piece's depth twin (see buildPieceVisual); never disposed.
-const PIECE_DEPTH_MATERIAL = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true, transparent: true });
+// Where a twin lays its depth down (a piece the nearest thing there so
+// far) it marks the stencil 1, so the see-through layer below knows the
+// nearest thing at a pixel is glass and not something solid: drawn before
+// the twins, a solid thing in front of every piece (a black hole's orb)
+// leaves no twin passing, and no mark.
+const PIECE_DEPTH_MATERIAL = new THREE.MeshBasicMaterial({
+  colorWrite: false, depthWrite: true, transparent: true,
+  stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc,
+  stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.ReplaceStencilOp,
+});
 
 /* The see-through layer that keeps the glass look with the depth twins
    in place: a copy of a body (or outline) that draws ONLY where it lies
@@ -3614,11 +3623,25 @@ const PIECE_DEPTH_MATERIAL = new THREE.MeshBasicMaterial({ colorWrite: false, de
    piece in front any more (the Codo-over-a-1x3 bug). The frontmost
    surfaces themselves never pass this test (equal depth isn't
    greater), so nothing is drawn twice. The copy's material is disposed
-   with the original's. */
+   with the original's.
+   Only behind glass: where the nearest thing is a piece (the twins'
+   stencil mark, 1). Behind something solid nearer than any piece it drew
+   too, the solid thing taken for glass: a black hole's orb on the square
+   in front of a tall piece and a block, both painted over it, outlines
+   and all (user: "These are not layered correctly."). (Still drawn:
+   behind a piece's glass, something solid behind that and then another
+   piece further back; the last is seen over the solid thing, through the
+   front glass. A rare case, left.) */
 function seenThroughCopy(original, Kind) {
   const material = original.material.clone();
   material.depthFunc = THREE.GreaterDepth;
   material.depthWrite = false;
+  material.stencilWrite = true; // (the stencil test on; nothing written: Keep)
+  material.stencilRef = 1;
+  material.stencilFunc = THREE.EqualStencilFunc;
+  material.stencilFail = THREE.KeepStencilOp;
+  material.stencilZFail = THREE.KeepStencilOp;
+  material.stencilZPass = THREE.KeepStencilOp;
   original.material.addEventListener("dispose", () => material.dispose());
   const copy = new Kind(original.geometry, material);
   copy.renderOrder = 0.7;

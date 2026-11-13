@@ -433,6 +433,25 @@ drawn twice. The copies' materials are disposed with the originals'
 (the material "dispose" event). Standard's pieces are opaque, so it's
 unaffected.
 
+Only behind glass (2026-11-13; user, a phone screenshot of Futuris, a
+black hole's orb on the square in front of a tall glass piece and a
+block, both painted over it, outlines and all: "These are not layered
+correctly."). "Greater" passed behind anything nearer, so a solid thing
+in front of every piece (the orb and its ring: opaque, drawn before the
+twins) was taken for glass and the pieces behind it painted over it.
+Now the twins mark the stencil (1, ReplaceStencilOp where they lay their
+depth down: a piece the nearest thing there) and the copies draw only
+where it's marked (EqualStencilFunc, nothing written). Where a solid
+thing is nearer than any piece, no twin passes and nothing's painted.
+Left: a piece's glass, then something solid behind it, then another
+piece further back; that last one is seen over the solid thing through
+the front glass (one depth buffer can't hold both). Nothing else in the
+game uses the stencil; Futuris renders straight to the canvas, which has
+one. tests/e2e-glass-layers.mjs (the orb's face the same with a tall
+piece behind it as without, 125 apart before; glass in front of the orb
+still drawn over it; a piece behind another's glass still seen through
+it).
+
 **Clearance rule** (user, confirmed by Q&A), in `rollSweepClashes`
 (shapes.js):
 - A Cabeza never blocks another piece's swing (it's lower than a cube).
