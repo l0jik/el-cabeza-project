@@ -2225,6 +2225,14 @@ export default {
   "Previous setting": "Mục trước",
   "Next setting": "Mục sau",
   "Not available right now.": "Hiện chưa dùng được.",
+  // (Leave game, and the question at Back: chassis/menu-fan.js, apps/unified.jsx.)
+  "Leave game": "Rời ván",
+  "Save this game and go to the title screen. Continue picks it up.": "Lưu ván này và về màn hình tiêu đề. Tiếp tục sẽ chơi lại từ đó.",
+  "Go to the title screen.": "Về màn hình tiêu đề.",
+  "Leave El Cabeza?": "Rời El Cabeza?",
+  "Your game is kept: Continue on the title screen picks it up.": "Ván của bạn được giữ lại: Tiếp tục ở màn hình tiêu đề sẽ chơi lại từ đó.",
+  "Back again closes it.": "Quay lại lần nữa sẽ đóng nó.",
+  "Kept for Continue on the title screen": "Được giữ lại để Tiếp tục ở màn hình tiêu đề",
   // (Calm Rings' wedges, their tooltips: chassis/menu-fan.js tipOf.)
   "All the settings in one list: the game, the board, help on the board, sound and language, your games.": "Tất cả cài đặt trong một danh sách: ván, bàn cờ, trợ giúp trên bàn cờ, âm thanh và ngôn ngữ, các ván của bạn.",
   "Choose: {list}": "Chọn: {list}",

@@ -617,7 +617,7 @@ export default function ElCabeza3D(props) {
   return <ElCabeza3DScene {...props} />;
 }
 
-function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTilt = false, titleInfo = true, titleBadge = true }) {
+function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTilt = false, titleInfo = true, titleBadge = true, onLeave = null }) {
   // Drawn again, every word in it, when the player changes the language
   // (chassis/i18n.js; the game itself goes on as it was).
   useLanguage();
@@ -4323,6 +4323,9 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     // A world's own settings, for Rings in every phase (theme.dockSettings:
     // Cromo's board surface).
     worldSettings: (phase) => (theme.dockSettings ? theme.dockSettings({ phase, audio: audioRef.current }) : null),
+    // Leave game, where the page has a title screen to go to (Nova's:
+    // apps/unified.jsx keeps the game and goes there). Null elsewhere.
+    leave: onLeave ? () => onLeave() : null,
     colors: { paper: COLORS.cream, ink: COLORS.charcoal, line: COLORS.slateSoft },
     sounds: { open: () => audioRef.current.playDockOpen(), close: () => audioRef.current.playDockClose() },
   });
@@ -11161,6 +11164,9 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       humanStartSide, aiDifficulty, gameArmed, dockSessionPieceType, boardNearSide,
       cam: { theta: c.theta, phi: c.phi, radius: c.radius, target: [c.target.x, c.target.y, c.target.z] },
       settling: !!(busy || aiThinking || anim.current || stepInFlightRef.current),
+      // (Not carried, read by Nova as it keeps a game to come back to:
+      // one online, a replay or the first game's tour isn't kept.)
+      _online: !!onlineRef.current, _replaying: !!replay, _touring: !!tourStep,
     };
   }
   if (carryRef) carryRef.current = snapshotGame;

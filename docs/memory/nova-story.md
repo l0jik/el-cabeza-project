@@ -170,6 +170,37 @@ in; leaving Singularity, back in the den as the set switches off.
   Never on the game's own ways into the page (?world=, ?scene=, ?switcher,
   ?restart=, ?jump=, Back) nor under automation; ?title forces it for a
   test, ?title=auto applies the player's rules. tests/e2e-title.mjs.
+- **Leave game, the game kept, Back** (2026-11-13; user: "Need a way to
+  close the app, right? ... What are some good options?"; of the five
+  offered: "go with your suggestion on the leave game. Although, where
+  will leave game be put? With the back. Yes, with the back gesture.
+  Okay, good. Yeah, I like that."). A page can't close itself on a phone
+  (an iPhone never lets it), so: Leave game at the very foot of the dock
+  menu's More list, under End game (chassis/menu-fan.js readDock, the
+  host's leave; ElCabeza3D's onLeave, Nova's alone), and in the control
+  bar's menu: the game kept and the page opened again on the title
+  screen (?title), whose Continue (in the den, or the last world) opens
+  the place and gives the game back. Back (the phone's gesture, a
+  browser's button) during play or between games asks "Leave El Cabeza?"
+  (apps/unified.jsx LeaveAsk: the game said to be kept; Keep playing /
+  Leave game; Escape or a tap beside it keeps playing), and Back again
+  closes the app: a step of the page's own history is put in as the app
+  comes up (pushState, guard), the first Back lands on it, Keep playing
+  puts it back; Leave game takes it back off first, so Back from the title
+  closes the app too. The game kept (GAME_KEY, el-cabeza:game:<place>, one
+  a place): the chassis's snapshot (snapshotGame, as the den's game is
+  kept through Futuris) with the engine's rules (rulesNow: board, laws,
+  holes, missing squares), whenever the page goes out of sight (a
+  phone's own close, another app, a reload: visibilitychange, pagehide),
+  at Back, at Leave game, and as the place is left for another (a cut;
+  not the story begun again). Given back as the page first opens in that
+  place (UnifiedApp's carry: putRules, then the snapshot as carry); a
+  place reached later in the visit starts fresh, as ever. A game over or
+  not begun forgets it; Restart the story (the title's, the realities
+  menu's) forgets them all; ?fresh too (every el-cabeza: key), and Save &
+  carry takes them along. Not kept: the store's (the story's own demo), a
+  game online, a replay, the first game's tour (the snapshot's _online,
+  _replaying, _touring). Words in es and vi. tests/e2e-leave.mjs.
 - **The way out** (2026-10-21; user: "When clicking begin on the splash
   screen, it should play the animation in reverse. Like maybe begin like
   zooms out like vertically, and then as it's doing that, then everything

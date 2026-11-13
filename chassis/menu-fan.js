@@ -106,6 +106,7 @@ const ICON = {
   endturn: '<path d="M5 12.5l4.2 4.2L19 7"/>',
   undo: '<path d="M9 6L4.5 10.5 9 15"/><path d="M5 10.5h9a5 5 0 0 1 0 10h-2"/>',
   endgame: '<rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/>',
+  leave: '<path d="M13 4.5H6.5v15H13"/><path d="M10.5 12h9.5M16.5 8.5 20 12l-3.5 3.5"/>',
   movelog: '<path d="M9 7h11M9 12h11M9 17h11"/><circle cx="5" cy="7" r="1.2" fill="currentColor" stroke="none"/><circle cx="5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="5" cy="17" r="1.2" fill="currentColor" stroke="none"/>',
   plainrules: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M20 4.5v4.2h-4.2"/>',
   spark: '<path d="M12 3.5v4.5M12 16v4.5M3.5 12H8M16 12h4.5M6 6l3 3M15 15l3 3M18 6l-3 3M9 15l-3 3"/>',
@@ -137,13 +138,13 @@ const KIND_OF = {
   you: "game", first: "game", opponent: "game", level: "game", endturn: "game", undomove: "game", undoturn: "game", endgame: "game", plainrules: "game",
   start: "board", half: "board", pieces: "board", nova: "board", cart: "board", view: "board", focus: "board", movelog: "board",
   check: "hints", points: "hints", costs: "hints", guide: "hints", whynot: "hints",
-  sound: "settings", language: "settings", replay: "settings", saves: "settings", bar: "settings",
+  sound: "settings", language: "settings", replay: "settings", saves: "settings", bar: "settings", leave: "settings",
 };
 const NAMES = {
   you: "You", first: "First move", opponent: "Opponent", level: "Level", check: "Check alert", start: "Starting position", half: "My half", cart: "Cart",
   sound: "Sound", language: "Language", replay: "Replay", saves: "Saves", points: "Actions left", costs: "Move costs",
   guide: "Piece guide", whynot: "Why not", bar: "Control bar", view: "View", focus: "Focus", endturn: "End turn", undomove: "Undo move",
-  undoturn: "Undo turn", endgame: "End game", movelog: "Move log", plainrules: "Plain rules",
+  undoturn: "Undo turn", endgame: "End game", movelog: "Move log", plainrules: "Plain rules", leave: "Leave game",
 };
 // What each does, in a line.
 const TIPS = {
@@ -172,6 +173,7 @@ const TIPS = {
   endgame: "Stop this game here.",
   movelog: "Every move of the game, in order.",
   plainrules: "The next game with the plain rules.",
+  leave: "Save this game and go to the title screen. Continue picks it up.",
 };
 
 /* Everything the dock's panel offers right now, as settings: { key, kind
@@ -375,6 +377,9 @@ export function readDock(host, phase) {
   }
   const bar = one('[data-testid="layout-toggle"]');
   if (bar) add("bar", { type: "action", icon: "bar", disabled: off(bar), press: () => bar.click() });
+  // Leave game (a page with a title screen to go to, the host's leave):
+  // in play the game's kept for Continue; before or after one, just there.
+  if (host.leave) add("leave", { type: "action", icon: "leave", tip: phase === "play" ? t(TIPS.leave) : t("Go to the title screen."), press: () => host.leave() });
 
   const order = KINDS.map((k) => k.key);
   items.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
@@ -2034,10 +2039,11 @@ export function mountCalm(v, env) {
     const list = el("div", { className: "cr-list", "data-testid": "menu-fan-list" });
     const groups = CALM_GROUPS.map((g) => ({ ...g, its: [] }));
     const board = groups.find((g) => g.key === "board");
-    let end = null;
+    let end = null, leave = null;
     for (const it of data.items) {
       if (it.type === "info") continue;
       if (it.confirm) { end = it; continue; }
+      if (it.key === "leave") { leave = it; continue; }
       (groups.find((g) => g.of.includes(it.key)) || board).its.push(it);
     }
     const rank = (g, it) => { const i = g.of.indexOf(it.key); return i < 0 ? 99 : i; };
@@ -2051,10 +2057,16 @@ export function mountCalm(v, env) {
       }
       list.append(sec);
     }
-    // End game last, at the edge, on its own; asked first.
-    if (end) {
-      const sec = el("div", { className: "cr-group cr-end", "data-mf-group": "end" }, row(end));
-      if (asking) sec.append(askBox(end, () => { asking = false; renderMore(); }));
+    // End game last, at the edge, on its own; asked first. Leave game
+    // under it, the very foot (user: "go with your suggestion on the leave
+    // game"; at the bottom of More, next to End game).
+    if (end || leave) {
+      const sec = el("div", { className: "cr-group cr-end", "data-mf-group": "end" });
+      if (end) {
+        sec.append(row(end));
+        if (asking) sec.append(askBox(end, () => { asking = false; renderMore(); }));
+      }
+      if (leave) sec.append(row(leave));
       list.append(sec);
     }
     node.append(list);

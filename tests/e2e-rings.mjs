@@ -12,7 +12,7 @@
    names and 12 px values, inside their wedges; every button 44 px or
    more; out on the tap itself, its motion under 0.2 s; who's playing and
    whose move said once, in one line, not inside the menu; End game asked
-   first, at the list's edge.
+   first, at the list's edge (Leave game under it, in Nova).
 
    On a phone in the store: before a game the half ring round the piece,
    Try a Game over it; the opponent's card (its levels with it); Online
@@ -302,7 +302,9 @@ console.log("The store, on a phone: Calm Rings is the menu");
   await tapWedge(page, "more");
   await poll(async () => ((await out(page)) || {}).more, 3000, 100);
   const inPlay = await rows(page);
-  check("More in play: End game last, at the list's edge, on its own", inPlay[inPlay.length - 1] === "endgame" && (await groups(page)).slice(-1)[0] === "end", inPlay.join());
+  // (Leave game under it, the very foot: Nova's, user: "go with your
+  // suggestion on the leave game"; e2e-leave.mjs.)
+  check("More in play: End game at the list's edge, on its own, Leave game under it", inPlay.slice(-2).join() === "endgame,leave" && (await groups(page)).slice(-1)[0] === "end", inPlay.join());
   await page.evaluate(() => { const l = document.querySelector('[data-testid="menu-fan-list"]'); l.scrollTop = l.scrollHeight; });
   await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-row="endgame"]');
   check("...a tap asks first: Keep playing beside it, the game still on", !!(await poll(() => page.evaluate(() => !!document.querySelector('[data-testid="menu-fan-ask"] [data-mf-choice="keep"]')), 3000, 100)) && !(await page.evaluate(() => !!document.querySelector('[data-testid="new-game"]'))));

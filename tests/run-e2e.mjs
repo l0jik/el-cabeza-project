@@ -83,6 +83,8 @@ const E2E = [
   ["e2e-rings.mjs"],
   // Its wedges' tooltips (user: "add pop-up tool-tips for the menu wedges ... globally"): every world's, then the keys, a finger held, in play and after a game.
   ["e2e-menu-tips.mjs", "worlds"], ["e2e-menu-tips.mjs", "more"],
+  // Leave game (the game kept, the title's Continue), the game kept out of sight, Back asking first.
+  ["e2e-leave.mjs"],
   // Cromo on a phone: the board's surface from the dock's menu, mid-game too; the dark side's dots; the title clear of the corner tab.
   ["e2e-cromo.mjs"],
   // The result said to you: "You win" / "You lose" against the computer (placard, status, move log, the Lab), the winner's name for two people, in Spanish too.

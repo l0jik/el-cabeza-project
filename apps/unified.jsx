@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import ReactDOM from "react-dom/client";
-import { languageReady, useLanguage } from "../chassis/i18n.js";
+import { languageReady, useLanguage, t } from "../chassis/i18n.js";
 import ElCabeza3D from "../chassis/ElCabeza3D.jsx";
 import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js";
 import * as standardTheme from "../themes/standard.js";
@@ -338,6 +338,76 @@ function putRules(r) {
   setMissingSquares(r.missing);
   setBoardDimensions(r.board.rows, r.board.cols);
 }
+/* Leave game, the game kept, the Back gesture (user: "Need a way to close
+   the app, right? ... What are some good options?"; of them: "go with your
+   suggestion on the leave game ... with the back gesture ... Yeah, I like
+   that."). A game in progress is kept whenever the page goes out of sight
+   (the phone's own close, a switch to another app, a reload), as its
+   place is left for another, at Back and at Leave game: the chassis's
+   snapshot with the engine's rules (as the den's game is kept through
+   Futuris), one a place, under el-cabeza:game:<place>, so Save & carry
+   takes it along. It's given back as the page opens in that place (the
+   title's Continue). A game over or not begun forgets it; so does the
+   story begun again. Not the store's (the story's own demo), nor a game
+   online, a replay or the first game's tour. */
+const GAME_KEY = (place) => `el-cabeza:game:${place}`;
+function readKeptGame(place) {
+  try {
+    const r = JSON.parse(window.localStorage.getItem(GAME_KEY(place)) || "null");
+    return r && r.v === 1 && r.rules && r.rules.board && r.game && Array.isArray(r.game.pieces) && r.game.gameArmed && r.game.status === "playing" ? r : null;
+  } catch (e) { return null; }
+}
+function keepGame(place, game, rules) {
+  if (!game || !place || place === "tienda" || game._online || game._replaying || game._touring) return;
+  try {
+    if (!game.gameArmed || game.status !== "playing") { window.localStorage.removeItem(GAME_KEY(place)); return; }
+    const { _online, _replaying, _touring, settling, ...kept } = game;
+    window.localStorage.setItem(GAME_KEY(place), JSON.stringify({ v: 1, place, at: Date.now(), rules, game: kept }));
+  } catch (e) { /* storage full or blocked: this visit only */ }
+}
+function forgetKeptGames() {
+  try {
+    const ls = window.localStorage;
+    Object.keys(ls).filter((k) => k.startsWith("el-cabeza:game:")).forEach((k) => ls.removeItem(k));
+  } catch (e) { /* none kept */ }
+}
+// The title screen, the page opened again on it (?title shows it, even
+// from inside the game; the language asked for kept).
+function toTitle() {
+  const u = new URL(window.location.href), lang = u.searchParams.get("lang");
+  window.location.replace(`${u.pathname}?title${lang ? `&lang=${encodeURIComponent(lang)}` : ""}`);
+}
+
+/* Asked at Back, in a game or not (the phone's gesture, a browser's
+   button): Keep playing, or Leave game for the title screen; Back again
+   closes it. In the page's own face and colours, over everything. */
+function LeaveAsk({ inGame, onStay, onLeave }) {
+  const stayRef = useRef(null);
+  useEffect(() => { if (stayRef.current) stayRef.current.focus(); }, []);
+  const btn = { appearance: "none", border: "1px solid rgba(243,234,216,0.4)", background: "transparent", color: "#f3ead8", font: "inherit", fontSize: 15, fontWeight: 600, padding: "11px 18px", minHeight: 44, borderRadius: 12, cursor: "pointer", flex: "1 1 0" };
+  return (
+    <div
+      data-testid="leave-ask"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ec-leave-ask-t"
+      onPointerDown={(e) => { if (e.target === e.currentTarget) onStay(); }}
+      onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onStay(); } }}
+      style={{ position: "fixed", inset: 0, zIndex: 4600, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(8,6,4,0.55)", fontFamily: "'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif" }}
+    >
+      <div style={{ width: "min(360px, 100%)", boxSizing: "border-box", padding: "20px 20px 18px", borderRadius: 18, background: "rgba(22,17,12,0.96)", color: "#f3ead8", boxShadow: "0 18px 44px rgba(0,0,0,0.45)" }}>
+        <div id="ec-leave-ask-t" style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{t("Leave El Cabeza?")}</div>
+        <div style={{ fontSize: 14, lineHeight: 1.45, color: "rgba(243,234,216,0.82)", marginBottom: 16 }}>
+          {inGame ? `${t("Your game is kept: Continue on the title screen picks it up.")} ` : ""}{t("Back again closes it.")}
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button ref={stayRef} type="button" data-testid="leave-stay" onClick={onStay} style={btn}>{t("Keep playing")}</button>
+          <button type="button" data-testid="leave-go" onClick={onLeave} style={{ ...btn, background: "#f3ead8", color: "#1a140e", border: "1px solid #f3ead8" }}>{t("Leave game")}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 const LAYOUT_KEY = "el-cabeza:nova-layout";
 const {
   MAX_WARP_SCALE, MAX_ABERRATION_PX, MAX_SCANLINE_OPACITY, MAX_STATIC_OPACITY,
@@ -373,8 +443,68 @@ function UnifiedApp() {
   // handed to the chassis as it mounts.
   const carryRef = useRef(null);
   const denSaveRef = useRef(null);
-  const [carry, setCarry] = useState(null);
+  // (A game kept in the place the page opens in, given back: the title's
+  // Continue, the app opened again. Not a scene's link or the summons.)
+  const [carry, setCarry] = useState(() => {
+    const r = SCENE_PARAM || SUMMONS_PARAM ? null : readKeptGame(themeName);
+    if (!r) return null;
+    putRules(r.rules);
+    return r.game;
+  });
   const [cut, setCut] = useState(null); // a story scene change: { kind, caption, to, fresh?, swapped?, arrived? }
+  // The game in progress kept now (see GAME_KEY): this place's, and the
+  // den's while Futuris is up.
+  const keepNowRef = useRef(() => {}), placeRef = useRef(themeName);
+  placeRef.current = themeName;
+  keepNowRef.current = () => {
+    const snap = carryRef.current;
+    if (snap) keepGame(themeName, snap(), rulesNow());
+    if (denSaveRef.current) keepGame("standard", denSaveRef.current.game, denSaveRef.current.rules);
+  };
+  useEffect(() => {
+    const onHidden = () => { if (document.visibilityState === "hidden") keepNowRef.current(); };
+    const onPageHide = () => keepNowRef.current();
+    document.addEventListener("visibilitychange", onHidden);
+    window.addEventListener("pagehide", onPageHide);
+    return () => { document.removeEventListener("visibilitychange", onHidden); window.removeEventListener("pagehide", onPageHide); };
+  }, []);
+  /* Back: a step of the page's own history put in as the app comes up
+     (guard), so the first Back lands here and asks (LeaveAsk), the game
+     kept; Back again finds none and the page goes (the app closes).
+     Keep playing puts the step back. Leave game (here or from the menu)
+     keeps the game, takes that step back off if it's there, and opens the
+     page again on the title screen in its place, so Back from the title
+     closes the app too. */
+  const [leaveAsk, setLeaveAsk] = useState(null); // null | { inGame }
+  const guardRef = useRef(false), leavingRef = useRef(null);
+  const putGuard = () => { try { window.history.pushState({ ecGuard: 1 }, "", window.location.href); guardRef.current = true; } catch (e) { /* none */ } };
+  const leaveGame = useCallback(() => {
+    keepNowRef.current();
+    setLeaveAsk(null);
+    let went = false;
+    const go = () => { if (!went) { went = true; toTitle(); } };
+    if (!guardRef.current) { go(); return; }
+    leavingRef.current = go;
+    try { window.history.back(); } catch (e) { go(); return; }
+    setTimeout(go, 800);
+  }, []);
+  const stayHere = useCallback(() => { setLeaveAsk(null); if (!guardRef.current) putGuard(); }, []);
+  useEffect(() => {
+    putGuard();
+    const onPop = (e) => {
+      if (leavingRef.current) { leavingRef.current(); return; }
+      // (Forward again, onto the step: as Keep playing.)
+      if (e.state && e.state.ecGuard) { guardRef.current = true; setLeaveAsk(null); return; }
+      guardRef.current = false;
+      keepNowRef.current();
+      // (Said to be kept only where it is: not the store's, online, a
+      // replay or the tour's.)
+      const snap = carryRef.current && carryRef.current();
+      setLeaveAsk({ inGame: !!(snap && snap.gameArmed && snap.status === "playing" && !snap._replaying && !snap._online && !snap._touring && placeRef.current !== "tienda") });
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   // (Each fresh start a fresh mount, the store's from the store too: the
   // chassis's key. Kept, a card or a game the store had up stayed.)
   const [freshN, setFreshN] = useState(0);
@@ -715,6 +845,7 @@ function UnifiedApp() {
      sure?" card. */
   const restartStory = () => {
     if (busyRef.current) return;
+    forgetKeptGames();
     saveOwned(false);
     forgetStoreGone();
     forgetStoryEnd();
@@ -746,6 +877,7 @@ function UnifiedApp() {
   const onCutSwap = useCallback(() => {
     const c = cutRef.current;
     if (!c) return;
+    if (!c.fresh) keepNowRef.current();
     if (c.fresh) { tiendaTheme.resetLid(); setFreshN((n) => n + 1); }
     restoreBootRules();
     denSaveRef.current = null;
@@ -824,8 +956,10 @@ function UnifiedApp() {
         // (In Futuris its way back, the hold's twin, only once the story's
         // over, as the hold.)
         : [ended && switchTheme, ended && { key: "realities", testid: "shell-menu-realities", label: "Other realities", detail: "Every version of the game", onClick: () => storyBridge.openRealities() }].filter(Boolean);
-    return { preferBar: layoutPref === "bar", onLayoutChange, menuItems: items };
-  }, [themeName, transition, cut, layoutPref, onLayoutChange, singularityOpen, clerkTick, ended]);
+    // (Leave game, last, as at the foot of the dock's menu.)
+    const leave = { key: "leave", testid: "shell-menu-leave", label: "Leave game", detail: "Kept for Continue on the title screen", onClick: () => leaveGame() };
+    return { preferBar: layoutPref === "bar", onLayoutChange, menuItems: [...items, leave] };
+  }, [themeName, transition, cut, layoutPref, onLayoutChange, singularityOpen, clerkTick, ended, leaveGame]);
 
   // The browser's own toolbar colour follows the theme on phones.
   useEffect(() => {
@@ -873,6 +1007,7 @@ function UnifiedApp() {
               setMuted(m);
               sfxRef.current.setMuted(m);
             }}
+            onLeave={leaveGame}
           />
         </div>
         {/* The title hold: the den's into Futuris once the Singularity's
@@ -907,6 +1042,7 @@ function UnifiedApp() {
           Loading {loadingWorld}…
         </div>
       )}
+      {leaveAsk && <LeaveAsk inGame={leaveAsk.inGame} onStay={stayHere} onLeave={leaveGame} />}
     </>
   );
 }
@@ -924,6 +1060,7 @@ bootRules = { board: getBoardDimensions(), laws: { ...ACTIVE_LAWS } };
    top shelf. */
 function fromTitle(c, boot) {
   if (c.action === "restart") {
+    forgetKeptGames();
     saveOwned(false);
     forgetStoreGone();
     forgetStoryEnd();

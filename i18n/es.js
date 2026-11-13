@@ -2212,6 +2212,14 @@ export default {
   "Previous setting": "Opción anterior",
   "Next setting": "Opción siguiente",
   "Not available right now.": "No está disponible ahora.",
+  // (Leave game, and the question at Back: chassis/menu-fan.js, apps/unified.jsx.)
+  "Leave game": "Salir de la partida",
+  "Save this game and go to the title screen. Continue picks it up.": "Guarda esta partida y va a la pantalla de inicio. Continuar la retoma.",
+  "Go to the title screen.": "Va a la pantalla de inicio.",
+  "Leave El Cabeza?": "¿Salir de El Cabeza?",
+  "Your game is kept: Continue on the title screen picks it up.": "Tu partida queda guardada: Continuar, en la pantalla de inicio, la retoma.",
+  "Back again closes it.": "Volver otra vez lo cierra.",
+  "Kept for Continue on the title screen": "Guardada para Continuar en la pantalla de inicio",
   // (Calm Rings' wedges, their tooltips: chassis/menu-fan.js tipOf.)
   "All the settings in one list: the game, the board, help on the board, sound and language, your games.": "Todas las opciones en una lista: la partida, el tablero, las ayudas en el tablero, sonido e idioma, tus partidas.",
   "Choose: {list}": "Elegí: {list}",
