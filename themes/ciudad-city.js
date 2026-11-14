@@ -23,7 +23,7 @@
 
 import * as THREE from "three";
 import {
-  FACADE, STYLE_GRID, OFFICE, planMaterial, FOCUS, PLAN_U, sink, quad, geoOf, cv, tex, col, shade, glowTex, rnd as mrnd, farDim,
+  FACADE, STYLE_GRID, OFFICE, planMaterial, FOCUS, LENS, PLAN_U, sink, quad, geoOf, cv, tex, col, shade, glowTex, rnd as mrnd, farDim,
 } from "./ciudad-models.js";
 import { edgeLamps } from "./ciudad.js";
 
@@ -47,16 +47,16 @@ const pick = (a) => a[Math.floor(rnd() * a.length)];
    facades do (planMaterial's see). */
 function seeRoof(mat) {
   mat.onBeforeCompile = (shader) => {
-    shader.uniforms.uFocus = FOCUS; shader.uniforms.uNight = PLAN_U.uNight;
+    shader.uniforms.uFocus = FOCUS; shader.uniforms.uLens = LENS; shader.uniforms.uNight = PLAN_U.uNight;
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 vSeeP;")
       .replace("#include <project_vertex>", "#include <project_vertex>\nvSeeP = (modelMatrix * vec4(transformed, 1.0)).xyz;");
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform vec3 uFocus; uniform float uNight; varying vec3 vSeeP;\nfloat seeB2(vec2 a){ a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }\nfloat seeB4(vec2 a){ return seeB2(0.5 * a) * 0.25 + seeB2(a); }")
+      .replace("#include <common>", "#include <common>\nuniform vec3 uFocus; uniform float uLens; uniform float uNight; varying vec3 vSeeP;\nfloat seeB2(vec2 a){ a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }\nfloat seeB4(vec2 a){ return seeB2(0.5 * a) * 0.25 + seeB2(a); }")
       .replace("#include <map_fragment>", "#include <map_fragment>\ndiffuseColor.rgb *= mix(1.0, 0.42, uNight);")
       .replace("#include <clipping_planes_fragment>", `#include <clipping_planes_fragment>
         { vec3 seg = uFocus - cameraPosition; float L = length(seg); vec3 dir = seg / max(L, 1e-4); float t = dot(vSeeP - cameraPosition, dir);
-          if (t > 0.0 && t < L - 1.5) { float d = length(vSeeP - (cameraPosition + dir * t)), r = 1.3 + 0.045 * t; if (seeB4(gl_FragCoord.xy) < smoothstep(r, r - 0.35, d)) discard; } }`);
+          if (uLens > 0.0 && t > 0.0 && t < L - 1.5) { float d = length(vSeeP - (cameraPosition + dir * t)), r = (1.3 + 0.045 * t) * uLens; if (seeB4(gl_FragCoord.xy) < smoothstep(r, r - 0.35, d)) discard; } }`);
   };
   mat.customProgramCacheKey = () => "ciudad-see-roof";
   return mat;

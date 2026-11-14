@@ -220,10 +220,12 @@ vec4 cityPlan() {
 }
 `;
 // Where the buildings round the board dissolve out of the camera's way
-// (the view's target; ciudad-fx.js sets it each frame), as Noir's do.
+// (a point on the board, and how open the lens is: see-lens.js aimLens;
+// ciudad-fx.js sets them each frame), as Noir's do.
 export const FOCUS = { value: new THREE.Vector3() };
+export const LENS = { value: 1 };
 const SEE_GLSL = `
-uniform vec3 uFocus; varying vec3 vSeeP;
+uniform vec3 uFocus; uniform float uLens; varying vec3 vSeeP;
 float seeB2(vec2 a){ a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
 float seeB4(vec2 a){ return seeB2(0.5 * a) * 0.25 + seeB2(a); }
 `;
@@ -231,8 +233,8 @@ const SEE_CUT = `
 {
   vec3 seg = uFocus - cameraPosition; float L = length(seg); vec3 dir = seg / max(L, 1e-4);
   float t = dot(vSeeP - cameraPosition, dir);
-  if (t > 0.0 && t < L - 1.5) {
-    float d = length(vSeeP - (cameraPosition + dir * t)), r = 1.3 + 0.045 * t;
+  if (uLens > 0.0 && t > 0.0 && t < L - 1.5) {
+    float d = length(vSeeP - (cameraPosition + dir * t)), r = (1.3 + 0.045 * t) * uLens;
     float edge = smoothstep(r, r - 0.35, d);
     if (seeB4(gl_FragCoord.xy) < edge) discard;
   }
@@ -247,7 +249,7 @@ export function planMaterial(mat, { kind = 1, pal = 2, noDark = false, see = fal
   mat.emissiveIntensity = 1;
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, PLAN_U, { uKind: { value: kind }, uPal: { value: pal }, uNoDark: { value: noDark ? 1 : 0 }, uDim: { value: dim } });
-    if (see) shader.uniforms.uFocus = FOCUS;
+    if (see) { shader.uniforms.uFocus = FOCUS; shader.uniforms.uLens = LENS; }
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", `#include <common>\nattribute vec4 aWin; attribute float aSeed; varying vec4 vWin; varying float vSeed;${see ? "\nvarying vec3 vSeeP;" : ""}`)
       .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWin = aWin; vSeed = aSeed;")

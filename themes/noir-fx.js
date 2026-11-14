@@ -23,7 +23,8 @@
 
 import * as THREE from "three";
 import { SLAB_X, SLAB_Z, OFF_X, OFF_Z, MARGIN } from "../engine/constants.js";
-import { buildCity, glowTex, FOCUS } from "./noir-city.js";
+import { buildCity, glowTex, FOCUS, LENS } from "./noir-city.js";
+import { aimLens } from "./see-lens.js";
 import { createTraffic } from "./noir-traffic.js";
 import { disposeCars } from "./noir-cars.js";
 import { quality } from "./tienda-quality.js";
@@ -366,8 +367,8 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
         sky.tick(t.camera, sec);
       }
       city.tick(sec);
-      // what the view looks at, for the buildings to clear out of its way
-      if (cam && cam.current && cam.current.view) FOCUS.value.copy(cam.current.view.target);
+      // the lens on the board, shut out over the streets (see-lens.js)
+      if (cam && cam.current && cam.current.view) LENS.value = aimLens(FOCUS.value, cam.current.view, t.boardGroup, SLAB_X / 2, SLAB_Z / 2);
       rain.uniforms.uTime.value = sec;
       beams.tick(sec);
       steam.tick(sec);

@@ -21,7 +21,8 @@
 import * as THREE from "three";
 import { SLAB_X, SLAB_Z, BOARD_ROWS, BOARD_COLS } from "../engine/constants.js";
 import { NOW, TIMES, stepTime, timeOf } from "./ciudad-time.js";
-import { PLAN_U, FAR_U, FOCUS, applyNight, setEnv, glowTex } from "./ciudad-models.js";
+import { PLAN_U, FAR_U, FOCUS, LENS, applyNight, setEnv, glowTex } from "./ciudad-models.js";
+import { aimLens } from "./see-lens.js";
 import { buildCity } from "./ciudad-city.js";
 import { createLots } from "./ciudad-lots.js";
 import { createLife } from "./ciudad-life.js";
@@ -307,7 +308,8 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
         fog.near = d + 3; fog.far = d + (NOW.clouds > 0.6 ? 48 : 56);
         sky.tick(t.camera, sec);
       }
-      if (cam && cam.current && cam.current.view) FOCUS.value.copy(cam.current.view.target);
+      // the lens on the board, shut out over the streets (see-lens.js)
+      if (cam && cam.current && cam.current.view) LENS.value = aimLens(FOCUS.value, cam.current.view, t.boardGroup, SLAB_X / 2, SLAB_Z / 2);
       watchLandings(t, now);
       lots.update(PLAY, now);
       lots.tick(now, NOW.night);

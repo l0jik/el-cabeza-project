@@ -69,28 +69,31 @@ function facadeTile(f, lit, px) {
 }
 function shadeOf(hex, k) { const c = new THREE.Color(hex).multiplyScalar(k); c.r = Math.min(1, c.r); c.g = Math.min(1, c.g); c.b = Math.min(1, c.b); return "#" + c.getHexString(); }
 
-/* Seen through: a building standing between the camera and what it looks
-   at (the view's target, uFocus) dissolves there, in a cone round the
-   line of sight widening toward the board, its edge dithered, so a block
-   behind you never fills the view (as Plano's fade, for whole merged
-   meshes: done per fragment). */
+/* Seen through: a building standing between the camera and the board
+   (uFocus, a point on it: see-lens.js aimLens) dissolves there, in a cone
+   round the line of sight widening toward the board, its edge dithered,
+   so a block behind you never fills the view (as Plano's fade, for whole
+   merged meshes: done per fragment); uLens, how open it is (shut as the
+   view goes out over the streets). */
 export const FOCUS = { value: new THREE.Vector3() };
+export const LENS = { value: 1 };
 function seeThrough(mat) {
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uFocus = FOCUS;
+    shader.uniforms.uLens = LENS;
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 vSeeP;")
       .replace("#include <project_vertex>", "#include <project_vertex>\nvSeeP = (modelMatrix * vec4(transformed, 1.0)).xyz;");
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform vec3 uFocus; varying vec3 vSeeP;\nfloat seeB2(vec2 a){ a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }\nfloat seeB4(vec2 a){ return seeB2(0.5 * a) * 0.25 + seeB2(a); }")
+      .replace("#include <common>", "#include <common>\nuniform vec3 uFocus; uniform float uLens; varying vec3 vSeeP;\nfloat seeB2(vec2 a){ a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }\nfloat seeB4(vec2 a){ return seeB2(0.5 * a) * 0.25 + seeB2(a); }")
       .replace("#include <clipping_planes_fragment>", `#include <clipping_planes_fragment>
         {
           // a narrow cone: only what really stands in the way (a wide one cut
           // the tops off blocks the view passed well over)
           vec3 seg = uFocus - cameraPosition; float L = length(seg); vec3 dir = seg / max(L, 1e-4);
           float t = dot(vSeeP - cameraPosition, dir);
-          if (t > 0.0 && t < L - 1.5) {
-            float d = length(vSeeP - (cameraPosition + dir * t)), r = 1.3 + 0.045 * t;
+          if (uLens > 0.0 && t > 0.0 && t < L - 1.5) {
+            float d = length(vSeeP - (cameraPosition + dir * t)), r = (1.3 + 0.045 * t) * uLens;
             float edge = smoothstep(r, r - 0.35, d);
             if (seeB4(gl_FragCoord.xy) < edge) discard; // an ordered dither at the edge
           }

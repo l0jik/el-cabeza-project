@@ -139,6 +139,25 @@ since radius/phi can change independently afterward):
   (`freeCamera.zoomMax`, the larger of the two wins; the store's is 82,
   "The store's standee and the den's chair" below); zoom-reactive audio
   stays on the board's own range (clamped at 0 past it).
+- **The see-through lens looks at the board, not the view (user, a phone
+  screenshot of the City, a dithered hole in the blocks behind the
+  board: "The peering lens for when you're at a low angle is showing up
+  anywhere. So there's some kind of glitch that's causing it to not go
+  away when it's not supposed to be there.").** The City's and Noir's
+  buildings dissolve in a cone round the line from the camera to uFocus
+  (ciudad-models.js SEE_CUT, ciudad-city.js seeRoof, noir-city.js
+  seeThrough). uFocus was the view's target, and their `freeCamera`
+  reach (22, 26) lets two fingers take that out into the streets, so the
+  lens cut the city wherever the camera aimed. themes/see-lens.js
+  aimLens now puts it on the board: the view's target pulled onto the
+  slab (in the board's frame, its face, y 0), and uLens shuts the cone as
+  the target goes out past the slab's edge (open to 1.5, shut by 4.5).
+  So it opens only where something stands between the camera and the
+  board (low views); high over the board, or out over the city, it cuts
+  nothing. Down in a street looking away from the board, the buildings
+  there stay whole now (the old lens cut them too, the same fault).
+  Plano's blocks already went by the board (plano-city.js fadeBlocks).
+  tests/e2e-see-lens.mjs.
 
 Other camera facts: near plane raised `0.1 → 1` (fixes a depth-sort
 flicker during rotation, 10x tighter near:far ratio); max pitch capped at
