@@ -527,6 +527,27 @@ in; leaving Singularity, back in the den as the set switches off.
   first frame 19 ms in, already lurching, and the 5% and 2.5% checks
   missed by a hair, run 39552534043; the lurch is looked for over 0-400
   ms at 3%, so a frame every 200 ms still sees it.)
+  Seen from the coffee table (2026-11-15; user: "the camera must be
+  situated to where the TV is seen. I was just doing some testing and
+  encountered a situation where the TV was pulling in, but the camera
+  was angled in such a way that the TV couldn't be seen, so the
+  animation of papers being sucked into the TV and then the user
+  subsequently being sucked into the TV didn't make any sense"). The
+  build-up only turned the head to the set where the camera stood: from
+  a view panned off into a corner, low, the sofa's back hid the set for
+  most of it (2 of 11 looks found the glass drawn). Now startTugs, unless
+  the camera's over watching the set (tvGoal), takes it back to the
+  coffee table across it from the set (seatForPull: the heading that has
+  the set straight ahead past the board, the board's own pitch and
+  distance, out of the Room view; glided by the chassis's glideTo,
+  SEAT_MS 1.4 s), the head turning to the set as it goes, and the build-
+  up's clock waits till it's there and every visit (console, book,
+  phone, set) has let go (SEAT_WAIT_MS 3 s at most): the papers fly away
+  from you into the set, the drag and the rush go on from there. A head
+  hold that's letting go counts as none. __DEN_TV__().tug.seating while
+  it waits. tests/e2e-tv-pull.mjs: from the Room view, taken to the table
+  first (189.7 -> 99.7 from the glass); from the corner, at the table at
+  the first tug and the glass seen all through (16 of 16).
   Its last part, smoother (2026-10-22; user: "The last part of the
   pull into the TV still happens too abruptly. I'm not sure what's going
   on there. We need to figure out how to make that a bit smoother.

@@ -186,7 +186,11 @@ At home (made unless marked):
   record?" and "…my 8-track?" (user) / "Huh? What's going on?"
 - The hall: "Oh no… now what?" / "Oh, for the love of…" (user) / "Just keep
   playing — this day's been weird enough already" / "I should probably call
-  an electrician about that tomorrow. Let me just finish one game!"
+  an electrician about that tomorrow. Let me just finish one game!" (its
+  two sentences on two lines, a <br> between them, so "Let" starts the
+  second; user, 2026-11-15: "Let should be forced onto the next line, so
+  it's not split from the rest of its sentence." den-hall.js KEEP_AGAIN,
+  two strings, each its own text node, so each is still translated.)
 - Captions: "The den, 1975." / "Later, at home." / "Back at the store." /
   "Home again. Confused." / "Back at Big Glutts, order in hand." / "The new
   pieces are already on the table, as if they'd been in the box all along."

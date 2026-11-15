@@ -46,8 +46,11 @@ const LINE = "Oh no… now what?";
 const LINE_AGAIN = "Oh, for the love of…";
 const INVESTIGATE = "Investigate";
 const KEEP = "Just keep playing — this day's been weird enough already";
-// ...and the second time (user).
-const KEEP_AGAIN = "I should probably call an electrician about that tomorrow. Let me just finish one game!";
+// ...and the second time (user): its second sentence on a line of its own
+// (user, of "Let" left at the end of the first line: "Let should be forced
+// onto the next line, so it's not split from the rest of its sentence"),
+// each sentence its own text, so the languages' tables find each whole.
+const KEEP_AGAIN = ["I should probably call an electrician about that tomorrow.", "Let me just finish one game!"];
 
 const DC = (HALL.DX0 + HALL.DX1) / 2, DW = HALL.DX1 - HALL.DX0, DH = HALL.DH;
 const EY = FLOOR + 31; // eye height standing (8 ft = 49)
@@ -679,7 +682,9 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
       style();
       choiceEl = div("den-hall-choice"); choiceEl.setAttribute("data-testid", "den-hall-choice"); choiceEl.setAttribute("role", "group"); choiceEl.setAttribute("aria-label", "The hall");
       const go = doc.createElement("button"); go.type = "button"; go.className = "go"; go.textContent = INVESTIGATE; go.setAttribute("data-testid", "den-hall-investigate"); go.onclick = () => pick("investigate");
-      const stay = doc.createElement("button"); stay.type = "button"; stay.className = "stay"; stay.textContent = flares > 1 ? KEEP_AGAIN : KEEP; stay.setAttribute("data-testid", "den-hall-keep"); stay.onclick = () => pick("keep");
+      const stay = doc.createElement("button"); stay.type = "button"; stay.className = "stay"; stay.setAttribute("data-testid", "den-hall-keep"); stay.onclick = () => pick("keep");
+      if (flares > 1) stay.append(doc.createTextNode(KEEP_AGAIN[0]), doc.createElement("br"), doc.createTextNode(KEEP_AGAIN[1]));
+      else stay.textContent = KEEP;
       choiceEl.append(go, stay);
       // Held a moment (user: an impatient player tapping wildly could take
       // a choice unread, and Investigate is the way to the end): no tap

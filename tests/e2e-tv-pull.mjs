@@ -97,7 +97,7 @@ const aimCheck = (label, samples) => {
       const f = window.__DEN_TV__;
       if (f) {
         const t = f();
-        if (t.tug && !t.pull) window.__TUG_LOG__.push({ s: t.tug.s, lurch: +t.tug.lurch.toFixed(3), shake: +t.tug.shake.toFixed(3), dist: t.glassDist, phase: t.phase, lock: t.lock, debris: t.tug.debris.map((d) => `${d.id}:${d.phase}`).join(" "), think: !!document.querySelector('[data-testid="den-tug-think"]:not(.off)'), uhoh: !!document.querySelector('[data-testid="den-uhoh"]:not(.off)') });
+        if (t.tug && !t.pull) window.__TUG_LOG__.push({ seating: !!t.tug.seating, s: t.tug.s, lurch: +t.tug.lurch.toFixed(3), shake: +t.tug.shake.toFixed(3), dist: t.glassDist, phase: t.phase, lock: t.lock, debris: t.tug.debris.map((d) => `${d.id}:${d.phase}`).join(" "), think: !!document.querySelector('[data-testid="den-tug-think"]:not(.off)'), uhoh: !!document.querySelector('[data-testid="den-uhoh"]:not(.off)') });
         if (t.pull) {
           // (The den's own picture, and whether it's still on the page:
           // Nova swaps the den out 380 ms into its transition, and the
@@ -133,9 +133,13 @@ const aimCheck = (label, samples) => {
   check("...a tap on the set meanwhile: nothing (it stays off, no watching)", tapped.phase === "off" && !tapped.looking && !!tapped.tug, JSON.stringify({ phase: tapped.phase, looking: tapped.looking, at }));
   check("...into Futuris", !!(await poll(() => futuris(page), 40000)));
   const samples = await page.evaluate(() => window.__PULL_LOG__);
-  const tugs = await page.evaluate(() => window.__TUG_LOG__);
+  // (First the camera taken to the coffee table, across it from the set:
+  // the tugs measured from there.)
+  const logged = await page.evaluate(() => window.__TUG_LOG__);
+  const seated = logged.filter((x) => x.seating), tugs = logged.filter((x) => !x.seating);
   const near = (a, b) => tugs.filter((x) => x.s >= a && x.s <= b);
-  const d0 = rest || (near(0, 60)[0] || {}).dist;
+  const d0 = seated.length ? seated[seated.length - 1].dist : rest || (near(0, 60)[0] || {}).dist;
+  check(`first, from the Room view, the camera taken to the coffee table, nearer the set (${rest} -> ${d0} from its glass)`, seated.length > 0 && !!rest && d0 < rest * 0.8, JSON.stringify({ rest, seated: seated.slice(-2) }));
   // (Its peak, 9% of the way, at 110 ms: anything over 3% between 0 and
   // 400 ms, so a frame every 200 ms still sees it.)
   const t1 = near(0, 400), back1 = near(1100, 1500);
@@ -202,6 +206,70 @@ const aimCheck = (label, samples) => {
   check("...then from the table: the build-up", !!(await poll(async () => { const t = await tv(); return t && t.tug && !t.pull; }, 2000, 50)));
   check("...and into the set", !!(await poll(async () => { const t = await tv(); return t && t.pull && t.phase === "dive"; }, 14000, 50)));
   check("...into Futuris", !!(await poll(() => futuris(page), 30000)));
+  check("no page errors", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+{
+  /* From a far corner of the room (user: "the camera must be situated to
+     where the TV is seen. I was just doing some testing and encountered a
+     situation where the TV was pulling in, but the camera was angled in
+     such a way that the TV couldn't be seen, so the animation of papers
+     being sucked into the TV and then the user subsequently being sucked
+     into the TV didn't make any sense"): the view panned off into a corner
+     and low, the sofa's back between it and the set. The build-up waits
+     while the camera's taken back to the coffee table, across it from the
+     set; then through it, the set's glass seen (drawn at its middle: the
+     picture with it differs from the picture without it). */
+  const { ctx, page, errs } = await home();
+  const tv = () => page.evaluate(() => (window.__DEN_TV__ ? window.__DEN_TV__() : null));
+  await page.evaluate(() => window.__DEN_LURE_SKIP__(-window.__DEN_TV__().lureWaited + 400));
+  await poll(async () => (await tv()).lureEvents >= 1, 15000);
+  await poll(async () => { const t = await tv(); return t.glance === null && !t.lock; }, 15000, 100);
+  await page.evaluate(() => window.__DEN_TV_PRESS__());
+  await poll(async () => (await tv()).looking, 6000, 100);
+  await poll(async () => (await tv()).blasted, 12000, 100);
+  const box = await page.locator("canvas").first().boundingBox();
+  await page.waitForTimeout(6500);
+  await page.mouse.click(box.x + 12, box.y + box.height - 12);
+  await poll(async () => { const t = await tv(); return !t.looking && t.goal === 0 && t.focus < 0.02; }, 8000, 100);
+  await page.evaluate(() => window.__EC_TEST_CAM__({ target: [-40, 0, 35], radius: 25, phi: 1.3, dollhouse: false, snap: true }));
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => {
+    const t3 = window.__DEN_THREE__;
+    let glass = null; t3.scene.traverse((o) => { if (o.userData && o.userData.tv === "screen") glass = o; });
+    glass.geometry.computeBoundingBox();
+    const V = glass.position.constructor, log = (window.__GLASS_SEEN__ = { first: null, seen: [] });
+    let n = 0;
+    const tick = () => {
+      const d = window.__DEN_TV__ && window.__DEN_TV__();
+      if (!d || d.pull) return;
+      if (d.tug && !d.tug.seating) {
+        if (!log.first) { const c = window.__EC_TEST_CAM__(); log.first = { target: c.view.target, dollhouse: c.dollhouse }; }
+        if (n++ % 5 === 0) {
+          const b = glass.geometry.boundingBox, p = new V((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, b.max.z).applyMatrix4(glass.matrixWorld).project(t3.camera);
+          let drawn = false;
+          if (p.z < 1 && Math.abs(p.x) < 1 && Math.abs(p.y) < 1) {
+            const el = t3.renderer.domElement, gl = t3.renderer.getContext(), px = Math.round(((p.x + 1) / 2) * el.width), py = Math.round(((p.y + 1) / 2) * el.height);
+            const read = () => { const a = new Uint8Array(4); gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, a); return a; };
+            t3.renderer.render(t3.scene, t3.camera); const a = read();
+            glass.visible = false; t3.renderer.render(t3.scene, t3.camera); const b2 = read(); glass.visible = true;
+            drawn = Math.max(Math.abs(a[0] - b2[0]), Math.abs(a[1] - b2[1]), Math.abs(a[2] - b2[2])) > 6;
+          }
+          log.seen.push(drawn);
+        }
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await page.evaluate(() => window.__DEN_PULL_NOW__());
+  check("from a far corner: the build-up waits while the camera's taken to the set", !!(await poll(async () => { const t = await tv(); return t && t.tug && t.tug.seating; }, 2000, 30)));
+  await poll(async () => { const t = await tv(); return t && t.pull; }, 20000, 100);
+  const g = await page.evaluate(() => window.__GLASS_SEEN__);
+  const at = g.first && g.first.target;
+  check(`...at the first tug, the camera at the coffee table (looking at ${at ? at.map((v) => v.toFixed(1)).join(", ") : "?"}), out of the Room view`, !!at && Math.hypot(at[0], at[2]) < 1.5 && !g.first.dollhouse, JSON.stringify(g.first));
+  check(`...the set's glass seen all through the build-up (${g.seen.filter(Boolean).length} of ${g.seen.length} looks)`, g.seen.length >= 8 && g.seen.every(Boolean), JSON.stringify(g.seen));
+  check("...and into the set", !!(await poll(async () => { const t = await tv(); return t && t.pull && t.phase === "dive"; }, 8000, 50)));
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

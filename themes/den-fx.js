@@ -56,7 +56,7 @@ import { autoFullscreenOk } from "../chassis/gl-watch.js";
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
 
 export function createDenEffects(woodSet, { viewPitch = null } = {}) {
-  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, music = null, tv: novaTv = null, moves = null, over = null, beginGame = null, sheets = null, dockAside = null }) {
+  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, music = null, tv: novaTv = null, moves = null, over = null, beginGame = null, sheets = null, dockAside = null, glideTo = null }) {
     const q = quality();
     // Home with the special order (Nova): the thought, then the telephone
     // call from Big Glutts (den-call.js).
@@ -1593,19 +1593,58 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       huhAt = 0; bangAt = 0;
       if (huhCard) { huhCard.remove(300); huhCard = null; }
       if (bangCard) { bangCard.remove(300); bangCard = null; }
+      // The set in view first (user: "the camera must be situated to where
+      // the TV is seen ... the camera was angled in such a way that the TV
+      // couldn't be seen, so the animation of papers being sucked into the
+      // TV and then the user subsequently being sucked into the TV didn't
+      // make any sense"): unless it's over watching the set, the camera's
+      // taken back to the coffee table, across it from the set (seatForPull),
+      // and the build-up waits till it's there.
+      const seating = tvGoal === 0 && seatForPull();
       // (The head yanked round to the set, unless it's on it already,
-      // held there since the blast, or the camera's over watching it.)
-      if (!(glance && glance.fix) && tvGoal === 0) glance = { t0: now, keys: [{ at: "tv", turn: 520, hold: Infinity }], back: 0, fix: true, release: 0, seen: [] };
+      // held there since the blast, or the camera's over watching it. A
+      // hold that's letting go counts as none.)
+      if (!(glance && glance.fix && !glance.release) && tvGoal === 0) glance = { t0: now, keys: [{ at: "tv", turn: seating ? SEAT_MS : 520, hold: Infinity }], back: 0, fix: true, release: 0, seen: [] };
       lureFix = false;
       lureDone = true;
       lureLock(true);
-      tug = { t0: now, e: {}, retryAt: 0, giveUpAt: 0 };
+      // (Seating: its clock held far off till the camera's there, tugFrame.)
+      tug = { t0: seating ? now + 1e9 : now, seatFrom: seating ? now : null, e: {}, retryAt: 0, giveUpAt: 0 };
       if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_TUGGED__ = (window.__DEN_TUGGED__ || 0) + 1;
+    }
+    /* Where the pull's seen from: the coffee table, across it from the set
+       (the set straight ahead past the board, the papers on the table
+       between), at the board's own pitch and distance, out of the Room
+       view; glided there (SEAT_MS). False if the camera's there already,
+       nothing else holding it. */
+    const SEAT_MS = 1400, SEAT_WAIT_MS = 3000;
+    function seatForPull() {
+      const t = three.current;
+      if (!cam || !cam.current || !den || !den.tv || !t) return false;
+      const c = cam.current, f = den.tv.focus.target, bv = t.boardView ? t.boardView() : null;
+      const TAU = 2 * Math.PI, wrap = (a) => ((((a % TAU) + 3 * Math.PI) % TAU) - Math.PI);
+      // (The board turns by -theta: this heading puts the set straight
+      // ahead of the camera, past the board.)
+      const theta = c.theta + wrap(Math.atan2(f.x, f.z) + Math.PI - c.theta);
+      const phi = bv ? bv.phi : c.phi, radius = bv && bv.radius ? bv.radius : c.radius;
+      const v = c.view || c;
+      const there = !c.dollhouse && Math.abs(wrap(theta - v.theta)) < 0.3 && Math.abs(phi - v.phi) < 0.2 && Math.abs(radius - v.radius) < 0.3 * radius && !!v.target && v.target.length() < 2;
+      if (there && focusW < 0.02 && bookW < 0.02 && phoneW < 0.02 && tvW < 0.02) return false;
+      if (glideTo) glideTo({ theta, phi, radius, target: [0, 0, 0] }, SEAT_MS);
+      else { c.theta = theta; c.phi = phi; c.radius = radius; c.target.set(0, 0, 0); c.dollhouse = false; }
+      return true;
     }
     // Each frame: the tugs and the drag as they come, what's in the room
     // flying into the set, the two thoughts; then the rush.
     function tugFrame(now) {
       if (!tug) return;
+      // (Seating: the build-up begins once the camera's at the table and
+      // every visit's let go, or SEAT_WAIT_MS on at most.)
+      if (tug.seatFrom != null) {
+        const seated = now - tug.seatFrom >= SEAT_MS && focusW < 0.02 && bookW < 0.02 && phoneW < 0.02 && tvW < 0.02;
+        if (!seated && now - tug.seatFrom < SEAT_WAIT_MS) return;
+        tug.t0 = now; tug.seatFrom = null;
+      }
       const s = now - tug.t0, e = tug.e, set = den && den.tv;
       const doc = typeof document !== "undefined" ? document : null;
       const hit = (kind, strength) => { lureEvents++; lastHaunt = kind; if (audio && audio.tvHaunt) audio.tvHaunt(kind, strength); };
@@ -1894,13 +1933,13 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         pullIn: blastAt && !tvPullIn && !lureDone ? Math.round((pullSoon || pullBase + (lureFix ? PULL_FIXED : PULL_LATE)) - performance.now()) : null,
         // (The build-up: how far in (ms), the camera's tug and shake now,
         // what's still in the room, and how far the camera is from the glass.)
-        tug: tug ? { s: Math.round(performance.now() - tug.t0), ...tugAt(performance.now() - tug.t0), debris: debris ? debris.state() : [] } : null,
+        tug: tug ? (tug.seatFrom != null ? { seating: true, s: 0, lurch: 0, shake: 0, debris: debris ? debris.state() : [] } : { s: Math.round(performance.now() - tug.t0), ...tugAt(performance.now() - tug.t0), debris: debris ? debris.state() : [] }) : null,
         glassDist: glassDist() });
       // Test-only: hold the pull off (the tests of the set's own way in), or have it now.
       window.__DEN_PULL_HOLD__ = (on) => { pullHeld = on !== false; };
       window.__DEN_PULL_NOW__ = () => { if (!lureDone && !tug) startTugs(performance.now()); return !!tug || !!tvPullIn; };
       // Test-only: on through the build-up (ms).
-      window.__DEN_TUG_SKIP__ = (ms) => { if (tug) tug.t0 -= ms; };
+      window.__DEN_TUG_SKIP__ = (ms) => { if (tug) { if (tug.seatFrom != null) { tug.t0 = performance.now(); tug.seatFrom = null; } tug.t0 -= ms; } };
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
       // Test-only: the look round's thought for a pick (true: who's messing

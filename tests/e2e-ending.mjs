@@ -73,7 +73,7 @@ check("...the time it came, kept with the story", await page.evaluate(() => JSON
 await page.evaluate(() => window.__DEN_HALL_NOW__());
 await poll(async () => (await page.locator('[data-testid="den-hall-investigate"]').count()) > 0, 6000);
 check("again: \"Oh, for the love of…\"", /Oh, for the love of…/.test(await page.locator('[data-testid="den-hall-say"]').innerText()));
-check("...and keep playing's now the electrician", /call an electrician about that tomorrow\. Let me just finish one game!/.test(await page.locator('[data-testid="den-hall-keep"]').innerText()));
+check("...and keep playing's now the electrician", /call an electrician about that tomorrow\.\nLet me just finish one game!/.test(await page.locator('[data-testid="den-hall-keep"]').innerText()));
 await page.waitForSelector('[data-testid="den-hall-choice"]:not([data-held])', { timeout: 5000 }); // (held a moment against wild taps)
 // The den's own lens, before the walk (the dolly zoom at its end widens
 // it, and it's to be given back).

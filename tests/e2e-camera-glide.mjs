@@ -88,7 +88,9 @@ console.log("\nNova ?scene=hall");
   await page.waitForSelector('[data-testid="den-hall-choice"]:not([data-held])', { timeout: 5000 }); // (held a moment against wild taps)
   await keep.click();
   check("kept playing: back in a few seconds, \"Oh, for the love of…\"", !!(await poll(async () => (await keep.count()) > 0 && /Oh, for the love of…/.test(await page.locator('[data-testid="den-hall-say"]').innerText()), 15000)));
-  check("...and keep playing's the electrician", /call an electrician about that tomorrow\. Let me just finish one game!/.test(await keep.innerText()));
+  // (Its second sentence on a line of its own, user: "Let should be forced
+  // onto the next line, so it's not split from the rest of its sentence".)
+  check("...and keep playing's the electrician, \"Let me just finish one game!\" a line of its own", /call an electrician about that tomorrow\.\nLet me just finish one game!$/.test((await keep.innerText()).trim()), await keep.innerText());
   await page.waitForSelector('[data-testid="den-hall-choice"]:not([data-held])', { timeout: 5000 }); // (held a moment against wild taps)
   await keep.click();
   check("the third time: pulled in", !!(await poll(async () => { const h = await page.evaluate(() => window.__DEN_HALL__()); return h.state === "walk" && h.dragged; }, 15000)));
