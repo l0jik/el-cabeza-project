@@ -403,7 +403,14 @@ data-ml-label (wedges), data-mf-choice, data-mf-row, data-mf-group,
 data-cr-at (a wedge's middle angle), svg data-ring "r0 r1 a0 a1 step".
 The first-game tour's menu cards: "Your menu." (the line, View, Sound,
 More, each ringed as its line lights: tourRingsHow) and "Everything else
-is in More." (its groups, More ringed). Tests: e2e-rings (rewritten for
+is in More." (its groups, More ringed). A wedge is ringed as itself
+(2026-11-15; user: "the highlight needs to follow the contour of the
+wedge itself, not a square. That makes it too difficult to quickly parse
+what is being highlighted"): FirstGameTour TourMarks, a box whose target
+is an SVG group round one path draws that path over it (its screen CTM
+as the transform, non-scaling strokes: the dark halo, the yellow ring,
+a yellow fill at 24%), no square; the line over the fan keeps its
+rounded box. Tests: e2e-rings (rewritten for
 Calm), e2e-cromo, e2e-first-game-tour. es/vi lines added.
 Labels fitted by measure (CI 41132593828 shard 7: the corner fan's More
 said "All settings" 2° past its wedge in CI's face, though not here): a

@@ -610,10 +610,25 @@ export function TourMarks({ marks, geo, subscribe, cardRef, raised = false }) {
       if (cardEl) { const c = cardEl.getBoundingClientRect(); if (c.width) obstacles.push(pad({ l: c.left, t: c.top, r: c.right, b: c.bottom }, 8)); }
       (marks.avoid || []).forEach((sel) => document.querySelectorAll(sel).forEach((e) => { const r = e.getBoundingClientRect(); if (r.width && r.height) obstacles.push(pad({ l: r.left, t: r.top, r: r.right, b: r.bottom }, 6)); }));
 
-      // Rings round the buttons it points out.
+      // Rings round the buttons it points out. A wedge of the menu's fan
+      // (an SVG group round its one path) is drawn round as itself, its own
+      // outline laid over it with its own place on the screen, and filled
+      // a little: a square round a wedge was too hard to read at a glance
+      // (user, the menu card's turns: "the highlight needs to follow the
+      // contour of the wedge itself, not a square").
       (marks.boxes || []).forEach((bx) => {
         const els = boxEls.current[bx.key];
         if (!els) return;
+        const at = typeof bx.sel === "string" ? document.querySelector(bx.sel) : null;
+        const shape = at && at.tagName && at.tagName.toLowerCase() === "g" ? at.querySelector("path") : null;
+        const ctm = shape && shape.getScreenCTM ? shape.getScreenCTM() : null;
+        if (ctm && els.shape && els.shapeHalo) {
+          [els.halo, els.ring].forEach((e) => e.setAttribute("width", 0));
+          const d = shape.getAttribute("d") || "", tr = `matrix(${ctm.a} ${ctm.b} ${ctm.c} ${ctm.d} ${ctm.e} ${ctm.f})`;
+          [els.shapeHalo, els.shape].forEach((e) => { if (e.getAttribute("d") !== d) e.setAttribute("d", d); e.setAttribute("transform", tr); });
+          return;
+        }
+        if (els.shape && els.shapeHalo) [els.shapeHalo, els.shape].forEach((e) => e.setAttribute("d", ""));
         const r = geo.rect({ el: bx.sel, inset: bx.inset });
         [els.halo, els.ring].forEach((e) => {
           if (!r) { e.setAttribute("width", 0); return; }
@@ -828,6 +843,9 @@ export function TourMarks({ marks, geo, subscribe, cardRef, raised = false }) {
           <g key={bx.key} data-ring={bx.key} {...(bx.of ? { "data-turn": bx.turn, style: { animation: turnAnim("ecTourTurn", bx.turn, bx.of) } } : null)}>
             <rect ref={keep(boxEls, bx.key, "halo")} rx={12} fill="none" stroke={HALO} strokeWidth={7} width={0} height={0} />
             <rect ref={keep(boxEls, bx.key, "ring")} className="ec-tour-pulse" rx={12} fill="none" stroke={tone(bx.tone)} strokeWidth={3.5} width={0} height={0} />
+            {/* (A wedge of the menu: its own outline, see frame.) */}
+            <path ref={keep(boxEls, bx.key, "shapeHalo")} fill="none" stroke={HALO} strokeWidth={7} strokeLinejoin="round" vectorEffect="non-scaling-stroke" d="" />
+            <path ref={keep(boxEls, bx.key, "shape")} data-shape="wedge" className="ec-tour-pulse" fill={tone(bx.tone)} fillOpacity={0.24} stroke={tone(bx.tone)} strokeWidth={3.5} strokeLinejoin="round" vectorEffect="non-scaling-stroke" d="" />
           </g>
         ))}
         {marks.orbit && [orbitPart("near", marks.orbit.tone), orbitPart("far", marks.orbit.tone)]}

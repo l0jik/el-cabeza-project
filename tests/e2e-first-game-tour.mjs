@@ -80,6 +80,17 @@ const band = (page) => page.evaluate(() => { const b = window.__EC_TEST_THREE__(
 // A label's place on the screen, an arrow's path, a button's ring.
 const tagBox = (page, key) => page.evaluate((k) => { const e = document.querySelector(`[data-testid="tour-marks"] [data-tag="${k}"]`); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height, text: e.textContent }; }, key);
 const arrowD = (page, key) => page.evaluate((k) => { const e = document.querySelector(`[data-testid="tour-marks"] [data-arrow="${k}"]`); return e ? e.getAttribute("d") || "" : null; }, key);
+/* A wedge of the menu ringed as itself (user: "the highlight needs to
+   follow the contour of the wedge itself, not a square"): the ring's own
+   outline, the wedge's path laid over it, where it is on the screen; and
+   no square drawn. */
+const wedgeRing = (page, key, wedgeSel) => page.evaluate(([k, sel]) => {
+  const g = document.querySelector(`[data-testid="tour-marks"] [data-ring="${k}"]`), w = document.querySelector(sel);
+  const p = g && g.querySelector('path[data-shape="wedge"]'), sq = g && g.querySelector("rect.ec-tour-pulse"), wp = w && w.querySelector("path");
+  if (!p || !wp) return null;
+  const a = p.getBoundingClientRect(), b = wp.getBoundingClientRect();
+  return { same: p.getAttribute("d") === wp.getAttribute("d"), off: Math.max(Math.abs(a.left - b.left), Math.abs(a.top - b.top), Math.abs(a.right - b.right), Math.abs(a.bottom - b.bottom)), square: sq ? +sq.getAttribute("width") : null };
+}, [key, wedgeSel]);
 const ringRect = (page, key) => page.evaluate((k) => { const e = document.querySelector(`[data-testid="tour-marks"] [data-ring="${k}"] rect.ec-tour-pulse`); return e ? { x: +e.getAttribute("x"), y: +e.getAttribute("y"), w: +e.getAttribute("width"), h: +e.getAttribute("height") } : null; }, key);
 /* Labels over what they name (user, the crush card on a phone: "Opponent's
    cabeza flag is obscuring the actual piece a little bit too much. Perhaps
@@ -482,8 +493,10 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const rowText = (k) => page.evaluate((key) => { const e = document.querySelector(`[data-testid="tour-row-${key}"]`); return e ? e.textContent : ""; }, k);
   check("a tap on it: the menu out of the corner piece (not the panel), its card 2 of 3 with it, the piece's light out", (await ringsOut()) && !(await dockOpen()) && (await tourOf(page)).step === "panel" && /Your menu\./.test(t) && /Each one keeps its place\. Tap one with choices and they open above it\./.test(t) && /Your menu · 2 of 3/i.test(await page.locator('[data-testid="tour-band"]').innerText()) && (await page.locator('[data-testid="dock-call-aura"]').count()) === 0, t);
   check("...the line over it, View, Sound and More, each said", /whose move it is, who you are, and the computer's level\./.test(await rowText("whose-move")) && /ready-made views of the board\./.test(await rowText("view")) && /The volume/.test(await rowText("sound")) && /Every setting, in one list\./.test(await rowText("more")), t);
-  const how = await Promise.all([["line", '[data-testid="dock-menu"] [data-testid="menu-fan-status"]'], ["view", '[data-testid="dock-menu"] g[data-ml-item="view"]'], ["sound", '[data-testid="dock-menu"] g[data-ml-item="sound"]'], ["more", '[data-testid="dock-menu"] g[data-ml-item="more"]']].map(async ([k, sel]) => ({ k, ring: await ringRect(page, k), el: await boxOf(page, sel) })));
-  check("...each ringed on it", how.every((x) => around(x.ring, x.el)), JSON.stringify(how));
+  const lineRing = { ring: await ringRect(page, "line"), el: await boxOf(page, '[data-testid="dock-menu"] [data-testid="menu-fan-status"]') };
+  check("...the line over it ringed round", around(lineRing.ring, lineRing.el), JSON.stringify(lineRing));
+  const wedges = await Promise.all(["view", "sound", "more"].map(async (k) => ({ k, w: await wedgeRing(page, k, `[data-testid="dock-menu"] g[data-ml-item="${k}"]`) })));
+  check("...View, Sound and More each ringed as itself: the wedge's own outline over it, no square", wedges.every(({ w }) => !!w && w.same && w.off < 2 && w.square === 0), JSON.stringify(wedges));
   const lines = await page.locator('[data-testid="tour-card"] [data-lit]').count();
   const round = await litRound(lines * 2.6 + 0.8);
   check(`...lit one at a time, round all ${lines}: the ring on the menu and its line on the card together`, lines === 4 && round.seen === lines && round.both === 0 && round.apart === 0, JSON.stringify({ lines, round }));
@@ -496,8 +509,8 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   t = await cardText(page);
   check("Next: everything else is in More, 3 of 3, its groups said", (await tourOf(page)).step === "foot" && (await ringsOut()) && /Everything else is in More\./.test(t) && /Tap More for one plain list, in groups:/.test(t) && /End your turn, undo, and end the game \(it asks first\)\./.test(await rowText("game")) && /Check alert, Piece guide, Why not, Move costs, and Actions left\./.test(await rowText("help-on-the-board")) && /The volume, and the language the game speaks\./.test(await rowText("sound-and-language")) && /Replay a game, and save your progress\./.test(await rowText("your-games")) && /The control bar, in place of the piece\./.test(await rowText("layout")), t);
   check("...and the tour's end said: your move", /That's the tour\. Your move: tap any of your pieces to see what it does\. Good luck!/.test(t) && (await page.locator('[data-testid="tour-done"]').count()) === 1, t);
-  const moreRing = await ringRect(page, "more"), moreEl = await boxOf(page, '[data-testid="dock-menu"] g[data-ml-item="more"]');
-  check("...More ringed on the fan", around(moreRing, moreEl), JSON.stringify({ moreRing, moreEl }));
+  const moreRing = await wedgeRing(page, "more", '[data-testid="dock-menu"] g[data-ml-item="more"]');
+  check("...More ringed on the fan, as itself", !!moreRing && moreRing.same && moreRing.off < 2 && moreRing.square === 0, JSON.stringify(moreRing));
   await page.locator('[data-testid="tour-back"]').click();
   await page.waitForTimeout(500);
   check("‹ Back: what's in it again, still out", (await tourOf(page)).step === "panel" && (await ringsOut()));
