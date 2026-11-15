@@ -549,6 +549,15 @@ export default function FirstGameTour({ tour, cardRef }) {
    labels keep off one another, off the card and off what `avoid` names;
    the arrows run from a label's edge to the edge of what it names. */
 const HALO = "rgba(22,14,6,0.62)";
+/* A wedge of the menu, when the tour points it out, glows (user: "Make
+   the wedge outlines glow to make them a bit more prominent when they are
+   featured in the tutorial"): its outline drawn again under it, wide, in
+   its own tone, blurred three ways at once (a tight one, a middling one,
+   a wide one, for a light that's brightest at the line and fades out
+   round it), breathing with the ring's pulse; its dark edge lighter, so
+   the line itself reads as lit. With reduced motion it glows, still. */
+const GLOW = { width: 10, blur: [2.5, 6, 12] };
+const WEDGE_HALO = "rgba(22,14,6,0.22)";
 /* An arrow to a row, not a square (sweep: { lo, hi }, the columns it runs
    between; user, the goal card's arrow to the back row: "Have the
    arrowhead of this long green arrow kind of slide across the back to
@@ -625,10 +634,12 @@ export function TourMarks({ marks, geo, subscribe, cardRef, raised = false }) {
         if (ctm && els.shape && els.shapeHalo) {
           [els.halo, els.ring].forEach((e) => e.setAttribute("width", 0));
           const d = shape.getAttribute("d") || "", tr = `matrix(${ctm.a} ${ctm.b} ${ctm.c} ${ctm.d} ${ctm.e} ${ctm.f})`;
-          [els.shapeHalo, els.shape].forEach((e) => { if (e.getAttribute("d") !== d) e.setAttribute("d", d); e.setAttribute("transform", tr); });
+          // (Set only when changed: the glow's blur is drawn again whenever
+          // its path is touched.)
+          [els.shapeGlow, els.shapeHalo, els.shape].forEach((e) => { if (!e) return; if (e.getAttribute("d") !== d) e.setAttribute("d", d); if (e.getAttribute("transform") !== tr) e.setAttribute("transform", tr); });
           return;
         }
-        if (els.shape && els.shapeHalo) [els.shapeHalo, els.shape].forEach((e) => e.setAttribute("d", ""));
+        if (els.shape && els.shapeHalo) [els.shapeGlow, els.shapeHalo, els.shape].forEach((e) => e && e.setAttribute("d", ""));
         const r = geo.rect({ el: bx.sel, inset: bx.inset });
         [els.halo, els.ring].forEach((e) => {
           if (!r) { e.setAttribute("width", 0); return; }
@@ -836,15 +847,26 @@ export function TourMarks({ marks, geo, subscribe, cardRef, raised = false }) {
   // through them sequentially". The pulse and the march stay still.)
   return (
     <div data-testid="tour-marks" aria-hidden="true" style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: raised ? 17 : 12, overflow: "hidden" }}>
-      <style>{"@keyframes ecTourPulse{0%,100%{opacity:1}50%{opacity:.4}}@keyframes ecTourMarch{to{stroke-dashoffset:-46}}.ec-tour-pulse{animation:ecTourPulse 1.3s ease-in-out infinite}.ec-tour-march{animation:ecTourMarch 1.1s linear infinite}@media (prefers-reduced-motion: reduce){.ec-tour-pulse,.ec-tour-march{animation:none!important}}"
+      <style>{"@keyframes ecTourPulse{0%,100%{opacity:1}50%{opacity:.4}}@keyframes ecTourGlow{0%,100%{opacity:1}50%{opacity:.55}}@keyframes ecTourMarch{to{stroke-dashoffset:-46}}.ec-tour-pulse{animation:ecTourPulse 1.3s ease-in-out infinite}.ec-tour-glow{animation:ecTourGlow 1.3s ease-in-out infinite}.ec-tour-march{animation:ecTourMarch 1.1s linear infinite}@media (prefers-reduced-motion: reduce){.ec-tour-pulse,.ec-tour-glow,.ec-tour-march{animation:none!important}}"
         + [...new Set((marks.boxes || []).filter((b) => b.of).map((b) => b.of))].map((n) => turnFrames("ecTourTurn", n, "opacity:1", "opacity:0")).join("")}</style>
       <svg width="100%" height="100%" style={{ position: "absolute", inset: 0, overflow: "visible" }}>
+        <defs>
+          <filter id="ec-tour-glow" x="-50%" y="-50%" width="200%" height="200%">
+            {GLOW.blur.map((sd, i) => <feGaussianBlur key={i} in="SourceGraphic" stdDeviation={sd} result={`glow${i}`} />)}
+            <feMerge>{GLOW.blur.map((sd, i) => <feMergeNode key={i} in={`glow${i}`} />)}</feMerge>
+          </filter>
+        </defs>
         {(marks.boxes || []).map((bx) => (
           <g key={bx.key} data-ring={bx.key} {...(bx.of ? { "data-turn": bx.turn, style: { animation: turnAnim("ecTourTurn", bx.turn, bx.of) } } : null)}>
             <rect ref={keep(boxEls, bx.key, "halo")} rx={12} fill="none" stroke={HALO} strokeWidth={7} width={0} height={0} />
             <rect ref={keep(boxEls, bx.key, "ring")} className="ec-tour-pulse" rx={12} fill="none" stroke={tone(bx.tone)} strokeWidth={3.5} width={0} height={0} />
-            {/* (A wedge of the menu: its own outline, see frame.) */}
-            <path ref={keep(boxEls, bx.key, "shapeHalo")} fill="none" stroke={HALO} strokeWidth={7} strokeLinejoin="round" vectorEffect="non-scaling-stroke" d="" />
+            {/* (A wedge of the menu: its own outline, see frame; its glow
+                under it, the filter on a group of its own so the blur's
+                measured on the screen, not in the wedge's own units.) */}
+            <g className="ec-tour-glow" filter="url(#ec-tour-glow)">
+              <path ref={keep(boxEls, bx.key, "shapeGlow")} data-glow="wedge" fill="none" stroke={tone(bx.tone)} strokeWidth={GLOW.width} strokeLinejoin="round" vectorEffect="non-scaling-stroke" d="" />
+            </g>
+            <path ref={keep(boxEls, bx.key, "shapeHalo")} fill="none" stroke={WEDGE_HALO} strokeWidth={7} strokeLinejoin="round" vectorEffect="non-scaling-stroke" d="" />
             <path ref={keep(boxEls, bx.key, "shape")} data-shape="wedge" className="ec-tour-pulse" fill={tone(bx.tone)} fillOpacity={0.24} stroke={tone(bx.tone)} strokeWidth={3.5} strokeLinejoin="round" vectorEffect="non-scaling-stroke" d="" />
           </g>
         ))}

@@ -91,6 +91,53 @@ const wedgeRing = (page, key, wedgeSel) => page.evaluate(([k, sel]) => {
   const a = p.getBoundingClientRect(), b = wp.getBoundingClientRect();
   return { same: p.getAttribute("d") === wp.getAttribute("d"), off: Math.max(Math.abs(a.left - b.left), Math.abs(a.top - b.top), Math.abs(a.right - b.right), Math.abs(a.bottom - b.bottom)), square: sq ? +sq.getAttribute("width") : null };
 }, [key, wedgeSel]);
+/* ...and glowing (user: "Make the wedge outlines glow to make them a bit
+   more prominent when they are featured in the tutorial"): its outline
+   again under it, in the same place, through the blur, breathing; and on
+   the screen the light round it: the pixels outside its line (more than
+   6 px off it), with the glow and without (that ring held up, the pulses
+   held at their peak), the ones it lights. (Held by opacity !important
+   over the animations, never by stopping them: an animation stopped and
+   let go starts again from its beginning, and the rings' turns would go
+   out of step with the card's lines.) */
+const wedgeGlow = async (page, key) => {
+  const at = await page.evaluate((k) => {
+    const g = document.querySelector(`[data-testid="tour-marks"] [data-ring="${k}"]`);
+    const p = g && g.querySelector('path[data-shape="wedge"]'), gl = g && g.querySelector('path[data-glow="wedge"]');
+    if (!p || !gl) return null;
+    const f = document.getElementById("ec-tour-glow");
+    return { same: !!p.getAttribute("d") && gl.getAttribute("d") === p.getAttribute("d") && gl.getAttribute("transform") === p.getAttribute("transform"), filter: gl.parentNode.getAttribute("filter"), blurs: f ? f.querySelectorAll("feGaussianBlur").length : 0, anim: getComputedStyle(gl.parentNode).animationName };
+  }, key);
+  if (!at) return null;
+  await page.evaluate((k) => { const st = document.createElement("style"); st.id = "test-hold-glow"; st.textContent = `[data-testid="tour-marks"] [data-turn]{opacity:0!important}[data-testid="tour-marks"] [data-ring="${k}"]{opacity:1!important}.ec-tour-pulse,.ec-tour-glow{opacity:1!important}`; document.head.append(st); }, key);
+  await page.waitForTimeout(250);
+  const on = (await page.screenshot({ type: "png" })).toString("base64");
+  await page.evaluate(() => { document.getElementById("test-hold-glow").textContent += '[data-testid="tour-marks"] .ec-tour-glow{opacity:0!important}'; });
+  await page.waitForTimeout(250);
+  const off = (await page.screenshot({ type: "png" })).toString("base64");
+  await page.evaluate(() => document.getElementById("test-hold-glow").remove());
+  at.lit = await page.evaluate(async ([k, a, b]) => {
+    const p = document.querySelector(`[data-testid="tour-marks"] [data-ring="${k}"] path[data-shape="wedge"]`);
+    const m = p.getScreenCTM(), r = p.getBoundingClientRect();
+    const load = async (b64) => { const img = new Image(); img.src = "data:image/png;base64," + b64; await img.decode(); return img; };
+    const ia = await load(a), ib = await load(b), sx = ia.naturalWidth / innerWidth;
+    const x0 = Math.max(0, Math.floor(r.left - 30)), y0 = Math.max(0, Math.floor(r.top - 30)), w = Math.min(innerWidth - x0, Math.ceil(r.width + 60)), h = Math.min(innerHeight - y0, Math.ceil(r.height + 60));
+    const px = (img) => { const c = document.createElement("canvas"); c.width = w; c.height = h; const x = c.getContext("2d"); x.drawImage(img, x0 * sx, y0 * sx, w * sx, h * sx, 0, 0, w, h); return x.getImageData(0, 0, w, h).data; };
+    const da = px(ia), db = px(ib);
+    const hit = document.createElement("canvas"); hit.width = innerWidth; hit.height = innerHeight;
+    const c = hit.getContext("2d"), path = new Path2D(p.getAttribute("d"));
+    c.setTransform(m.a, m.b, m.c, m.d, m.e, m.f); c.lineWidth = 12 / Math.sqrt(Math.abs(m.a * m.d - m.b * m.c));
+    let outside = 0, lit = 0, inside = 0, litIn = 0;
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      const X = x0 + i + 0.5, Y = y0 + j + 0.5, o = (j * w + i) * 4;
+      if (c.isPointInStroke(path, X, Y)) continue;
+      const brighter = da[o] + da[o + 1] + da[o + 2] - db[o] - db[o + 1] - db[o + 2] > 24;
+      if (c.isPointInPath(path, X, Y)) { inside++; if (brighter) litIn++; } else { outside++; if (brighter) lit++; }
+    }
+    return { outside, lit, inside, litIn };
+  }, [key, on, off]);
+  return at;
+};
 const ringRect = (page, key) => page.evaluate((k) => { const e = document.querySelector(`[data-testid="tour-marks"] [data-ring="${k}"] rect.ec-tour-pulse`); return e ? { x: +e.getAttribute("x"), y: +e.getAttribute("y"), w: +e.getAttribute("width"), h: +e.getAttribute("height") } : null; }, key);
 /* Labels over what they name (user, the crush card on a phone: "Opponent's
    cabeza flag is obscuring the actual piece a little bit too much. Perhaps
@@ -497,6 +544,8 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   check("...the line over it ringed round", around(lineRing.ring, lineRing.el), JSON.stringify(lineRing));
   const wedges = await Promise.all(["view", "sound", "more"].map(async (k) => ({ k, w: await wedgeRing(page, k, `[data-testid="dock-menu"] g[data-ml-item="${k}"]`) })));
   check("...View, Sound and More each ringed as itself: the wedge's own outline over it, no square", wedges.every(({ w }) => !!w && w.same && w.off < 2 && w.square === 0), JSON.stringify(wedges));
+  const glow = await wedgeGlow(page, "sound");
+  check(`...and glowing: its outline again under it, through the blur, breathing; the light round it (${glow && glow.lit.lit} px outside its line lit)`, !!glow && glow.same && glow.filter === "url(#ec-tour-glow)" && glow.blurs === 3 && glow.anim === "ecTourGlow" && glow.lit.lit > 800, JSON.stringify(glow));
   const lines = await page.locator('[data-testid="tour-card"] [data-lit]').count();
   const round = await litRound(lines * 2.6 + 0.8);
   check(`...lit one at a time, round all ${lines}: the ring on the menu and its line on the card together`, lines === 4 && round.seen === lines && round.both === 0 && round.apart === 0, JSON.stringify({ lines, round }));
@@ -686,8 +735,10 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const turns = await page.evaluate(() => ({
     lit: [...document.querySelectorAll('[data-testid="tour-card"] [data-lit]')].map((e) => getComputedStyle(e).animationName),
     rings: [...document.querySelectorAll('[data-testid="tour-marks"] [data-turn]')].map((e) => ({ a: getComputedStyle(e).animationName, o: +getComputedStyle(e).opacity })),
+    glows: [...document.querySelectorAll('[data-testid="tour-marks"] path[data-glow="wedge"]')].filter((e) => !!e.getAttribute("d")).map((e) => ({ a: getComputedStyle(e.parentNode).animationName, o: +getComputedStyle(e.parentNode).opacity })),
   }));
   check(`reduced motion, the menu's card: its lines lit in turn (${turns.lit.length}), the rings round its buttons up one at a time (${turns.rings.filter((r) => r.o > 0.5).length} of ${turns.rings.length} up)`, turns.lit.length >= 2 && turns.lit.every((n) => n !== "none") && turns.rings.length >= 2 && turns.rings.every((r) => r.a !== "none") && turns.rings.filter((r) => r.o > 0.5).length <= 2, JSON.stringify(turns));
+  check(`...the wedges' glow there, still (${turns.glows.length} drawn)`, turns.glows.length === 3 && turns.glows.every((g) => g.a === "none" && g.o === 1), JSON.stringify(turns.glows));
   await page.emulateMedia({ reducedMotion: "no-preference" });
   const pb = await boxOf(page, '[data-testid="dock-menu"] [data-testid="menu-fan-status"]'), rb = await boxOf(page, '[data-testid="dock-menu"] svg.cr-ring'), cb = await card(page).boundingBox();
   const cbox = cb && { x: cb.x, y: cb.y, w: cb.width, h: cb.height };

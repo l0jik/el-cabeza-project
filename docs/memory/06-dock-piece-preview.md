@@ -410,8 +410,21 @@ what is being highlighted"): FirstGameTour TourMarks, a box whose target
 is an SVG group round one path draws that path over it (its screen CTM
 as the transform, non-scaling strokes: the dark halo, the yellow ring,
 a yellow fill at 24%), no square; the line over the fan keeps its
-rounded box. Tests: e2e-rings (rewritten for
-Calm), e2e-cromo, e2e-first-game-tour. es/vi lines added.
+rounded box. And it glows (2026-11-15; user: "Make the wedge outlines
+glow to make them a bit more prominent when they are featured in the
+tutorial"): under the outline, the same path again (shapeGlow), 10 px
+wide in its tone, in a group of its own through #ec-tour-glow (three
+blurs merged, 2.5, 6 and 12 px: brightest at the line, fading out round
+it; the filter on an untransformed group so the blur's in screen px),
+breathing with the pulse (ecTourGlow, 1 to .55 over the pulse's 1.3 s;
+still under reduced motion); the wedge's dark edge lighter (22%, was
+62%) so the line reads as lit. Chosen among six looks in pictures (a
+wedge filled with the glow hid its label). d and transform set only
+when they change (the blur's drawn again when its path is touched).
+Tests: e2e-rings (rewritten for
+Calm), e2e-cromo, e2e-first-game-tour (the glow follows the wedge, and
+lights the pixels round its line, with it against without it; still
+under reduced motion). es/vi lines added.
 Labels fitted by measure (CI 41132593828 shard 7: the corner fan's More
 said "All settings" 2° past its wedge in CI's face, though not here): a
 29° wedge narrows toward the hub, and a label's lowest line sits ~28 px
