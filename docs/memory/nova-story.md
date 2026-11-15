@@ -209,8 +209,9 @@ in; leaving Singularity, back in the den as the set switches off.
   clip rendered from the video's own frames: tools/splash render.mjs
   rewind; assets/title/rewind*), the logo settling back down as it goes;
   the app comes up under it and the title fades once both are done.
-  Escape cuts it short; with reduced motion, or the clip not there in
-  time, the title fades as it did.
+  Escape cuts it short; the clip not there in time, the title fades as
+  it did. (With reduced motion it plays all the same since 2026-11-15:
+  user, "Play the pan and rewind even with reduced motion".)
   Slower since (2026-10-21; user: "When begin is pressed at the splash
   screen, the reverse sequence needs to go a little bit more slowly. It
   happens so fast you don't really get to see anything"): the 2.75 s
@@ -243,8 +244,8 @@ in; leaving Singularity, back in the den as the set switches off.
   filter, kept only where a canvas can't blur, Safari before 18, class
   css-blur), painted 18 times a second at most; screenshots before and
   after differ by 6 of 255 at most. And the app's let in once the
-  playback's over (rewoundNow -> letAppIn; at once with reduced motion,
-  no clip, Escape or the stall guard), the board, its last frame, held
+  playback's over (rewoundNow -> letAppIn; at once with no clip, Escape
+  or the stall guard), the board, its last frame, held
   still while it comes up; the title fades once it's up, as before.
   e2e-title checks the app came only once the playback was over, under
   the title still.

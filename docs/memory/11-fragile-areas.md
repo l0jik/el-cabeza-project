@@ -101,9 +101,12 @@
 ## Reduced motion stops movement, not information (2026-11-15)
 
 A device that asks for reduced motion (prefers-reduced-motion) gets the
-game calmer, and it's honoured all through: the title's splash and its
-playback back to the board, the store's slow pan, camera glides, the
-tour's pulses and marching dashes. But a thing that takes turns or points
+game calmer: the title's splash before Begin, camera glides, the tour's
+pulses and marching dashes. Not the store's slow pan nor Begin's
+playback back to the board (with its squeeze and settle): the user chose
+them anyway ("Play the pan and rewind even with reduced motion",
+2026-11-15; tienda-fx.js panOk, apps/title-screen.js fetchRewind and
+rewindOut, the title's CSS keeps only the splash before Begin still). But a thing that takes turns or points
 somewhere says something, and putting it still lost what it said (user,
 on a laptop that asks for it, in the store's tour: "all of the icons are
 highlighted. It does not move through them sequentially. And then the

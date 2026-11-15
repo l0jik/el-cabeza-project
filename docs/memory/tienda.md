@@ -145,7 +145,8 @@ box art and an ad standee (assets/tienda/*.jpg).
   scene, a drag, a pinch, the wheel, a view button or anything open over
   the store stops it; ten seconds after the last, it glides back onto
   its arc and goes on (the card's glow still cues at 6 s). Before the
-  first game only; not with reduced motion, nor under the tests unless
+  first game only; with reduced motion too (2026-11-15, user: "Play the
+  pan and rewind even with reduced motion"); not under the tests unless
   asked (__EC_TEST_PAN__). tests/e2e-store-pan.mjs.
 - **The cart and the standee changed places (2026-10-20; user: "In
   Tienda / store theme, swap the locations of the silver shopping cart
@@ -305,7 +306,8 @@ box art and an ad standee (assets/tienda/*.jpg).
   tests/e2e-first-game-tour.mjs (sweepLog, sweepFor) reads the tip every
   frame against __EC_TEST_SQUARE_POS__ (card 2: no arrow at all, its back row still lit, user: "Keep the green row on card 2"); card 3's held at first straight up from the Cabeza, then reaching
   both end squares and turning back twice in 7.2 s, on the row's line
-  throughout; with reduced motion (desktop) held still.
+  throughout; with reduced motion (desktop) stepping end to end on the
+  same beat, no glide (2026-11-15: held still, it said one square).
 - **No label over what it names** (2026-10-21; user, a phone screenshot
   of card 4 with OPPONENT'S CABEZA over the copied Cabeza: "Opponent's
   cabeza flag is obscuring the actual piece a little bit too much.
@@ -355,7 +357,9 @@ box art and an ad standee (assets/tienda/*.jpg).
      any of your pieces to see what it does. Good luck!" (was "Your
      turn:"; user, 2026-10-22: "Change the word circled in red to
      'move'"); Got it puts the
-     menu away and ends it. With reduced motion, every ring at once.
+     menu away and ends it. With reduced motion, the rings and the
+     card's lines take their turns all the same (2026-11-15: all at once,
+     the user read it as broken).
   The cards keep with the menu: a tap outside it puts it away and brings
   back card 1; Back from card 2 closes it; from card 1, back to the other
   side's card. The board picks nothing while they're up (tourCardUp), and

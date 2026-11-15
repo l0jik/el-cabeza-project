@@ -8,7 +8,8 @@
    round the table, rightward first, 60° either side of the opening view;
    past an end a soft spring turns it back; a finger down on the scene or
    a drag stops it; ten seconds still, it glides back onto its arc and
-   turns on. (Under the tests it's off unless asked: __EC_TEST_PAN__.)
+   turns on. With reduced motion too. (Under the tests it's off unless
+   asked: __EC_TEST_PAN__.)
 
    node tests/e2e-store-pan.mjs */
 import { chromium } from "playwright";
@@ -105,6 +106,23 @@ await page.waitForTimeout(800);
   check(`...10 s still: back on its arc at the opening framing, turning (off ${b.off})`, !!back && framed(c) && Math.abs(b.off) <= PAN_HALF + 0.05 && Math.abs(d) > 0.01, JSON.stringify({ back, c, a, b }));
 }
 check("no page errors", errs.length === 0, errs.join(" | "));
+/* With reduced motion too (user, of a laptop that asks for it, the store
+   not panning: "Play the pan and rewind even with reduced motion"). */
+{
+  const rctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce" });
+  const rp = await rctx.newPage();
+  const rerrs = []; rp.on("pageerror", (e) => rerrs.push(e.message));
+  await rp.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_PAN__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; });
+  await rp.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html?fresh");
+  await rp.waitForSelector('[data-testid="tienda-open-box"]', { timeout: 30000 });
+  await rp.waitForTimeout(1200);
+  const a = await rp.evaluate(() => window.__TIENDA_PAN__);
+  await rp.waitForTimeout(2000);
+  const b = await rp.evaluate(() => window.__TIENDA_PAN__);
+  check(`reduced motion asked for by the device: the store pans all the same (${a.off} -> ${b.off})`, b.ok && b.on && b.off - a.off > 0.01, JSON.stringify({ a, b }));
+  check("...no page errors", rerrs.length === 0, rerrs.join(" | "));
+  await rctx.close();
+}
 await browser.close();
 console.log(failures ? `${failures} failure(s)` : "all passed");
 process.exit(failures ? 1 : 0);

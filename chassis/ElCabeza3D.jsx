@@ -82,8 +82,14 @@ if (typeof window !== "undefined") restoreFromLink();
 const ORIGINAL_CUE_URL = "el-cabeza-original-cue.mp3";
 
 /* Semantic Versioning (MAJOR.MINOR.PATCH), shared by both themes since
-   it describes the game as a whole, not any one skin's own history. */
-const APP_VERSION = "1.39.0";
+   it describes the game as a whole, not any one skin's own history.
+   2.0.0 (2026-11-15, user: "the version should be updated"): 1.39.0 was
+   the two-theme game of September; since, Nova's story and title screen,
+   the worlds round it, three languages, saves in the cloud, a new game
+   in all but its rules. From here: MINOR for something new, PATCH for
+   fixes. (A save file's `version` says only what wrote it: chassis/
+   saves.js FORMAT decides what loads.) */
+const APP_VERSION = "2.0.0";
 
 /* Builds a clamp() string with all three numbers scaled by a per-theme
    multiplier — used for the masthead's font-size (see its own comment
@@ -16082,7 +16088,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
               </p>
 
               <p style={{ margin: "0 0 16px" }}>
-                Cabeza is not an ancient game depicted on priceless artifacts
+                El Cabeza is not an ancient game depicted on priceless artifacts
                 from antiquity, nor does it trace its origins to a mysterious
                 progenitor, yet it&rsquo;s entirely understandable to mistake
                 it for such. The surprisingly rudimentary components coupled

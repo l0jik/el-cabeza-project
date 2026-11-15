@@ -174,7 +174,7 @@ html.ec-splash-on { background: #120C08; }
 .ec-splash.leaving .ec-splash-menu > .picked { animation: ecPicked 0.8s cubic-bezier(.55, 0, .75, .2) forwards; }
 .ec-splash.leaving .ec-splash-menu > .picked .w::before, .ec-splash.leaving .ec-splash-menu > .picked .w::after { width: 96px; transition: width 0.65s ease; }
 @keyframes ecPicked { 0% { opacity: 1; transform: none; } 55% { opacity: 1; transform: scale(1.04, 0.16); } 100% { opacity: 0; transform: scale(1.18, 0.02); } }
-@media (prefers-reduced-motion: reduce) { .ec-splash-stage, .ec-splash-menu > *, .ec-splash-video { transition: none; } .ec-splash.leaving .ec-splash-menu > .picked { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ec-splash:not(.leaving) .ec-splash-stage, .ec-splash:not(.leaving) .ec-splash-menu > *, .ec-splash:not(.leaving) .ec-splash-video { transition: none; } }
 /* A wide screen: the wide splash (16:9), as large as fits, the room round
    it the same drawn-out blur; the menu under the name, on the right (the
    name's middle at 75.5% across the frame, NOVA ending at 49% down). */
@@ -237,10 +237,10 @@ html.ec-splash-on { background: #120C08; }
      reverse animation, putting the pieces back on the board. It just goes
      straight to open the box ... why is this only happening on laptop?
      Because it works correctly on a Android phone."): Begin's playback
-     back to the board is skipped, without a word, where the device asks
-     for reduced motion, where its file can't play, and where it isn't in
-     in time; here, a line over everything (kept on, a tap puts it away)
-     saying which, and what this device was given. */
+     back to the board was skipped, without a word, where the device asks
+     for reduced motion (it plays there now), where its file can't play,
+     and where it isn't in in time; here, a line over everything (kept on,
+     a tap puts it away) saying which, and what this device was given. */
   const rewIn = () => { try { const b = rew.buffered; return b.length ? b.end(b.length - 1) : 0; } catch (e) { return 0; } };
   const rewState = () => `${rewIn().toFixed(1)} of ${rew.duration > 0 ? rew.duration.toFixed(1) : "?"} s in, ready ${rew.readyState}, network ${rew.networkState}${rew.error ? `, error ${rew.error.code}` : ""}`;
   function tell(what) {
@@ -528,7 +528,7 @@ html.ec-splash-on { background: #120C08; }
      the menu at the latest; a phone's is 2.7 MB, and it plays only once
      it's all in (rewindOut). */
   const fetchRewind = () => {
-    if (reduce || rew.src) return;
+    if (rew.src) return;
     rew.preload = "auto";
     rew.src = REWIND_SRC;
     try { rew.load(); } catch (e) { /* as it comes */ }
@@ -624,9 +624,11 @@ html.ec-splash-on { background: #120C08; }
 
   /* The way out: the splash played back to the board (rew), then the app
      let in under the title, and the title faded off it once it's up (the
-     playback over, rewound; the app up, appUp). Not under way in a moment
-     (a slow line), or reduced motion: the app's let in at once, and the
-     title fades as soon as it's up. (Escape cuts it short.)
+     playback over, rewound; the app up, appUp). Not under way in time (a
+     slow line): the app's let in at once, and the title fades as soon as
+     it's up. With reduced motion it plays as anywhere, Begin's squeeze and
+     the stage settling with it (user: "Play the pan and rewind even with
+     reduced motion"). (Escape cuts it short.)
      The app's let in only once the playback's over, not as it starts:
      mounting it (its scene built, its first pictures drawn, a phone's
      graphics busy with them) held the playback up, frames late and then
@@ -655,8 +657,10 @@ html.ec-splash-on { background: #120C08; }
     goIfDone();
   };
   function rewindOut() {
-    if (reduce || !rew.src) {
-      tell(reduce ? "not played: this device asks for reduced motion (a setting of its own), so the splash keeps still" : "not played: its file was never asked for");
+    // (With reduced motion too: user, "Play the pan and rewind even with
+    // reduced motion". The splash before it keeps still there.)
+    if (!rew.src) {
+      tell("not played: its file was never asked for");
       rewoundNow();
       return;
     }

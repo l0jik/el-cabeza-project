@@ -495,11 +495,16 @@ console.log("\nBegin's playback on a laptop: ?why says why not; fetched early; w
     await ctx.close();
   }
   {
+    // (The way out with reduced motion as anywhere, user: "Play the pan and
+    // rewind even with reduced motion"; the splash before it still.)
     const { ctx, page, errs } = await laptop("/el-cabeza-nova.html?title&why", { reduced: true });
-    check("reduced motion asked for by the device: the logo held at once", !!(await poll(async () => (await state(page)) === "held", 8000)));
+    check("reduced motion asked for by the device: the logo held at once, still", !!(await poll(async () => (await state(page)) === "held", 8000)));
+    await page.waitForTimeout(1500); // (its playback fetched as the menu comes)
     await q(page, "title-primary").click();
+    check("...Begin: squeezed to a line all the same", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="title-primary"]')).animationName === "ecPicked"));
+    const on = await poll(() => page.evaluate(() => { const v = document.querySelector('[data-testid="title-rewind"]'); return v.classList.contains("on") && (v.ended || v.currentTime > 0.2); }), 10000, 50);
     const L = await line(page);
-    check("...Begin: not played back, the line says it's the device's reduced motion", !!L && /not played: this device asks for reduced motion/.test(L) && /reduced motion on/.test(L), L);
+    check("...and played back to the board all the same, the line says so", !!on && !!L && /: played \(/.test(L) && /reduced motion on/.test(L), L);
     check("no errors", errs.length === 0, errs.join(" | "));
     await ctx.close();
   }

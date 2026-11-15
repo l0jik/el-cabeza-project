@@ -64,9 +64,9 @@ const LOOK_MS = 1000, IDLE_MS = 6000, GLIDE_MS = 3200;
    it is. PAN_IDLE_MS after the last of them, with nothing open, it glides
    back onto its arc (at the opening framing, the nearest point of the
    arc) and turns on from there; the card still glows its cue at IDLE_MS.
-   Not with reduced motion (the old gentle return then), nor under the
-   tests unless one asks (__EC_TEST_PAN__): it moves everything on the
-   screen. */
+   With reduced motion too (user, of a laptop asking for it: "Play the pan
+   and rewind even with reduced motion"); not under the tests unless one
+   asks (__EC_TEST_PAN__): it moves everything on the screen. */
 const PAN_HALF = Math.PI / 3, PAN_SPEED = 0.052, PAN_K = 4.4, PAN_DAMP = 0.6, PAN_IDLE_MS = 10000;
 let boxOpenedAt = 0, storeQuiet = false, storyStore = false, lidUp = false;
 /* (tienda-overlay.js, each time it draws: this is the story's store (only
@@ -98,8 +98,7 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, awaiting
   // or the mouse down on the scene; when anything was last open over it.
   let panOn = true, panW = 0, panDir = 1, panFrom = 0, busyAt = 0;
   const pressed = new Set();
-  const reduceMotion = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
-  const panOk = () => typeof window !== "undefined" && !(reduceMotion && reduceMotion.matches) && !(window.__EC_TEST_HOOKS__ && !window.__EC_TEST_PAN__);
+  const panOk = () => typeof window !== "undefined" && !(window.__EC_TEST_HOOKS__ && !window.__EC_TEST_PAN__);
   function pan(now, dt) {
     if (!panOk() || now < panFrom || !dt) return;
     const c = cam.current, off = turnOf(c.theta - OPENING_VIEW.theta);

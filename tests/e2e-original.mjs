@@ -40,6 +40,12 @@ const theme = (page) => page.evaluate(() => {
   await page.waitForTimeout(400);
   const text = await page.locator('[data-testid="info-body"]').textContent();
   check("ABOUT says the original is the basic rules alone", /The original El Cabeza is played with its basic rules alone/.test(text));
+  // (User: "\"Cabeza is not an ancient game depicted on priceless
+  // artifacts...\" should be written as \"El Cabeza is not an ancient game
+  // depicted on priceless artifacts...\""; and the version, 2.0.0.)
+  const flat = text.replace(/\s+/g, " ");
+  check("...\"El Cabeza is not an ancient game\", the game's whole name", /El Cabeza is not an ancient game depicted on priceless artifacts/.test(flat) && !/[^l] Cabeza is not an ancient game/.test(flat), flat.slice(0, 200));
+  check("...and the version, 2.0.0", /v2\.0\.0/.test(await page.locator('[data-testid="info-overlay"]').textContent()));
   // The disclaimer, at the bottom (user: "put the disclaimer at the bottom
   // of the About tab"): unofficial, non-commercial, and whom it isn't
   // affiliated with or endorsed by, named.

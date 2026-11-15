@@ -26,7 +26,13 @@ Current work branch: `claude/artifact-code-update-u6amyw` on
 it in a fresh session, since it's assigned per-task by the harness, not
 fixed by the project itself.
 
-`APP_VERSION` in `chassis/ElCabeza3D.jsx` has stayed `"1.39.0"` since the
-original recovered source, through all ~100 commits since — it does not
-track changes and should not be read as a changelog signal.
+`APP_VERSION` in `chassis/ElCabeza3D.jsx` (shown on the About card as
+v...): `"2.0.0"` since 2026-11-15 (user: "the version should be updated.
+What's an appropriate version # we can update this to?"). It had stayed
+`"1.39.0"` from the original recovered source through about a thousand
+commits (Nova's story and title screen, the worlds, three languages,
+cloud saves), so the first bump is a major one. From here, Semantic
+Versioning as the code's comment says: MINOR for something new, PATCH
+for fixes. A save file's `version` says only what wrote it
+(chassis/saves.js FORMAT decides what loads).
 
