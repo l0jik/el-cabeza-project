@@ -97,3 +97,20 @@
   the build, or the phones and Chromebooks keep the old sound. WAY_IN in
   futuris.js holds the parts' lengths, loops and scales the tool and the
   game share.
+
+## Reduced motion stops movement, not information (2026-11-15)
+
+A device that asks for reduced motion (prefers-reduced-motion) gets the
+game calmer, and it's honoured all through: the title's splash and its
+playback back to the board, the store's slow pan, camera glides, the
+tour's pulses and marching dashes. But a thing that takes turns or points
+somewhere says something, and putting it still lost what it said (user,
+on a laptop that asks for it, in the store's tour: "all of the icons are
+highlighted. It does not move through them sequentially. And then the
+legend in the upper left corner, it's not highlighting"; "the green arrow
+animation does not trigger. It just stays still"). So: a colour or a ring
+coming and going in turn keeps its turns (FirstGameTour ecTourLit,
+ecTourTurn); a glide becomes a step on the same beat (the arrow to the
+back row, sweepCol). When adding a reduced-motion rule, stop the movement
+and keep what it shows.
+

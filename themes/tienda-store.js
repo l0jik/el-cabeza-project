@@ -328,7 +328,11 @@ export function buildStore() {
       place(e.x, FLOOR + sy - 0.4, front + e.facing * 2.2, GD - 1, 0.6, 5.2, ry, -1, 0.8);
       const tiles = e.dept.tiles;
       if (e.dept.dept === "records") {
-        for (let c = 0; c < 14; c++) products.push({ x: e.x - GD / 2 + 1.4 + c * 1.3, y: FLOOR + sy + 3.3, z: front + e.facing * 2.4, w: 0.3, h: 6.2, d: 6.2, ry: ry + Math.PI / 2 + (rr() - 0.5) * 0.15, tile: 9, tint: SLEEVE[Math.floor(rr() * SLEEVE.length)] });
+        // Face out, each a step behind the one before (more than its own
+        // thickness, turned a hair at most): in one plane, overlapping,
+        // their faces and their tops fought (user, of the records by the
+        // TVs: "looks like Z fighting on the top of them").
+        for (let c = 0; c < 14; c++) products.push({ x: e.x - GD / 2 + 1.4 + c * 1.3, y: FLOOR + sy + 3.3, z: front + e.facing * (4.55 - c * 0.37), w: 0.3, h: 6.2, d: 6.2, ry: ry + Math.PI / 2 + (rr() - 0.5) * 0.016, tile: 9, tint: SLEEVE[Math.floor(rr() * SLEEVE.length)] });
       } else if (e.dept.dept === "housewares") {
         for (let c = 0; c < 3; c++) {
           const t = tiles[Math.floor(rr() * tiles.length)];
@@ -619,7 +623,8 @@ export function buildStore() {
   // The record bin in the south-east corner of the court.
   const recGeos = [bake(box(24, 10, 12, 52, FLOOR + 5, 48), { tint: [0.55, 0.4, 0.28] })];
   add(merge(recGeos), flat(null));
-  for (let n = 0; n < 20; n++) products.push({ x: 42 + n * 1.05, y: FLOOR + 12.5, z: 48, w: 0.35, h: 7, d: 7.4, ry: Math.PI / 2 + (rr() - 0.5) * 0.12, tile: 9, tint: SLEEVE[n % SLEEVE.length] });
+  // (Each a step behind the one before, as the racks' records: see there.)
+  for (let n = 0; n < 20; n++) products.push({ x: 42 + n * 1.05, y: FLOOR + 12.5, z: 43.9 + n * 0.43, w: 0.35, h: 7, d: 7.4, ry: Math.PI / 2 + (rr() - 0.5) * 0.02, tile: 9, tint: SLEEVE[n % SLEEVE.length] });
   signPlane(saleIdx[1], 9, 6.75, 52, FLOOR + 19, 48 - 6.2, Math.PI, true);
   // The display stand of the game's advertisement, facing the table.
   const adImg = loadImage(revisited ? housewaresAdUrl : adUrl, () => { adTex.needsUpdate = true; });

@@ -42,7 +42,11 @@
    a desktop: the card at the left, a mouse's words and a mouse's way round
    for the board; Skip the tour ends it, kept as done, and the game goes on
    as ever; the menu's cards in a mouse's words, the card beside the open
-   menu; Escape skips it too.
+   menu; Escape skips it too. Zoomed in closer than the tour's look at a
+   piece, a piece picked: as close still (in, never out). With reduced
+   motion, the arrow's head steps from end to end of the row (no glide),
+   and the menu card's lines and the rings round its buttons still take
+   their turns.
 
    node tests/e2e-first-game-tour.mjs */
 import { chromium } from "playwright";
@@ -634,6 +638,16 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await go("tour-back");
   check("...Back: the board card again, 7 of 8", (await tourOf(page)).step === "board" && /7 of 8/i.test(await page.locator('[data-testid="tour-band"]').innerText()));
   await go("tour-next", 900);
+  // Zoomed in closer than the tour's look at a piece, a piece picked: as
+  // close still, in, never out (user, a laptop: "when you select a piece to
+  // move it, it zooms way out from the screen. It needs to be zoomed in").
+  const near = await page.evaluate(() => { window.__EC_TEST_CAM__({ radius: 10 }); return window.__EC_TEST_CAM__().radius; });
+  await page.waitForTimeout(1500);
+  const opaAt = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-opa"));
+  await page.mouse.click(opaAt.x, opaAt.y);
+  await page.waitForTimeout(2000);
+  const picked = await page.evaluate(() => window.__EC_TEST_CAM__().radius);
+  check(`zoomed in to ${near}, a piece picked: as close still (${picked.toFixed(1)}), not pulled out`, picked <= near + 0.01, String(picked));
   const f0 = await page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === "light-flaco")));
   await page.evaluate(() => window.__EC_TEST_MOVE__("light-flaco", "N"));
   for (let i = 0; i < 40 && (await page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === "light-flaco")))) === f0; i++) await page.waitForTimeout(250);
@@ -648,6 +662,20 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const mt = (await card(page).innerText()).replace(/\s+/g, " ");
   check("the menu's card on a desktop: a mouse's words", (await tourOf(page)).step === "menu" && /The spinning piece at the lower right opens it: the menu you started this game from\. Click it now\./.test(mt) && /Click anywhere outside the menu to put it away again\./.test(mt) && /click to open your menu/i.test(((await tagBox(page, "dock")) || {}).text || ""), mt);
   await go("tour-next", 2000);
+  // With reduced motion, the card's lines and the rings round the menu's
+  // buttons still take their turns, one at a time (user, on a laptop asking
+  // for reduced motion: "it opens the fan, but all of the icons are
+  // highlighted. It does not move through them sequentially. And then the
+  // legend in the upper left corner, it's not highlighting"): a colour and
+  // a ring coming and going, not a movement.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.waitForTimeout(400);
+  const turns = await page.evaluate(() => ({
+    lit: [...document.querySelectorAll('[data-testid="tour-card"] [data-lit]')].map((e) => getComputedStyle(e).animationName),
+    rings: [...document.querySelectorAll('[data-testid="tour-marks"] [data-turn]')].map((e) => ({ a: getComputedStyle(e).animationName, o: +getComputedStyle(e).opacity })),
+  }));
+  check(`reduced motion, the menu's card: its lines lit in turn (${turns.lit.length}), the rings round its buttons up one at a time (${turns.rings.filter((r) => r.o > 0.5).length} of ${turns.rings.length} up)`, turns.lit.length >= 2 && turns.lit.every((n) => n !== "none") && turns.rings.length >= 2 && turns.rings.every((r) => r.a !== "none") && turns.rings.filter((r) => r.o > 0.5).length <= 2, JSON.stringify(turns));
+  await page.emulateMedia({ reducedMotion: "no-preference" });
   const pb = await boxOf(page, '[data-testid="dock-menu"] [data-testid="menu-fan-status"]'), rb = await boxOf(page, '[data-testid="dock-menu"] svg.cr-ring'), cb = await card(page).boundingBox();
   const cbox = cb && { x: cb.x, y: cb.y, w: cb.width, h: cb.height };
   check("...Open it: the menu out, the card beside it, not over it (nor over the line above it)", (await tourOf(page)).step === "panel" && !!pb && !!rb && !!cb && !overlap(cbox, pb) && !overlap(cbox, rb), JSON.stringify({ pb, rb, cb }));
@@ -671,17 +699,23 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const { ctx, page } = await open(false);
   await begin(page);
   check("Try a Game: the welcome card", (await tourOf(page)).step === "welcome");
-  // With reduced motion, the arrow to the row held still: on the goal card,
-  // 3 of 8, the one it's on (user: "That should only be on the following
-  // slide, 3 of 8."), drawn at once, the Cabeza not shown big first.
+  // With reduced motion, the arrow to the row on the goal card, 3 of 8, the
+  // one it's on (user: "That should only be on the following slide, 3 of
+  // 8."), drawn at once, the Cabeza not shown big first; its head stepping
+  // from end to end of the row on the glide's beat, no glide (held still
+  // on one square it said what the user asked it not to, "having the arrow
+  // point at that one specific point might be a little bit misleading";
+  // and on a laptop asking for reduced motion: "the green arrow animation
+  // does not trigger. It just stays still").
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.locator('[data-testid="tour-next"]').click();
   await page.waitForTimeout(600);
   await page.locator('[data-testid="tour-next"]').click();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(400);
   await sweepLog(page);
-  const calm = await sweepFor(page, 1500);
-  check(`reduced motion: the arrow's head held still, straight up from your Cabeza (moved ${spread(calm).toFixed(3)} of the row)`, (await tourOf(page)).step === "goal" && calm.length >= 3 && calm.every((s) => s.fromCab < 0.3) && spread(calm) < 0.01, JSON.stringify(calm.slice(0, 3)));
+  const calm = await sweepFor(page, 8000);
+  const places = [...new Set(calm.map((s) => Math.round(s.u * 50) / 50))];
+  check(`reduced motion: the arrow's head steps along the row, end to end, no glide (${places.length} places: ${places.join(", ")}; it reaches ${spread(calm).toFixed(2)} of the row)`, (await tourOf(page)).step === "goal" && calm.length >= 20 && calm[0].fromCab < 0.3 && places.length <= 4 && spread(calm) > 0.8, JSON.stringify(places));
   await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
   check("Escape skips it, kept as done", (await card(page).count()) === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");

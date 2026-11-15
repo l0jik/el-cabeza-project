@@ -659,3 +659,18 @@ box art and an ad standee (assets/tienda/*.jpg).
   realistic."). tienda-store.js buildCart: a bar across the two wheel
   rails at the front casters, a hair thinner than the rails (0.3 against
   0.35) so where it meets them no faces share a plane.
+
+- **The records stand clear of each other** (2026-11-15; user, of the
+  store on a laptop: "When you near the TVs, there's a table that has, I
+  guess, some books on it. When you rotate the screen, you can see some,
+  looks like Z fighting on the top of them."). The record bin's 20
+  sleeves (the court's south-east corner, by the TV endcap) and the
+  records endcaps' 14 a shelf stood face out in one plane (turned a
+  quarter: thin across the row), overlapping their neighbours, their tops
+  at one height: 1932 pairs of sleeves sharing space at the high tier.
+  Now each stands a step behind the one before, more than its own
+  thickness (bin 0.43, racks 0.37), turned a hair at most (the same
+  number of rr() calls, so the rest of the store's layout is as it was).
+  tests/e2e-store-records.mjs. On every device; seen on a laptop, whose
+  wheel takes the camera in close.
+

@@ -139,6 +139,25 @@ since radius/phi can change independently afterward):
   (`freeCamera.zoomMax`, the larger of the two wins; the store's is 82,
   "The store's standee and the den's chair" below); zoom-reactive audio
   stays on the board's own range (clamped at 0 past it).
+- **A computer's wheel and touchpad pinch zoom as a phone's pinch** (user,
+  of a laptop in the store: "Zooming in on the store on the laptop zooms
+  in too far, but it doesn't zoom out far enough. Why would the zoom be
+  different than mobile?"). The limits are the same everywhere (the
+  store: 4.5 to 82); the way there wasn't. A phone's pinch goes out by
+  the ratio's 1.8th power, in by the ratio; the wheel went both ways at
+  9% a notch. And a touchpad's pinch reaches the page as the wheel with
+  Ctrl held, about 100 a step for each factor of e, so at 0.0009 a step a
+  pinch to twice apart moved it 6%. Now onWheel: Ctrl held, 0.01 a step
+  (a pinch to twice apart halves the distance), else 0.0009; out 1.8
+  times as far as in. tests/e2e-zoom-pan.mjs part 5.
+- **The tour's look at a picked piece comes in, never out** (user, a
+  laptop, the store's tour: "when you select a piece to move it, it zooms
+  way out from the screen. It needs to be zoomed in"). frameTourPiece
+  frames the piece and its moves no nearer than 0.62 of the radius before
+  the tour, and a desktop starts 1.4 times further back than a phone
+  (about 18 then, against 28 on a phone): zoomed in closer than that, a
+  pick pulled the camera out to it. Now the radius is the nearer of the
+  two. tests/e2e-first-game-tour.mjs (desktop, back a step).
 - **The see-through lens looks at the board, not the view (user, a phone
   screenshot of the City, a dithered hole in the blocks behind the
   board: "The peering lens for when you're at a low angle is showing up

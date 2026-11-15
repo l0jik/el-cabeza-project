@@ -18,6 +18,8 @@
       follows them out to its edge.
    4. A pinch apart over a spot off the middle: the zoom closes in, the
       spot kept under the fingers.
+   5. On a computer: the wheel out goes 1.8 times as far as in, a
+      touchpad's pinch follows the fingers (see there).
      node tests/e2e-zoom-pan.mjs */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
@@ -135,6 +137,43 @@ const off = Math.hypot(after.x - M.x, after.y - M.y);
 check(`a pinch apart: zoomed in (radius ${r0.toFixed(1)} to ${after.radius.toFixed(1)})`, after.radius < r0 - 3, JSON.stringify(after));
 check(`...the spot first under the fingers still under them (${off.toFixed(0)} px off)`, off < 30, JSON.stringify({ M, after }));
 check(`no page errors (${errs.length})`, errs.length === 0, errs.slice(0, 3).join(" | "));
+
+/* 5. A computer's wheel and touchpad as a phone's pinch (user, of a laptop:
+   "Zooming in on the store on the laptop zooms in too far, but it doesn't
+   zoom out far enough. Why would the zoom be different than mobile?"):
+   out goes 1.8 times as far as in, as the pinch does; a touchpad's pinch
+   (the wheel with Ctrl held, about 100 a step for each factor of e)
+   follows the fingers: spread to twice apart, half the distance. */
+console.log("\nA computer's wheel and touchpad pinch, as a phone's pinch");
+{
+  const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await dctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  const dp = await dctx.newPage();
+  const derrs = [];
+  dp.on("pageerror", (e) => derrs.push(e.message));
+  await dp.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
+  await dp.waitForTimeout(3000);
+  await openDockPanel(dp);
+  await dp.locator("button", { hasText: /Begin Game/ }).first().click();
+  await poll(() => dp.evaluate(() => window.__EC_TEST_ARMED__ === true), 15000);
+  await dp.mouse.move(1270, 400);
+  await dp.waitForTimeout(1500);
+  // From 20, one wheel event; where the zoom's goal is then.
+  const wheel = (deltaY, ctrlKey = false) => dp.evaluate(({ deltaY, ctrlKey }) => {
+    window.__EC_TEST_CAM__({ radius: 20, snap: true });
+    window.__EC_TEST_THREE__().renderer.domElement.dispatchEvent(new WheelEvent("wheel", { deltaY, ctrlKey, deltaMode: 0, bubbles: true, cancelable: true }));
+    return window.__EC_TEST_CAM__().radius;
+  }, { deltaY, ctrlKey });
+  const out = await wheel(100), inn = await wheel(-100);
+  const k = Math.log(out / 20) / Math.log(20 / inn);
+  check(`the wheel: a notch out goes 1.8 times as far as a notch in (20 to ${out.toFixed(2)} out, ${inn.toFixed(2)} in: ${k.toFixed(2)} times)`, Math.abs(k - 1.8) < 0.05, JSON.stringify({ out, inn }));
+  const pinchIn = await wheel(-100 * Math.log(2), true), pinchOut = await wheel(100 * Math.log(1.25), true);
+  check(`a touchpad's pinch, fingers spread to twice apart: half the distance (20 to ${pinchIn.toFixed(2)})`, Math.abs(pinchIn - 10) < 0.5, String(pinchIn));
+  // (A small one: this board's farthest is 55.)
+  check(`...and together by a quarter: out by 1.25 to the 1.8, as a phone's pinch (20 to ${pinchOut.toFixed(2)})`, Math.abs(pinchOut - 20 * Math.pow(1.25, 1.8)) < 1, String(pinchOut));
+  check(`no page errors (${derrs.length})`, derrs.length === 0, derrs.slice(0, 3).join(" | "));
+  await dctx.close();
+}
 
 await browser.close();
 console.log(failures ? `\n${failures} failure(s)` : "\nall passed");

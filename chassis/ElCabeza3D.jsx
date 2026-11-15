@@ -5832,7 +5832,11 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     // (A little closer, not right down on it: no nearer than about three
     // fifths of the way the camera stood before the tour.)
     const best = fitFootInRegion(c.theta, phi, foot, high, tourRegion(size), 0.6, Math.max(zoomMin, 0.62 * tourCamRef.current.radius));
-    c.phi = phi; c.radius = best.r; c.target.copy(best.target); c.dollhouse = false;
+    // In, never out: zoomed in closer than that already, it stays as close
+    // (user, of a laptop, a piece picked in the store's tour: "it zooms way
+    // out from the screen. It needs to be zoomed in": the floor above, a
+    // desktop's view starting further back, pulled it out to 18).
+    c.phi = phi; c.radius = Math.min(best.r, Math.max(zoomMin, c.radius)); c.target.copy(best.target); c.dollhouse = false;
     glideRef.current = {};
   }
   /* The other side's move, watched (user: "The camera should slowly pan in
@@ -10671,10 +10675,16 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       const unit = ev.deltaMode === 1 ? 33 : ev.deltaMode === 2 ? 800 : 1;
       const dy = ev.deltaY * unit;
       // By a share of the distance (a notch: about 9%), so a room can be
-      // crossed in a few turns of the wheel, not dozens.
+      // crossed in a few turns of the wheel, not dozens. A touchpad's pinch
+      // comes as the wheel with Ctrl held, its steps about 100 for each
+      // factor of e it pinches by: as the fingers go, as a phone's pinch.
+      // And out goes 1.8 times as far as in, as a phone's pinch does (user,
+      // of a laptop: "zooms in too far, but it doesn't zoom out far
+      // enough. Why would the zoom be different than mobile?").
+      const k = (ev.ctrlKey ? 0.01 : 0.0009) * (dy > 0 ? 1.8 : 1);
       cam.current.radius = Math.max(
         zoomMin,
-        Math.min(zoomMaxFor(), zoomBase() * Math.exp(dy * 0.0009))
+        Math.min(zoomMaxFor(), zoomBase() * Math.exp(dy * k))
       );
     }
 

@@ -422,7 +422,12 @@ export default function FirstGameTour({ tour, cardRef }) {
   const back = tour.back ? { label: "‹ Back", onClick: tour.back, testid: "tour-back" } : null;
   const lit = text.lit ? (text.rows || text.icons).length : 0;
   const css = "@keyframes ecTourIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}@keyframes ecTourDrop{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}@media (prefers-reduced-motion: reduce){[data-testid=\"tour-card\"]{animation:none!important}}"
-    + (lit ? `${turnFrames("ecTourLit", lit, LIT_ON, `background:rgba(255,210,63,0);color:${C.slate}`)}@media (prefers-reduced-motion: reduce){[data-lit]{animation:none!important}}` : "");
+    // (Lit in turn with reduced motion too: a colour coming and going, not
+    // a movement; put still, none was lit at all, user on a laptop asking
+    // for reduced motion: "the legend in the upper left corner, it's not
+    // highlighting like who's moved, for example, then view, and as it
+    // goes through them".)
+    + (lit ? turnFrames("ecTourLit", lit, LIT_ON, `background:rgba(255,210,63,0);color:${C.slate}`) : "");
   return (
     <>
       <style>{css}</style>
@@ -551,8 +556,10 @@ const HALO = "rgba(22,14,6,0.62)";
    point at that one specific point might be a little bit misleading"):
    its head held a moment where it first points (`hold`), then gliding to
    the row's farther end and on between its two ends, a crossing taking
-   `leg` and resting a beat (`rest`) at each end. Still with reduced
-   motion. */
+   `leg` and resting a beat (`rest`) at each end. With reduced motion it
+   steps from end to end on the same beat, no glide (held still on the
+   one square, it said what the user asked it not to: "having the arrow
+   point at that one specific point might be a little bit misleading"). */
 const SWEEP = { hold: 700, leg: 2400, rest: 300 };
 export function TourMarks({ marks, geo, subscribe, cardRef, raised = false }) {
   const tagEls = useRef({});
@@ -571,11 +578,12 @@ export function TourMarks({ marks, geo, subscribe, cardRef, raised = false }) {
     Object.keys(swept).forEach((k) => { if (!(marks.arrows || []).some((ar) => ar.sweep && ar.key === k)) delete swept[k]; });
     const sweepCol = (ar, now) => {
       const { lo, hi } = ar.sweep, c0 = ar.to.box.col, span = hi - lo;
-      if (still || !(span > 0)) return c0;
+      if (!(span > 0)) return c0;
       if (swept[ar.key] == null) swept[ar.key] = now;
       const s = now - swept[ar.key] - SWEEP.hold;
       if (s <= 0) return c0;
-      const ease = (x) => x * x * (3 - 2 * x);
+      // (Reduced motion: each crossing a step at its end.)
+      const ease = still ? (x) => (x < 1 ? 0 : 1) : (x) => x * x * (3 - 2 * x);
       const far = hi - c0 >= c0 - lo ? hi : lo, near = far === hi ? lo : hi;
       const first = (SWEEP.leg * Math.abs(far - c0)) / span;
       if (s < first) return c0 + (far - c0) * ease(s / first);
@@ -807,9 +815,13 @@ export function TourMarks({ marks, geo, subscribe, cardRef, raised = false }) {
       <path ref={keep(orbitEls, k, "head")} fill={tone(t)} stroke={HALO} strokeWidth={1.8} strokeLinejoin="round" />
     </g>
   );
+  // (The rings that take turns, round the menu's buttons, take them with
+  // reduced motion too: put still, every one was up at once, user: "it
+  // opens the fan, but all of the icons are highlighted. It does not move
+  // through them sequentially". The pulse and the march stay still.)
   return (
     <div data-testid="tour-marks" aria-hidden="true" style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: raised ? 17 : 12, overflow: "hidden" }}>
-      <style>{"@keyframes ecTourPulse{0%,100%{opacity:1}50%{opacity:.4}}@keyframes ecTourMarch{to{stroke-dashoffset:-46}}.ec-tour-pulse{animation:ecTourPulse 1.3s ease-in-out infinite}.ec-tour-march{animation:ecTourMarch 1.1s linear infinite}@media (prefers-reduced-motion: reduce){.ec-tour-pulse,.ec-tour-march,[data-turn]{animation:none!important}}"
+      <style>{"@keyframes ecTourPulse{0%,100%{opacity:1}50%{opacity:.4}}@keyframes ecTourMarch{to{stroke-dashoffset:-46}}.ec-tour-pulse{animation:ecTourPulse 1.3s ease-in-out infinite}.ec-tour-march{animation:ecTourMarch 1.1s linear infinite}@media (prefers-reduced-motion: reduce){.ec-tour-pulse,.ec-tour-march{animation:none!important}}"
         + [...new Set((marks.boxes || []).filter((b) => b.of).map((b) => b.of))].map((n) => turnFrames("ecTourTurn", n, "opacity:1", "opacity:0")).join("")}</style>
       <svg width="100%" height="100%" style={{ position: "absolute", inset: 0, overflow: "visible" }}>
         {(marks.boxes || []).map((bx) => (
