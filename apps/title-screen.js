@@ -78,7 +78,7 @@
     return vars ? v.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? say(vars[k]) : m)) : v;
   };
 
-  let forced = false;
+  let forced = false, why = false;
   try {
     const url = new URL(W.location.href), q = url.searchParams;
     // (?title=auto: as a player would have it, the automation aside.)
@@ -91,6 +91,14 @@
     const nav = W.performance && W.performance.getEntriesByType ? W.performance.getEntriesByType("navigation")[0] : null;
     const inside = ["fresh", "switcher", "world", "scene", "jump", "restart"].some((k) => q.has(k)) || (nav && nav.type === "back_forward");
     if (!forced && (inside || (navigator.webdriver && !asPlayer))) return;
+    // (?why: a line saying whether Begin played the splash back to the
+    // board, or why not; read here, so ?fresh&why keeps it for the page
+    // the fresh start loads again.)
+    if (q.has("why")) {
+      why = true;
+      q.delete("why");
+      W.history.replaceState(null, "", url.pathname + (q.toString() ? `?${q}` : "") + url.hash);
+    }
   } catch (e) { return; }
 
   /* Where the player is. (apps/novaStory.jsx keeps the story's record,
@@ -225,6 +233,29 @@ html.ec-splash-on { background: #120C08; }
   rew.playsInline = true;
   const REWIND_SRC = !h264 ? `el-cabeza-title${tag}-rewind-720.webm` : light ? `el-cabeza-title${tag}-rewind-720.mp4` : `el-cabeza-title${tag}-rewind.mp4`;
   stage.appendChild(rew);
+  /* ?why (user, of a laptop: "the start fresh link does not do the
+     reverse animation, putting the pieces back on the board. It just goes
+     straight to open the box ... why is this only happening on laptop?
+     Because it works correctly on a Android phone."): Begin's playback
+     back to the board is skipped, without a word, where the device asks
+     for reduced motion, where its file can't play, and where it isn't in
+     in time; here, a line over everything (kept on, a tap puts it away)
+     saying which, and what this device was given. */
+  const rewIn = () => { try { const b = rew.buffered; return b.length ? b.end(b.length - 1) : 0; } catch (e) { return 0; } };
+  const rewState = () => `${rewIn().toFixed(1)} of ${rew.duration > 0 ? rew.duration.toFixed(1) : "?"} s in, ready ${rew.readyState}, network ${rew.networkState}${rew.error ? `, error ${rew.error.code}` : ""}`;
+  function tell(what) {
+    if (!why) return;
+    try {
+      const ua = navigator.userAgent || "", b = /(Edg|OPR|Firefox|CriOS|Chrome|Version)\/(\d+)/.exec(ua);
+      const os = /CrOS/.test(ua) ? "ChromeOS" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "macOS" : /Linux/.test(ua) ? "Linux" : "?";
+      const n = D.createElement("div");
+      n.setAttribute("data-testid", "title-why");
+      n.style.cssText = "position:fixed;left:8px;right:8px;bottom:8px;z-index:6000;font:13px/1.4 system-ui,sans-serif;color:#120C08;background:#EBCB93;padding:8px 10px;border-radius:6px;box-shadow:0 2px 12px rgba(0,0,0,0.45);white-space:pre-wrap;";
+      n.textContent = `Begin's playback back to the board: ${what}\n${REWIND_SRC} · ${b ? (b[1] === "Version" ? "Safari" : b[1]) + " " + b[2] : "?"} on ${os} · screen ${W.screen.width}x${W.screen.height} at ${W.devicePixelRatio || 1}x · line ${conn.downlink != null ? conn.downlink + " Mbit/s" : "?"} · reduced motion ${W.matchMedia && W.matchMedia("(prefers-reduced-motion: reduce)").matches ? "on" : "off"}`;
+      n.addEventListener("click", () => n.remove());
+      D.body.appendChild(n);
+    } catch (e) { /* a check only */ }
+  }
 
   /* Its sounds (user: "When BEGIN is clicked, perhaps a tiny
      acknowledgement, and when the pieces are placed on the board, each
@@ -409,11 +440,16 @@ html.ec-splash-on { background: #120C08; }
     }
   };
   const menuDue = () => { if (state === "playing" && video.currentTime >= MENU_AT) hold(); };
+  // (The way out's playback fetched once the splash is all in, seen on any
+  // of its frames: its last progress event often came before the last of
+  // it was counted, and then it waited for the menu.)
+  const rewindDue = () => { if (!rew.src && allIn(video)) fetchRewind(); };
+  const REWIND_WAIT = 6000;
   if (video.requestVideoFrameCallback) {
-    const onFrame = () => { paint(); menuDue(); holdLoop(); video.requestVideoFrameCallback(onFrame); };
+    const onFrame = () => { paint(); menuDue(); holdLoop(); rewindDue(); video.requestVideoFrameCallback(onFrame); };
     video.requestVideoFrameCallback(onFrame);
   } else {
-    const tick = () => { if (!root.isConnected) return; paint(); menuDue(); holdLoop(); W.requestAnimationFrame(tick); };
+    const tick = () => { if (!root.isConnected) return; paint(); menuDue(); holdLoop(); rewindDue(); W.requestAnimationFrame(tick); };
     W.requestAnimationFrame(tick);
   }
   video.addEventListener("timeupdate", menuDue);
@@ -619,12 +655,25 @@ html.ec-splash-on { background: #120C08; }
     goIfDone();
   };
   function rewindOut() {
-    if (reduce || !rew.src) { rewoundNow(); return; }
-    const giveUp = () => { if (!rewinding) { try { rew.pause(); } catch (e) { /* as it is */ } } rewoundNow(); };
+    if (reduce || !rew.src) {
+      tell(reduce ? "not played: this device asks for reduced motion (a setting of its own), so the splash keeps still" : "not played: its file was never asked for");
+      rewoundNow();
+      return;
+    }
+    // (cause: a reason, or the error a refused play() gives)
+    const giveUp = (cause) => {
+      if (!rewinding) {
+        try { rew.pause(); } catch (e) { /* as it is */ }
+        tell(`not played: ${cause && cause.name ? `the browser wouldn't play it (${cause.name}${cause.message ? ": " + cause.message : ""})` : cause || "?"} (${rewState()})`);
+      }
+      rewoundNow();
+    };
+    if (rew.error) { giveUp(`its file can't be played (error ${rew.error.code})`); return; }
     // Over the logo, crossfaded: its first frame is the held logo's.
     const show = () => {
       if (rewinding || rewound) return;
       rewinding = true;
+      tell(`played (${rewState()} as it started)`);
       rew.classList.add("on");
       root.classList.add("settle");
       sound.landings();
@@ -636,8 +685,9 @@ html.ec-splash-on { background: #120C08; }
     /* Shown once it can play to its end without running dry. Not yet (a
        slow line, Begin straight away): played unseen, so it comes in, the
        logo breathing on over it, then shown from its start; a playback
-       stopping and starting read as the splash hanging. Not in 3 s: the
-       title fades without it. */
+       stopping and starting read as the splash hanging. Not in REWIND_WAIT
+       (6 s; it was 3): the title fades without it. Its file failing: at
+       once. */
     const ready = () => {
       if (rewinding || rewound || !playsThrough(rew)) return;
       try { if (rew.currentTime > 0.05) rew.currentTime = 0; } catch (e) { /* from where it is */ }
@@ -653,7 +703,8 @@ html.ec-splash-on { background: #120C08; }
     else {
       rew.addEventListener("canplaythrough", ready);
       rew.addEventListener("progress", ready);
-      W.setTimeout(() => { if (!rewinding) giveUp(); }, 3000);
+      rew.addEventListener("error", () => { if (!rewinding) giveUp(`its file can't be played (error ${rew.error ? rew.error.code : "?"})`); }, { once: true });
+      W.setTimeout(() => { if (!rewinding) giveUp(`not in ${REWIND_WAIT / 1000} s after Begin`); }, REWIND_WAIT);
     }
   }
   let gone = false;

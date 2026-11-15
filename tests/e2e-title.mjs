@@ -420,6 +420,116 @@ console.log("\nas an app on a home screen: full screen from the start");
   await ctx.close();
 }
 
+/* ---------------- Begin's playback on a laptop ---------------- */
+// User, of a laptop: "the start fresh link does not do the reverse
+// animation, putting the pieces back on the board. It just goes straight
+// to open the box ... why is this only happening on laptop? Because it
+// works correctly on a Android phone." Not seen in this browser at a
+// laptop's sizes, a slow processor or a slow line; the playback's skipped
+// without a word where the device asks for reduced motion, where its file
+// can't play, and where it isn't in in time. ?why puts up a line saying
+// which (?fresh&why keeping it through the fresh start). And its file's
+// fetched once the splash is all in, seen on any frame (the progress
+// event alone often missed it, and it waited for the menu), and waited
+// for 6 s after Begin (it was 3).
+console.log("\nBegin's playback on a laptop: ?why says why not; fetched early; waited for");
+{
+  const http = await import("node:http"), fs = await import("node:fs"), path = await import("node:path");
+  const dist = "/home/user/el-cabeza-project/dist";
+  const types = { ".html": "text/html", ".js": "text/javascript", ".mp4": "video/mp4", ".webm": "video/webm", ".mp3": "audio/mpeg", ".opus": "audio/ogg", ".jpg": "image/jpeg", ".png": "image/png", ".json": "application/json", ".webmanifest": "application/manifest+json", ".css": "text/css" };
+  const server = http.createServer((req, res) => {
+    const f = path.join(dist, decodeURIComponent(req.url.split("?")[0]));
+    if (!f.startsWith(dist) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); }
+    const size = fs.statSync(f).size, type = types[path.extname(f)] || "application/octet-stream", range = /bytes=(\d*)-(\d*)/.exec(req.headers.range || "");
+    if (range) {
+      const a = range[1] ? +range[1] : 0, b = range[2] ? +range[2] : size - 1;
+      res.writeHead(206, { "Content-Type": type, "Content-Range": `bytes ${a}-${b}/${size}`, "Accept-Ranges": "bytes", "Content-Length": b - a + 1 });
+      fs.createReadStream(f, { start: a, end: b }).pipe(res);
+    } else { res.writeHead(200, { "Content-Type": type, "Accept-Ranges": "bytes", "Content-Length": size }); fs.createReadStream(f).pipe(res); }
+  });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  // A laptop's screen (1920 x 1080, the window under its bar); player: as a
+  // player's browser has it, the title not put aside for automation.
+  async function laptop(where, { reduced = false, player = false, rewind = null } = {}) {
+    const ctx = await browser.newContext({ viewport: { width: 1366, height: 657 }, screen: { width: 1920, height: 1080 }, reducedMotion: reduced ? "reduce" : "no-preference" });
+    await ctx.addInitScript((player) => {
+      window.__EC_TEST_HOOKS__ = true;
+      window.__TIENDA_MUSIC_ONLY__ = "none";
+      if (player) Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false, configurable: true });
+      // (When the playback's file was asked for, and when the menu came.)
+      const W = (window.__WHY_T__ = {});
+      new MutationObserver(() => {
+        const v = document.querySelector('[data-testid="title-rewind"]'), r = document.querySelector('[data-testid="title-screen"]');
+        if (W.src == null && v && v.getAttribute("src")) W.src = performance.now();
+        if (W.held == null && r && r.getAttribute("data-state") === "held") W.held = performance.now();
+      }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["src", "data-state"] });
+    }, player);
+    const page = await ctx.newPage();
+    const errs = [];
+    page.on("pageerror", (e) => errs.push(e.message));
+    if (rewind) await page.route(/el-cabeza-title(-land)?-rewind/, rewind);
+    await page.goto(base + where);
+    return { ctx, page, errs };
+  }
+  const line = (page, ms = 15000) => poll(() => page.evaluate(() => { const n = document.querySelector('[data-testid="title-why"]'); return n && n.textContent; }), ms, 50);
+  // The logo held: Escape 2 s into the splash (once it's all in, here at once).
+  async function toLogo(page) {
+    await poll(async () => (await state(page)) === "playing" && (await page.evaluate(() => { const v = document.querySelector('[data-testid="title-video"]'); return !!v && !v.paused && v.currentTime > 2; })), 30000);
+    await page.keyboard.press("Escape");
+    return poll(async () => (await state(page)) === "held", 6000);
+  }
+
+  {
+    const { ctx, page, errs } = await laptop("/el-cabeza-nova.html?fresh&why", { player: true });
+    check("?fresh&why on a laptop: the title once the fresh start's loaded the page again, the address plain", !!(await poll(() => has(page, "title-screen"), 30000)) && /el-cabeza-nova\.html$/.test(page.url()), page.url());
+    check("...the logo held", !!(await toLogo(page)));
+    const T = await page.evaluate(() => window.__WHY_T__);
+    check("...the playback's file asked for as soon as the splash was all in, well before the menu (it waited for the menu)", T.src != null && T.held != null && T.src < T.held - 1000, JSON.stringify(T));
+    await q(page, "title-primary").click();
+    const L = await line(page);
+    check("Begin: played back, and the line says so, naming the wide file", !!L && /: played \(/.test(L) && /el-cabeza-title-land-rewind(-720)?\.(mp4|webm)/.test(L), L);
+    check("...the story, at Big Glutts", (await poll(() => place(page), 30000)) === "store");
+    check("...the line still up over the store", !!(await line(page, 1000)));
+    check("no errors", errs.length === 0, errs.join(" | "));
+    await ctx.close();
+  }
+  {
+    const { ctx, page, errs } = await laptop("/el-cabeza-nova.html?title&why", { reduced: true });
+    check("reduced motion asked for by the device: the logo held at once", !!(await poll(async () => (await state(page)) === "held", 8000)));
+    await q(page, "title-primary").click();
+    const L = await line(page);
+    check("...Begin: not played back, the line says it's the device's reduced motion", !!L && /not played: this device asks for reduced motion/.test(L) && /reduced motion on/.test(L), L);
+    check("no errors", errs.length === 0, errs.join(" | "));
+    await ctx.close();
+  }
+  {
+    const { ctx, page, errs } = await laptop("/el-cabeza-nova.html?title&why", { rewind: (route) => route.fulfill({ status: 404, body: "" }) });
+    check("the playback's file not there: the logo held", !!(await toLogo(page)));
+    const t0 = Date.now();
+    await q(page, "title-primary").click();
+    const L = await line(page);
+    check(`...Begin: not played back, at once (${Date.now() - t0} ms), the line says its file can't be played`, !!L && /not played: its file can't be played \(error \d\)/.test(L) && Date.now() - t0 < 4000, L);
+    check("no errors", errs.length === 0, errs.join(" | "));
+    await ctx.close();
+  }
+  {
+    // Its file held back until 4 s after Begin: waited for, then played.
+    let release = null;
+    const gate = new Promise((r) => { release = r; });
+    const { ctx, page, errs } = await laptop("/el-cabeza-nova.html?title&why", { rewind: async (route) => { await gate; await route.continue(); } });
+    check("the playback's file in late (4 s after Begin): the logo held", !!(await toLogo(page)));
+    await q(page, "title-primary").click();
+    setTimeout(() => release(), 4000);
+    const on = await poll(() => page.evaluate(() => document.querySelector('[data-testid="title-rewind"]').classList.contains("on")), 12000, 50);
+    const L = await line(page);
+    check("...waited for, and played back once it came (it gave up at 3 s)", !!on && !!L && /: played \(/.test(L), JSON.stringify({ on, L }));
+    check("no errors", errs.length === 0, errs.join(" | "));
+    await ctx.close();
+  }
+  server.close();
+}
+
 await browser.close();
 console.log(failures ? `\n${failures} check(s) failed` : "\nall title screen checks passed");
 process.exit(failures ? 1 : 0);

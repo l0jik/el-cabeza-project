@@ -322,6 +322,29 @@ in; leaving Singularity, back in the den as the set switches off.
   files and the menu under the name; an upright phone the upright ones; a
   phone on its side (844 x 390) after the story, the wide splash with its
   whole menu on the screen.
+- **The way out skipped on a laptop; ?why** (2026-11-15; user: "Laptop,
+  the start fresh link does not do the reverse animation, putting the
+  pieces back on the board. It just goes straight to open the box. What's
+  going on? And why is this only happening on laptop? Because it works
+  correctly on a Android phone."). Not seen in Chromium at a laptop's
+  sizes (1366 x 768, 1920 x 1080: the wide files, 720p or 1080p), with
+  the processor slowed 4x, over 6 to 30 Mbit/s lines, nor through the
+  ?fresh start itself (scratchpad fresh/: probe.mjs, when.mjs, look.mjs):
+  the playback plays and shows every time. The way out skips it without a
+  word in three cases: the device asks for reduced motion (a setting of
+  its own: the splash then keeps still from the start too), its file
+  can't be played, or it isn't in in time after Begin. ?why (kept through
+  ?fresh: read only once the title's sure to show) puts up a line over
+  everything, a tap puts it away: played, or why not, with the file, the
+  browser and system, the screen, the line's speed and reduced motion
+  (apps/title-screen.js tell). Found on the way: the playback's file was
+  asked for only when the menu came on a quick line (the splash's last
+  progress event came before the last of it was counted, so "all in" was
+  never seen there): now any of the splash's frames that finds it all in
+  asks (rewindDue). The wait after Begin is 6 s (REWIND_WAIT; it was 3),
+  and a file that fails gives up at once. tests/e2e-title.mjs "Begin's
+  playback on a laptop" (on the old code: the file asked for at the
+  menu's very millisecond; one in 4 s after Begin never shown).
 - **The title's sounds** (2026-10-23; user: "I also want to add some audio
   to the splash screen... When BEGIN is clicked, perhaps a tiny
   acknowledgement, and when the pieces are placed on the board, each
