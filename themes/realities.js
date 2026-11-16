@@ -77,6 +77,7 @@ const CSS = `
 .ec-realities h2 { margin: 10px 0 4px; font: 300 clamp(26px, 6vw, 40px)/1.1 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
   letter-spacing: 0.32em; text-transform: uppercase; text-align: center; text-wrap: balance; }
 .ec-realities p.sub { margin: 0 0 22px; opacity: 0.7; letter-spacing: 0.06em; text-align: center; }
+.ec-realities.no-sub h2 { margin-bottom: 26px; }
 .ec-realities ul { list-style: none; margin: 0; padding: 0; width: min(100%, 980px);
   display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 14px; }
 .ec-realities li button { all: unset; box-sizing: border-box; display: flex; flex-direction: column; width: 100%; cursor: pointer;
@@ -140,9 +141,12 @@ export const RESTART_HREF = "el-cabeza-nova.html?restart=story";
 /* The menu. `current`: the Nova place you're in (marked "You are here");
    onPick(world); onStay() for staying where you are: a tap on the "You
    are here" card, or Escape (there's no Stay button: user, the card
-   already says it). `title` / `sub` say what it is. Returns { el, close }. */
-/* `sub` empty: no line under the title (the end of the story, whose
-   words were its crawl). */
+   already says it). `title` says what it is; `sub`, a line under it if
+   one's given. Returns { el, close }. */
+/* No line under the title by default (user, of "Every version of the
+   game. Pick one." circled on a picture of the menu: "Remove what is
+   circled in red."; the end of the story never had one, its words were
+   its crawl): the title's own margin keeps the cards off it. */
 export const REALITIES_OPEN_EVENT = "el-cabeza:realities-open";
 // ...and, when it's put away to stay where you are, this (Parrish: its
 // soundtrack comes back).
@@ -164,7 +168,7 @@ export function lastWorld() {
 }
 /* `continueWorld`: a world to offer first, on its own ("Continue in
    Orinoco"), above the rest. */
-export function createRealitiesMenu({ current = null, currentId = null, onPick, onStay, title = "Other realities", sub = "Every version of the game. Pick one.", lockMs = 0, continueWorld = null } = {}) {
+export function createRealitiesMenu({ current = null, currentId = null, onPick, onStay, title = "Other realities", sub = "", lockMs = 0, continueWorld = null } = {}) {
   if (typeof document === "undefined") return { el: null, close() {} };
   // (For the page's own sound to mark leaving: Parrish's closing music.)
   try { window.dispatchEvent(new CustomEvent(REALITIES_OPEN_EVENT, { detail: { currentId } })); } catch (e) { /* no events */ }
@@ -172,7 +176,7 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
     const st = document.createElement("style"); st.setAttribute("data-ec-realities", ""); st.textContent = CSS; document.head.appendChild(st);
   }
   const el = document.createElement("div");
-  el.className = "ec-realities";
+  el.className = sub ? "ec-realities" : "ec-realities no-sub";
   el.setAttribute("data-testid", "realities");
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-label", title);

@@ -81,8 +81,6 @@ export default {
   "Glass towers and cranes, alive at the hour you pick.": "Torres de vidrio y grúas, vivas a la hora que elijas.",
   "A painted terrace by the sea, in cobalt, cream and gold.": "Una terraza pintada junto al mar, en cobalto, crema y oro.",
   "The same terrace in wine and umber, the light gone low.": "La misma terraza en vino y ocre oscuro, con la luz ya baja.",
-  "Every version of the game.": "Todas las versiones del juego.",
-  "Pick one.": "Elegí una.",
   "Continue in": "Continuar en",
   "You are here": "Estás acá",
   "Restart story": "Reiniciar la historia",

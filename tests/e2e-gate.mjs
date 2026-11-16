@@ -600,6 +600,11 @@ console.log("Nova's page after the story: the switcher, the last world first");
 {
   const { p, ctx, errs } = await open("el-cabeza-nova.html");
   check("nothing played yet: the switcher, no Continue", !!(await poll(async () => (await p.locator('[data-testid="realities"]').count()) > 0, 20000)) && (await p.locator('[data-testid="realities-continue"]').count()) === 0);
+  // No line under its title (user, of "Every version of the game. Pick
+  // one." circled on a picture of it: "Remove what is circled in red."),
+  // the cards still clear of the title.
+  const top = await p.evaluate(() => { const m = document.querySelector('[data-testid="realities"]'), h = m.querySelector("h2"), c = m.querySelector("ul li"); return { sub: m.querySelectorAll("p.sub").length, said: /Every version of the game|Pick one/.test(m.textContent), gap: c.getBoundingClientRect().top - h.getBoundingClientRect().bottom }; });
+  check(`...its title alone, no line under it; the cards ${top.gap.toFixed(0)} px below it`, top.sub === 0 && !top.said && top.gap >= 16 && top.gap <= 40, JSON.stringify(top));
   await p.goto(DIST + "el-cabeza-cromo.html");
   await gateOn(p);
   await p.locator('[data-testid="gate-standard"]').click();

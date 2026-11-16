@@ -201,7 +201,14 @@ At home (made unless marked):
   are two ways to win." / "1. Get your Cabeza across." / "Only a block can
   crush. A Cabeza can't." / "Turn the board any way you like."
 
-## 7. The worlds (made; the Other realities menu: "Every version of the game. Pick one.")
+## 7. The worlds (made; the Other realities menu, its title alone)
+
+The line that stood under the menu's title, "Every version of the game.
+Pick one.", is gone (2026-11-16; the user circled it on a picture of the
+menu: "Remove what is circled in red."): themes/realities.js's `sub` is
+empty unless one's given (none is), the title's own margin (26 px) keeping
+the cards off it; its es/vi lines gone with it. The corner menu's detail,
+"Every version of the game", stays. tests/e2e-gate.mjs.
 
 | World | Line | Won | Stopped |
 | --- | --- | --- | --- |

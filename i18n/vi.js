@@ -91,8 +91,6 @@ export default {
   "Glass towers and cranes, alive at the hour you pick.": "Tháp kính và cần cẩu, sống động vào giờ bạn chọn.",
   "A painted terrace by the sea, in cobalt, cream and gold.": "Một sân thượng vẽ bên biển, màu coban, kem và vàng.",
   "The same terrace in wine and umber, the light gone low.": "Cũng sân thượng ấy, màu rượu vang và nâu đất, ánh sáng đã ngả thấp.",
-  "Every version of the game.": "Mọi phiên bản của trò chơi.",
-  "Pick one.": "Hãy chọn một.",
   "Continue in": "Tiếp tục ở",
   "You are here": "Bạn đang ở đây",
   "Restart story": "Bắt đầu lại câu chuyện",
