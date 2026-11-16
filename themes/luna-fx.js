@@ -17,8 +17,10 @@
    - The roof's gear is hidden on a piece with another standing over it.
    - Where a piece lands, dust thrown up in slow arcs (no air: it falls
      as it was thrown).
-   - Round the board: a lander on its pad, a rover with its tracks, a dish,
-     solar arrays, boulders, suited walkers and their footprints.
+   - Round the board: a lander on its pad, a dish, solar arrays, boulders,
+     suited walkers and their footprints; and a rover that drives all over,
+     its crew getting out now and then to take a sample of rock
+     (luna-rover.js).
 
    All of it rebuilds or disposes cleanly; nothing here touches play. */
 
@@ -31,6 +33,7 @@ import { createGround } from "./luna-ground.js";
 import { createSky, EARTH_DIR } from "./luna-sky.js";
 import { routeCorridors, buildCorridors, disposeCorridors, networkKey } from "./luna-corridors.js";
 import { footprintOf, coveredIds, personFig, personH, std, mesh, boxM, glowSprite, col, cv, tex, PAL } from "./luna-models.js";
+import { createRover } from "./luna-rover.js";
 
 // The sun: low (18 degrees; the mock-ups' 12 threw the tall pieces' shadows across the whole board), from the
 // board's right as the player first sees it (from the dark side, the board turned SUN_TURN), a little toward them.
@@ -39,9 +42,11 @@ const SUN_TURN = -Math.PI, UP = new THREE.Vector3(0, 1, 0);
 const PLATE = new Set(["ec-slab", "ec-slab-edges", "ec-top-ring", "ec-grid"]);
 
 /* ---- life round the base ---- */
+// Everything it stands up is noted (where, and how big round), for the rover to keep clear of.
 function props(group, at) {
   let s = 2024; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647, rr = (a, b) => a + (b - a) * rnd();
   const put = (o) => { group.add(o); return o; };
+  const stands = { circles: [], rects: [] };
   const EX = OFF_X + 0.9, EZ = OFF_Z + 0.9, offBoard = (x, z, pad = 0) => Math.abs(x) > EX + pad || Math.abs(z) > EZ + pad;
   // boulders strewn about, none on the board
   const rock = std("#8a8780", { roughness: 0.95 }), rockGeo = new THREE.DodecahedronGeometry(1, 0);
@@ -50,12 +55,14 @@ function props(group, at) {
     if (!offBoard(x, z, 0.6)) continue;
     const r = rr(0.05, d < 12 ? 0.22 : 0.45) * (d > 14 && rnd() < 0.12 ? 2.4 : 1), b = mesh(rockGeo, rock, x, at(x, z) + r * 0.3, z);
     b.scale.set(r, r * rr(0.5, 0.9), r); b.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); put(b);
+    stands.circles.push({ x, z, r, kind: "rock" });
   }
   // The vehicles at half the mock-ups' size, in scale with the people now they're smaller (a person stands a seventh
   // of the lander's height, a third of the rover's).
   // a lander on its pad: gold-foil descent stage on four legs, the grey ascent stage on top, a ladder
   {
     const x = -10.6, z = -2.2, g = new THREE.Group(); g.position.set(x, at(x, z), z); g.rotation.y = -0.5; g.scale.setScalar(0.5); put(g);
+    stands.circles.push({ x, z, r: 0.62, kind: "lander" });
     g.add(mesh(new THREE.CylinderGeometry(1.1, 1.15, 0.03, 40), std("#a9a69e", { roughness: 0.95 }), 0, 0.015, 0));
     const ring = mesh(new THREE.TorusGeometry(0.95, 0.025, 6, 48), new THREE.MeshBasicMaterial({ color: col("#ff7a1a") }), 0, 0.035, 0); ring.rotation.x = Math.PI / 2; ring.castShadow = false; g.add(ring);
     const foil = std("#c9a23a", { metalness: 0.9, roughness: 0.35 }), grey = std("#b8bcc2", { metalness: 0.4, roughness: 0.5 }), dark = std("#2a2c30", { roughness: 0.6 });
@@ -68,40 +75,11 @@ function props(group, at) {
     g.add(boxM(0.46, 0.3, 0.4, grey, 0, 0.7, 0), boxM(0.2, 0.14, 0.05, dark, 0, 0.72, 0.22));
     for (const [lx, ly, lz, c] of [[0.24, 0.72, 0.21, "#ff3a2a"], [-0.24, 0.72, 0.21, "#7aff8a"]]) { const sp = glowSprite(c, 0.18, 0.9); sp.position.set(lx, ly, lz); g.add(sp); }
   }
-  // a pressurised rover, its tracks laid on the dust behind it, sitting on the slope where it's parked
-  {
-    const x = 7.4, z = -5.0, ry = 2.9, S = 0.55, g = new THREE.Group(); put(g);
-    const ax = Math.cos(ry), az = -Math.sin(ry), bx = Math.sin(ry), bz = Math.cos(ry);
-    const hF = at(x + ax * 0.3 * S, z + az * 0.3 * S), hB = at(x - ax * 0.3 * S, z - az * 0.3 * S), hR = at(x + bx * 0.22 * S, z + bz * 0.22 * S), hL = at(x - bx * 0.22 * S, z - bz * 0.22 * S);
-    g.position.set(x, (hF + hB + hR + hL) / 4, z); g.rotation.order = "YZX"; g.rotation.set(-Math.atan2(hR - hL, 0.44 * S), ry, Math.atan2(hF - hB, 0.6 * S)); g.scale.setScalar(S);
-    const white = std("#e6e8ea", { roughness: 0.5 }), dark = std("#1c1e22", { roughness: 0.8 }), glass = std("#0e1a28", { roughness: 0.1, metalness: 0.5 }), band = std("#ff7a1a", { roughness: 0.5 });
-    const R = 0.13, Lc = 0.42, y0 = 0.3;
-    const cab = mesh(new THREE.CylinderGeometry(R, R, Lc, 28), white, 0, y0, 0); cab.rotation.z = Math.PI / 2; g.add(cab);
-    const back = mesh(new THREE.SphereGeometry(R, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), white, -Lc / 2, y0, 0); back.rotation.z = Math.PI / 2; g.add(back);
-    const nose = mesh(new THREE.SphereGeometry(R, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), glass, Lc / 2, y0, 0); nose.rotation.z = -Math.PI / 2; g.add(nose);
-    const stripe = mesh(new THREE.CylinderGeometry(R * 1.01, R * 1.01, 0.025, 28, 1, true), band, -0.06, y0, 0); stripe.rotation.z = Math.PI / 2; g.add(stripe);
-    g.add(boxM(0.62, 0.05, 0.34, dark, 0, 0.13, 0));
-    for (const wx of [-0.24, 0, 0.24]) for (const sg of [-1, 1]) { const w = mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 18), dark, wx, 0.08, sg * 0.2); w.rotation.x = Math.PI / 2; g.add(w); }
-    g.add(boxM(0.012, 0.26, 0.012, white, -0.2, y0 + R + 0.1, 0.05));
-    const dish = mesh(new THREE.SphereGeometry(0.07, 12, 6, 0, Math.PI * 2, 0, Math.PI / 3), std("#e6e8ea", { roughness: 0.5, side: THREE.DoubleSide }), -0.2, y0 + R + 0.24, 0.05); dish.rotation.x = -0.7; g.add(dish);
-    const lamp = glowSprite("#e8f4ff", 0.4, 0.9); lamp.position.set(0.4, 0.28, 0); g.add(lamp);
-    const tm = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
-    for (const sg of [-1, 1]) {
-      const pts = []; for (let i = 0; i <= 80; i++) { const t = i / 80, a = 0.6 * t, lx = -0.3 * S - t * 8, lz = sg * 0.2 * S + Math.sin(a * 3) * t * 1.4; pts.push([x + ax * lx + bx * lz, z + az * lx + bz * lz]); }
-      const pos = [], idx = [];
-      pts.forEach(([tx, tz], k) => {
-        const [qx, qz] = pts[Math.min(k + 1, pts.length - 1)], [ox, oz] = pts[Math.max(k - 1, 0)], l = Math.hypot(qx - ox, qz - oz) || 1, nx = (-(qz - oz) / l) * 0.03 * S, nz = ((qx - ox) / l) * 0.03 * S;
-        for (const sd of [-1, 1]) { const vx = tx + nx * sd, vz = tz + nz * sd; pos.push(vx, at(vx, vz) + 0.006, vz); }
-        if (k) idx.push(2 * k - 2, 2 * k - 1, 2 * k, 2 * k - 1, 2 * k + 1, 2 * k);
-      });
-      const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx);
-      const tr = new THREE.Mesh(geo, tm); tr.castShadow = false; put(tr);
-    }
-  }
   // rows of solar panels on posts, tilted to the low sun
   {
     const panel = std("#1c2f6b", { metalness: 0.6, roughness: 0.25 }), post = std("#c8ccd0", { metalness: 0.5 });
     const S = 0.65;
+    for (const [x0, z0, cols, rows] of [[-12.0, 5.4, 6, 4], [7.4, -11.0, 8, 3]]) stands.rects.push({ x0: x0 - 0.25, x1: x0 + (cols - 1) * 0.7 * S + 0.25, z0: z0 - 0.2, z1: z0 + (rows - 1) * 0.62 * S + 0.2 });
     for (const [x0, z0, cols, rows] of [[-12.0, 5.4, 6, 4], [7.4, -11.0, 8, 3]]) for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
       const x = x0 + i * 0.7 * S, z = z0 + j * 0.62 * S;
       put(boxM(0.025 * S, 0.28 * S, 0.025 * S, post, x, at(x, z) + 0.14 * S, z));
@@ -111,6 +89,7 @@ function props(group, at) {
   // a big dish
   {
     const x = -9.6, z = 7.8, s2 = 1.7, m = std("#e2e4e6", { metalness: 0.35, roughness: 0.45 }), g = new THREE.Group(); g.position.set(x, at(x, z), z); put(g);
+    stands.circles.push({ x, z, r: 1.0, kind: "dish" });
     g.add(mesh(new THREE.CylinderGeometry(0.05 * s2, 0.09 * s2, 0.95 * s2, 10), m, 0, 0.475 * s2, 0));
     const pv = new THREE.Group(); pv.position.y = 0.95 * s2; pv.rotation.order = "YXZ"; pv.rotation.set(-0.6, 0.8, 0);
     const bowl = mesh(new THREE.SphereGeometry(0.7 * s2, 32, 12, 0, Math.PI * 2, 0, Math.PI / 3.2), std("#eef0f2", { metalness: 0.3, roughness: 0.4, side: THREE.DoubleSide }), 0, 0.7 * s2, 0);
@@ -119,14 +98,17 @@ function props(group, at) {
   }
   // suited walkers, their prints in the dust behind them
   const printM = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.45, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), printGeo = new THREE.CircleGeometry(0.0105, 10);
-  [{ at: [6.9, -4.3], from: [7.3, -4.9], side: "dark" }, { at: [-10.0, -2.7], from: [-10.4, -3.1], side: "light" }, { at: [-6.6, 6.9], from: [-7.4, 7.3], side: "light" }].forEach((w, n) => {
+  // (the one who stood by the parked rover went with it: its crew get out where it stops now)
+  [{ at: [-10.0, -2.7], from: [-10.4, -3.1], side: "light" }, { at: [-6.6, 6.9], from: [-7.4, 7.3], side: "light" }].forEach((w, n) => {
     const [x, z] = w.at, [x0, z0] = w.from, dx = x - x0, dz = z - z0, L = Math.hypot(dx, dz), ry = Math.atan2(dx, dz);
+    stands.circles.push({ x, z, r: 0.2, kind: "walker" }, { x: (x + x0) / 2, z: (z + z0) / 2, r: L / 2 + 0.05, kind: "prints" });
     const f = personFig({ pose: "walk", eva: true, h: personH(900 + n), band: PAL[w.side].accent }); f.position.set(x, at(x, z), z); f.rotation.y = ry; put(f);
     for (let t = 0.07, i = 0; t < L - 0.04; t += 0.054, i++) {
       const sd = i % 2 ? 1 : -1, ux = dx / L, uz = dz / L, px = x0 + ux * t + uz * sd * 0.016, pz = z0 + uz * t - ux * sd * 0.016;
       const pr = new THREE.Mesh(printGeo, printM); pr.position.set(px, at(px, pz) + 0.004, pz); pr.rotation.order = "YXZ"; pr.rotation.set(-Math.PI / 2, ry, 0); pr.scale.set(1, 1.8, 1); put(pr);
     }
   });
+  return stands;
 }
 
 /* ---- dust where a piece lands ---- */
@@ -141,7 +123,7 @@ function dustTexture() {
 
 export function mountAmbientEffects(refs, { three }) {
   const tier = quality().tier || "high";
-  let ground = null, sky = null, props0 = null, attachedTo = null, dims = "", renderPrev = null, scenePrev = null;
+  let ground = null, sky = null, props0 = null, rover = null, attachedTo = null, dims = "", renderPrev = null, scenePrev = null;
   let lastPieces = null, covered = new Set(), selRing = null, selFor = "";
   const NET = { light: { group: null, key: "", s: 1, anim: null, pending: null }, dark: { group: null, key: "", s: 1, anim: null, pending: null }, cross: { group: null, key: "", s: 1, anim: null, pending: null } };
   const dust = [];
@@ -160,11 +142,15 @@ export function mountAmbientEffects(refs, { three }) {
   function buildWorld(t) {
     if (ground) ground.dispose();
     if (props0) { props0.parent && props0.parent.remove(props0); props0 = null; }
+    if (rover) { rover.dispose(); rover = null; }
     ground = createGround(tier);
     t.boardGroup.add(ground.group);
     props0 = new THREE.Group(); props0.name = "luna-props";
-    props(props0, ground.at);
+    const stands = props(props0, ground.at);
     t.boardGroup.add(props0);
+    // (the sun in the board's own frame: it turns with the board, SUN_TURN from where it's set)
+    rover = createRover({ at: ground.at, obstacles: stands, tier, sun: SUN_DIR.clone().applyAxisAngle(UP, -SUN_TURN), board: t.boardGroup, key: () => (three.current && three.current.lights ? three.current.lights.key : null) });
+    t.boardGroup.add(rover.group);
     PLAY.ground = ground;
     dims = `${SLAB_X}x${SLAB_Z}`;
     lastPieces = null; // settle again on the new ground
@@ -337,6 +323,7 @@ export function mountAmbientEffects(refs, { three }) {
       // the roof's gear only where nothing stands over the piece
       if (PLAY.pieces) for (const p of PLAY.pieces) { const m = PLAY.carriers.get(p.id), b = m && m.userData.building, k = b && b.userData.kit; if (k) k.visible = !covered.has(p.id); }
       tickDust(now, dt);
+      if (rover) rover.tick(now, dt);
       tickSelection(t, moving);
       // the chassis's flat marks on the board (the check alert's squares and ghosts, black holes, missing squares)
       // lifted over the board's contour, so the dust doesn't swallow half of one
@@ -355,6 +342,7 @@ export function mountAmbientEffects(refs, { three }) {
       if (selRing) { selRing.parent && selRing.parent.remove(selRing); selRing.geometry.dispose(); selRing.material.dispose(); selRing = null; }
       if (ground) { ground.dispose(); ground = null; }
       if (props0) { props0.parent && props0.parent.remove(props0); props0 = null; }
+      if (rover) { rover.dispose(); rover = null; }
       if (sky) { sky.dispose(); sky = null; }
       PLAY.ground = null;
       if (t) {

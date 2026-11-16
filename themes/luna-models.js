@@ -490,10 +490,12 @@ export const PERSON_H = 0.115;
 export const personH = (n) => PERSON_H * (0.92 + 0.16 * folkHash(n * 7 + 3));
 const SHOE_GEO = new THREE.SphereGeometry(1, 14, 8);
 /* A little person, one unit tall scaled to o.h, facing +z, feet at the
-   origin. Poses: "stand", "walk", "kneel" (tending the bed in front),
-   "reach" (picking from a tree in front), "carry" (a basket at the
-   waist). o.eva: a white suit, a helmet with a gold visor, a pack, a band
-   of the side's colour on each arm. Skin and hair as the colours they are
+   origin. Poses: "stand", "walk" (and "walk2", the other stride: the two
+   in turn make a walk), "kneel" (tending the bed in front), "reach"
+   (picking from a tree in front), "carry" (a basket at the waist; in a
+   suit, a sample case). o.carrying: the arms and load of "carry" with the
+   legs of any pose (walking with it). o.eva: a white suit, a helmet with
+   a gold visor, a pack, a band of the side's colour on each arm. Skin and hair as the colours they are
    (converted to linear, or every tone shows lighter than given). */
 export function personFig(o = {}) {
   const g = new THREE.Group(), b = new THREE.Group(), eva = !!o.eva, k = eva ? 1.25 : 1, pose = o.pose || "stand";
@@ -502,9 +504,12 @@ export function personFig(o = {}) {
   const suit = std(eva ? "#eceef0" : o.suit || "#ff7a1a", { roughness: 0.65 }), skinM = asIs(new THREE.MeshStandardMaterial({ color: col(o.skin || "#c99a76"), roughness: 0.75 })), boot = std(eva ? "#9aa0a7" : "#2a2c30", { roughness: 0.7 });
   const Q = { legs: [[0, 0], [0, 0]], arms: [[0.05, -0.19, -0.15], [0.05, 0.19, -0.15]], lean: 0, drop: 0, tilt: 0 };
   if (pose === "walk") Object.assign(Q, { drop: 0.03, legs: [[-0.42, 0.12], [0.38, 0.4]], arms: [[0.38, -0.19, -0.25], [-0.42, 0.19, -0.45]], lean: 0.06 });
+  if (pose === "walk2") Object.assign(Q, { drop: 0.03, legs: [[0.38, 0.4], [-0.42, 0.12]], arms: [[-0.42, -0.19, -0.45], [0.38, 0.19, -0.25]], lean: 0.06 });
   if (pose === "kneel") Object.assign(Q, { drop: 0.235, legs: [[-1.45, 1.45], [0.12, 1.45]], arms: [[-1.0, -0.12, -0.35], [-0.75, 0.12, -0.55]], lean: 0.5, tilt: 0.2 });
   if (pose === "reach") Object.assign(Q, { arms: [[-2.5, -0.25, -0.2], [-2.2, 0.25, -0.35]], lean: -0.05, tilt: -0.35 });
   if (pose === "carry") Object.assign(Q, { arms: [[-0.3, -0.24, -1.25], [-0.3, 0.24, -1.25]] });
+  const load = pose === "carry" || !!o.carrying;
+  if (o.carrying) Q.arms = [[-0.3, -0.24, -1.25], [-0.3, 0.24, -1.25]];
   b.position.y = -Q.drop;
   const V = (x, y, z) => new THREE.Vector3(x, y, z), X1 = V(1, 0, 0), F = figureBody(Q, k, eva), n = F.skinW.length, rgb = new Float32Array(n * 3), cs = suit.color, ck = (eva ? boot : skinM).color;
   for (let i = 0; i < n; i++) { const w = F.skinW[i]; rgb[3 * i] = cs.r + (ck.r - cs.r) * w; rgb[3 * i + 1] = cs.g + (ck.g - cs.g) * w; rgb[3 * i + 2] = cs.b + (ck.b - cs.b) * w; }
@@ -524,7 +529,12 @@ export function personFig(o = {}) {
     head.add(mesh(new THREE.SphereGeometry(0.091, 18, 6, 0, Math.PI * 2, 0, 0.72), hairM, 0, 0.081, -0.004));
     head.add(mesh(new THREE.SphereGeometry(0.0905, 18, 8, Math.PI / 2 + 1.05, Math.PI * 2 - 2.1, 0.6, o.long ? 1.35 : 0.85), hairM, 0, 0.081, -0.004));
   }
-  if (pose === "carry") {
+  if (load && eva) {
+    // a sample case: grey metal, a band of orange, a handle
+    b.add(mesh(makeRoundedBox(0.2, 0.12, 0.13, 0.025), std("#b8bcc2", { metalness: 0.55, roughness: 0.4 }), 0, 0.57, 0.21));
+    b.add(mesh(new THREE.BoxGeometry(0.205, 0.03, 0.135), std("#ff7a1a", { roughness: 0.5 }), 0, 0.57, 0.21));
+    b.add(mesh(new THREE.BoxGeometry(0.08, 0.02, 0.02), std("#2a2c30", { roughness: 0.6 }), 0, 0.645, 0.21));
+  } else if (load) {
     b.add(mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.09, 16, 1, true), std("#b08a52", { roughness: 0.9, side: THREE.DoubleSide }), 0, 0.58, 0.2));
     for (let i = 0; i < 4; i++) b.add(mesh(new THREE.SphereGeometry(0.035, 8, 6), std(["#d63c2a", "#f08a24", "#6fb03a", "#e8c63a"][i], { roughness: 0.5 }), (i % 2 - 0.5) * 0.08, 0.63, 0.2 + (i < 2 ? -0.03 : 0.03)));
   }
