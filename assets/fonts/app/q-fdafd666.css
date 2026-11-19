@@ -1,0 +1,9 @@
+/* family=Noto+Sans+Symbols+2&text=%E2%98%9E&display=swap (Google Fonts, for the app: tools/app_fonts.mjs) */
+@font-face {
+  font-family: 'Noto Sans Symbols 2';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(noto-sans-symbols-2-b48f614e.woff2) format('woff2');
+  unicode-range: U+261e;
+}

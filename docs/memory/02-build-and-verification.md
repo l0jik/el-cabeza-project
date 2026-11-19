@@ -115,4 +115,7 @@
   `./gradlew assembleRelease` in android/ builds the APK, which needs the
   Android SDK: not on this machine (dl.google.com is shut to it), so the
   deploy workflow builds it (job android) and runs it on an emulator (job
-  android-check). Details: docs/memory/android-app.md.
+  android-check). Its fonts are its own copy of Google's
+  (assets/fonts/app/): when a page asks for a new one, app_www.mjs stops;
+  `node tools/app_fonts.mjs` (after the build; it needs the internet)
+  fetches the copy again. Details: docs/memory/android-app.md.

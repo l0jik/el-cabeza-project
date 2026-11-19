@@ -19,7 +19,10 @@
      lighting    the light rig's colours and strengths, pitch, exposure
      audio       which voice of the audio manager speaks for it */
 
-const FONT = (q) => `https://fonts.googleapis.com/css2?${q}&display=swap`;
+import { fontsHref } from "../../chassis/font-links.js";
+
+// (Google Fonts' stylesheet on the website, the app's own copy in the app.)
+const FONT = fontsHref;
 
 export const LAB_SPECS = [
   {

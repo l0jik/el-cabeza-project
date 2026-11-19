@@ -27,7 +27,35 @@ phone (an APK); the same project is the way to Google Play later.
   (its <source> list falls through to the VP9). Kept, unlike
   tools/app_size.mjs's --android count: the title screen's MP4s, which it
   picks wherever H.264 plays, as it does in the WebView (13.6 MB of them
-  are the sharp ones). Its own index.html goes straight on to Nova.
+  are the sharp ones). Its own index.html goes straight on to Nova. And
+  its fonts, as fonts/ (below).
+- **Everything with no connection** (user, the same day: "I want the APK
+  to be able to run the game completely with everything without having
+  access to the internet."). All the game's own files were in it already;
+  what it still asked of the internet was its type: the website takes its
+  web fonts from Google Fonts (37 requests: the pages' links, the den's
+  and the store's Caprasimo and the like put in by scripts, and the corner
+  menu's looks and the Lab's directions asked for as they come). Now the
+  app has its own copy of what Google sends a Chrome for each of them,
+  assets/fonts/app/ (tools/app_fonts.mjs fetches it, with this machine's
+  browser, from the built site's requests: each request's stylesheet as
+  q-<key>.css, the same @font-face rules and letter ranges, its fonts
+  beside it, 369 WOFF2 files of 40 families, 6.2 MB; LICENSES.txt: each
+  family's copyright and licence from its own files, the SIL OFL, and the
+  Apache License for Special Elite). tools/app_www.mjs puts the ones the
+  app's pages ask for in it as fonts/ (34 requests, 5.9 MB) and turns each
+  Google Fonts link in its pages and scripts to its copy,
+  fonts/q-<key>.css?<the request> (the app's server passes over the "?",
+  and a check for a link, link[href*="family=Caprasimo"], still finds
+  it), the pages' preconnects to Google taken out; the links made as the
+  game goes come from chassis/font-links.js fontsHref() (Google's on the
+  website, the copy in the app; the key is its fontKey, FNV-1a of the
+  whole request). The website is as it was: Google Fonts. When a page
+  asks for a font the copy hasn't got, app_www.mjs stops and says so (in
+  CI the site still goes out, without a new APK): `npm run build && node
+  tools/app_fonts.mjs`, then commit assets/fonts/app/. Online play and
+  cloud saves need a connection by their nature (and their server isn't
+  set up yet: chassis/online-config.js, so the screens say so either way).
 - **The app itself** (android/app/src/main/java/.../MainActivity.java):
   the status and navigation bars hidden (a swipe from an edge shows them a
   moment), drawn round a notch; the back gesture to the WebView's history
@@ -61,21 +89,34 @@ phone (an APK); the same project is the way to Google Play later.
   number>`, then aapt2's badging and apksigner's check in the log) ->
   pages (the site, and el-cabeza.apk beside it if it was built: a failed
   app build never stops the site) -> deploy. android-check: the APK on an
-  emulator (API 34), opened, half a minute, then what the pages said
-  (logcat), what's on its screen (uiautomator) and whether it's running;
-  it reports, it holds nothing up. The site's landing page links it.
+  emulator (API 34) with its network off (wifi, data, airplane mode),
+  opened, 45 seconds, then what the pages said (logcat), anything they
+  failed to load or were refused (none expected), the fonts they took
+  from fonts/, what's on its screen (uiautomator) and whether it's
+  running; it reports, it holds nothing up. The site's landing page
+  links it.
 - **Installing it**: on the phone, open
   https://l0jik.github.io/el-cabeza-project/el-cabeza.apk, let Chrome
   install unknown apps when Android asks, install. A newer one installs
   over it the same way. Its saved games and story are its own (the app's
-  storage, not Chrome's): the browser's don't carry over. It plays with
-  no connection; the web fonts and the online relay need one (offline the
-  text falls back to the phone's own fonts).
+  storage, not Chrome's): the browser's don't carry over. Everything plays
+  with no connection, its type too. Where Android's developer verification
+  is in force for sideloaded apps (Brazil, Indonesia, Singapore and
+  Thailand from 30 September 2026; everywhere in 2027), an app from an
+  unverified developer needs Android's advanced install flow, or adb from
+  a computer, or the developer verified (a free account for apps shared
+  with a few devices).
 - **Test**: tests/e2e-app.mjs (in run-e2e): app-www's contents (everything
   named there, Opus only, the title's MP4s, nothing web-only, the index to
-  Nova), Capacitor's config, the activity; its pages served as the app
-  serves them with its user agent: Nova's title screen up, no full screen
-  asked at a tap, no full-screen button, the screen kept on and let go
-  when idle and kept on again at a touch, every world opening with nothing
-  missing and no errors; the same page in a phone's browser still with
-  its button.
+  Nova; its fonts: a copy of every request its pages make, every font
+  those name, nothing of Google's left but fontsHref's own, the
+  licences), Capacitor's config, the activity; its pages served as the
+  app serves them with its user agent and nothing else reachable (every
+  request off the device noted and refused): Nova's title screen up, no
+  full screen asked at a tap, no full-screen button, the screen kept on
+  and let go when idle and kept on again at a touch, a game begun in the
+  City with the corner menu's fonts from fonts/, every world and the
+  Lab's nine directions opening with nothing missing, no errors, nothing
+  asked of the internet and every face they declare loading from the copy;
+  the same page in a phone's browser still with its button and Google's
+  fonts for the corner menu.

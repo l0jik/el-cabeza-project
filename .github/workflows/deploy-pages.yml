@@ -145,12 +145,24 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          # (Each line its own command. The app opened with the phone's
+          # network off: it carries everything it needs, its fonts too.)
           script: |
             adb install -r el-cabeza.apk
+            adb shell svc wifi disable || true
+            adb shell svc data disable || true
+            adb shell cmd connectivity airplane-mode enable || true
+            sleep 5
+            adb shell ping -c 1 -W 3 8.8.8.8 > /dev/null 2>&1 && echo "NETWORK STILL UP" || echo "NO NETWORK"
             adb logcat -c
             adb shell am start -W -n io.github.l0jik.elcabeza/.MainActivity
             sleep 45
             adb shell pidof io.github.l0jik.elcabeza && echo "APP RUNNING" || echo "APP NOT RUNNING"
+            echo "OFFLINE: anything the pages failed to load or were refused (none expected):"
+            adb logcat -d -v brief | grep -E "net::ERR|Failed to load resource|Refused to" | head -20 || true
+            echo "OFFLINE: fonts the pages took from the app's own copy:"
+            adb logcat -d -v brief | grep -c "localhost/fonts/" || true
+            adb logcat -d -v brief | grep -oE "localhost/fonts/[^ ?]+" | sort -u | head -12 || true
             adb logcat -d -v time | grep -E "Capacitor|AndroidRuntime|FATAL|ElCabeza" | grep -v "Handling local request" | tail -80 || true
             adb logcat -d -v time | grep -E "ActivityTaskManager|ActivityManager|WindowManager" | grep -iE "elcabeza" | tail -40 || true
             adb logcat -d -v brief | grep -c "Handling local request" || true

@@ -11,9 +11,10 @@ import { openRules } from "./RulesCards.jsx";
 import { cornerMenuParts } from "./corner-menu.js";
 import { useRaise } from "./raise-on-tap.js";
 import { useLanguage } from "./i18n.js";
+import { fontsHref } from "./font-links.js";
 
 // Each look's type, fetched once (a world's own CSS may already have it;
-// the den's Caprasimo, for one, comes late).
+// the den's Caprasimo, for one, comes late): Google's, or the app's copy.
 function useFonts(look, fonts) {
   useEffect(() => {
     if (!fonts || typeof document === "undefined") return;
@@ -22,7 +23,7 @@ function useFonts(look, fonts) {
     const link = document.createElement("link");
     link.id = id;
     link.rel = "stylesheet";
-    link.href = `https://fonts.googleapis.com/css2?${fonts}&display=swap`;
+    link.href = fontsHref(fonts);
     document.head.appendChild(link);
   }, [look, fonts]);
 }
