@@ -39,6 +39,8 @@ const E2E = [
   ["e2e-luna-floors.mjs"],
   // Luna's rover drives all over the base, its crew out now and then for a rock.
   ["e2e-luna-rover.mjs"],
+  // The Android app's own copy of the game, and its pages as the app shows them.
+  ["e2e-app.mjs"],
   // Interlocked odd shapes pressed together (two Arcos flickered).
   ["e2e-press.mjs"],
   // A finger whose lift never arrived (the den's settle-in): one finger panned.

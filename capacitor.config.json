@@ -1,0 +1,17 @@
+{
+  "appId": "io.github.l0jik.elcabeza",
+  "appName": "El Cabeza",
+  "webDir": "app-www",
+  "backgroundColor": "#120C08",
+  "loggingBehavior": "production",
+  "android": {
+    "appendUserAgent": "ElCabezaApp",
+    "backgroundColor": "#120C08",
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SystemBars": {
+      "hidden": true
+    }
+  }
+}

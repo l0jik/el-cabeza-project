@@ -10,10 +10,13 @@
     "size": "node tools/app_size.mjs"
   },
   "devDependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/cli": "8.6.2",
     "esbuild": "^0.24.0",
     "playwright": "^1.63.0"
   },
   "dependencies": {
+    "@capacitor/core": "8.6.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "^0.128.0"

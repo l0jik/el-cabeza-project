@@ -59,6 +59,7 @@ jobs:
             <a href="el-cabeza-parrish.html?look=orinoco">Parrish (Orinoco)</a>
             <a href="el-cabeza-parrish.html?look=watermark">Parrish (Watermark)</a>
             <a href="el-cabeza-lab.html">Theme Lab</a>
+            <a href="el-cabeza.apk">Android app</a>
           </body>
           </html>
           EOF
@@ -68,12 +69,124 @@ jobs:
           User-agent: *
           Disallow: /
           EOF
+      # (The site, for the Android app's build and for Pages.)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: dist
+          retention-days: 1
+
+  # The game as an Android app (user: "create the app version to have on
+  # this phone."): Capacitor's project in android/, the site's files as the
+  # app ships them (tools/app_www.mjs), built here where the Android SDK is
+  # (GitHub's machines have it), and put beside the site as el-cabeza.apk.
+  # Its version: the game's (APP_VERSION) and this workflow's run number, so
+  # each new APK installs over the last.
+  android:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: dist
+      - run: node tools/app_www.mjs
+      - run: npx cap sync android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - name: Build the APK
+        working-directory: android
+        run: |
+          VERSION=$(grep -o 'APP_VERSION = "[0-9.]*"' ../chassis/ElCabeza3D.jsx | grep -o '[0-9][0-9.]*')
+          ./gradlew --no-daemon assembleRelease -PappVersionName="$VERSION" -PappVersionCode=${{ github.run_number }}
+          cp app/build/outputs/apk/release/app-release.apk ../el-cabeza.apk
+      - name: What it is
+        run: |
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT"/aapt2 dump badging el-cabeza.apk | grep -E "^package|sdkVersion|application-label:" || true
+          "$BT"/apksigner verify --print-certs el-cabeza.apk | head -4
+          ls -l el-cabeza.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: el-cabeza.apk
+          retention-days: 7
+
+  # The APK on an Android emulator: installed, opened, given half a minute;
+  # what the game's pages said (Capacitor/Console), what's on its screen,
+  # whether it's still running. It reports; it doesn't hold up the deploy.
+  android-check:
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+      - name: Let the emulator use KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            adb install -r el-cabeza.apk
+            adb logcat -c
+            adb shell am start -W -n io.github.l0jik.elcabeza/.MainActivity
+            sleep 45
+            adb shell pidof io.github.l0jik.elcabeza && echo "APP RUNNING" || echo "APP NOT RUNNING"
+            adb logcat -d -v brief | grep -E "Capacitor|AndroidRuntime|FATAL|ElCabeza" | tail -120 || true
+            adb shell uiautomator dump /sdcard/ui.xml || true
+            adb pull /sdcard/ui.xml ui.xml || true
+            grep -o 'text="[^"]*"' ui.xml | grep -v 'text=""' | head -40 || true
+            adb exec-out screencap -p > app-screen.png || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-screen
+          path: |
+            app-screen.png
+            ui.xml
+          retention-days: 7
+
+  # The site and, if it was built, the app beside it.
+  pages:
+    needs: [build, android]
+    if: ${{ always() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: dist
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: apk
+          path: dist
+      - run: ls -l dist/el-cabeza.apk || echo "(no app this time)"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
-    needs: build
+    needs: pages
     runs-on: ubuntu-latest
     environment:
       name: github-pages

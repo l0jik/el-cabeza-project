@@ -1,0 +1,72 @@
+apply plugin: 'com.android.application'
+
+// Its version: the game's (chassis/ElCabeza3D.jsx APP_VERSION) and a number that only goes up (the build's), so a
+// new APK installs over the old one: gradle assembleRelease -PappVersionName=2.0.0 -PappVersionCode=12
+def appVersionName = (project.findProperty("appVersionName") ?: "2.0.0").toString()
+def appVersionCode = (project.findProperty("appVersionCode") ?: "1").toString().toInteger()
+
+android {
+    namespace = "io.github.l0jik.elcabeza"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "io.github.l0jik.elcabeza"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode appVersionCode
+        versionName appVersionName
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    /* Signed with a key of its own for installing straight onto a phone (a sideload), the same every build, so a
+       newer APK installs over the one already there and keeps its saved games. The key is in the repository,
+       so it proves nothing about who built the APK: for Google Play the app would be signed with a private
+       upload key kept out of the repository (Play App Signing). */
+    signingConfigs {
+        sideload {
+            storeFile file("el-cabeza-sideload.jks")
+            storePassword "elcabeza-sideload"
+            keyAlias "el-cabeza"
+            keyPassword "elcabeza-sideload"
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.sideload
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

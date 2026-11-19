@@ -24,6 +24,7 @@ import { LAB_SPECS } from "../themes/lab/specs.js";
 import { makeLabTheme } from "../themes/lab/factory.js";
 import { sideNamesFor } from "../themes/side-names.js";
 import { realitiesCorner } from "../themes/reality-gate.js";
+import { IN_APP } from "../chassis/in-app.js";
 import { playLabVoice, setLabMuted, setLabVolume, labAudioState, onLabAudio, startLabAudio } from "../themes/lab/audio.js";
 
 applyBootstrapBoardSize();
@@ -332,7 +333,8 @@ function LabApp() {
             <button type="button" className="lab-ctl" onClick={() => step(-1)} data-testid="lab-panel-prev">Previous</button>
             <button type="button" className="lab-ctl" onClick={() => step(1)} data-testid="lab-panel-next">Next</button>
             <button type="button" className="lab-ctl" onClick={random} data-testid="lab-random">Random</button>
-            <button type="button" className="lab-ctl" onClick={toggleFullscreen} data-testid="lab-fullscreen">Full screen</button>
+            {/* (Not in the Android app, full screen already: chassis/in-app.js.) */}
+            {!IN_APP && <button type="button" className="lab-ctl" onClick={toggleFullscreen} data-testid="lab-fullscreen">Full screen</button>}
             <button type="button" className="lab-ctl" aria-pressed={uiHidden} onClick={() => setUiHidden((u) => !u)} data-testid="lab-toggle-ui">Hide interface</button>
           </div>
           <div className="lab-row">

@@ -33,6 +33,7 @@
    webglWorks() says, once, whether this browser will make a WebGL context
    at all: when it won't (blocked after a crash, switched off), the chassis
    says so instead of leaving an empty page. */
+import { IN_APP } from "./in-app.js";
 
 export const STUCK_MS = 4000;
 
@@ -62,6 +63,8 @@ if (typeof document !== "undefined") {
 
 // May the game switch to full screen by itself on this device?
 export function autoFullscreenOk() {
+  // (Not in the Android app: full screen from its first frame, in-app.js.)
+  if (IN_APP) return false;
   try { return window.localStorage.getItem(NO_AUTO_FS_KEY) !== "1"; } catch (e) { return true; }
 }
 

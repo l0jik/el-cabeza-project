@@ -29,6 +29,7 @@
    growing from silence, and the thunder that brings each wave; a
    full-range mix on a computer, a phone-speaker mix on a phone. */
 
+import { IN_APP } from "../chassis/in-app.js";
 import * as THREE from "three";
 import { sideAt, sideAsItGoes } from "../chassis/turn-where.js";
 import { getBoardDimensions, ORBIT_SENS_THETA, ORBIT_SENS_PHI } from "../engine/constants.js";
@@ -491,7 +492,8 @@ export function mountSummon(three, { delay = 300, audio = null, cam = null } = {
   // wake the sound then too.)
   ["pointerup", "touchend", "click"].forEach((ev) => shield.addEventListener(ev, (e) => {
     if (sound) sound.resume();
-    if (e.isTrusted && !document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+    // (Not in the Android app, full screen already: chassis/in-app.js.)
+    if (e.isTrusted && !IN_APP && !document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
   }));
   shield.addEventListener("pointermove", onMove);
   shield.addEventListener("pointerdown", onDown);

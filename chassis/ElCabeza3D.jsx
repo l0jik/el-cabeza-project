@@ -64,6 +64,7 @@ import { sideAt, sideAsItGoes } from "./turn-where.js";
 import { collectSave, applySave, downloadSave, readSaveFile, cloudSave, cloudFetch, cloudRecord, restoreLink, restoreFromLink, takeRestoreNote, normalizeCode } from "./saves.js";
 import { relayReady, relayUrl } from "./online-config.js";
 import { soundElement } from "./sound-files.js";
+import { IN_APP, appWakeLock } from "./in-app.js";
 import { useLanguage, t, tr, trIn, rich, listOf } from "./i18n.js";
 import LanguageBadge from "./LanguageBadge.jsx";
 import { createRelayClient, takeJoinParam, joinLink, keepOnlineSession, savedOnlineSession, otherSide } from "./online.js";
@@ -3130,8 +3131,8 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       if (ev.type === "touchend" && ev.touches && ev.touches.length) return;
       const own = ev.target instanceof Element && ev.target.closest("[data-fullscreen-toggle]");
       // (Not when it's full screen already as an app opened from a home
-      // screen, Nova's manifest.)
-      if (window.matchMedia && window.matchMedia("(display-mode: fullscreen)").matches) return;
+      // screen, Nova's manifest, or as the Android app: in-app.js.)
+      if (IN_APP || (window.matchMedia && window.matchMedia("(display-mode: fullscreen)").matches)) return;
       // (Not on a device where the picture went out as the screen went
       // full size: gl-watch.js autoFullscreenOk.)
       if (!own && (!fullscreenDeclined || fullscreenAlwaysRef.current) && autoFullscreenOk() && !document.fullscreenElement && document.documentElement.requestFullscreen) {
@@ -3151,14 +3152,16 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
      again. Where it isn't offered, nothing happens. */
   useEffect(() => {
     const nav = typeof navigator !== "undefined" ? navigator : null;
-    if (!nav || !nav.wakeLock || typeof document === "undefined") return undefined;
+    // (In the Android app, the app keeps the screen on: in-app.js.)
+    const wakeLock = (nav && nav.wakeLock) || appWakeLock();
+    if (!wakeLock || typeof document === "undefined") return undefined;
     const IDLE_MS = typeof window.__EC_TEST_WAKE_IDLE_MS__ === "number" ? window.__EC_TEST_WAKE_IDLE_MS__ : 10 * 60 * 1000;
     let lock = null, asking = false, idle = false, timer = 0, gone = false;
     const ask = async () => {
       if (gone || lock || asking || idle || document.visibilityState !== "visible") return;
       asking = true;
       try {
-        const l = await nav.wakeLock.request("screen");
+        const l = await wakeLock.request("screen");
         if (gone || idle) { l.release().catch(() => {}); }
         else { lock = l; l.addEventListener("release", () => { if (lock === l) lock = null; }); }
       } catch (e) { /* refused (power saving, no permission): the phone's own timeout */ }
@@ -5046,7 +5049,8 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
      on every page, so no theme asks for it now (theme.howToPlayCorner);
      without it the corner's icons sit in a row, as with rulesInRoom. */
   const noHowTo = rulesInRoom || !theme.howToPlayCorner;
-  const fullScreenCorner = typeof document !== "undefined" && !!(document.fullscreenEnabled || document.documentElement.requestFullscreen);
+  // (Not in the Android app, full screen already: in-app.js.)
+  const fullScreenCorner = !IN_APP && typeof document !== "undefined" && !!(document.fullscreenEnabled || document.documentElement.requestFullscreen);
   // How to play's right edge: "?" only under 560px, the label beside it above.
   /* The bottom-left corner's buttons (full screen, How to play, Room view,
      Focus): in a row on a wide screen; on a phone (560 px or less across)
@@ -13708,7 +13712,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
         </div>
       )}
 
-      {!shell && (document.fullscreenEnabled || document.documentElement.requestFullscreen) && (
+      {!shell && !IN_APP && (document.fullscreenEnabled || document.documentElement.requestFullscreen) && (
         <button
           onClick={toggleFullscreen}
           data-fullscreen-toggle=""
@@ -15420,7 +15424,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             onResetRules: handleResetRules,
             canChangeRules: rulesChoice && (status !== "playing" || awaitingBegin),
             onChangeRules: askChangeRules,
-            canFullscreen: !!(document.fullscreenEnabled || document.documentElement.requestFullscreen),
+            canFullscreen: !IN_APP && !!(document.fullscreenEnabled || document.documentElement.requestFullscreen),
             isFullscreen,
             onToggleFullscreen: toggleFullscreen,
             hasAudio: !!theme.hasAudio,

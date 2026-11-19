@@ -14,7 +14,12 @@
   starting position. Evidence to hand: the AI-vs-AI win rates (Punto,
   docs/memory/03-game-ai.md) and the complexity measures.
 
-- **Open since 2026-10-16: revisit a Trusted Web Activity** (user:
+- **Open since 2026-10-16: revisit a Trusted Web Activity** (the bundled
+  app, recommended over it, built 2026-11-19 for the user's own phone,
+  user: "create the app version to have on this phone.": Capacitor,
+  android/, an APK beside the site; docs/memory/android-app.md. Still open
+  for Google Play: a private upload key, the listing and its rules
+  below.) (user:
   "Remind me to revisit this later: Trusted Web Activity", after the
   Android sizes: "What about an app on the Android Play Store?"). What
   was said: a TWA is the website itself opened full-screen in Chrome

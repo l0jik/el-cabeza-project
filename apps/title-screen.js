@@ -574,6 +574,9 @@ html.ec-splash-on { background: #120C08; }
      Not where a browser can't, as an iPhone's. A touch's end counts too,
      a touch that moves never makes a click. */
   let askedAt = -1e4;
+  // (The Android app says so in its user agent: chassis/in-app.js IN_APP. A
+  // plain script in the page, this one can't import it.)
+  const IN_APP = /\bElCabezaApp\b/.test(navigator.userAgent || "");
   function fullScreen() {
     try {
       const de = D.documentElement, req = de.requestFullscreen || de.webkitRequestFullscreen;
@@ -582,8 +585,9 @@ html.ec-splash-on { background: #120C08; }
       // size: chassis/gl-watch.js NO_AUTO_FS_KEY.)
       try { if (W.localStorage.getItem("elcabeza-device:no-auto-fullscreen") === "1") return; } catch (e) { /* none kept */ }
       // (Opened from its icon on a home screen it's full screen already:
-      // the app's manifest, build/build.js APP_HEAD.)
-      if (W.matchMedia && W.matchMedia("(display-mode: fullscreen)").matches) return;
+      // the app's manifest, build/build.js APP_HEAD; and the Android app is
+      // from its first frame: chassis/in-app.js.)
+      if (IN_APP || (W.matchMedia && W.matchMedia("(display-mode: fullscreen)").matches)) return;
       const now = W.performance.now();
       if (now - askedAt < 1000) return; // (one ask a touch: its end, then its click)
       askedAt = now;

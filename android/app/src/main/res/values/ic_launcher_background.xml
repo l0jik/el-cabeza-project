@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Behind the icon (the Horizon logo, its foreground): the brown at the edge of its own picture. -->
+    <color name="ic_launcher_background">#3F2D1E</color>
+    <!-- The title screen's dark, while the app opens. -->
+    <color name="ec_dark">#120C08</color>
+</resources>

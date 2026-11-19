@@ -110,3 +110,9 @@
   refused by the proxy); unzip it (chmod +x chrome, chrome_crashpad_handler)
   and pass it as `executablePath`. That leaves the pinned browser alone.
 
+- **The Android app** (2026-11-19): `node tools/app_www.mjs` (after the
+  build) makes app-www/, `npx cap sync android` puts it in android/, and
+  `./gradlew assembleRelease` in android/ builds the APK, which needs the
+  Android SDK: not on this machine (dl.google.com is shut to it), so the
+  deploy workflow builds it (job android) and runs it on an emulator (job
+  android-check). Details: docs/memory/android-app.md.
