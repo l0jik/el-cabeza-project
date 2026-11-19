@@ -151,7 +151,9 @@ jobs:
             adb shell am start -W -n io.github.l0jik.elcabeza/.MainActivity
             sleep 45
             adb shell pidof io.github.l0jik.elcabeza && echo "APP RUNNING" || echo "APP NOT RUNNING"
-            adb logcat -d -v brief | grep -E "Capacitor|AndroidRuntime|FATAL|ElCabeza" | tail -120 || true
+            adb logcat -d -v time | grep -E "Capacitor|AndroidRuntime|FATAL|ElCabeza" | grep -v "Handling local request" | tail -80 || true
+            adb logcat -d -v time | grep -E "ActivityTaskManager|ActivityManager|WindowManager" | grep -iE "elcabeza" | tail -40 || true
+            adb logcat -d -v brief | grep -c "Handling local request" || true
             adb shell uiautomator dump /sdcard/ui.xml || true
             adb pull /sdcard/ui.xml ui.xml || true
             grep -o 'text="[^"]*"' ui.xml | grep -v 'text=""' | head -40 || true

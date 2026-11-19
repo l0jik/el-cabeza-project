@@ -1,7 +1,9 @@
 package io.github.l0jik.elcabeza;
 
+import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
@@ -25,9 +27,13 @@ import com.getcapacitor.BridgeActivity;
      window.ElCabezaApp.keepScreenOn(true / false), from chassis/in-app.js. */
 public class MainActivity extends BridgeActivity {
 
+    private static final String TAG = "ElCabeza";
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // (In the log, for checking the app on an emulator: made afresh or again, and its configuration.)
+        Log.i(TAG, "created " + (savedInstanceState == null ? "afresh" : "again, from saved state") + ": " + getResources().getConfiguration());
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             WindowManager.LayoutParams lp = getWindow().getAttributes();
@@ -51,6 +57,12 @@ public class MainActivity extends BridgeActivity {
                 setEnabled(true);
             }
         });
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        Log.i(TAG, "configuration changed: " + newConfig);
     }
 
     @Override
