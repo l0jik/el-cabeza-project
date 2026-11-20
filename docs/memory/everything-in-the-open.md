@@ -34,8 +34,10 @@ direction). First pass, in the real game, both themes:
   away puts the turn's piece's markers out of sight too (`movesAway`, the
   shadows left empty for it; reset by a move, another selection, the next
   turn); the piece stays the turn's (End turn, Undo move, a hold on it as
-  before), and a tap on it brings its moves and its card back (where the
-  tap gave the Hold-to-end hint; still does when its moves are showing).
+  before), and a tap on it brings its moves and its card back, with the
+  note a tap on it always gives (Hold the piece to end it): a tap that
+  shuts the dock's panel lands on the board, and e2e-hold-to-end's next
+  tap on the piece wants that note.
 - **No Move costs, switch or badges** (2026-11-20). First the switch
   (user, with All settings' "Move costs" circled: "remove this from the
   more comma all settings menu globally, comma, unless you can think of a

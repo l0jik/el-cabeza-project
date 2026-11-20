@@ -10530,7 +10530,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
         else { setPieceCardDismissed(true); setMovesAway(true); }
       } else if (hit && hit.type === "piece" && turnLocked && hit.id === selectedId) {
         // Its moves put away by a press elsewhere: a tap on it, back.
-        if (movesAwayRef.current) { setMovesAway(false); setPieceCardDismissed(false); return; }
+        if (movesAwayRef.current) { setMovesAway(false); setPieceCardDismissed(false); }
         // Tapping directly on the piece that's already made a step this
         // turn keeps the turn going and says how to end it (Hold to end):
         // holding the piece ends it (onDown), as End turn does.
