@@ -79,6 +79,7 @@ const openRules = (tab, focus = null) => window.dispatchEvent(new CustomEvent("e
 function LabRules({ rules, open, change = null, spec = null, look = null }) {
   const ref = React.useRef(null);
   const listRef = React.useRef(null);
+  const pcsRef = React.useRef(null);
   // The pieces' pictures (reality-gate.js isoPictures): drawn once for a
   // look and a set of kinds, while the game's begun and nothing's asked of
   // the screen (or straight away, brought up before then); kept.
@@ -126,6 +127,46 @@ function LabRules({ rules, open, change = null, spec = null, look = null }) {
     const z = parseFloat(getComputedStyle(box).zoom) || 1;
     list.style.maxHeight = `${Math.round(Math.max(140, window.innerHeight - top - off - 64) / z)}px`;
   });
+  // A kind's pictures all on one line, never broken over two (user:
+  // "Pictures shouldn't wrap ... They all have to be in their own row. So
+  // if there's so many that the copies for a particular piece won't fit,
+  // then just move that whole section down to the next line."; on slab
+  // phones, foldables and computers alike): where a kind's name, pictures
+  // and number are wider than its column, it takes the whole width, on a
+  // line of its own below the kinds before it (data-wide, css.js); where
+  // they're wider than that too, its pictures overlap to fit (css.js).
+  // Measured when the list's brought up, its pictures come or its numbers
+  // change, whenever its width changes, and once the look's type is in.
+  const countsKey = rules.pieces.map((p) => `${p.type}${p.count}`).join(",");
+  React.useLayoutEffect(() => {
+    const ul = pcsRef.current;
+    if (!ul) return undefined;
+    let lastW = -1;
+    const fit = () => {
+      const cs = getComputedStyle(ul);
+      lastW = ul.clientWidth;
+      // (Lengths in the list's own terms, whatever its zoom does to them.)
+      const k = (ul.offsetWidth && parseFloat(cs.width) ? ul.offsetWidth / parseFloat(cs.width) : 1) || 1;
+      const cols = cs.gridTemplateColumns.split(" ").filter(Boolean).length || 1;
+      const colW = (lastW - (cols - 1) * (parseFloat(cs.columnGap) || 0) * k) / cols;
+      for (const li of ul.children) {
+        const g = (parseFloat(getComputedStyle(li).columnGap) || 0) * k, nm = li.querySelector(".nm"), ct = li.querySelector(".ct");
+        const imgs = li.querySelectorAll(".cp img");
+        let need = nm ? nm.offsetWidth : 0;
+        if (imgs.length) need += g + [...imgs].reduce((n, im) => n + im.offsetWidth, 0);
+        if (ct && !ct.classList.contains("lab-sr")) need += g + ct.offsetWidth;
+        const wide = cols > 1 && need > colW + 0.5 ? "true" : "false";
+        if (li.dataset.wide !== wide) li.dataset.wide = wide;
+      }
+    };
+    fit();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => { if (ul.clientWidth !== lastW) fit(); }) : null;
+    if (ro) ro.observe(ul);
+    // (Again once the look's own type is in: a name's width is its font's.)
+    let live = true;
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (live) fit(); });
+    return () => { live = false; if (ro) ro.disconnect(); };
+  }, [open, pics, countsKey]);
   const { laws, pieces, board } = rules;
   const law = (l) => h("li", { key: l.key },
     h("button", { type: "button", "data-testid": `lab-rules-law-${l.key}`, onClick: (e) => { e.stopPropagation(); openRules("moves", l.key); } }, l.name),
@@ -137,22 +178,22 @@ function LabRules({ rules, open, change = null, spec = null, look = null }) {
       h("ul", null, laws.length ? laws.map(law) : h("li", null, "None: the standard rules")),
       h("span", { className: "lab-label" }, "Pieces \u00b7 each side"),
       // Each kind by its name, then a picture for every one of it on the
-      // board, side by side, onto the next line when they run out of room
-      // (user: "Let's just go with option 3. So I assume if I chose 5 Opas,
-      // it'll have a 5 thumbnails of Opas"; the list scrolls past the
-      // screen). The number beside them where it isn't the standard game's,
-      // marked and said: a colour alone is lost where a direction's accent
-      // is its ink, Brutalism's and Minimal Mono's. (None of a kind: its
-      // picture faint. No pictures yet: the number.)
-      h("ul", { className: "pcs", "data-testid": "lab-rules-pieces", "data-side": dark ? "dark" : "light", "data-pictures": pics ? "true" : "false" }, pieces.map((p) => {
+      // board, side by side on one line (user: "Let's just go with option
+      // 3. So I assume if I chose 5 Opas, it'll have a 5 thumbnails of
+      // Opas"; never onto a second line: the fit above). The number after
+      // them where it isn't the standard game's, marked and said: a colour
+      // alone is lost where a direction's accent is its ink, Brutalism's
+      // and Minimal Mono's. (None of a kind: its picture faint. No pictures
+      // yet: the number.)
+      h("ul", { ref: pcsRef, className: "pcs", "data-testid": "lab-rules-pieces", "data-side": dark ? "dark" : "light", "data-pictures": pics ? "true" : "false" }, pieces.map((p) => {
         const odd = p.count !== p.std, pic = pics && pics[p.type];
         const said = !pic || odd || p.count !== 1;
         return h("li", { key: p.type, className: odd ? "changed" : undefined, "data-type": p.type, "data-count": p.count },
           h("span", { className: "nm" }, p.name),
-          h("span", { className: "cp" },
-            pic ? Array.from({ length: Math.max(1, p.count) }, (_, i) => h("img", { key: i, src: pic.url, width: pic.w, height: pic.h, alt: "", draggable: false, className: p.count ? undefined : "none" })) : null,
-            h("b", { className: said ? "ct" : "ct lab-sr" }, pic && said ? h("span", { "aria-hidden": "true" }, "\u00d7") : null, p.count,
-              odd ? h("span", { className: "mark", "aria-hidden": "true" }, "*") : null, odd ? h("span", { className: "lab-sr" }, ", not as in the standard game") : null)));
+          pic ? h("span", { className: "cp" }, Array.from({ length: Math.max(1, p.count) }, (_, i) => h("span", { key: i, className: "c" },
+            h("img", { src: pic.url, width: pic.w, height: pic.h, alt: "", draggable: false, className: p.count ? undefined : "none" })))) : null,
+          h("b", { className: said ? "ct" : "ct lab-sr" }, pic && said ? h("span", { "aria-hidden": "true" }, "\u00d7") : null, p.count,
+            odd ? h("span", { className: "mark", "aria-hidden": "true" }, "*") : null, odd ? h("span", { className: "lab-sr" }, ", not as in the standard game") : null));
       })),
       pieces.some((p) => p.count !== p.std) ? h("span", { className: "lab-rules-key" }, h("span", { className: "mark", "aria-hidden": "true" }, "*"), " Differs from the standard game") : null,
       h("span", { className: "lab-label" }, "Board"),

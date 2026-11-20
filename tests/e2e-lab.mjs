@@ -384,12 +384,18 @@ const ratio = (x, y) => (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 
 // Five Opas a side (user: "So I assume if I chose 5 Opas, it'll have a 5
 // thumbnails of Opas. Will that work? I guess you could always scroll just
-// to see if there's like a bunch that didn't fit on the screen"): five
-// pictures in the Opa's row and its number, nothing off the list's side,
-// the last reached with the list scrolled to its foot; on the near-square
-// screen, two columns, the Opas onto a second line.
+// to see if there's like a bunch that didn't fit on the screen"; then
+// "Pictures shouldn't wrap ... They all have to be in their own row. So if
+// there's so many that the copies for a particular piece won't fit, then
+// just move that whole section down to the next line. Keep in mind, this
+// new menu style needs to work on regular slab phones, foldables, and
+// desktop."): on two slab phones, a foldable's cover screen and its open
+// one, a laptop and a desktop, every kind's pictures on one line, within
+// its row and the list; the Opa's five and "×5"; where there are two
+// columns, the Opas on a line of their own, across both; the last of them
+// reached, scrolled to where they are.
 {
-  console.log("\nfive Opas a side: five pictures of the Opa");
+  console.log("\nfive Opas a side: five pictures of the Opa, on one line, on every screen");
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const page = await context.newPage();
   page.setDefaultTimeout(30000);
@@ -413,34 +419,47 @@ const ratio = (x, y) => (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
   const bringUp = async () => {
     if (await page.evaluate(() => document.querySelector('[data-testid="lab-hud"]').dataset.compact === "open")) return;
     await page.tap('[data-testid="lab-hud"]', { position: { x: 8, y: 8 } });
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(1300);
   };
-  await bringUp();
-  check("brought up, the pieces' pictures drawn", !!(await picturesIn(page)));
-  const opa = await page.evaluate(() => {
-    const li = document.querySelector('[data-testid="lab-rules-pieces"] li[data-type="opa"]'), ct = li.querySelector(".ct");
-    return { n: +li.dataset.count, imgs: li.querySelectorAll("img").length, words: ct.textContent, shown: !ct.classList.contains("lab-sr"), others: [...li.parentNode.querySelectorAll('li:not([data-type="opa"])')].map((x) => x.querySelectorAll("img").length) };
-  });
-  check(`the Opa's row: five pictures, and "×5" beside them; one picture each for the rest (${JSON.stringify(opa)})`, opa.n === 5 && opa.imgs === 5 && /×5/.test(opa.words) && opa.shown && opa.others.every((n) => n === 1));
-  const reach = await page.evaluate(() => {
-    const list = document.querySelector('[data-testid="lab-hud"] .lab-rules-list');
-    list.scrollTop = list.scrollHeight;
-    const lr = list.getBoundingClientRect(), imgs = [...list.querySelectorAll('li[data-type="opa"] img')], last = imgs[imgs.length - 1].getBoundingClientRect();
-    const out = { inside: last.bottom <= lr.bottom + 1 && last.top >= lr.top - 1 && last.right <= lr.right + 1, sideways: list.scrollWidth > list.clientWidth + 1, onScreen: lr.bottom <= innerHeight };
-    list.scrollTop = 0;
-    return out;
-  });
-  check(`...the last of them reached with the list scrolled to its foot, nothing off its side, on the screen (${JSON.stringify(reach)})`, reach.inside && !reach.sideways && reach.onScreen);
-  await page.setViewportSize({ width: 880, height: 914 });
-  await page.waitForTimeout(1200);
-  await bringUp();
-  await picturesIn(page);
-  const wide = await page.evaluate(() => {
-    const u = document.querySelector('[data-testid="lab-rules-pieces"]'), li = u.querySelector('li[data-type="opa"]'), lr = li.getBoundingClientRect();
-    const imgs = [...li.querySelectorAll("img")].map((i) => i.getBoundingClientRect());
-    return { columns: getComputedStyle(u).gridTemplateColumns.split(" ").length, lines: new Set(imgs.map((r) => Math.round(r.top))).size, inRow: imgs.every((r) => r.right <= lr.right + 1 && r.left >= lr.left - 1) };
-  });
-  check(`on a near-square screen: two columns, the Opas onto a second line, none past their row (${JSON.stringify(wide)})`, wide.columns === 2 && wide.lines >= 2 && wide.inRow);
+  const SCREENS = [
+    ["a slab phone", 390, 844], ["a small slab phone", 360, 780], ["a foldable's cover screen", 344, 882],
+    ["a foldable, open", 880, 914], ["a laptop", 1366, 768], ["a desktop", 1920, 1080],
+  ];
+  for (const [what, w, hgt] of SCREENS) {
+    await page.setViewportSize({ width: w, height: hgt });
+    await page.waitForTimeout(1200);
+    await bringUp();
+    if (!(await picturesIn(page))) { check(`${what} (${w}x${hgt}): the pieces' pictures drawn`, false); continue; }
+    await page.waitForTimeout(300);
+    const m = await page.evaluate(() => {
+      const u = document.querySelector('[data-testid="lab-rules-pieces"]'), ur = u.getBoundingClientRect();
+      const rows = [...u.querySelectorAll(":scope > li")].map((li) => {
+        const r = li.getBoundingClientRect(), imgs = [...li.querySelectorAll("img")].map((i) => i.getBoundingClientRect()), ct = li.querySelector(".ct");
+        return { t: li.dataset.type, wide: li.dataset.wide, top: r.top, bottom: r.bottom, left: r.left, right: r.right, lines: new Set(imgs.map((x) => Math.round(x.top))).size, n: imgs.length,
+          inRow: imgs.every((x) => x.right <= r.right + 1 && x.left >= r.left - 1), overlap: imgs.some((x, i) => i && x.left < imgs[i - 1].right - 1),
+          ctShown: !!ct && !ct.classList.contains("lab-sr"), ctText: ct ? ct.textContent : "", ctRight: ct ? ct.getBoundingClientRect().right : 0 };
+      });
+      return { cols: getComputedStyle(u).gridTemplateColumns.split(" ").filter(Boolean).length, ul: { left: ur.left, right: ur.right, width: ur.width }, rows };
+    });
+    const opa = m.rows.find((r) => r.t === "opa"), others = m.rows.filter((r) => r.t !== "opa");
+    const oneLine = m.rows.every((r) => r.lines <= 1), inside = m.rows.every((r) => r.inRow && r.right <= m.ul.right + 1 && r.ctRight <= m.ul.right + 1);
+    const ownLine = m.cols === 1 || (opa.wide === "true" && others.every((r) => r.bottom <= opa.top + 1 || r.top >= opa.bottom - 1) && opa.right - opa.left > m.ul.width * 0.95);
+    check(`${what} (${w}x${hgt}, ${m.cols} column${m.cols > 1 ? "s" : ""}): five Opa pictures and "×5", every kind's on one line, inside its row and the list${opa.overlap ? ", the Opas overlapping to fit" : ""}`,
+      opa.n === 5 && opa.ctShown && /×5/.test(opa.ctText) && others.every((r) => r.n === 1) && oneLine && inside, JSON.stringify(m.rows.map((r) => [r.t, r.n, r.lines, r.inRow, r.wide, Math.round(r.right), Math.round(r.ctRight)])) + ` list right ${Math.round(m.ul.right)}`);
+    if (m.cols > 1) check(`...two columns: the Opas on a line of their own, across both`, ownLine, JSON.stringify({ opa, ul: m.ul }));
+    // The last of them reached: the list (a phone's) or the read-out (a
+    // computer's) scrolled to its foot, the picture inside it, on the screen.
+    const reach = await page.evaluate(() => {
+      const hud = document.querySelector('[data-testid="lab-hud"]'), list = hud.querySelector(".lab-rules-list");
+      const box = list && list.scrollHeight > list.clientHeight + 1 ? list : hud;
+      box.scrollTop = box.scrollHeight;
+      const br = box.getBoundingClientRect(), imgs = [...hud.querySelectorAll('li[data-type="opa"] img')], last = imgs[imgs.length - 1].getBoundingClientRect();
+      const out = { inside: last.bottom <= br.bottom + 1 && last.top >= br.top - 1, onScreen: last.bottom <= innerHeight + 1 && last.right <= innerWidth + 1, sideways: document.scrollingElement.scrollWidth > innerWidth + 1 || (list && list.scrollWidth > list.clientWidth + 1) };
+      box.scrollTop = 0;
+      return out;
+    });
+    check(`...the last of them reached, scrolled to it, on the screen, nothing off the side`, reach.inside && reach.onScreen && !reach.sideways, JSON.stringify(reach));
+  }
   check("no page errors", errs.length === 0, errs.slice(0, 4).join(" | "));
   await context.close();
 }

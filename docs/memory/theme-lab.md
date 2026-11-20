@@ -218,17 +218,29 @@ option 3. So I assume if I chose 5 Opas, it'll have a 5 thumbnails of
 Opas. Will that work? I guess you could always scroll just to see if
 there's like a bunch that didn't fit on the screen."). In all nine,
 LabRules (hud.js) lists each kind by its name, then a still of it for
-every one of it on the board, side by side, onto the next line when they
-run out of room (the list scrolls, as it did); the number after them
-only where it isn't the standard game's (×5, marked * and said, in the
-accent); a kind with none, one faint picture; no pictures yet, the
-number. The stills: reality-gate.js isoPictures, by the look's own
+every one of it on the board, side by side on one line, never broken
+over two (user, of the first try, which wrapped them: "Pictures
+shouldn't wrap ... They all have to be in their own row. So if there's
+so many that the copies for a particular piece won't fit, then just
+move that whole section down to the next line. Keep in mind, this new
+menu style needs to work on regular slab phones, foldables, and
+desktop."): a kind wider than its column takes the whole width, on a
+line of its own below the kinds before it (hud.js measures each kind's
+name, pictures and number against its column, on every render and when
+the list's width changes, and sets data-wide; css.js spans it across);
+wider than that too, its pictures overlap evenly to fit (each but the
+last in a box that may shrink, the picture spilling over the next), the
+last whole, the number after them; the list scrolls, as it did. The
+number only where it isn't the standard game's (×5, marked * and said,
+in the accent); a kind with none, one faint picture; no pictures yet,
+the number. The stills: reality-gate.js isoPictures, by the look's own
 buildPieceVisual (the factory hands the read-out `look`), isometric (an
 orthographic camera down the board's diagonal, 35° from above, every
 edge parallel), lit as the setup's stills; sizes true to each other among
 the game's kinds (the largest fills the 176 px square, the smallest
 brought up to 62% of it), each as tall as the others and as wide as its
-piece, all standing on one line. Drawn once a look and a set of kinds,
+piece and a little room either side (the space between copies), all
+standing on one line. Drawn once a look and a set of kinds,
 in a short-lived WebGL context, while nothing's asked of the screen
 (requestIdleCallback, 2.5 s at most; straight away if the rules are
 brought up first), and kept. In the side whose pieces read on the look's
@@ -240,15 +252,20 @@ metal piece (Corporate Swiss's, with nothing round it to mirror, dark
 grey on navy) is given a plain bright room to mirror. Layout (css.js
 HUD_BASE .pcs): as many columns of at least 15em as fit (two brought up
 on the near-square screen, one on a phone or beside the board), each row
-the name (at least 4.6em) then the pictures, 3em tall. (Nothing is
+a line of the name (at least 4.6em), the pictures (3em tall), the
+number. (Nothing is
 captured in this game, user: "Pieces don't get captured in this game.":
 a game's numbers stay as they began.) tests/e2e-lab.mjs: on a
 Chromebook's screen, all nine (the pictures drawn, one a piece, faint for
 none, in the side that reads, contrast at least 1.8 against the page,
 Neo-Brutalism's pink on mint the lowest at about 2.1); five Opas a side
-on a phone (five and ×5, the last reached with the list scrolled to its
-foot, nothing off its side) and at 880x914 (two columns, the Opas onto a
-second line).
+on two slab phones (390x844, 360x780), a foldable's cover screen
+(344x882) and its open one (880x914), a laptop (1366x768) and a desktop
+(1920x1080): five and ×5, every kind's pictures on one line inside its
+row and the list, the Opas overlapping where even a line of their own
+is too narrow; with two columns, the Opas on a line of their own across
+both; the last reached scrolled to it, on the screen, nothing off the
+side.
 
 The rules above the moves, larger on a big screen (2026-11-11, user, a
 screenshot of the Monolith's read-out brought up, its moves then its

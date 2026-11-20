@@ -640,9 +640,10 @@ const PICTURE_TYPES = ["cabeza", "turrito", "flaco", "chato", "opa", "block1x3",
    Sizes true to each other among `types`: the largest fills its square
    (`height` px), the smallest brought up to `floor` of it to be seen.
    Each still is as tall as the others, its piece standing on the same
-   line at the foot, and only as wide as its piece, so copies sit side by
-   side. All of them in one short-lived WebGL context, released straight
-   after; kept for the next time (key: the world's look). */
+   line at the foot, and only as wide as its piece and a little room
+   either side (the space between copies side by side). All of them in one
+   short-lived WebGL context, released straight after; kept for the next
+   time (key: the world's look). */
 const isoPics = new Map(); // `${key}|${side}|${types}` -> { type: { url, w, h } }
 const isoId = (key, types, dark) => `${key}|${dark ? "dark" : "light"}|${types.join(",")}`;
 export const isoPicturesCached = (key, types, dark = false) => isoPics.get(isoId(key, types, dark)) || null;
@@ -678,7 +679,7 @@ export function isoPictures(key, look, types, { dark = false, height = 176, floo
       });
       built.push({ type, ...m, l, r, b, t, span: Math.max(r - l, t - b) });
     });
-    const padY = Math.round(height * 0.06), padX = Math.round(height * 0.03), room = height - padY * 2;
+    const padY = Math.round(height * 0.06), padX = Math.round(height * 0.05), room = height - padY * 2;
     const k0 = room / Math.max(...built.map((m) => m.span)); // px a unit, the largest filling the square
     // A pale metal piece (Corporate Swiss's anodised blocks) is dark with
     // nothing round it to mirror: a plain bright room for it to.

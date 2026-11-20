@@ -137,14 +137,21 @@ const HUD_BASE = `
   .lab-hud .lab-rules li button:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
   .lab-hud .lab-rules li button:focus-visible { outline: 2px solid var(--accent-primary, currentColor); outline-offset: 2px; }
   /* Each side's pieces: a kind's name, then its pictures, one a piece,
-     side by side, onto the next line when they run out of room; two
-     columns where the rules are wide enough, one on a phone (hud.js). */
+     side by side on one line, never broken over two (hud.js); two columns
+     where the rules are wide enough, one on a phone or beside the board.
+     A kind too wide for its column takes the whole width, on a line of
+     its own (data-wide, measured by hud.js); too wide for that too, its
+     pictures overlap to fit, the last of them whole, its number after. */
   .lab-hud .lab-rules .pcs { font-size: 13px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15em), 1fr)); column-gap: 18px; row-gap: 3px; margin-top: 2px; }
-  .lab-hud .lab-rules .pcs li { display: grid; grid-template-columns: minmax(4.6em, max-content) minmax(0, 1fr); align-items: center; column-gap: 8px; min-height: 2.2em; }
-  .lab-hud .lab-rules .pcs .cp { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 3px; }
-  .lab-hud .lab-rules .pcs .cp img { display: block; height: 3em; width: auto; -webkit-user-drag: none; user-select: none; }
+  .lab-hud .lab-rules .pcs li { display: flex; flex-wrap: nowrap; align-items: center; column-gap: 8px; min-width: 0; min-height: 2.2em; }
+  .lab-hud .lab-rules .pcs li[data-wide="true"] { grid-column: 1 / -1; }
+  .lab-hud .lab-rules .pcs .nm { flex: 0 0 auto; min-width: 4.6em; white-space: nowrap; }
+  .lab-hud .lab-rules .pcs .cp { display: flex; flex-wrap: nowrap; align-items: center; flex: 0 1 auto; min-width: 0; }
+  .lab-hud .lab-rules .pcs .cp .c { display: block; flex: 0 1 auto; min-width: 0; }
+  .lab-hud .lab-rules .pcs .cp .c:last-child { flex-shrink: 0; }
+  .lab-hud .lab-rules .pcs .cp img { display: block; height: 3em; width: auto; max-width: none; -webkit-user-drag: none; user-select: none; }
   .lab-hud .lab-rules .pcs .cp img.none { opacity: 0.3; filter: grayscale(1); }
-  .lab-hud .lab-rules .pcs .ct { font-weight: 700; margin-left: 3px; white-space: nowrap; }
+  .lab-hud .lab-rules .pcs .ct { flex: 0 0 auto; font-weight: 700; white-space: nowrap; }
   .lab-hud .lab-rules .pcs li.changed .ct { color: var(--accent-primary, currentColor); }
   .lab-hud .lab-rules .mark { font-weight: 700; color: var(--accent-primary, currentColor); margin-left: 1px; }
   .lab-hud .lab-rules .lab-rules-key { display: block; margin-top: 4px; font-size: 11px; color: var(--lab-rules-sub, inherit); }
