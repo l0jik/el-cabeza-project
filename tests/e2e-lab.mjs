@@ -319,10 +319,32 @@ async function waitSwitched(page, id) {
     await page.waitForTimeout(1000);
     const big = await hudBox();
     check(`...a tap brings it up full size, still in the corner, the numbers and the rules in it (${Math.round(small.w)} x ${Math.round(small.h)} -> ${Math.round(big.w)} x ${Math.round(big.h)} px)`, big.c === "open" && big.w > small.w * 1.5 && big.h > small.h * 4 && Math.abs(big.x - 12) < 3 && big.stats && big.rules && big.arrow === "none", JSON.stringify(big));
+    // Brought up, there to be read (user, De Stijl's on a near-square
+    // phone: "When it's maximized, though, the text should be bigger too
+    // ... when you pull it up and you want to see it, you have to be able
+    // to read it."): the rules larger, across the read-out.
+    const opened = () => page.evaluate(() => {
+      const h = document.querySelector('[data-testid="lab-hud"]'), r = h.querySelector(".lab-rules"), li = h.querySelector(".lab-rules li"), st = h.querySelector(".lab-stats");
+      const hb = h.getBoundingClientRect(), rb = r.getBoundingClientRect();
+      return { c: h.dataset.compact, zoom: +getComputedStyle(r).zoom, stats: +getComputedStyle(st).zoom, li: li ? +li.getBoundingClientRect().height.toFixed(1) : 0, hudW: Math.round(hb.width), rulesW: Math.round(rb.width), bottom: Math.round(rb.bottom), ih: innerHeight };
+    });
+    const ph = await opened();
+    check(`...brought up on a phone, the rules a sixth larger (${JSON.stringify(ph)})`, ph.c === "open" && ph.zoom > 1.1 && ph.li > 20 && ph.bottom <= ph.ih);
     await page.tap('[data-testid="lab-hud"]', { position: { x: 8, y: 8 } });
     await page.waitForTimeout(1000);
     const down = await hudBox();
     check("...and a tap puts it down again", down.c === "small" && !down.stats && down.h <= 40, JSON.stringify(down));
+    // On a near-square screen, the user's (a foldable, 880 x 914 here).
+    await page.setViewportSize({ width: 880, height: 914 });
+    await page.evaluate((x) => window.__LAB__.switchTo(x), "destijl");
+    await waitSwitched(page, "destijl");
+    await page.waitForTimeout(1500);
+    await page.tap('[data-testid="lab-hud"]', { position: { x: 8, y: 8 } });
+    await page.waitForTimeout(1200);
+    const sq = await opened();
+    check(`De Stijl brought up on a near-square screen: the rules nearly half again as large, across the read-out, the numbers larger too, all on the screen (${JSON.stringify(sq)})`, sq.c === "open" && sq.zoom > 1.4 && sq.stats > 1.1 && sq.li > 26 && sq.rulesW > sq.hudW * 0.9 && sq.bottom <= sq.ih);
+    await page.tap('[data-testid="lab-hud"]', { position: { x: 8, y: 8 } });
+    await page.waitForTimeout(800);
   }
   const tgt = await page.locator('[data-testid="lab-next"]').boundingBox();
   check("the lab's buttons are touch-sized", tgt.width >= 36 && tgt.height >= 36, JSON.stringify(tgt));

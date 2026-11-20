@@ -84,7 +84,10 @@ function LabRules({ rules, open, change = null }) {
     const bar = document.querySelector('[data-testid="lab-bar"]');
     const b = bar ? bar.getBoundingClientRect() : null;
     const top = (b && b.height ? b.bottom : 10) + 8;
-    list.style.maxHeight = `${Math.max(140, Math.round(window.innerHeight - top - off - 64))}px`;
+    // (Its own lengths that much larger on the screen where the rules are
+    // zoomed, brought up on a small screen: css.js.)
+    const z = parseFloat(getComputedStyle(box).zoom) || 1;
+    list.style.maxHeight = `${Math.round(Math.max(140, window.innerHeight - top - off - 64) / z)}px`;
   });
   const { laws, pieces, board } = rules;
   const law = (l) => h("li", { key: l.key },

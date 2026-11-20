@@ -182,6 +182,20 @@ const HUD_BASE = `
       box-shadow: var(--shadow); padding: 10px 12px 12px; }
     /* (Not the whole width of a wide screen: a count beside its name.) */
     .lab-hud .lab-rules { max-width: 420px; }
+    /* Brought up, it's there to be read (user, De Stijl's brought up on a
+       near-square phone: "When it's maximized, though, the text should be
+       bigger too. It's still really small. There's a lot of menu space,
+       but there's no text taking up that room ... when you pull it up and
+       you want to see it, you have to be able to read it."): the rules
+       across the read-out's width and larger, each look's own type and
+       spacing scaled together (zoom: a sixth on a phone, nearly half again
+       where there's room, 600 px each way), the numbers a fifth larger
+       there too. (The list's own height, hud.js LabRules, minds the zoom.) */
+    .lab-hud .lab-rules[data-open="true"] { zoom: 1.15; max-width: none; }
+    @media (min-width: 600px) and (min-height: 600px) {
+      .lab-hud .lab-rules[data-open="true"] { zoom: 1.45; }
+      .lab-hud[data-compact="open"] .lab-stats { zoom: 1.2; }
+    }
     /* The game's own notes at the top come down below the Lab's bar (the
        check alert, its note, the replay's bar: they were under it; user,
        a Monolith phone screenshot, the bar over the alert's Show again
