@@ -520,9 +520,6 @@ export const soundChannels = [
   { key: "pieces", label: "Pieces", hint: "Selecting, landing, capturing" },
   { key: "interface", label: "Interface", hint: "Menus, the rules, connecting" },
 ];
-// The in-game menu offers a switch for the cost badges on the move
-// markers (chassis: theme.moveCostToggle, the costs-toggle button).
-export const moveCostToggle = true;
 export function createAudio() {
   return createSoundscape();
 }

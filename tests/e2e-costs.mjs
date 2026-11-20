@@ -4,7 +4,9 @@
    back as it was earlier this turn reads "free" — and the piece card
    (data-testid piece-card), which names the selected piece and says how
    it moves, with a "More" link to its MOVES tile. Checked in Futuris and
-   Standard; both have the switch that hides the badges. */
+   Standard. There's no switch for the badges (the user had Move costs
+   taken out of the settings): none in the dock's foot, and an "off" a
+   player left with the old switch hides nothing. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
@@ -32,7 +34,8 @@ for (const theme of ["futuris", "standard"]) {
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/ERR_CERT|ERR_CONNECTION/.test(m.text())) errs.push(m.text()); });
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true; });
+  // (An "off" from the old Move costs switch, which hides nothing now.)
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true; try { localStorage.setItem("el-cabeza:show-move-costs", "0"); } catch (e) { /* none */ } });
   await page.goto(`file:///home/user/el-cabeza-project/dist/el-cabeza-${theme}.html`);
   await page.waitForTimeout(1500);
   await openDockPanel(page);
@@ -49,24 +52,16 @@ for (const theme of ["futuris", "standard"]) {
   check("nothing selected, no badges", (await badges(page)).length === 0);
   await select(page, "dark-turrito");
   let b = await badges(page);
-  check("selecting the Turrito badges each of its moves", b.length >= 4, JSON.stringify(b));
+  check("selecting the Turrito badges each of its moves (an \"off\" left by the old switch hides nothing)", b.length >= 4, JSON.stringify(b));
   check("each roll costs 1", b.length > 0 && b.every((x) => x.text === "1"), JSON.stringify(b));
   const card = page.locator('[data-testid="piece-card"]');
   check("the piece card names the selected piece", (await card.count()) === 1 && /Turrito/.test(await card.innerText()), await card.count() ? await card.innerText() : "none");
   check("...and says how it moves and what it costs", /rolls one square.*1 action/i.test(await page.locator('[data-testid="piece-card-text"]').innerText()));
   await page.screenshot({ path: `/tmp/e2e-costs-${theme}-1.png` });
-  // The in-game menu switches the cost badges off and on (and
-  // remembers it), in every theme.
+  // No switch for them in the menu's foot (nor in More: e2e-rings.mjs).
   {
     await openDockPanel(page);
-    await page.locator('[data-testid="costs-toggle"]').click();
-    await page.waitForTimeout(400);
-    check("the costs switch turns the badges off", (await badges(page)).length === 0 &&
-      (await page.locator('[data-testid="costs-toggle"]').getAttribute("aria-pressed")) === "false");
-    check("...and remembers it", (await page.evaluate(() => localStorage.getItem("el-cabeza:show-move-costs"))) === "0");
-    await page.locator('[data-testid="costs-toggle"]').click();
-    await page.waitForTimeout(400);
-    check("...and back on", (await badges(page)).length >= 4);
+    check("no Move costs switch among the menu's foot buttons, the badges still up", (await page.locator('[data-testid="costs-toggle"]').count()) === 0 && (await page.locator("[data-dock-foot]").count()) > 0 && (await badges(page)).length >= 4);
     await page.mouse.click(4, 450);
     await page.waitForTimeout(400);
   }

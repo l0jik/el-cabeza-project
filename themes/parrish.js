@@ -265,9 +265,6 @@ export const soundChannels = [
   // The look's soundtrack, its slider starting low (parrish-audio.js).
   ...(HUMS_URL ? [{ key: "hums", label: "Soundtrack", hint: SOUNDTRACK_TITLE, level: HUMS_LEVEL }] : []),
 ];
-// The in-game menu offers a switch for the cost badges on the move
-// markers (chassis: theme.moveCostToggle).
-export const moveCostToggle = true;
 // Not theme.woodPieces, though its pieces are the wooden set: Parrish
 // keeps its own sounds (user: "Parrish should keep its own sounds"), every
 // move landing on its note, the Cabeza's and a slid block's too.

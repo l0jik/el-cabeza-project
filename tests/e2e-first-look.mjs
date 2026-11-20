@@ -73,7 +73,6 @@ const LOCKED = [
   ["Save & carry", '[data-testid="open-saves"]'],
   ["the sound", '[data-testid="sound-button"]'],
   ["the actions left", '[data-testid="points-toggle"]'],
-  ["the move costs", '[data-testid="costs-toggle"]'],
   ["the piece guide", '[data-testid="guide-toggle"]'],
   ["why not", '[data-testid="why-not-toggle"]'],
   ["the control bar", '[data-testid="layout-toggle"]'],

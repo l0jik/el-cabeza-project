@@ -380,8 +380,6 @@ export { mountAmbientEffects } from "./plano-fx.js";
 // the Other realities menu (themes/realities.js WORLDS).
 export const realityName = "Plano";
 export { createAudio, hasAudio } from "./plano-audio.js";
-// The in-game menu offers a switch for the cost badges on the move markers.
-export const moveCostToggle = true;
 
 import { sideNamesFor } from "./side-names.js";
 import { pointsGlowFor, worldLightFor } from "./points-glow.js";

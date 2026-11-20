@@ -27,7 +27,8 @@ Tienda, Lluvia, Cromo, Lab) keep the dock exactly as before.
   colours (and glow in Futuris). The menu sheet: How to play, Rules in this
   game, Move log, End game (second tap confirms) / New game / Take back
   the last turn / Reset rules, Top-down / Player view, Full screen, Sound,
-  Points left, Move costs on the board, the page's own items (Nova:
+  Points left (Move costs on the board till its switch went, 2026-11-20),
+  the page's own items (Nova:
   "Switch to Futuris / Standard", which opens the same CONNECT/DISCONNECT
   prompt the 4 s title hold ends in — the hold still works), About,
   version. Everything calls the chassis's own handlers via the `ctl`

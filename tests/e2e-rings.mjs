@@ -163,7 +163,7 @@ const looks = (page) => page.evaluate(() => {
   const quick = (n) => { if (!n) return 0; const cs = getComputedStyle(n); return Math.max(...cs.transitionDuration.split(",").map(parseFloat), ...cs.animationDuration.split(",").map(parseFloat)); };
   return { bad, small, motion: Math.max(quick(L.querySelector(".cr-stage")), quick(L.querySelector(".cr-card")), quick(L.querySelector(".cr-more"))) };
 });
-const SETUP = ["first", "opponent", "level", "start", "pieces", "cart", "check", "points", "costs", "guide", "whynot", "sound", "language", "replay", "saves", "bar"];
+const SETUP = ["first", "opponent", "level", "start", "pieces", "cart", "check", "points", "guide", "whynot", "sound", "language", "replay", "saves", "bar"];
 const rows = (page) => page.evaluate(() => [...document.querySelectorAll('[data-testid="dock-menu"] [data-testid="menu-fan-more"] [data-mf-row]')].map((n) => n.getAttribute("data-mf-row")));
 const groups = (page) => page.evaluate(() => [...document.querySelectorAll('[data-testid="dock-menu"] [data-testid="menu-fan-more"] [data-mf-group]')].map((n) => n.getAttribute("data-mf-group")));
 
@@ -231,12 +231,15 @@ console.log("The store, on a phone: Calm Rings is the menu");
   check("...who's playing not in it (said in the line, in play)", !listed.includes("you"));
   l = await looks(page);
   check("...its rows, switches and close 44 px or more", !!l && !l.small.length, JSON.stringify(l && l.small));
-  const costs = () => page.evaluate(() => document.querySelector('[data-testid="costs-toggle"]').getAttribute("aria-pressed"));
-  const c0 = await costs();
-  await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-row="costs"]');
-  check("...Move costs, a switch: flipped in the panel, the list still out, its switch saying so", !!(await poll(async () => (await costs()) !== c0 && (await page.evaluate((v) => document.querySelector('[data-testid="menu-fan-more"] [data-mf-row="costs"]').getAttribute("aria-checked") === v, await costs())), 3000, 100)) && !!(await out(page)));
-  await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-row="costs"]');
-  await poll(async () => (await costs()) === c0, 3000, 100);
+  // (No Move costs: the user had it taken out of the settings; the
+  // badges on the move markers are always there when moves differ.)
+  check("...no Move costs in it", !listed.includes("costs"), listed.join());
+  const points = () => page.evaluate(() => document.querySelector('[data-testid="points-toggle"]').getAttribute("aria-pressed"));
+  const p0 = await points();
+  await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-row="points"]');
+  check("...Actions left, a switch: flipped in the panel, the list still out, its switch saying so", !!(await poll(async () => (await points()) !== p0 && (await page.evaluate((v) => document.querySelector('[data-testid="menu-fan-more"] [data-mf-row="points"]').getAttribute("aria-checked") === v, await points())), 3000, 100)) && !!(await out(page)));
+  await tapIn(page, '[data-testid="menu-fan-more"] [data-mf-row="points"]');
+  await poll(async () => (await points()) === p0, 3000, 100);
   // Why not, its own switch beside the Piece guide (user: "they need to be
   // separated out"); a row's icon says what it does (user: "Clicking on
   // their icons should give you a brief overview as to what they do").

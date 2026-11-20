@@ -124,12 +124,6 @@ const FOOT_ICONS = {
       <path d="M12 17.1v.1" />
     </svg>
   ),
-  costs: (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M10 9.5l2.5-2v9" />
-    </svg>
-  ),
   points: (
     <svg width="18" height="16" viewBox="0 0 26 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <circle cx="5" cy="12" r="3.2" fill="currentColor" />
@@ -330,7 +324,7 @@ function cardText(t) {
     // what More holds, in its groups.)
     case "foot": {
       if (t.rings) {
-        const hints = [t.check ? "Check alert" : null, "Piece guide", "Why not", t.costs ? "Move costs" : null, "Actions left"].filter(Boolean).map(tr);
+        const hints = [t.check ? "Check alert" : null, "Piece guide", "Why not", "Actions left"].filter(Boolean).map(tr);
         const rows = [
           ["Game", "End your turn, undo, and end the game (it asks first)."],
           ["Help on the board", say("{list}.", { list: list(hints) })],
@@ -349,7 +343,6 @@ function cardText(t) {
       if (t.layout) icons.push({ icon: "layout", name: "Control bar", text: "moves the menu to a bar along the foot of the screen." });
       icons.push({ icon: "why-not", name: "Why not", text: "when a move can't be made, an X on the square and a note that says why." });
       icons.push({ icon: "guide", name: "Piece guide", text: "a card that tells you what the piece you pick does." });
-      if (t.costs) icons.push({ icon: "costs", name: "Move costs", text: "how many actions each move takes, on its marker." });
       icons.push({ icon: "points", name: "Actions left", text: "the lights at the foot of the screen that count them." });
       if (t.sound) icons.push({ icon: "sound", name: "Sound", text: t.channels ? "the volume, with the music and the other sounds each on or off." : "the volume." });
       return {

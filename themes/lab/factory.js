@@ -122,7 +122,6 @@ export function makeLabTheme(spec) {
     lights: { ambient: L.ambient, hemi: L.hemi, key: L.key, fill: L.fill, back: L.back },
 
     hasAudio: true,
-    moveCostToggle: true,
     dockWords: spec.words,
     boardTextureFollowsSize: true,
     createAudio: () => createLabAudio(spec.audio),

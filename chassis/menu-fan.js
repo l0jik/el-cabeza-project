@@ -97,7 +97,6 @@ const ICON = {
   replay: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4 4.5v4.2h4.2"/><path d="M10.6 9.3v5.4l4.2-2.7z" fill="currentColor" stroke="none"/>',
   saves: '<path d="M5 4h11.5L19 6.5V20H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/>',
   points: '<circle cx="6" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="18" cy="12" r="2"/>',
-  costs: '<path d="M4 12.5V5h7.5l8.5 8.5-7.5 7.5z"/><circle cx="8.3" cy="9.2" r="1.4"/>',
   guide: '<rect x="4" y="4.5" width="16" height="15" rx="2"/><path d="M12 10.6v5M12 7.7v.1"/>',
   whynot: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.7M12 17.1v.1"/>',
   bar: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M3.5 15h17"/>',
@@ -137,12 +136,12 @@ export const KINDS = [
 const KIND_OF = {
   you: "game", first: "game", opponent: "game", level: "game", endturn: "game", undomove: "game", undoturn: "game", endgame: "game", plainrules: "game",
   start: "board", half: "board", pieces: "board", nova: "board", cart: "board", view: "board", focus: "board", movelog: "board",
-  check: "hints", points: "hints", costs: "hints", guide: "hints", whynot: "hints",
+  check: "hints", points: "hints", guide: "hints", whynot: "hints",
   sound: "settings", language: "settings", replay: "settings", saves: "settings", bar: "settings", leave: "settings",
 };
 const NAMES = {
   you: "You", first: "First move", opponent: "Opponent", level: "Level", check: "Check alert", start: "Starting position", half: "My half", cart: "Cart",
-  sound: "Sound", language: "Language", replay: "Replay", saves: "Saves", points: "Actions left", costs: "Move costs",
+  sound: "Sound", language: "Language", replay: "Replay", saves: "Saves", points: "Actions left",
   guide: "Piece guide", whynot: "Why not", bar: "Control bar", view: "View", focus: "Focus", endturn: "End turn", undomove: "Undo move",
   undoturn: "Undo turn", endgame: "End game", movelog: "Move log", plainrules: "Plain rules", leave: "Leave game",
 };
@@ -160,7 +159,6 @@ const TIPS = {
   replay: "Replay a game from a copied move log.",
   saves: "Save your progress and settings to a file or the cloud, or bring them back.",
   points: "Dots that count the actions left in your turn.",
-  costs: "Each move marker shows what the move costs.",
   guide: "A card that says what the chosen piece does.",
   // (Its own since the user's "they need to be separated out".)
   whynot: "When a move can't be made, an X on the square and a note saying why.",
@@ -371,7 +369,7 @@ export function readDock(host, phase) {
     const b = one(`[data-testid="${id}"]`);
     if (b) add(key, { type: "open", name: words(b), icon: key, disabled: off(b), press: () => b.click() });
   }
-  for (const [key, id] of [["points", "points-toggle"], ["costs", "costs-toggle"], ["guide", "guide-toggle"], ["whynot", "why-not-toggle"]]) {
+  for (const [key, id] of [["points", "points-toggle"], ["guide", "guide-toggle"], ["whynot", "why-not-toggle"]]) {
     const b = one(`[data-testid="${id}"]`);
     if (b) add(key, { type: "toggle", value: onOff(lit(b)), on: lit(b), icon: key, disabled: off(b), press: () => b.click() });
   }
@@ -1457,7 +1455,7 @@ const CALM_SPARE = { setup: ["sound", "language"], play: ["focus", "movelog"], o
 const CALM_GROUPS = [
   { key: "game", name: "Game", of: ["opponent", "level", "first", "start", "half", "endturn", "undomove", "undoturn", "plainrules"] },
   { key: "board", name: "Board", of: ["pieces", "cart", "nova", "view", "focus", "movelog"] },
-  { key: "hints", name: "Help on the board", of: ["check", "points", "costs", "guide", "whynot"] },
+  { key: "hints", name: "Help on the board", of: ["check", "points", "guide", "whynot"] },
   { key: "sound", name: "Sound and language", of: ["sound", "language"] },
   { key: "saves", name: "Your games", of: ["replay", "saves"] },
   { key: "layout", name: "Layout", of: ["bar"] },

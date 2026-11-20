@@ -23,16 +23,23 @@ direction). First pass, in the real game, both themes:
   the selection or player changes). The unused-points note and Tienda's
   tapped-open "Your order" slip (also Escape) close the same way.
   Test: `tests/e2e-outside-dismiss.mjs` (futuris, tienda, lluvia).
-- **Move costs switch** (user request, first Futuris, now every theme): a
-  circled-"1" icon in the dock's corner row, left of the points switch
-  (`costs-toggle`). It hides or shows the cost badges on the move
-  markers. On by default, and remembered in localStorage
-  `el-cabeza:show-move-costs`. A theme opts in with
-  `export const moveCostToggle = true`; Futuris, Standard, Cromo and Lluvia
-  all do. Standard got it after a Nova report that the numbers on the
-  board couldn't be hidden: the points switch hides only the counter. The chassis reads `costsOn`, and the marker
-  effect depends on it, so flipping it redraws the markers at once.
-  e2e-costs covers it.
+- **No Move costs switch** (gone 2026-11-20; user, with All settings'
+  "Move costs" circled: "remove this from the more comma all settings
+  menu globally, comma, unless you can think of a reason why it should be
+  kept even in some instances."). There was one from 2026-09 (first
+  Futuris, then every theme, 5654027: a Nova report that the numbers on
+  the board couldn't be hidden, when every marker carried one, mostly a
+  "1"): a circled-"1" icon in the dock's foot (`costs-toggle`), a row in
+  More's Help on the board, the phone shell's "Move costs on the board",
+  a line in the first game's tour, `theme.moveCostToggle`, localStorage
+  `el-cabeza:show-move-costs`. Since 2026-10-07 (b29bf7a) the badges only
+  show when the moves in reach cost different amounts (a "free" back, a
+  2-action move beside 1-action ones), which is when a turn can't be
+  planned without them, so no case was left for hiding them: the switch
+  is gone everywhere, the badges always follow that rule, and an "off"
+  left in a browser hides nothing. e2e-costs (no switch, an old "off"
+  ignored), e2e-rings / e2e-menu-lab (no row in More), e2e-nova-mobile
+  (none in the phone's menu).
 - **How to play** (`how-to-play`): always on screen beside the full-screen
   button and opens the Quick card. Below 560px wide only the "?" shows,
   keeping it clear of the points counter.

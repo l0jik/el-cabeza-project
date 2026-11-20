@@ -649,8 +649,6 @@ export const soundChannels = [
 ];
 // The city's recordings credited on the About card (assets/ciudad/src/CREDITS.md).
 export const soundCredits = "The city’s sounds are recordings of real streets, from freesound.org (by way of the Scaper library’s and the Blanket app’s sounds), looped and mixed by the hour: the morning, a city park in Tel Aviv by yonts (CC0) and a wood thrush’s morning by kvgarlic (CC0); the traffic, “NYC_street leve02l” by gezortenplotz (freesound.org/s/44796), CC BY 3.0; the afternoon’s busy street and the overcast street at work with its tram, “street scene 3” and “street scene 1” by saphe (freesound.org/s/173955, freesound.org/s/150993), CC BY 4.0; the evening, the high street of Gandia by jormarp (CC0); the wind, felix.blume (CC0); at night, crickets by Lisa Redfern and a restaurant by stephan (soundbible.com, public domain); the gridlock and its horns, downtown New York from a hotel window and its traffic by TRP, 41st Street at 8th Avenue by eyesplice, a traffic jam’s horns by craigsmith, and single horns by jasonlee3071, wanaki, DeVern, Brett+Butter, mudflea2, keweldog and Legnalegna55 (freesound.org, all CC0).";
-// The in-game menu offers a switch for the cost badges on the move markers.
-export const moveCostToggle = true;
 
 import { sideNamesFor } from "./side-names.js";
 import { pointsGlowFor, worldLightFor } from "./points-glow.js";

@@ -320,7 +320,8 @@ async function tapSlot(page, key) {
   await page.touchscreen.tap(s.x, s.y);
   return true;
 }
-const SETUP = ["first", "opponent", "level", "start", "pieces", "cart", "check", "points", "costs", "guide", "sound", "language", "replay", "saves", "bar"];
+// (No "costs": Move costs was taken out of the settings, user.)
+const SETUP = ["first", "opponent", "level", "start", "pieces", "cart", "check", "points", "guide", "sound", "language", "replay", "saves", "bar"];
 const FANS = [["4.1", "dial", -90], ["4.2", "rings", -90], ["4.3", "rail", -90], ["4.4", "pages", -90], ["4.5", "corner", -135]];
 
 console.log("The fans, on a phone in the store: every setting, turned");
@@ -334,7 +335,7 @@ console.log("The fans, on a phone in the store: every setting, turned");
     let f = opened ? await fanStill(page) : null;
     check(`${n} ${id}: a tap on the piece brings the fan out`, !!f && f.id === id && f.phase === "setup");
     if (!f) continue;
-    check(`${n}: every setting the panel has before a game`, SETUP.every((k) => f.keys.includes(k)), f.keys.join());
+    check(`${n}: every setting the panel has before a game, and no Move costs`, SETUP.every((k) => f.keys.includes(k)) && !f.keys.includes("costs"), f.keys.join());
     check(`${n}: Try a Game above it`, /try a game/i.test(f.primary || ""), f.primary);
     const shown = f.slots.filter((s) => s.op > 0.9);
     const off = shown.filter((s) => s.x < 0 || s.x > W || s.y < 0 || s.y > H);

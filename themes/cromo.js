@@ -569,9 +569,6 @@ export { mountAmbientEffects } from "./cromo-fx.js";
 // the same names as the Other realities menu (themes/realities.js WORLDS).
 export const realityName = "Cromo";
 export { createAudio, hasAudio } from "./cromo-audio.js";
-// The in-game menu offers a switch for the cost badges on the move
-// markers (chassis: theme.moveCostToggle, the costs-toggle button).
-export const moveCostToggle = true;
 
 // For cromo-fx.js: re-dress the scene whenever the stone changes.
 export function onStoneChange(fn) {

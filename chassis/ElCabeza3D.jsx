@@ -313,8 +313,6 @@ function loadShowPoints() {
 function saveShowPoints(on) {
   try { window.localStorage.setItem(SHOW_POINTS_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
 }
-// The cost badges on the move markers (buildCostBadge), for a theme that
-// offers a switch for them (theme.moveCostToggle). On unless switched off.
 /* Per-channel sound switches (a theme opts in with soundChannels, e.g.
    Tienda's music / store / pieces), remembered per browser: { key: off }. */
 const SOUND_CHANNELS_KEY = "el-cabeza:sound-channels";
@@ -389,13 +387,6 @@ function saveWhyNot(on) {
 }
 /* How much two screen boxes ({ left, top, right, bottom }) overlap, px². */
 const overlapArea = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
-const SHOW_COSTS_KEY = "el-cabeza:show-move-costs";
-function loadShowCosts() {
-  try { return window.localStorage.getItem(SHOW_COSTS_KEY) !== "0"; } catch (e) { return true; }
-}
-function saveShowCosts(on) {
-  try { window.localStorage.setItem(SHOW_COSTS_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
-}
 /* The check alert (user: against the computer, "if on the next turn they
    don't move their cabeza, they will lose the game ... something better
    for more amateur players"): a warning on your turn while the computer
@@ -1645,7 +1636,6 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
      Sound. `pointsPulse` bumps when a free detour hands points back (see
      commitRef's turn trail), replaying a short flash on the counter. */
   const [showPoints, setShowPoints] = useState(loadShowPoints);
-  const [showCosts, setShowCosts] = useState(loadShowCosts);
   const [showGuide, setShowGuide] = useState(loadPieceGuide);
   const togglePieceGuide = () => { const next = !showGuide; setShowGuide(next); savePieceGuide(next); };
   // Why not, its own switch (loadWhyNot): the note on a refused move.
@@ -1814,8 +1804,6 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     && pieces.every((p) => CLASSIC_TYPES.includes(p.type)) && !MISSING_SQUARES.length && !(blackHoles && blackHoles.length);
   const [focusMode, setFocusMode] = useState(false);
   const toggleFocus = () => setFocusMode((v) => !v);
-  // A theme without the switch always shows the badges.
-  const costsOn = showCosts || !theme.moveCostToggle;
   const [pointsPulse, setPointsPulse] = useState(0);
   /* The counter outlives the game it counted: once a game ends it freezes
      on that game's last turn ({ player, left } — the points the final
@@ -5449,7 +5437,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     aiPlayer ? ["check", '[data-testid="check-alert-switch"]'] : null,
     ["end-game", '[data-testid="end-game"]'],
   ].filter(Boolean);
-  const tourMenuFoot = [layoutSwitch ? "layout" : null, "why-not", "guide", theme.moveCostToggle ? "costs" : null, "points", theme.hasAudio ? "sound" : null].filter(Boolean);
+  const tourMenuFoot = [layoutSwitch ? "layout" : null, "why-not", "guide", "points", theme.hasAudio ? "sound" : null].filter(Boolean);
   const t3 = { rings: [], band: null };
   const t2 = { tags: [], arrows: [], boxes: [], orbit: null, avoid: ['[data-testid="points-counter"]', '[data-testid="stop-here-float"]', '[data-testid="undo-move-float"]', '[data-testid="shell-points"]', '[data-testid="corner-menu-tab"]', ...(tourOffer && tourOffer.clear ? [tourOffer.clear] : [])] };
   const tourBlocks = [], tourBoxed = [], tourMoved = [];
@@ -8327,9 +8315,12 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     /* Only when the costs differ (user): a badge on every marker saying
        the same "1" was clutter; when they all cost the same, the piece
        card says what that is. (Tests of the badges themselves can keep
-       them all: __EC_TEST_ALL_COSTS__.) */
+       them all: __EC_TEST_ALL_COSTS__.) Always, no switch for them (the
+       user had Move costs taken out of the settings): shown only when
+       they differ, they're what a move takes from the turn's actions,
+       which the turn can't be planned without. */
     const costLabels = new Set(shadowEntries.map(([, m]) => costLabel(m)));
-    const badgesWanted = costsOn && (costLabels.size > 1 || (typeof window !== "undefined" && window.__EC_TEST_ALL_COSTS__));
+    const badgesWanted = costLabels.size > 1 || (typeof window !== "undefined" && window.__EC_TEST_ALL_COSTS__);
     const withCostBadge = (themed, move, x, y, z) => {
       if (!badgesWanted) return themed;
       const cand = move.candidate;
@@ -8455,7 +8446,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       group.add(indicator.root);
     });
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [shadowSig, costsOn]);
+  }, [shadowSig]);
 
   /* Hover emphasis retargets the fade rather than setting opacity
      directly — sliding between footprints must not re-create meshes,
@@ -12975,7 +12966,6 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             check: aiPlayer ? "Check alert" : null,
             endGame: dockWords.endGame,
             layout: tourMenuFoot.includes("layout"),
-            costs: tourMenuFoot.includes("costs"),
             sound: tourMenuFoot.includes("sound"),
             channels: !!soundChannels,
             next: () => {
@@ -14838,7 +14828,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
               position: "absolute",
               left: 16,
               bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
-              maxWidth: `calc(100% - ${(theme.hasAudio ? 76 : 44) + 64 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0) + (langInFoot ? 32 : 0) + 20}px)`,
+              maxWidth: `calc(100% - ${(theme.hasAudio ? 76 : 44) + 64 + (layoutSwitch ? 32 : 0) + (langInFoot ? 32 : 0) + 20}px)`,
               display: "flex",
               alignItems: "baseline",
               gap: 10,
@@ -14902,7 +14892,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             style={{
               position: "absolute",
               left: 20,
-              right: (theme.hasAudio ? 76 : 44) + 64 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0) + (langInFoot ? 32 : 0),
+              right: (theme.hasAudio ? 76 : 44) + 64 + (layoutSwitch ? 32 : 0) + (langInFoot ? 32 : 0),
               // (With the corner switches, into the strip at the end of the
               // panel's content when it scrolls: --ec-dock-overflow.)
               bottom: "calc(7px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
@@ -14969,50 +14959,6 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             {!showPoints && <line x1="2" y1="20" x2="24" y2="4" />}
           </svg>
         </button>
-        {/* Move costs on/off (a theme opts in with moveCostToggle): the
-           circled numbers on the move markers. The glyph is one of those
-           badges, struck through while they're off. */}
-        {theme.moveCostToggle && (
-          <button
-            data-testid="costs-toggle"
-            data-dock-foot=""
-            aria-pressed={showCosts}
-            disabled={firstLook}
-            {...firstLockIcon}
-            onClick={(e) => {
-              const next = !showCosts;
-              setShowCosts(next);
-              saveShowCosts(next);
-              showToggleHint(e, next ? "Move costs: shown. Each move marker shows what it costs." : "Move costs: hidden.");
-            }}
-            aria-label={showCosts ? "Hide move costs" : "Show move costs"}
-            title={showCosts ? "Hide move costs" : "Show move costs"}
-            style={{
-              position: "absolute",
-              right: theme.hasAudio ? 72 : 40,
-              bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
-              width: 30,
-              height: 30,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "transparent",
-              border: "none",
-              color: COLORS.slate,
-              opacity: showCosts ? 0.85 : 0.45,
-              cursor: "pointer",
-              transition: "opacity 0.2s ease",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = 0.85; }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = showCosts ? 0.85 : 0.45; }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M10 9.5l2.5-2v9" />
-              {!showCosts && <line x1="3" y1="21" x2="21" y2="3" />}
-            </svg>
-          </button>
-        )}
         {/* The piece guide on/off: the card that says what the chosen
            piece does. The glyph is that card, a speech-bubble of text,
            struck through while it's off. */}
@@ -15027,7 +14973,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
           title={showGuide ? "Hide the piece guide" : "Show the piece guide"}
           style={{
             position: "absolute",
-            right: (theme.hasAudio ? 40 : 8) + 32 + (theme.moveCostToggle ? 32 : 0),
+            right: (theme.hasAudio ? 40 : 8) + 32,
             bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
             width: 30,
             height: 30,
@@ -15065,7 +15011,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
           title={whyNotOn ? "Hide why a move can't be made" : "Show why a move can't be made"}
           style={{
             position: "absolute",
-            right: (theme.hasAudio ? 40 : 8) + 64 + (theme.moveCostToggle ? 32 : 0),
+            right: (theme.hasAudio ? 40 : 8) + 64,
             bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
             width: 30,
             height: 30,
@@ -15100,7 +15046,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             hair={COLORS.slateSoft}
             style={{
               position: "absolute",
-              right: (theme.hasAudio ? 40 : 8) + 96 + (theme.moveCostToggle ? 32 : 0),
+              right: (theme.hasAudio ? 40 : 8) + 96,
               bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
             }}
           />
@@ -15121,7 +15067,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             title="Use the control bar layout"
             style={{
               position: "absolute",
-              right: (theme.hasAudio ? 40 : 8) + 96 + (theme.moveCostToggle ? 32 : 0) + (langInFoot ? 32 : 0),
+              right: (theme.hasAudio ? 40 : 8) + 96 + (langInFoot ? 32 : 0),
               bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
               width: 30,
               height: 30,
@@ -15438,9 +15384,6 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             onOpenMusic: () => setMusicPanel(true),
             showPoints,
             onTogglePoints: () => { const next = !showPoints; setShowPoints(next); saveShowPoints(next); },
-            costsToggle: !!theme.moveCostToggle,
-            showCosts,
-            onToggleCosts: () => { const next = !showCosts; setShowCosts(next); saveShowCosts(next); },
             checkAlert,
             onToggleCheckAlert: toggleCheckAlert,
             pageItems: [

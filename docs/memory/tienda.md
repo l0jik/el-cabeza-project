@@ -351,8 +351,8 @@ box art and an ad standee (assets/tienda/*.jpg).
      switch went, 2026-10-22: always on now, see below.)
   3. "The buttons along the bottom." Each of the menu's foot buttons
      drawn on the card as the menu draws it (FOOT_ICONS) with what it does
-     (Control bar where offered, Piece guide, Move costs where the world
-     has them, Actions left, Sound), each ringed on the menu in turn as
+     (Control bar where offered, Piece guide, Actions left, Sound; Move
+     costs too till its switch went, 2026-11-20), each ringed on the menu in turn as
      its glyph on the card lights, and "That's the tour. Your move: tap
      any of your pieces to see what it does. Good luck!" (was "Your
      turn:"; user, 2026-10-22: "Change the word circled in red to

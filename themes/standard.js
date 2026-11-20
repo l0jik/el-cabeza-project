@@ -232,9 +232,6 @@ export const music = {
   ],
   tracks: () => (typeof window !== "undefined" && window.__EC_TEST_HOOKS__ && window.__DEN_TEST_TRACKS__) || DEN_TRACKS,
 };
-// The in-game menu offers a switch for the cost badges on the move
-// markers (chassis: theme.moveCostToggle, the costs-toggle button).
-export const moveCostToggle = true;
 // The pieces are wood (chassis: theme.woodPieces): the Cabeza only ever
 // slides, and a slid block glides, no knock.
 export const woodPieces = true;
