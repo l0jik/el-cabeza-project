@@ -1,7 +1,13 @@
 /* In-game helper pop-ups go away on a press outside them, in every
    theme: the piece card (off the board, and mid-turn on an empty square,
    when the piece itself stays selected), the unused-points note, and
-   the corner menu (the game's rules) once it has been tapped open. */
+   the corner menu (the game's rules) once it has been tapped open.
+   And a piece's moves with it (user, in Neo-Brutalism: "you should be
+   able to click out off the piece and then it will no longer show the
+   potential move notifications"): before a step a tap on one of the other
+   side's pieces lets go of yours, as an empty square does; mid-turn a tap
+   away puts the turn's piece's moves out of sight, a tap on it brings
+   them back. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
@@ -65,6 +71,10 @@ for (const theme of ["futuris", "tienda", "lluvia"]) {
   let e = await empty();
   await page.mouse.click(e.x, e.y);
   check("a tap on an empty square puts it away (and lets go of the piece)", await poll(async () => (await card.count()) === 0 && (await markers()) === 0));
+  await select("dark-turrito");
+  const foe = await at("light-turrito");
+  await page.mouse.click(foe.x, foe.y);
+  check("a tap on one of the other side's pieces lets go of yours too (its card and its moves away)", await poll(async () => (await card.count()) === 0 && (await markers()) === 0));
 
   await select("dark-turrito");
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
@@ -73,7 +83,14 @@ for (const theme of ["futuris", "tienda", "lluvia"]) {
   e = await empty();
   await page.mouse.click(e.x, e.y);
   check("mid-turn, a tap on an empty square puts the card away", await poll(async () => (await card.count()) === 0));
-  check("...but the piece stays selected (its moves still showing)", (await markers()) > 0);
+  check("...and the piece's moves (the turn still its: End turn up)", await poll(async () => (await markers()) === 0) && (await page.locator('[data-testid="stop-here-float"]').count()) === 1);
+  const there = await at("dark-turrito");
+  await page.mouse.click(there.x, there.y);
+  check("...a tap on it brings its moves and its card back", await poll(async () => (await markers()) > 0 && (await card.count()) === 1));
+  await page.mouse.click(foe.x, foe.y);
+  check("...and a tap on the other side's piece puts them away again", await poll(async () => (await markers()) === 0 && (await card.count()) === 0));
+  await page.mouse.click(there.x, there.y);
+  await poll(async () => (await markers()) > 0);
 
   {
     const menu = page.locator('[data-testid="corner-menu"]');

@@ -5083,6 +5083,18 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
      away, until another piece is picked or the turn moves on. */
   const [pieceCardDismissed, setPieceCardDismissed] = useState(false);
   useEffect(() => { setPieceCardDismissed(false); }, [selectedId, currentPlayer]);
+  /* ...and its moves with it (user, in Neo-Brutalism: "If a piece is
+     selected and you see ... possible movement locations, but then you
+     decide you don't want to move that piece, you should be able to click
+     out off the piece and then it will no longer show the potential move
+     notifications"): mid-turn a press away from the turn's piece puts its
+     markers out of sight too. It stays the turn's piece (End turn, Undo
+     move, a hold on it, all as they were); a tap on it brings its moves
+     back, as does a move, another piece, the next turn. */
+  const [movesAway, setMovesAway] = useState(false);
+  const movesAwayRef = useRef(false);
+  movesAwayRef.current = movesAway;
+  useEffect(() => { setMovesAway(false); }, [selectedId, currentPlayer, stepsUsed]);
   /* Where a piece is on the screen: its box, children and all (a City
      building rides on its piece), projected; null when it isn't there.
      The box, in the piece's own frame, kept per mesh (a new mesh comes
@@ -5258,6 +5270,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     activePiece.owner === currentPlayer &&
     currentPlayer !== foeSide && // the AI moves without narrating its options on the board
     !replaying && // (nor does a replay)
+    !(movesAway && activePiece.id === selectedId) && // (put away by a press elsewhere, mid-turn)
     stepsRemaining > 0
       ? legalMovesFor(pieces, activePiece, stepsRemaining)
       : {};
@@ -10505,10 +10518,19 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
         }
       }
       const hit = pick(ev);
+      const hitPiece = hit && hit.type === "piece" ? pieces.find((x) => x.id === hit.id) : null;
       if (hit && hit.type === "ghost" && activePieceRef.current) {
         moveTapAtRef.current = performance.now();
         beginMove(activePieceRef.current, hit.dir);
+      } else if (hitPiece && hitPiece.owner !== currentPlayer) {
+        // One of the other side's pieces (not one to crush: its marker
+        // takes the tap, above): a press away from yours, as on an empty
+        // square (user: "click out off the piece").
+        if (!turnLocked) setSelectedId(null);
+        else { setPieceCardDismissed(true); setMovesAway(true); }
       } else if (hit && hit.type === "piece" && turnLocked && hit.id === selectedId) {
+        // Its moves put away by a press elsewhere: a tap on it, back.
+        if (movesAwayRef.current) { setMovesAway(false); setPieceCardDismissed(false); return; }
         // Tapping directly on the piece that's already made a step this
         // turn keeps the turn going and says how to end it (Hold to end):
         // holding the piece ends it (onDown), as End turn does.
@@ -10539,8 +10561,10 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       } else if (!hit && !turnLocked) {
         setSelectedId(null);
       } else if (!hit) {
-        // Mid-turn the piece stays selected; the tap just puts its card away.
+        // Mid-turn the piece stays the turn's; the tap puts its card and
+        // its moves away (a tap on it brings them back).
         setPieceCardDismissed(true);
+        setMovesAway(true);
       }
     }
 

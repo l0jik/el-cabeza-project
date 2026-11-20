@@ -23,6 +23,19 @@ direction). First pass, in the real game, both themes:
   the selection or player changes). The unused-points note and Tienda's
   tapped-open "Your order" slip (also Escape) close the same way.
   Test: `tests/e2e-outside-dismiss.mjs` (futuris, tienda, lluvia).
+  And the piece's moves (2026-11-20; user, in Neo-Brutalism: "If a piece
+  is selected and you see ... possible movement locations, but then you
+  decide you don't want to move that piece, you should be able to click
+  out off the piece and then it will no longer show the potential move
+  notifications. ... Am I missing something or am I interpreting this
+  correctly?"; right, but two presses didn't): a tap on one of the other
+  side's pieces (not one to crush, whose marker takes the tap) now counts
+  as a press away: before a step it lets go of yours. Mid-turn a press
+  away puts the turn's piece's markers out of sight too (`movesAway`, the
+  shadows left empty for it; reset by a move, another selection, the next
+  turn); the piece stays the turn's (End turn, Undo move, a hold on it as
+  before), and a tap on it brings its moves and its card back (where the
+  tap gave the Hold-to-end hint; still does when its moves are showing).
 - **No Move costs, switch or badges** (2026-11-20). First the switch
   (user, with All settings' "Move costs" circled: "remove this from the
   more comma all settings menu globally, comma, unless you can think of a

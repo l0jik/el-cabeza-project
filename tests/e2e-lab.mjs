@@ -163,8 +163,13 @@ async function waitSwitched(page, id) {
     // the stats card kept (user: "the numbers in Neo-Brutalist are sitting
     // on the border; there should be buffer b/t the two."). In CSS px,
     // whatever the read-out's scale.
+    // (Put down in play the read-out shows the turn alone: measured as
+    // it's brought up, its parts all there.)
     const room = await page.evaluate(() => {
       const hud = document.querySelector('[data-testid="lab-hud"]');
+      const was = hud.dataset.compact;
+      if (was === "small") hud.dataset.compact = "open";
+      try {
       const log = hud.querySelector(".lab-log"), n = log && log.querySelector("li .n");
       if (!log || !n) return null;
       const cs = getComputedStyle(log), lb = log.getBoundingClientRect(), nb = n.getBoundingClientRect();
@@ -173,6 +178,7 @@ async function waitSwitched(page, id) {
       const stats = hud.querySelector(".lab-stats"), ss = getComputedStyle(stats), sb = stats.getBoundingClientRect();
       const cards = parseFloat(ss.borderBottomWidth) > 0 && parseFloat(cs.borderTopWidth) > 0 && sb.bottom <= lb.top + 1;
       return { edged, inset: +((nb.left - lb.left) / k - parseFloat(cs.borderLeftWidth)).toFixed(1), cards, between: cards ? +((lb.top - sb.bottom) / k).toFixed(1) : null };
+      } finally { hud.dataset.compact = was; }
     });
     if (!room) cramped.push(`${id}: no log`);
     else if ((room.edged && room.inset < 6) || (room.cards && room.between < 4)) cramped.push(`${id} ${JSON.stringify(room)}`);
@@ -302,16 +308,17 @@ async function waitSwitched(page, id) {
       const shown = (s) => { const e = h.querySelector(s); return !!e && getComputedStyle(e).display !== "none"; };
       return { c: h.dataset.compact, x: b.left, y: b.top, w: b.width, h: b.height, barBottom: bar.bottom, turn: shown(".lab-turn"), big: shown(".lab-big"), stats: shown(".lab-stats"), rules: shown(".lab-rules"), arrow: getComputedStyle(h.querySelector(".lab-turn"), "::after").content };
     });
+    let small = null;
     for (const id of ["neoBrutalist", "destijl", "corporateSwiss", "minimalMono"]) {
       if ((await labId(page)) !== id) { await page.evaluate((x) => window.__LAB__.switchTo(x), id); await waitSwitched(page, id); await page.waitForTimeout(600); }
       await page.waitForTimeout(1300);
-      const small = await hudBox();
+      small = await hudBox();
       check(`${id} in play: the read-out small, in the top left under the bar: whose move and the turn alone, a down-arrow for more (${Math.round(small.w)} x ${Math.round(small.h)} px)`, small.c === "small" && Math.abs(small.x - 12) < 3 && Math.abs(small.y - (small.barBottom + 8)) < 3 && small.turn && small.big && !small.stats && !small.rules && small.h <= 40 && small.w <= 200 && /\u25BE|▾/.test(small.arrow), JSON.stringify(small));
     }
     await page.tap('[data-testid="lab-hud"]', { position: { x: 8, y: 8 } });
     await page.waitForTimeout(1000);
-    const small = { w: 120 }, big = await hudBox();
-    check(`...a tap brings it up full size, still in the corner, the numbers and the rules in it (${Math.round(big.w)} x ${Math.round(big.h)} px)`, big.c === "open" && big.w > small.w * 1.8 && Math.abs(big.x - 12) < 3 && big.stats && big.rules && big.arrow === "none", JSON.stringify(big));
+    const big = await hudBox();
+    check(`...a tap brings it up full size, still in the corner, the numbers and the rules in it (${Math.round(small.w)} x ${Math.round(small.h)} -> ${Math.round(big.w)} x ${Math.round(big.h)} px)`, big.c === "open" && big.w > small.w * 1.5 && big.h > small.h * 4 && Math.abs(big.x - 12) < 3 && big.stats && big.rules && big.arrow === "none", JSON.stringify(big));
     await page.tap('[data-testid="lab-hud"]', { position: { x: 8, y: 8 } });
     await page.waitForTimeout(1000);
     const down = await hudBox();
