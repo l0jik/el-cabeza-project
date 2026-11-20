@@ -188,13 +188,13 @@ const HUD_BASE = `
        but there's no text taking up that room ... when you pull it up and
        you want to see it, you have to be able to read it."): the rules
        across the read-out's width and larger, each look's own type and
-       spacing scaled together (zoom: a sixth on a phone, nearly half again
-       where there's room, 600 px each way), the numbers a fifth larger
-       there too. (The list's own height, hud.js LabRules, minds the zoom.) */
-    .lab-hud .lab-rules[data-open="true"] { zoom: 1.15; max-width: none; }
+       spacing scaled together (zoom: 1.3 on a phone, 1.7 where there's
+       room, 600 px each way; then, "a little bit larger even", from 1.15
+       and 1.45), the numbers 1.35 there too. (The list's own height, hud.js LabRules, minds the zoom.) */
+    .lab-hud .lab-rules[data-open="true"] { zoom: 1.3; max-width: none; }
     @media (min-width: 600px) and (min-height: 600px) {
-      .lab-hud .lab-rules[data-open="true"] { zoom: 1.45; }
-      .lab-hud[data-compact="open"] .lab-stats { zoom: 1.2; }
+      .lab-hud .lab-rules[data-open="true"] { zoom: 1.7; }
+      .lab-hud[data-compact="open"] .lab-stats { zoom: 1.35; }
     }
     /* The game's own notes at the top come down below the Lab's bar (the
        check alert, its note, the replay's bar: they were under it; user,

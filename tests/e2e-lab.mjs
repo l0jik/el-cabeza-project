@@ -329,7 +329,7 @@ async function waitSwitched(page, id) {
       return { c: h.dataset.compact, zoom: +getComputedStyle(r).zoom, stats: +getComputedStyle(st).zoom, li: li ? +li.getBoundingClientRect().height.toFixed(1) : 0, hudW: Math.round(hb.width), rulesW: Math.round(rb.width), bottom: Math.round(rb.bottom), ih: innerHeight };
     });
     const ph = await opened();
-    check(`...brought up on a phone, the rules a sixth larger (${JSON.stringify(ph)})`, ph.c === "open" && ph.zoom > 1.1 && ph.li > 20 && ph.bottom <= ph.ih);
+    check(`...brought up on a phone, the rules about a third larger (${JSON.stringify(ph)})`, ph.c === "open" && ph.zoom >= 1.25 && ph.li > 23 && ph.bottom <= ph.ih);
     await page.tap('[data-testid="lab-hud"]', { position: { x: 8, y: 8 } });
     await page.waitForTimeout(1000);
     const down = await hudBox();
@@ -342,7 +342,7 @@ async function waitSwitched(page, id) {
     await page.tap('[data-testid="lab-hud"]', { position: { x: 8, y: 8 } });
     await page.waitForTimeout(1200);
     const sq = await opened();
-    check(`De Stijl brought up on a near-square screen: the rules nearly half again as large, across the read-out, the numbers larger too, all on the screen (${JSON.stringify(sq)})`, sq.c === "open" && sq.zoom > 1.4 && sq.stats > 1.1 && sq.li > 26 && sq.rulesW > sq.hudW * 0.9 && sq.bottom <= sq.ih);
+    check(`De Stijl brought up on a near-square screen: the rules 1.7 times as large ("a little bit larger even"), across the read-out, the numbers larger too, all on the screen (${JSON.stringify(sq)})`, sq.c === "open" && sq.zoom >= 1.65 && sq.stats >= 1.3 && sq.li > 30 && sq.rulesW > sq.hudW * 0.9 && sq.bottom <= sq.ih);
     await page.tap('[data-testid="lab-hud"]', { position: { x: 8, y: 8 } });
     await page.waitForTimeout(800);
   }

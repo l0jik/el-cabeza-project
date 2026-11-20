@@ -194,16 +194,18 @@ worry about it. But when you pull it up and you want to see it, you have
 to be able to read it."). In the compact layout (css.js HUD_BASE), the
 rules brought up (`.lab-rules[data-open="true"]`) no longer stop at 420
 px but run across the read-out, and are zoomed, each look's own type and
-spacing together: 1.15 on a phone, 1.45 where the screen is 600 px or
-more each way (a law 13px to about 19, the card 420 px to about 770 to
-860 on an 880-wide screen), the numbers (.lab-stats) 1.2 there too. The
+spacing together: 1.3 on a phone, 1.7 where the screen is 600 px or more
+each way (a law 13px to about 22, the card 420 px to about 770 to 860 on
+an 880-wide screen), the numbers (.lab-stats) 1.35 there too. (First
+1.15, 1.45 and 1.2; then the user: "I think we should maybe make the
+text a little bit larger even.") The
 rules' list keeps to the room below it on the screen (hud.js LabRules:
 its max-height over the zoom, the 140 px floor counted on the screen).
-A phone on its side keeps 1.15 (600 px tall at least for more); there,
-as before the change, the floor runs the list a little past the foot
-(844x390: 412 of 390, as it was). tests/e2e-lab.mjs (phone: brought up,
-a sixth larger; then 880x914, De Stijl: nearly half again, across the
-read-out, the numbers larger, all on the screen).
+A phone on its side keeps the phone's 1.3 (600 px tall at least for
+more); there, as before the change, the list's floor runs it a little
+past the foot. tests/e2e-lab.mjs (phone: brought up, about a third
+larger; then 880x914, De Stijl: 1.7, across the read-out, the numbers
+larger, all on the screen).
 
 The rules above the moves, larger on a big screen (2026-11-11, user, a
 screenshot of the Monolith's read-out brought up, its moves then its
