@@ -159,7 +159,9 @@ export function LabHud({ spec, x }) {
     return undefined;
   }, [count]);
 
-  // In play: compact in the top left (open: full size there).
+  // In play: compact in the top left (open: full size there). Put down,
+  // only whose move it is and the turn's number show (css.js HUD_BASE,
+  // data-compact="small"; user: "much smaller ... maybe half the size").
   const hudRef = React.useRef(null);
   const [open, setOpen] = React.useState(false);
   const lastPointer = React.useRef(null);

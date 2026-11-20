@@ -46,10 +46,11 @@ const n = (p, sel) => p.locator(sel).count();
 const gateOn = (p) => poll(async () => (await n(p, '[data-testid="reality-gate"]')) > 0, 30000);
 const armed = (p) => p.evaluate(() => window.__EC_TEST_ARMED__ === true);
 const shot = async (p, name) => { if (SHOTS) await p.screenshot({ path: `${SHOTS}/change-rules-${name}.png` }); };
-// The Lab's Rules line, its list shown.
+// The Lab's Rules line, its list shown. (Put down in play, the read-out is
+// whose move it is alone: brought up, the pointer over it, the rules with it.)
 async function labRules(p) {
   if (await n(p, '[data-testid="lab-rules-change"]')) return true;
-  await p.locator('[data-testid="lab-hud-rules"]').click();
+  await p.locator('[data-testid="lab-hud"]').click({ position: { x: 6, y: 6 } });
   return !!(await poll(async () => (await n(p, '[data-testid="lab-rules-change"]')) > 0, 3000));
 }
 // The corner Rules card, open: a mouse's one click; a finger's two taps

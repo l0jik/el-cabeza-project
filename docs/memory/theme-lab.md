@@ -160,6 +160,30 @@ desktop walk through the nine (the log's numbers at least 6 CSS px inside
 an edged card, at least 4 between the stats card and the log card when
 both are bordered). Shots before and after in the scratchpad lablog/.
 
+Put down in play, the turn alone (2026-11-20; user, a phone screenshot
+of Neo-Brutalism in play, the lab's bar and the read-out under it
+circled: "When in gameplay, this menu, when minimized, should be
+smaller. Much smaller. Well, like maybe half the size of what it
+currently is, and then if you tap on it, then you can expand it out.
+It's just taking up too much screen real estate at this point."). In
+play the read-out was already put down, half size under the bar
+(hud.js data-compact "small", scale 0.5; a tap, or the mouse over it,
+brings it up full size, "open", down again by itself after 12 s); half
+again by scale alone would be unreadable, so put down it now shows less:
+whose move it is and the turn's number only, as wide as they are, a
+small down-arrow after the words saying there's more (css.js HUD_BASE:
+`.lab-hud[data-compact="small"]`, width max-content, every part but
+.lab-turn and .lab-big display none, the turn's line unwrapped, ::after
+"▾"; De Stijl's turn card is a grid, so there the arrow sits at its top
+right). The theme, the numbers, the rules and the moves come up with it,
+as before. On a phone-sized or near-square screen (880x914 like the
+user's), the bar and the read-out together went from about 442x149 px
+(134 to 191 tall across the nine) to 315x78 (67 to 89): half the height,
+about 40% of the room. The lab's bar itself unchanged. tests/e2e-lab.mjs
+(phone: four looks put down, the turn alone, about 25 px tall; a tap
+brings up the numbers and the rules; a tap puts it down);
+e2e-change-rules.mjs's labRules brings the read-out up before its rules.
+
 The rules above the moves, larger on a big screen (2026-11-11, user, a
 screenshot of the Monolith's read-out brought up, its moves then its
 rules: "On desktop / Chromebook / large screen, this text is too small &

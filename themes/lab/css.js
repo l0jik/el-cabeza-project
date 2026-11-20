@@ -198,6 +198,18 @@ const HUD_BASE = `
       padding: 5px 10px 5px 8px !important; font-size: 10px !important; letter-spacing: 0.08em !important; line-height: 1.15;
     }
   }
+  /* In play, put down (hud.js data-compact="small", at half size in the
+     top left; user, of Neo-Brutalism's on a phone: "When in gameplay,
+     this menu, when minimized, should be smaller. Much smaller. Well, like
+     maybe half the size of what it currently is, and then if you tap on
+     it, then you can expand it out."): whose move it is and the turn's
+     number only, as wide as they are, a small down-arrow saying there's
+     more; the theme, the numbers, the rules and the moves come up with it
+     at a tap (data-compact="open", full size), as before. */
+  .lab-hud[data-compact="small"] { width: max-content !important; max-width: calc((100vw - 24px) * 2); }
+  .lab-hud[data-compact="small"] > :not(.lab-turn):not(.lab-big) { display: none !important; }
+  .lab-hud[data-compact="small"] .lab-turn { white-space: nowrap; }
+  .lab-hud[data-compact="small"] .lab-turn::after { content: "▾"; margin-left: 0.6em; font-size: 0.8em; opacity: 0.75; }
   @media (prefers-reduced-motion: reduce) { .lab-hud, .lab-hud * { animation: none !important; transition: none !important; } }
 `;
 /* In the compact strip the turn number floats top right; these
@@ -272,6 +284,10 @@ const HUD = {
   .lab-hud .lab-big { background: var(--accent-primary); color: #FFF; font-family: var(--font-display); font-size: 44px; line-height: 1; display: grid; align-content: end; min-height: 108px; }
   .lab-hud .lab-big small { font-family: var(--font-body); font-size: 10px; letter-spacing: 0.12em; }
   .lab-hud .lab-turn { font-family: var(--font-display); font-size: 13px; display: grid; align-content: center; animation: lab-destijl-steps 400ms steps(4, end) both; }
+  /* (Put down in play, its down-arrow in the swatch's row, at the right:
+     a row of its own under the words, in this grid.) */
+  .lab-hud[data-compact="small"] .lab-turn { position: relative; }
+  .lab-hud[data-compact="small"] .lab-turn::after { position: absolute; top: 4px; right: 6px; margin: 0; }
   .lab-hud[data-player="light"] .lab-turn { background: var(--accent-secondary); color: #FFF; }
   @keyframes lab-destijl-steps { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0); } }
   .lab-hud .lab-stats { grid-column: 1 / -1; }

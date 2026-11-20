@@ -291,16 +291,31 @@ async function waitSwitched(page, id) {
     check(`${id}: the compact HUD fits under the lab bar, no sideways scroll`, fit.hudRight <= fit.w + 1 && fit.hudTop >= fit.barBottom - 2 && fit.scroll <= fit.w, JSON.stringify(fit));
   }
   // In play the read-out is half size, tucked in the top left under the
-  // bar (user); a tap brings it up full size there.
+  // bar (user); a tap brings it up full size there. Put down, it's whose
+  // move it is and the turn's number only, as wide as they are (user:
+  // "much smaller ... maybe half the size of what it currently is, and
+  // then if you tap on it, then you can expand it out"): about 25 px
+  // tall, where with the numbers and the rules it was about 95.
   {
-    const hudBox = () => page.evaluate(() => { const h = document.querySelector('[data-testid="lab-hud"]'); const b = h.getBoundingClientRect(); const bar = document.querySelector('[data-testid="lab-bar"]').getBoundingClientRect(); return { c: h.dataset.compact, x: b.left, y: b.top, w: b.width, barBottom: bar.bottom }; });
-    await page.waitForTimeout(900);
-    const small = await hudBox();
-    check(`in play: the read-out small, in the top left under the bar (${JSON.stringify(small)})`, small.c === "small" && Math.abs(small.x - 12) < 3 && Math.abs(small.y - (small.barBottom + 8)) < 3);
+    const hudBox = () => page.evaluate(() => {
+      const h = document.querySelector('[data-testid="lab-hud"]'); const b = h.getBoundingClientRect(); const bar = document.querySelector('[data-testid="lab-bar"]').getBoundingClientRect();
+      const shown = (s) => { const e = h.querySelector(s); return !!e && getComputedStyle(e).display !== "none"; };
+      return { c: h.dataset.compact, x: b.left, y: b.top, w: b.width, h: b.height, barBottom: bar.bottom, turn: shown(".lab-turn"), big: shown(".lab-big"), stats: shown(".lab-stats"), rules: shown(".lab-rules"), arrow: getComputedStyle(h.querySelector(".lab-turn"), "::after").content };
+    });
+    for (const id of ["neoBrutalist", "destijl", "corporateSwiss", "minimalMono"]) {
+      if ((await labId(page)) !== id) { await page.evaluate((x) => window.__LAB__.switchTo(x), id); await waitSwitched(page, id); await page.waitForTimeout(600); }
+      await page.waitForTimeout(1300);
+      const small = await hudBox();
+      check(`${id} in play: the read-out small, in the top left under the bar: whose move and the turn alone, a down-arrow for more (${Math.round(small.w)} x ${Math.round(small.h)} px)`, small.c === "small" && Math.abs(small.x - 12) < 3 && Math.abs(small.y - (small.barBottom + 8)) < 3 && small.turn && small.big && !small.stats && !small.rules && small.h <= 40 && small.w <= 200 && /\u25BE|▾/.test(small.arrow), JSON.stringify(small));
+    }
     await page.tap('[data-testid="lab-hud"]', { position: { x: 8, y: 8 } });
     await page.waitForTimeout(1000);
-    const big = await hudBox();
-    check(`...a tap brings it up full size, still in the corner (${Math.round(small.w)} -> ${Math.round(big.w)} px)`, big.c === "open" && big.w > small.w * 1.8 && Math.abs(big.x - 12) < 3);
+    const small = { w: 120 }, big = await hudBox();
+    check(`...a tap brings it up full size, still in the corner, the numbers and the rules in it (${Math.round(big.w)} x ${Math.round(big.h)} px)`, big.c === "open" && big.w > small.w * 1.8 && Math.abs(big.x - 12) < 3 && big.stats && big.rules && big.arrow === "none", JSON.stringify(big));
+    await page.tap('[data-testid="lab-hud"]', { position: { x: 8, y: 8 } });
+    await page.waitForTimeout(1000);
+    const down = await hudBox();
+    check("...and a tap puts it down again", down.c === "small" && !down.stats && down.h <= 40, JSON.stringify(down));
   }
   const tgt = await page.locator('[data-testid="lab-next"]').boundingBox();
   check("the lab's buttons are touch-sized", tgt.width >= 36 && tgt.height >= 36, JSON.stringify(tgt));
