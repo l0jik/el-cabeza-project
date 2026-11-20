@@ -75,6 +75,28 @@ phone (an APK); the same project is the way to Google Play later.
   held while the game's touched, let go after ten idle minutes, the same
   as in a browser). apps/title-screen.js is a plain script in the page, so
   it has its own copy of the check.
+- **Its update note** (user, asked whether a change needs a new APK
+  sideloaded: yes, every push builds one at the same link; then "yes,
+  add the update available note"). CI's android job writes
+  el-cabeza-app.json beside the APK (versionCode: the run number, as the
+  APK's own; versionName, commit, built, size, apk), and the pages job
+  publishes both. The app's title screen (apps/title-screen.js, at its
+  end), in the app only and with a connection, asks the site for it
+  (cache no-store, 8 s at most) and sets it beside the app's own
+  (window.ElCabezaApp.versionCode(), MainActivity: the installed
+  package's version code); newer, and newer than any let be: a quiet
+  line at the foot of the menu, last in, "An update is ready, from Nov
+  20." · "Get it · 61 MB" · "Not now" (es/vi words in i18n). Get it:
+  ElCabezaApp.openInBrowser(the APK's address) (https only; an
+  ACTION_VIEW intent: the phone's browser downloads it, Android installs
+  it over this one, the games kept), the line then "Downloading in your
+  browser: open it when it's done to install it."; Not now: that
+  version kept as let be (localStorage el-cabeza:update-skipped), a
+  newer one told again. No connection, the same version, an app from
+  before the note (no versionCode to ask): nothing, no request. The game
+  never needs the connection; this is the app's one word to the internet.
+  e2e-app.mjs (with a stand-in site answer). An APK from before the note
+  can't tell: the first one with it is installed by hand.
 - **Signed** with a key of its own, android/app/el-cabeza-sideload.jks
   (alias el-cabeza, password elcabeza-sideload, in android/app/build.gradle):
   the same every build, so a newer APK installs over the old and keeps its

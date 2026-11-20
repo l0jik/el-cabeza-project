@@ -2381,4 +2381,9 @@ export default {
   "{s} s after full screen": "{s} s después de la pantalla completa",
   "No switch to full screen": "Sin pasar a pantalla completa",
   "{s} s after a tap": "{s} s después de un toque",
+  // The Android app's update line on the title screen (apps/title-screen.js).
+  "An update is ready.": "Hay una actualización.",
+  "An update is ready, from {date}.": "Hay una actualización, del {date}.",
+  "Get it": "Descargarla",
+  "Downloading in your browser: open it when it's done to install it.": "Se descarga en tu navegador: ábrela cuando termine para instalarla.",
 };

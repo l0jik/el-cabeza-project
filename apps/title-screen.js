@@ -165,6 +165,15 @@ html.ec-splash-on { background: #120C08; }
 .ec-splash-langs button:hover { color: rgba(242, 217, 164, 0.85); }
 .ec-splash-langs button.on { color: #F2D9A4; border-bottom-color: #C29A5C; }
 .ec-splash-langs i { font-style: normal; opacity: 0.6; letter-spacing: 0; }
+/* The app's word that a newer version's out (the Android app only): a
+   quiet line at the foot of the menu, last in. */
+.ec-splash-update { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0 12px; max-width: min(92vw, 380px);
+  margin-top: 2px; font-weight: 300; font-size: 12px; line-height: 1.5; letter-spacing: 0.12em; color: rgba(235, 203, 147, 0.72); text-align: center; }
+.ec-splash-update button { min-height: 40px; padding: 10px 6px; transition: color 0.3s ease; }
+.ec-splash-update .get { font-weight: 400; color: #F2D9A4; text-decoration: underline; text-decoration-color: #C29A5C; text-underline-offset: 4px; }
+.ec-splash-update .later { color: rgba(235, 203, 147, 0.5); }
+.ec-splash-update .later:hover { color: rgba(235, 203, 147, 0.8); }
+.ec-splash.menu-on .ec-splash-menu > .ec-splash-update { transition-delay: 0.6s; }
 /* The way out: the choice squeezed to a line and gone, its rules drawn out
    along it, as the splash plays back to the board over the held logo (the
    stage settling back as it came). */
@@ -357,8 +366,11 @@ html.ec-splash-on { background: #120C08; }
     restart = el("button", "ec-splash-restart", { type: "button", "data-testid": "title-restart" });
     menu.appendChild(restart);
   }
-  // Every word on it, in the language now chosen.
+  // Every word on it, in the language now chosen (the update line's too,
+  // once it's there: updateWords).
+  let updateWords = null;
   const label = () => {
+    if (updateWords) updateWords();
     word.textContent = first.word();
     if (sub) sub.textContent = first.sub();
     if (second) second.textContent = say("Other realities");
@@ -780,4 +792,80 @@ html.ec-splash-on { background: #120C08; }
     if (state === "playing") { e.preventDefault(); skip(); }
     else if (state === "leaving" && rewinding) { e.preventDefault(); rewoundNow(); }
   });
+
+  /* ------------------------------------------------ a newer app */
+
+  /* The Android app's word that a newer version's out (user: "yes, add
+     the update available note"). In the app only (IN_APP; its own side,
+     MainActivity.java: versionCode(), openInBrowser()), with a
+     connection: the site's word on its newest APK (el-cabeza-app.json,
+     put beside it by CI, .github/workflows/deploy-pages.yml), and, newer
+     than this one, a quiet line at the foot of the menu: an update's
+     ready, from when; Get it, its size, opening the download in the
+     phone's browser (Android installs it over this one, the games kept);
+     Not now, that version let be (a newer one still says so). No
+     connection, or no word in 8 s: nothing. The game itself never needs
+     the connection. */
+  const SITE = "https://l0jik.github.io/el-cabeza-project/";
+  const SKIPPED_KEY = "el-cabeza:update-skipped";
+  const app = IN_APP ? W.ElCabezaApp : null;
+  let mine = 0;
+  try { mine = app && typeof app.versionCode === "function" && typeof app.openInBrowser === "function" ? Number(app.versionCode()) || 0 : 0; } catch (e) { mine = 0; }
+  if (mine > 0 && navigator.onLine !== false && W.fetch) {
+    const ask = W.AbortController ? new W.AbortController() : null;
+    const giveUp = W.setTimeout(() => { if (ask) ask.abort(); }, 8000);
+    W.fetch(SITE + "el-cabeza-app.json", { cache: "no-store", signal: ask ? ask.signal : undefined })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((info) => {
+        W.clearTimeout(giveUp);
+        const v = info ? Number(info.versionCode) || 0 : 0;
+        let skipped = 0;
+        try { skipped = Number(W.localStorage.getItem(SKIPPED_KEY)) || 0; } catch (e) { /* none kept */ }
+        if (v > mine && v > skipped && !gone && state !== "leaving") newer(info, v);
+      })
+      .catch(() => { W.clearTimeout(giveUp); /* no connection: nothing to say */ });
+  }
+  function newer(info, v) {
+    const apk = SITE + (/^[\w.-]+\.apk$/.test(info.apk || "") ? info.apk : "el-cabeza.apk");
+    const mb = Number(info.size) > 0 ? Math.round(Number(info.size) / 1048576) : 0;
+    const line = el("div", "ec-splash-update", { "data-testid": "title-update", "data-version": String(v), role: "status" });
+    const text = el("span", "t");
+    const get = el("button", "get", { type: "button", "data-testid": "title-update-get" });
+    const later = el("button", "later", { type: "button", "data-testid": "title-update-later" });
+    line.append(text, get, later);
+    let opened = false;
+    updateWords = () => {
+      let when = "";
+      try { when = info.built ? new Date(info.built).toLocaleDateString(lang === "es" ? "es-AR" : lang, { day: "numeric", month: "short" }) : ""; } catch (e) { when = ""; }
+      text.textContent = opened ? say("Downloading in your browser: open it when it's done to install it.")
+        : when ? say("An update is ready, from {date}.", { date: when }) : say("An update is ready.");
+      get.textContent = mb ? `${say("Get it")} \u00b7 ${mb} MB` : say("Get it");
+      later.textContent = say("Not now");
+      get.style.display = later.style.display = opened ? "none" : "";
+    };
+    get.addEventListener("click", (e) => {
+      e.stopPropagation();
+      try { app.openInBrowser(apk); } catch (err) { return; }
+      opened = true;
+      updateWords();
+    });
+    later.addEventListener("click", (e) => {
+      e.stopPropagation();
+      try { W.localStorage.setItem(SKIPPED_KEY, String(v)); } catch (err) { /* this visit only */ }
+      updateWords = null;
+      line.remove();
+      fit();
+    });
+    updateWords();
+    // (Come after the menu: in from nothing, as the rest came.)
+    if (root.classList.contains("menu-on")) {
+      line.style.opacity = "0";
+      line.style.transform = "translateY(8px)";
+      menu.appendChild(line);
+      void line.offsetWidth;
+      line.style.opacity = "";
+      line.style.transform = "";
+      fit();
+    } else menu.appendChild(line);
+  }
 })();

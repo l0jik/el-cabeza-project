@@ -115,10 +115,26 @@ jobs:
           "$BT"/aapt2 dump badging el-cabeza.apk | grep -E "^package|sdkVersion|application-label:" || true
           "$BT"/apksigner verify --print-certs el-cabeza.apk | head -4
           ls -l el-cabeza.apk
+      # Its version, beside it on the site: the app's title screen asks
+      # for it and says when a newer one's out (apps/title-screen.js).
+      - name: The app's version, for its update note
+        env:
+          CODE: ${{ github.run_number }}
+          SHA: ${{ github.sha }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const name = (fs.readFileSync("chassis/ElCabeza3D.jsx", "utf8").match(/APP_VERSION = "([0-9.]+)"/) || [])[1] || "";
+            const info = { versionCode: Number(process.env.CODE), versionName: name, commit: process.env.SHA.slice(0, 7),
+              built: new Date().toISOString(), size: fs.statSync("el-cabeza.apk").size, apk: "el-cabeza.apk" };
+            fs.writeFileSync("el-cabeza-app.json", JSON.stringify(info) + "\n");
+            console.log(JSON.stringify(info));'
       - uses: actions/upload-artifact@v4
         with:
           name: apk
-          path: el-cabeza.apk
+          path: |
+            el-cabeza.apk
+            el-cabeza-app.json
           retention-days: 7
 
   # The APK on an Android emulator: installed, opened, given half a minute;

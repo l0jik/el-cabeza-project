@@ -26,6 +26,13 @@
      font failed; the corner menu's look's fonts from fonts/). In a phone's
      browser the same page still has its full-screen button, and the
      corner menu's fonts come from Google.
+   - Its update note (user: "yes, add the update available note"): with a
+     newer version on the site (its el-cabeza-app.json), the title
+     screen's quiet line under the menu, its date and size; Get it opens
+     the APK in the phone's browser (the app's openInBrowser); Not now
+     lets that version be, a newer one still told. The same version, no
+     connection, or an app too old to say its version: no line, no
+     errors. Never in a phone's browser.
 
    node tests/e2e-app.mjs */
 import { chromium } from "playwright";
@@ -51,7 +58,8 @@ check(`each recording as its Opus only (${files.filter((f) => f.endsWith(".opus"
 check("the title screen's MP4s kept (the WebView picks them), the den spot as its VP9 only", ["el-cabeza-title.mp4", "el-cabeza-title-720.mp4", "el-cabeza-title-rewind.mp4", "el-cabeza-title-land.mp4"].every(has) && has("el-cabeza-den-spot.webm") && !has("el-cabeza-den-spot.mp4"));
 const named = new Set();
 for (const f of files) if (/\.(js|html|webmanifest|css)$/.test(f)) for (const m of readFileSync(W + f, "utf8").matchAll(/el-cabeza-[A-Za-z0-9_.\-]+?\.(?:opus|mp3|webm|mp4|jpg|jpeg|png|webp|woff2|json|webmanifest|html|js|glb|bin|wav|ogg)\b/g)) named.add(m[0]);
-const missing = [...named].filter((n) => !has(n) && !(n.endsWith(".mp3") && has(n.replace(/\.mp3$/, ".opus"))) && n !== "el-cabeza-den-spot.mp4");
+// (el-cabeza-app.json is the site's, asked of it by the update note.)
+const missing = [...named].filter((n) => !has(n) && !(n.endsWith(".mp3") && has(n.replace(/\.mp3$/, ".opus"))) && n !== "el-cabeza-den-spot.mp4" && n !== "el-cabeza-app.json");
 check(`everything its pages name is in it (${named.size} files named)`, missing.length === 0, missing.join(", "));
 const F = W + "fonts/", fontFiles = existsSync(F) ? readdirSync(F) : [];
 const sheets = fontFiles.filter((f) => f.endsWith(".css"));
@@ -87,29 +95,45 @@ const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromi
 const PHONE = "Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36";
 const APP = PHONE.replace("Chrome/141.0.0.0 Mobile", "Version/4.0 Chrome/141.0.0.0 Mobile") + " ElCabezaApp";
 // (In the app nothing but its own files is reachable: anything else it
-// asks for is noted and refused, as with no connection.)
-async function open(ua, { idle = null } = {}) {
+// asks for is noted and refused, as with no connection. The site's word on
+// its newest app, asked by the title screen's update note, apart: `latest`
+// as its answer, or refused. `version`: the app's own, as its versionCode()
+// says; 0, an app from before the note, which can't say.)
+const VERSION_URL = "https://l0jik.github.io/el-cabeza-project/el-cabeza-app.json";
+async function open(ua, { idle = null, version = 0, latest = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true, userAgent: ua });
-  const outside = [];
-  await ctx.route("**/*", (route) => { const u = route.request().url(); if (u.startsWith(base)) return route.continue(); outside.push(u.slice(0, 90)); return route.abort("internetdisconnected"); });
-  await ctx.addInitScript((idleMs) => {
+  const outside = [], asked = [];
+  await ctx.route("**/*", (route) => {
+    const u = route.request().url();
+    if (u.startsWith(base)) return route.continue();
+    if (u === VERSION_URL) {
+      asked.push(u);
+      return latest ? route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(latest) }) : route.abort("internetdisconnected");
+    }
+    outside.push(u.slice(0, 90));
+    return route.abort("internetdisconnected");
+  });
+  await ctx.addInitScript(({ idleMs, version }) => {
     window.__EC_TEST_HOOKS__ = true;
     if (idleMs) window.__EC_TEST_WAKE_IDLE_MS__ = idleMs;
     window.__fsAsked = 0;
     const req = Element.prototype.requestFullscreen;
     Element.prototype.requestFullscreen = function () { window.__fsAsked++; return req ? req.apply(this, arguments) : Promise.reject(new Error("none")); };
     if (/ElCabezaApp/.test(navigator.userAgent)) {
-      // (as in the app: its keepScreenOn, and the WebView's no Screen Wake Lock)
+      // (as in the app: its keepScreenOn, its version and openInBrowser,
+      // and the WebView's no Screen Wake Lock)
       window.__keep = [];
+      window.__opened = [];
       window.ElCabezaApp = { keepScreenOn: (on) => window.__keep.push(!!on) };
+      if (version) Object.assign(window.ElCabezaApp, { versionCode: () => version, openInBrowser: (u) => window.__opened.push(u) });
       try { Object.defineProperty(Navigator.prototype, "wakeLock", { get: () => undefined, configurable: true }); } catch (e) { /* */ }
     }
-  }, idle);
+  }, { idleMs: idle, version });
   const page = await ctx.newPage();
   const bad = [], errs = [];
   page.on("response", (r) => { if (r.url().startsWith(base) && r.status() >= 400) bad.push(`${r.status()} ${r.url().slice(base.length)}`); });
   page.on("pageerror", (e) => errs.push(e.message));
-  return { ctx, page, bad, errs, outside };
+  return { ctx, page, bad, errs, outside, asked };
 }
 // The page's type: the faces it's drawing with (loaded as it needed them),
 // then every face it has, each loaded from the app's copy: none failed.
@@ -171,12 +195,73 @@ console.log("\nits pages in the app");
   }
   await ctx.close();
 }
+console.log("\nits update note");
+const LATEST = { versionCode: 1032, versionName: "2.0.0", commit: "abcdef1", built: "2026-11-20T19:00:00Z", size: 63713959, apk: "el-cabeza.apk" };
+const note = (page) => page.evaluate(() => { const n = document.querySelector('[data-testid="title-update"]'); return n ? { text: n.innerText.replace(/\s+/g, " ").trim(), shown: getComputedStyle(n).opacity === "1", menu: document.querySelector('[data-testid="title-screen"]').classList.contains("menu-on") } : null; });
+// (The title screen, its menu up at once: Escape, as on a keyboard.)
+async function title(page) {
+  await page.goto(base + "?title");
+  await poll(() => page.locator('[data-testid="title-screen"]').count(), 10000);
+  await page.waitForTimeout(800);
+  await page.keyboard.press("Escape");
+  await poll(() => page.evaluate(() => document.querySelector('[data-testid="title-screen"]').classList.contains("menu-on")), 10000);
+  await page.waitForTimeout(1500);
+}
 {
-  const { ctx, page } = await open(PHONE);
+  const { ctx, page, bad, errs, outside, asked } = await open(APP, { version: 1031, latest: LATEST });
+  await title(page);
+  const n = await poll(async () => { const x = await note(page); return x && x.shown ? x : null; }, 8000);
+  check(`a newer one on the site: a line on the title screen under its menu ("${n ? n.text : "none"}")`, !!n && n.menu && /An update is ready, from Nov 20\./.test(n.text) && /Get it · 61 MB/.test(n.text) && /Not now/.test(n.text));
+  check("...the site asked once, for its word on the app, and nothing else off the phone", asked.length === 1 && !outside.length, [...asked, ...outside].join(" | "));
+  const box = await page.locator('[data-testid="title-update-get"]').boundingBox();
+  const primary = await page.locator('[data-testid="title-primary"]').boundingBox();
+  check("...below the menu's choice, on the screen, Get it big enough to tap", !!box && !!primary && box.y > primary.y + primary.height && box.y + box.height <= 915 && box.height >= 40, JSON.stringify({ box, primary }));
+  await page.locator('[data-testid="title-update-get"]').tap();
+  await page.waitForTimeout(400);
+  const opened = await page.evaluate(() => window.__opened);
+  check("Get it: the new APK in the phone's browser", opened.length === 1 && opened[0] === "https://l0jik.github.io/el-cabeza-project/el-cabeza.apk", JSON.stringify(opened));
+  const after = await note(page);
+  check("...the line saying it's downloading there, to open to install, no buttons", !!after && /Downloading in your browser: open it when it's done to install it\./.test(after.text) && !/Get it|Not now/.test(after.text), after && after.text);
+  check("...the title screen still up, nothing chosen", (await page.evaluate(() => document.querySelector('[data-testid="title-screen"]').getAttribute("data-state"))) === "held");
+  check("...no missing files, no errors", !bad.length && !errs.length, [...bad, ...errs].slice(0, 3).join(" | "));
+  // Not now, then that version let be.
+  await page.reload();
+  await title(page);
+  await poll(async () => { const x = await note(page); return x && x.shown; }, 8000);
+  await page.locator('[data-testid="title-update-later"]').tap();
+  await page.waitForTimeout(400);
+  check("Not now: the line gone", (await note(page)) === null);
+  await page.reload();
+  await title(page);
+  await page.waitForTimeout(1500);
+  check("...and not back for that version", (await note(page)) === null);
+  await ctx.close();
+}
+{
+  // A newer one again: told again. In Spanish, in its words.
+  const { ctx, page } = await open(APP, { version: 1031, latest: { ...LATEST, versionCode: 1033 } });
+  await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:update-skipped", "1032"); localStorage.setItem("el-cabeza:language", "es"); } catch (e) { /* */ } });
+  await title(page);
+  const n = await poll(async () => { const x = await note(page); return x && x.shown ? x : null; }, 8000);
+  check(`a version newer than the one let be: told again, in the player's language ("${n ? n.text : "none"}")`, !!n && /Hay una actualización, del 20 nov/.test(n.text) && /Descargarla · 61 MB/.test(n.text) && /Ahora no/.test(n.text));
+  await ctx.close();
+}
+for (const [what, opts] of [["the same version on the site", { version: 1032, latest: LATEST }], ["no connection", { version: 1031, latest: null }], ["an app from before the note (no version to say)", { version: 0, latest: LATEST }]]) {
+  const { ctx, page, bad, errs, asked } = await open(APP, opts);
+  await title(page);
+  await page.waitForTimeout(2000);
+  check(`${what}: no line, no errors${opts.version ? "" : ", the site not asked"}`, (await note(page)) === null && !bad.length && !errs.length && (opts.version ? true : asked.length === 0), [...bad, ...errs, ...asked].slice(0, 3).join(" | "));
+  await ctx.close();
+}
+{
+  const { ctx, page, asked } = await open(PHONE);
   await page.goto(base + "el-cabeza-nova.html");
   check("in a phone's browser the same page still has its full-screen button", !!(await poll(async () => (await page.locator("[data-fullscreen-toggle]").count()) > 0)));
   const cm = await cornerFonts(page, "el-cabeza-ciudad.html");
   check("...and a game's corner menu's fonts from Google, as on the website", !!cm && cm.startsWith("https://fonts.googleapis.com/css2?family="), cm || "none");
+  await title(page);
+  await page.waitForTimeout(1500);
+  check("...and its title screen asks the site nothing about the app, says nothing of one", asked.length === 0 && (await note(page)) === null, asked.join(" | "));
   await ctx.close();
 }
 await browser.close();

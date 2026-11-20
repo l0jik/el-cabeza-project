@@ -1,6 +1,8 @@
 package io.github.l0jik.elcabeza;
 
+import android.content.Intent;
 import android.content.res.Configuration;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -8,6 +10,7 @@ import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import androidx.activity.OnBackPressedCallback;
+import androidx.core.content.pm.PackageInfoCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -24,7 +27,10 @@ import com.getcapacitor.BridgeActivity;
      being played, so a Back asks before leaving it; with nothing left to go back to, the app goes to the
      background as any app does.
    - The screen kept on while the game asks it to (its Screen Wake Lock, which Android's WebView doesn't offer):
-     window.ElCabezaApp.keepScreenOn(true / false), from chassis/in-app.js. */
+     window.ElCabezaApp.keepScreenOn(true / false), from chassis/in-app.js.
+   - For the title screen's update note (user: "yes, add the update available note"; apps/title-screen.js):
+     window.ElCabezaApp.versionCode(), this app's own version (CI's run number), to set beside the newest one on
+     the site, and window.ElCabezaApp.openInBrowser(url), the newer APK's download in the phone's browser. */
 public class MainActivity extends BridgeActivity {
 
     private static final String TAG = "ElCabeza";
@@ -84,6 +90,29 @@ public class MainActivity extends BridgeActivity {
             runOnUiThread(() -> {
                 if (on) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            });
+        }
+
+        // This app's version code (the build's: CI's run number), 0 if it can't be read.
+        @JavascriptInterface
+        public long versionCode() {
+            try {
+                return PackageInfoCompat.getLongVersionCode(getPackageManager().getPackageInfo(getPackageName(), 0));
+            } catch (Exception e) {
+                return 0;
+            }
+        }
+
+        // An address out of the app, opened in the phone's browser (https only).
+        @JavascriptInterface
+        public void openInBrowser(final String url) {
+            if (url == null || !url.startsWith("https://")) return;
+            runOnUiThread(() -> {
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                } catch (Exception e) {
+                    Log.w(TAG, "nothing to open " + url + " with", e);
+                }
             });
         }
     }

@@ -2394,4 +2394,9 @@ export default {
   "{s} s after full screen": "{s} giây sau khi vào toàn màn hình",
   "No switch to full screen": "Không chuyển sang toàn màn hình",
   "{s} s after a tap": "{s} giây sau một lần chạm",
+  // The Android app's update line on the title screen (apps/title-screen.js).
+  "An update is ready.": "Đã có bản cập nhật.",
+  "An update is ready, from {date}.": "Đã có bản cập nhật, ngày {date}.",
+  "Get it": "Tải về",
+  "Downloading in your browser: open it when it's done to install it.": "Đang tải trong trình duyệt: tải xong thì mở tệp để cài đặt.",
 };
