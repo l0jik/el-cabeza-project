@@ -521,18 +521,19 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
    MATTER stills, piece-showcase.js). Light's pieces; the poses are the
    pieces' first starting ones (POSES). Sizes stay true to each other,
    only the smallest brought up a little to be seen. */
-/* One piece as a world draws it (its own buildPieceVisual, Light's), its
-   middle at the origin (inside a group, so turning it turns it about its
-   middle): the still's model, and the 3D viewer's. */
-function lookModel(look, type) {
+/* One piece as a world draws it (its own buildPieceVisual, Light's, or
+   Dark's when asked), its middle at the origin (inside a group, so turning
+   it turns it about its middle): the still's model, and the 3D viewer's. */
+function lookModel(look, type, dark = false) {
   const pose = POSES[type], inner = new THREE.Group(), group = new THREE.Group();
   const isDisc = !!pose.disc;
   const edge = look.EDGE_RADIUS || 0.06;
-  const piece = isDisc ? { id: `pic-${type}`, type, owner: "light", w: 1, h: 1, z: 1 } : { id: `pic-${type}`, type, owner: "light", ...pose };
+  const owner = dark ? "dark" : "light", id = dark ? `pic-dark-${type}` : `pic-${type}`;
+  const piece = isDisc ? { id, type, owner, w: 1, h: 1, z: 1 } : { id, type, owner, ...pose };
   const geo = isDisc
     ? new THREE.CylinderGeometry((DISC_DIAM * CABEZA_SCALE) / 2, (DISC_DIAM * CABEZA_SCALE) / 2, DISC_H * CABEZA_SCALE, 40)
     : pose.vox ? makePolycubeSmooth(piece, PIECE_SCALE, edge) : makeRoundedBox(pose.w * PIECE_SCALE, pose.z * PIECE_SCALE, pose.h * PIECE_SCALE, edge);
-  const { mesh, shell } = look.buildPieceVisual({ piece, isDark: false, isDisc, geo, center: { x: 0, z: 0 }, y: 0 });
+  const { mesh, shell } = look.buildPieceVisual({ piece, isDark: dark, isDisc, geo, center: { x: 0, z: 0 }, y: 0 });
   // (A see-through body that doesn't write depth: a depth pass first, so
   // its outline's far edges are hidden, as the dock does.)
   if (mesh.material && mesh.material.transparent && mesh.material.depthWrite === false) {
@@ -627,6 +628,118 @@ function piecePictures(world, look, types) {
 export const piecePicture = (world, type) => pictures.get(`${world}|${type}`) || null;
 export const piecePicturesReady = (world, look) => piecePictures(world, look, PICTURE_TYPES) || PICTURE_TYPES.every((t) => !POSES[t] || pictures.has(`${world}|${t}`));
 const PICTURE_TYPES = ["cabeza", "turrito", "flaco", "chato", "opa", "block1x3", "block2x3", "arcoChico", "arcoAlto", "arcoAncho", "codo", "hombro", "cruce", "rayo", "zeta"];
+
+/* Each piece as a small isometric still (user, of a list of the pieces:
+   "a little 3D, not fully 3D, just a maybe isometric view of each type of
+   piece with its name"; "Let's just go with option 3", a picture for
+   every piece on the board: the Lab's rules, themes/lab/hud.js). No
+   perspective: seen down the board's diagonal, 35° from above, every
+   edge parallel. Built by the world's own buildPieceVisual, Light's or
+   Dark's (whichever reads on the page), lit as the stills above.
+
+   Sizes true to each other among `types`: the largest fills its square
+   (`height` px), the smallest brought up to `floor` of it to be seen.
+   Each still is as tall as the others, its piece standing on the same
+   line at the foot, and only as wide as its piece, so copies sit side by
+   side. All of them in one short-lived WebGL context, released straight
+   after; kept for the next time (key: the world's look). */
+const isoPics = new Map(); // `${key}|${side}|${types}` -> { type: { url, w, h } }
+const isoId = (key, types, dark) => `${key}|${dark ? "dark" : "light"}|${types.join(",")}`;
+export const isoPicturesCached = (key, types, dark = false) => isoPics.get(isoId(key, types, dark)) || null;
+export function isoPictures(key, look, types, { dark = false, height = 176, floor = 0.62 } = {}) {
+  const id = isoId(key, types, dark);
+  if (isoPics.has(id)) return isoPics.get(id);
+  const todo = types.filter((t) => POSES[t]);
+  if (!todo.length || !look || !look.buildPieceVisual || typeof document === "undefined") return null;
+  let renderer = null;
+  const built = [];
+  try {
+    const canvas = document.createElement("canvas");
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1); renderer.setClearColor(0x000000, 0);
+    const scene = lookStage();
+    const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 100);
+    cam.position.set(1, 1, 1).normalize().multiplyScalar(20);
+    cam.lookAt(0, 0, 0);
+    cam.updateMatrixWorld();
+    // Each model's outline as the camera sees it, from its own points.
+    const v = new THREE.Vector3();
+    todo.forEach((type) => {
+      const m = lookModel(look, type, dark);
+      m.group.updateMatrixWorld(true);
+      let l = Infinity, r = -Infinity, b = Infinity, t = -Infinity;
+      m.group.traverse((o) => {
+        const pos = o.isMesh && o.visible && o.geometry && o.geometry.attributes.position;
+        if (!pos) return;
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).applyMatrix4(cam.matrixWorldInverse);
+          if (v.x < l) l = v.x; if (v.x > r) r = v.x; if (v.y < b) b = v.y; if (v.y > t) t = v.y;
+        }
+      });
+      built.push({ type, ...m, l, r, b, t, span: Math.max(r - l, t - b) });
+    });
+    const padY = Math.round(height * 0.06), padX = Math.round(height * 0.03), room = height - padY * 2;
+    const k0 = room / Math.max(...built.map((m) => m.span)); // px a unit, the largest filling the square
+    // A pale metal piece (Corporate Swiss's anodised blocks) is dark with
+    // nothing round it to mirror: a plain bright room for it to.
+    let env = null;
+    const brightRoom = () => {
+      if (env) return env;
+      const c = document.createElement("canvas");
+      c.width = 256; c.height = 128;
+      const g = c.getContext("2d"), grd = g.createLinearGradient(0, 0, 0, 128);
+      grd.addColorStop(0, "#ffffff"); grd.addColorStop(0.5, "#dfe3e8"); grd.addColorStop(1, "#7d838c");
+      g.fillStyle = grd; g.fillRect(0, 0, 256, 128);
+      const tex = new THREE.CanvasTexture(c);
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      tex.encoding = THREE.sRGBEncoding;
+      const pm = new THREE.PMREMGenerator(renderer);
+      env = pm.fromEquirectangular(tex).texture;
+      pm.dispose(); tex.dispose();
+      return env;
+    };
+    const paleMetal = (m) => {
+      let pale = false;
+      m.group.traverse((o) => {
+        const mt = o.isMesh && !Array.isArray(o.material) && o.material;
+        if (mt && mt.metalness >= 0.4 && mt.color && 0.2126 * mt.color.r + 0.7152 * mt.color.g + 0.0722 * mt.color.b >= 0.3) pale = true;
+      });
+      return pale;
+    };
+    const out = {};
+    try {
+      built.forEach((m) => {
+        const k = Math.max(k0, (floor * room) / m.span);
+        const w = Math.ceil((m.r - m.l) * k + padX * 2);
+        renderer.setSize(w, height, false);
+        cam.left = m.l - padX / k; cam.right = cam.left + w / k;
+        cam.bottom = m.b - padY / k; cam.top = cam.bottom + height / k;
+        cam.updateProjectionMatrix();
+        scene.environment = paleMetal(m) ? brightRoom() : null;
+        scene.add(m.group);
+        renderer.render(scene, cam);
+        out[m.type] = { url: canvas.toDataURL("image/png"), w, h: height };
+        scene.remove(m.group);
+      });
+    } finally {
+      if (env) env.dispose();
+    }
+    isoPics.set(id, out);
+    return out;
+  } catch (e) {
+    return null;
+  } finally {
+    built.forEach((m) => {
+      // (Taken apart, so what a theme's piece cleans up when it's removed
+      // is cleaned up; its own shared materials and outlines are left be.)
+      m.group.traverse((o) => { if (o.material && o.userData.ownMaterial) o.material.dispose(); });
+      const parts = []; m.group.traverse((o) => { if (o !== m.group) parts.push(o); });
+      parts.reverse().forEach((o) => o.parent && o.parent.remove(o));
+      m.geo.dispose();
+    });
+    if (renderer) { renderer.dispose(); renderer.forceContextLoss(); }
+  }
+}
 
 /* ------------------------------------------------------------ the sheet */
 

@@ -35,8 +35,25 @@ import { createElement } from "../../chassis/i18n-jsx/jsx-runtime.js";
 // (Words in the player's language: chassis/i18n.js.)
 import { t as inWords } from "../../chassis/i18n.js";
 import { sideNamesFor } from "../side-names.js";
+import { isoPictures, isoPicturesCached } from "../reality-gate.js";
 
 const h = createElement;
+
+/* The pieces' pictures in the rules, in whichever side's colour reads on
+   the look's page (WCAG contrast): in most looks one side's pieces are all
+   but the ground they stand on (Swiss's white on white, Minimal Mono's,
+   Fusion's and Corporate Swiss's dark on dark). */
+const lumOf = (c) => {
+  const n = typeof c === "number" ? c : parseInt(String(c).replace("#", ""), 16);
+  const f = (x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f((n >> 16) & 255) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255);
+};
+const contrastOf = (a, b) => { const x = lumOf(a), y = lumOf(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+export function pictureSide(spec) {
+  const bg = spec && spec.colors && spec.colors.bgPrimary, P = spec && spec.pieces;
+  if (!P || !P.dark || !P.light || !/^#?[0-9a-f]{6}$/i.test(bg || "")) return "light";
+  return contrastOf(P.dark.color, bg) > contrastOf(P.light.color, bg) ? "dark" : "light";
+}
 
 const SESSION = { startedAt: null, initial: null, gameKey: 0 };
 
@@ -57,9 +74,29 @@ const BIG_SCREEN = "(min-width: 900px) and (min-aspect-ratio: 1501/1000)";
 const openRules = (tab, focus = null) => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab, focus } }));
 
 // change: Change rules (the chassis's, where the rules can be chosen), or null.
-function LabRules({ rules, open, change = null }) {
+// spec, look: the direction and its own pieces (buildPieceVisual), for the
+// pieces' pictures.
+function LabRules({ rules, open, change = null, spec = null, look = null }) {
   const ref = React.useRef(null);
   const listRef = React.useRef(null);
+  // The pieces' pictures (reality-gate.js isoPictures): drawn once for a
+  // look and a set of kinds, while the game's begun and nothing's asked of
+  // the screen (or straight away, brought up before then); kept.
+  const lookKey = spec ? `lab-${spec.id}` : null, dark = pictureSide(spec) === "dark";
+  const kinds = rules.pieces.map((p) => p.type), kindsKey = kinds.join(",");
+  const [pics, setPics] = React.useState(() => (lookKey ? isoPicturesCached(lookKey, kinds, dark) : null));
+  React.useEffect(() => {
+    if (!look || !lookKey) return undefined;
+    const have = isoPicturesCached(lookKey, kinds, dark);
+    if (have) { setPics(have); return undefined; }
+    setPics(null);
+    let live = true;
+    const draw = () => { if (!live) return; const p = isoPictures(lookKey, look, kinds, { dark }); if (live) setPics(p); };
+    if (open) { draw(); return () => { live = false; }; }
+    const idle = typeof window !== "undefined" && window.requestIdleCallback;
+    const id = idle ? window.requestIdleCallback(draw, { timeout: 2500 }) : setTimeout(draw, 400);
+    return () => { live = false; if (idle) window.cancelIdleCallback(id); else clearTimeout(id); };
+  }, [lookKey, dark, kindsKey, look, open]);
   React.useLayoutEffect(() => {
     const box = ref.current, hud = box && box.closest(".lab-hud");
     if (!hud) return;
@@ -99,13 +136,23 @@ function LabRules({ rules, open, change = null }) {
       h("span", { className: "lab-label" }, "Laws"),
       h("ul", null, laws.length ? laws.map(law) : h("li", null, "None: the standard rules")),
       h("span", { className: "lab-label" }, "Pieces \u00b7 each side"),
-      // (What isn't as in the standard game, one each of the first five,
+      // Each kind by its name, then a picture for every one of it on the
+      // board, side by side, onto the next line when they run out of room
+      // (user: "Let's just go with option 3. So I assume if I chose 5 Opas,
+      // it'll have a 5 thumbnails of Opas"; the list scrolls past the
+      // screen). The number beside them where it isn't the standard game's,
       // marked and said: a colour alone is lost where a direction's accent
-      // is its ink, Brutalism's and Minimal Mono's.)
-      h("ul", { className: "pcs" }, pieces.map((p) => {
-        const odd = p.count !== p.std;
-        return h("li", { key: p.type, className: odd ? "changed" : undefined }, h("span", null, p.name),
-          h("b", null, p.count, odd ? h("span", { className: "mark", "aria-hidden": "true" }, "*") : null, odd ? h("span", { className: "lab-sr" }, ", not as in the standard game") : null));
+      // is its ink, Brutalism's and Minimal Mono's. (None of a kind: its
+      // picture faint. No pictures yet: the number.)
+      h("ul", { className: "pcs", "data-testid": "lab-rules-pieces", "data-side": dark ? "dark" : "light", "data-pictures": pics ? "true" : "false" }, pieces.map((p) => {
+        const odd = p.count !== p.std, pic = pics && pics[p.type];
+        const said = !pic || odd || p.count !== 1;
+        return h("li", { key: p.type, className: odd ? "changed" : undefined, "data-type": p.type, "data-count": p.count },
+          h("span", { className: "nm" }, p.name),
+          h("span", { className: "cp" },
+            pic ? Array.from({ length: Math.max(1, p.count) }, (_, i) => h("img", { key: i, src: pic.url, width: pic.w, height: pic.h, alt: "", draggable: false, className: p.count ? undefined : "none" })) : null,
+            h("b", { className: said ? "ct" : "ct lab-sr" }, pic && said ? h("span", { "aria-hidden": "true" }, "\u00d7") : null, p.count,
+              odd ? h("span", { className: "mark", "aria-hidden": "true" }, "*") : null, odd ? h("span", { className: "lab-sr" }, ", not as in the standard game") : null)));
       })),
       pieces.some((p) => p.count !== p.std) ? h("span", { className: "lab-rules-key" }, h("span", { className: "mark", "aria-hidden": "true" }, "*"), " Differs from the standard game") : null,
       h("span", { className: "lab-label" }, "Board"),
@@ -119,7 +166,7 @@ function LabRules({ rules, open, change = null }) {
       change ? h("button", { type: "button", className: "lab-rules-change", "data-testid": "lab-rules-change", onClick: (e) => { e.stopPropagation(); change(); } }, "Change rules", " \u203a") : null));
 }
 
-export function LabHud({ spec, x }) {
+export function LabHud({ spec, x, look = null }) {
   const SIDE = sideNamesFor(spec && spec.id); // "Red" / "Blue" in De Stijl, and so on
   const game = x && x.game;
   const audio = x && x.audio;
@@ -302,7 +349,7 @@ export function LabHud({ spec, x }) {
     // The rules, then the moves beneath them (user: "the rules should be on
     // top and the movement listing beneath. This should be consistent
     // across all similar menu types"; they came after the moves).
-    compact && game.rules ? h(LabRules, { rules: game.rules, open, change: x.changeRules || null }) : null,
+    compact && game.rules ? h(LabRules, { rules: game.rules, open, change: x.changeRules || null, spec, look }) : null,
     recent.length
       ? h("ol", { className: "lab-log", "aria-label": "Recent moves" }, recent.map((e) => h("li", { key: e.n },
         h("span", { className: "n" }, pad2(e.n)),

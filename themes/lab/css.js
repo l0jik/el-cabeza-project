@@ -136,10 +136,16 @@ const HUD_BASE = `
   .lab-hud .lab-rules li button { all: unset; cursor: pointer; }
   .lab-hud .lab-rules li button:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
   .lab-hud .lab-rules li button:focus-visible { outline: 2px solid var(--accent-primary, currentColor); outline-offset: 2px; }
-  .lab-hud .lab-rules .pcs { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
-  .lab-hud .lab-rules .pcs li { display: flex; justify-content: space-between; }
-  .lab-hud .lab-rules .pcs li b { font-weight: 700; }
-  .lab-hud .lab-rules .pcs li.changed b { color: var(--accent-primary, currentColor); }
+  /* Each side's pieces: a kind's name, then its pictures, one a piece,
+     side by side, onto the next line when they run out of room; two
+     columns where the rules are wide enough, one on a phone (hud.js). */
+  .lab-hud .lab-rules .pcs { font-size: 13px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15em), 1fr)); column-gap: 18px; row-gap: 3px; margin-top: 2px; }
+  .lab-hud .lab-rules .pcs li { display: grid; grid-template-columns: minmax(4.6em, max-content) minmax(0, 1fr); align-items: center; column-gap: 8px; min-height: 2.2em; }
+  .lab-hud .lab-rules .pcs .cp { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 3px; }
+  .lab-hud .lab-rules .pcs .cp img { display: block; height: 3em; width: auto; -webkit-user-drag: none; user-select: none; }
+  .lab-hud .lab-rules .pcs .cp img.none { opacity: 0.3; filter: grayscale(1); }
+  .lab-hud .lab-rules .pcs .ct { font-weight: 700; margin-left: 3px; white-space: nowrap; }
+  .lab-hud .lab-rules .pcs li.changed .ct { color: var(--accent-primary, currentColor); }
   .lab-hud .lab-rules .mark { font-weight: 700; color: var(--accent-primary, currentColor); margin-left: 1px; }
   .lab-hud .lab-rules .lab-rules-key { display: block; margin-top: 4px; font-size: 11px; color: var(--lab-rules-sub, inherit); }
   .lab-hud .lab-rules .sum { font-size: 12px; white-space: nowrap; color: var(--lab-rules-sub, inherit); }

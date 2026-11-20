@@ -44,6 +44,8 @@ const SIDE_INKED = new Set(["monolith", "destijl", "neoBrutalist"]);
 export function makeLabTheme(spec) {
   const c = spec.colors;
   const scene = createScene(spec);
+  // (Its pieces as the board has them, for the read-out's pictures of them: hud.js.)
+  const pieceLook = { buildPieceVisual: scene.buildPieceVisual, EDGE_RADIUS: scene.EDGE_RADIUS };
   // What the HUD sees each render, shared with the ambient layer (which
   // draws selection and hover in the scene).
   const live = { game: null };
@@ -144,7 +146,7 @@ export function makeLabTheme(spec) {
     },
     renderExtraOverlays(x) {
       if (!x) return null;
-      return createElement(LabHud, { key: `hud-${spec.id}`, spec, x });
+      return createElement(LabHud, { key: `hud-${spec.id}`, spec, x, look: pieceLook });
     },
   };
 }

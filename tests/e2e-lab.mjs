@@ -13,9 +13,14 @@
      keys), number keys, random, hide interface, sound on/off, volume,
      reset presentation, return to game, Escape and an outside press;
    - sound starts only after a gesture and its voices are released;
-   - a phone-sized screen gets the compact HUD with no sideways scroll. */
+   - a phone-sized screen gets the compact HUD with no sideways scroll;
+   - the rules' pieces, a picture for every one on the board, in each
+     direction's own pieces and the side that reads on its page; five Opas
+     five pictures, onto a second line where they run out of room, the
+     list scrolled to the last. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
+import { LAB_SPECS } from "../themes/lab/specs.js";
 
 const browser = await chromium.launch({
   executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
@@ -88,6 +93,31 @@ async function labelContrast(page) {
 async function waitSwitched(page, id) {
   return poll(() => page.evaluate((i) => window.__LAB__.id === i && !window.__LAB__.busy() && !!document.querySelector(`[data-testid="lab-hud"][data-lab="${i}"]`), id), 15000);
 }
+
+// The rules' pieces with their pictures drawn (themes/lab/hud.js; they're
+// drawn once a look, the Monolith's stones slowest: SwiftShader here).
+const picturesIn = (page, ms = 30000) => poll(() => page.evaluate(() => { const u = document.querySelector('[data-testid="lab-rules-pieces"]'); return !!u && u.dataset.pictures === "true"; }), ms);
+// Each kind's row: its number, its pictures (the faint ones too); the
+// side they're in; and of one of them, the share of it that's piece and
+// that piece's mean (linear) luminance, for its contrast with the page.
+const pieceRows = (page, type) => page.evaluate(async (t) => {
+  const u = document.querySelector('[data-testid="lab-rules-pieces"]');
+  const rows = [...u.querySelectorAll("li")].map((li) => ({ t: li.dataset.type, n: +li.dataset.count, imgs: li.querySelectorAll("img").length, faint: li.querySelectorAll("img.none").length }));
+  const img = u.querySelector(`li[data-type="${t}"] img`);
+  if (!img) return { side: u.dataset.side, rows, cover: 0, lum: 0 };
+  await img.decode().catch(() => {});
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext("2d");
+  g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height).data;
+  const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  let n = 0, lum = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200) { n++; lum += 0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]); }
+  return { side: u.dataset.side, rows, cover: n / (d.length / 4), lum: n ? lum / n : 0 };
+}, type);
+const lumOfHex = (hex) => { const n = parseInt(String(hex).replace("#", ""), 16); const f = (x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }; return 0.2126 * f((n >> 16) & 255) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255); };
+const ratio = (x, y) => (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 
 // ------------------------------------------------------------------ desktop
 {
@@ -352,6 +382,69 @@ async function waitSwitched(page, id) {
   await context.close();
 }
 
+// Five Opas a side (user: "So I assume if I chose 5 Opas, it'll have a 5
+// thumbnails of Opas. Will that work? I guess you could always scroll just
+// to see if there's like a bunch that didn't fit on the screen"): five
+// pictures in the Opa's row and its number, nothing off the list's side,
+// the last reached with the list scrolled to its foot; on the near-square
+// screen, two columns, the Opas onto a second line.
+{
+  console.log("\nfive Opas a side: five pictures of the Opa");
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  page.setDefaultTimeout(30000);
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await openLab(page, "destijl");
+  await page.waitForTimeout(800);
+  await page.evaluate(() => {
+    const ps = window.__EC_TEST_PIECES__.map((p) => ({ ...p }));
+    [0, 2, 6, 8].forEach((c, i) => {
+      ps.push({ id: `dark-opa-${i + 2}`, type: "opa", owner: "dark", row: 3, col: c, w: 2, h: 2, z: 2 });
+      ps.push({ id: `light-opa-${i + 2}`, type: "opa", owner: "light", row: 5, col: c, w: 2, h: 2, z: 2 });
+    });
+    window.__EC_TEST_SET_PIECES__(ps);
+  });
+  await page.waitForTimeout(400);
+  await openDockPanel(page);
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click();
+  await page.waitForTimeout(2500);
+  if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true") { await page.mouse.click(195, 838); await page.waitForTimeout(600); }
+  const bringUp = async () => {
+    if (await page.evaluate(() => document.querySelector('[data-testid="lab-hud"]').dataset.compact === "open")) return;
+    await page.tap('[data-testid="lab-hud"]', { position: { x: 8, y: 8 } });
+    await page.waitForTimeout(1200);
+  };
+  await bringUp();
+  check("brought up, the pieces' pictures drawn", !!(await picturesIn(page)));
+  const opa = await page.evaluate(() => {
+    const li = document.querySelector('[data-testid="lab-rules-pieces"] li[data-type="opa"]'), ct = li.querySelector(".ct");
+    return { n: +li.dataset.count, imgs: li.querySelectorAll("img").length, words: ct.textContent, shown: !ct.classList.contains("lab-sr"), others: [...li.parentNode.querySelectorAll('li:not([data-type="opa"])')].map((x) => x.querySelectorAll("img").length) };
+  });
+  check(`the Opa's row: five pictures, and "×5" beside them; one picture each for the rest (${JSON.stringify(opa)})`, opa.n === 5 && opa.imgs === 5 && /×5/.test(opa.words) && opa.shown && opa.others.every((n) => n === 1));
+  const reach = await page.evaluate(() => {
+    const list = document.querySelector('[data-testid="lab-hud"] .lab-rules-list');
+    list.scrollTop = list.scrollHeight;
+    const lr = list.getBoundingClientRect(), imgs = [...list.querySelectorAll('li[data-type="opa"] img')], last = imgs[imgs.length - 1].getBoundingClientRect();
+    const out = { inside: last.bottom <= lr.bottom + 1 && last.top >= lr.top - 1 && last.right <= lr.right + 1, sideways: list.scrollWidth > list.clientWidth + 1, onScreen: lr.bottom <= innerHeight };
+    list.scrollTop = 0;
+    return out;
+  });
+  check(`...the last of them reached with the list scrolled to its foot, nothing off its side, on the screen (${JSON.stringify(reach)})`, reach.inside && !reach.sideways && reach.onScreen);
+  await page.setViewportSize({ width: 880, height: 914 });
+  await page.waitForTimeout(1200);
+  await bringUp();
+  await picturesIn(page);
+  const wide = await page.evaluate(() => {
+    const u = document.querySelector('[data-testid="lab-rules-pieces"]'), li = u.querySelector('li[data-type="opa"]'), lr = li.getBoundingClientRect();
+    const imgs = [...li.querySelectorAll("img")].map((i) => i.getBoundingClientRect());
+    return { columns: getComputedStyle(u).gridTemplateColumns.split(" ").length, lines: new Set(imgs.map((r) => Math.round(r.top))).size, inRow: imgs.every((r) => r.right <= lr.right + 1 && r.left >= lr.left - 1) };
+  });
+  check(`on a near-square screen: two columns, the Opas onto a second line, none past their row (${JSON.stringify(wide)})`, wide.columns === 2 && wide.lines >= 2 && wide.inRow);
+  check("no page errors", errs.length === 0, errs.slice(0, 4).join(" | "));
+  await context.close();
+}
+
 // ------------------------------------------------- Elementarism, deleted
 {
   // (User: "Completely remove the Elementarism theme. Delete it." A link
@@ -405,7 +498,7 @@ async function waitSwitched(page, id) {
     await page.waitForTimeout(300);
   }
   const ids = await page.evaluate(() => window.__LAB__.ids);
-  const order = [], small = [], off = [], unreached = [];
+  const order = [], small = [], off = [], unreached = [], nopics = [], miscount = [], wrongSide = [], unread = [], shown = [];
   for (const id of ids) {
     if ((await labId(page)) !== id) { await page.evaluate((x) => window.__LAB__.switchTo(x), id); await waitSwitched(page, id); await page.waitForTimeout(800); }
     await page.mouse.move(700, 700);
@@ -437,11 +530,30 @@ async function waitSwitched(page, id) {
       return ok;
     });
     if (!seen) unreached.push(id);
+    // The pieces' pictures (user: "Let's just go with option 3"): one for
+    // each piece on the board, Cabeza and Turrito here; none of the
+    // standard Flaco, Chato and Opa, so each of theirs faint. In the side
+    // whose pieces read on this direction's page, and reading there.
+    if (!(await picturesIn(page))) { nopics.push(id); continue; }
+    const pr = await pieceRows(page, "turrito");
+    const spec = LAB_SPECS.find((x) => x.id === id), bg = lumOfHex(spec.colors.bgPrimary);
+    const want = ratio(lumOfHex(spec.pieces.dark.color.toString(16).padStart(6, "0")), bg) > ratio(lumOfHex(spec.pieces.light.color.toString(16).padStart(6, "0")), bg) ? "dark" : "light";
+    const expect = { cabeza: [1, 1, 0], turrito: [1, 1, 0], flaco: [0, 1, 1], chato: [0, 1, 1], opa: [0, 1, 1] };
+    const bad = pr.rows.filter((r) => !expect[r.t] || expect[r.t][0] !== r.n || expect[r.t][1] !== r.imgs || expect[r.t][2] !== r.faint);
+    if (bad.length || pr.rows.length !== 5) miscount.push(`${id} ${JSON.stringify(pr.rows)}`);
+    if (pr.side !== want) wrongSide.push(`${id} ${pr.side}, not ${want}`);
+    const k = ratio(pr.lum, bg);
+    if (pr.cover < 0.08 || k < 1.8) unread.push(`${id} ${Math.round(pr.cover * 100)}% piece, contrast ${k.toFixed(2)}`);
+    shown.push(`${id} ${k.toFixed(1)}`);
   }
   check(`in all ${ids.length}, the rules above the moves`, order.length === 0, order.join(", "));
   check("...their words larger on the screen (a law about 16px, a move at least 13.5)", small.length === 0, small.join("; "));
   check("...the read-out, brought up, within the screen", off.length === 0, off.join("; "));
   check("...and the last move reached, scrolled to its foot where it must", unreached.length === 0, unreached.join(", "));
+  check(`...the pieces' pictures drawn in all ${ids.length}`, nopics.length === 0, nopics.join(", "));
+  check("...one for each piece on the board, a faint one for a kind with none", miscount.length === 0, miscount.join("; "));
+  check("...in the side whose pieces read on the page", wrongSide.length === 0, wrongSide.join("; "));
+  check(`...and reading there, against the page (${shown.join(", ")})`, unread.length === 0, unread.join("; "));
   check("no page errors", errs.length === 0, errs.slice(0, 4).join(" | "));
   await context.close();
 }

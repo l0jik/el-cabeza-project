@@ -207,6 +207,49 @@ past the foot. tests/e2e-lab.mjs (phone: brought up, about a third
 larger; then 880x914, De Stijl: 1.7, across the read-out, the numbers
 larger, all on the screen).
 
+The pieces, a picture for every one (2026-11-20; user, De Stijl's list
+brought up on the phone, each count at the far end of a wide column:
+"Need to possibly bring the piece amounts closer to the piece itself.
+Having the columns is that wide, it kind of makes it difficult to parse
+the information."; of mock-ups, "I want to incorporate a little 3D, not
+fully 3D, just a maybe isometric view of each type of piece with its
+name and it's showing the amount on the board"; then "Let's just go with
+option 3. So I assume if I chose 5 Opas, it'll have a 5 thumbnails of
+Opas. Will that work? I guess you could always scroll just to see if
+there's like a bunch that didn't fit on the screen."). In all nine,
+LabRules (hud.js) lists each kind by its name, then a still of it for
+every one of it on the board, side by side, onto the next line when they
+run out of room (the list scrolls, as it did); the number after them
+only where it isn't the standard game's (×5, marked * and said, in the
+accent); a kind with none, one faint picture; no pictures yet, the
+number. The stills: reality-gate.js isoPictures, by the look's own
+buildPieceVisual (the factory hands the read-out `look`), isometric (an
+orthographic camera down the board's diagonal, 35° from above, every
+edge parallel), lit as the setup's stills; sizes true to each other among
+the game's kinds (the largest fills the 176 px square, the smallest
+brought up to 62% of it), each as tall as the others and as wide as its
+piece, all standing on one line. Drawn once a look and a set of kinds,
+in a short-lived WebGL context, while nothing's asked of the screen
+(requestIdleCallback, 2.5 s at most; straight away if the rules are
+brought up first), and kept. In the side whose pieces read on the look's
+page (hud.js pictureSide, the two sides' colours' contrast with
+bgPrimary; in most looks one side's pieces all but vanish there): Dark's
+in Swiss, Brutalism, New Typography, Neo-Brutalism and Minimal Mono;
+Light's in the Monolith, De Stijl, Corporate Swiss and Fusion. A pale
+metal piece (Corporate Swiss's, with nothing round it to mirror, dark
+grey on navy) is given a plain bright room to mirror. Layout (css.js
+HUD_BASE .pcs): as many columns of at least 15em as fit (two brought up
+on the near-square screen, one on a phone or beside the board), each row
+the name (at least 4.6em) then the pictures, 3em tall. (Nothing is
+captured in this game, user: "Pieces don't get captured in this game.":
+a game's numbers stay as they began.) tests/e2e-lab.mjs: on a
+Chromebook's screen, all nine (the pictures drawn, one a piece, faint for
+none, in the side that reads, contrast at least 1.8 against the page,
+Neo-Brutalism's pink on mint the lowest at about 2.1); five Opas a side
+on a phone (five and ×5, the last reached with the list scrolled to its
+foot, nothing off its side) and at 880x914 (two columns, the Opas onto a
+second line).
+
 The rules above the moves, larger on a big screen (2026-11-11, user, a
 screenshot of the Monolith's read-out brought up, its moves then its
 rules: "On desktop / Chromebook / large screen, this text is too small &
