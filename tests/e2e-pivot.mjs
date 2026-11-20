@@ -43,7 +43,7 @@ async function openPage() {
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/ERR_CERT|ERR_CONNECTION/.test(m.text())) errs.push(m.text()); });
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true; window.__EC_LAWS__ = { cantileverPivot: true }; });
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_LAWS__ = { cantileverPivot: true }; });
   await page.goto(FILE);
   await page.waitForTimeout(1500);
   return { page, errs };
@@ -82,8 +82,8 @@ const same = (a, b) => a && a.row === b.row && a.col === b.col && a.w === b.w &&
     arrows = await page.evaluate(() => ({ cw: window.__EC_TEST_PIVOT_ARROW_POS__("pivot-cw"), ccw: window.__EC_TEST_PIVOT_ARROW_POS__("pivot-ccw") }));
   }
   check("selecting the balanced Codo shows a curved arrow only for the way it can turn", !arrows.cw && !!arrows.ccw, JSON.stringify(arrows));
-  const pivotBadge = (await page.evaluate(() => window.__EC_TEST_COST_BADGES__())).find((b) => b.dir === "pivot-ccw");
-  check("the pivot arrow carries a cost badge (1 action)", pivotBadge && pivotBadge.text === "1", JSON.stringify(pivotBadge));
+  const pivotMark = (await page.evaluate(() => window.__EC_TEST_MARKERS__())).find((b) => b.dir === "pivot-ccw");
+  check("the pivot arrow is one of the move markers, no cost badge on it (gone, user)", !!pivotMark && pivotMark.sprites === 0, JSON.stringify(pivotMark));
   await page.screenshot({ path: "/tmp/e2e-pivot-arrow.png" });
   if (arrows.ccw) await page.mouse.click(arrows.ccw.x, arrows.ccw.y);
   await page.waitForTimeout(400);

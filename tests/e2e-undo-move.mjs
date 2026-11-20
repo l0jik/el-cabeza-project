@@ -20,7 +20,7 @@ const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromi
 
 async function play(opp) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true; try { localStorage.removeItem("el-cabeza:lab-theme"); } catch (e) { /* none */ } });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.removeItem("el-cabeza:lab-theme"); } catch (e) { /* none */ } });
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));

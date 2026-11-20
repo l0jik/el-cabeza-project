@@ -20,7 +20,7 @@ const poll = async (fn, ms = 20000, step = 200) => {
 };
 const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
 await ctx.addInitScript(() => {
-  window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true;
+  window.__EC_TEST_HOOKS__ = true;
   try {
     if (!sessionStorage.getItem("seeded")) {
       sessionStorage.setItem("seeded", "1");
@@ -55,7 +55,7 @@ await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game/ 
 await page.waitForTimeout(2200);
 const pos = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-flaco"));
 await page.mouse.click(pos.x, pos.y);
-await poll(() => page.evaluate(() => window.__EC_TEST_COST_BADGES__().length > 0), 4000);
+await poll(() => page.evaluate(() => window.__EC_TEST_MARKERS__().length > 0), 4000);
 await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "S"));
 check("a move is made", !!(await poll(async () => JSON.parse((await state()).log).length > 0 || (await state()).pieces.includes('"dark-flaco",2'), 6000)));
 await page.waitForTimeout(1200);

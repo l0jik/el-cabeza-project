@@ -3,7 +3,7 @@
    for players who know the game and don't want it any more.
    1. Desktop (Standard and Futuris): the dock's guide-toggle hides the piece
       card; the choice holds across a reload; switched back on, the card
-      returns. The move markers and their cost badges are untouched.
+      returns. The move markers are untouched.
    2. Nova on a phone: the menu's Piece guide switch hides the bar's piece
       text and its "tap ..." tips. */
 import { chromium } from "playwright";
@@ -43,7 +43,7 @@ for (const theme of ["standard", "futuris"]) {
   const page = await context.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true; });
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
   await page.goto(`file:///home/user/el-cabeza-project/dist/el-cabeza-${theme}.html`);
   await page.waitForTimeout(1500);
   await startGame(page);
@@ -60,8 +60,8 @@ for (const theme of ["standard", "futuris"]) {
   await page.waitForTimeout(400);
   await select(page, "dark-turrito");
   check("with it off, choosing a piece shows no card", (await card(page)) === 0);
-  const badges = await page.evaluate(() => window.__EC_TEST_COST_BADGES__());
-  check("...while the move markers still show", badges.length >= 4, JSON.stringify(badges));
+  const marks = await page.evaluate(() => window.__EC_TEST_MARKERS__());
+  check("...while the move markers still show", marks.length >= 4, JSON.stringify(marks));
   await page.reload();
   await page.waitForTimeout(1500);
   await startGame(page);
@@ -84,7 +84,7 @@ for (const theme of ["standard", "futuris"]) {
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   // The control bar, chosen (a phone opens Nova with the floating piece).
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true; try { localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true })); localStorage.setItem("el-cabeza:nova-layout", "bar"); } catch (e) { /* none */ } }); // bought: Nova opens at home
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true })); localStorage.setItem("el-cabeza:nova-layout", "bar"); } catch (e) { /* none */ } }); // bought: Nova opens at home
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html");
   await page.waitForTimeout(2500);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);

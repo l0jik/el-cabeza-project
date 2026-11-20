@@ -1,12 +1,14 @@
-/* Out in the open during play (chassis/ElCabeza3D.jsx): cost badges on
-   the move markers (buildCostBadge) — every square a selected piece can
-   reach says what that move costs, and a move that would put the board
-   back as it was earlier this turn reads "free" — and the piece card
-   (data-testid piece-card), which names the selected piece and says how
-   it moves, with a "More" link to its MOVES tile. Checked in Futuris and
-   Standard. There's no switch for the badges (the user had Move costs
-   taken out of the settings): none in the dock's foot, and an "off" a
-   player left with the old switch hides nothing. */
+/* What a move costs, during play (chassis/ElCabeza3D.jsx). The move
+   markers carry no cost badges (the user had Move costs taken out of the
+   settings, then the badges themselves: "I'd rather they were gone
+   entirely as well"); the costs are said in words: the piece card (data-
+   testid piece-card) names the selected piece and says how it moves and
+   what that costs, with a "More" link to its MOVES tile; a move the turn
+   can't pay for is refused with Why not's "Not enough actions" note
+   (e2e-why-not.mjs); a move back the way the piece came this turn still
+   hands its action back. Checked in Futuris and Standard, whose markers
+   have no sprites of their own, so a sprite on one would be a badge. And
+   no Move costs switch: none in the menu's foot. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
@@ -20,7 +22,9 @@ const position = [
   { id: "light-cabeza", type: "cabeza", owner: "light", row: 9, col: 5, w: 1, h: 1, z: 1 },
   { id: "light-turrito", type: "turrito", owner: "light", row: 8, col: 8, w: 1, h: 1, z: 1 },
 ];
-const badges = (page) => page.evaluate(() => window.__EC_TEST_COST_BADGES__());
+const markers = (page) => page.evaluate(() => window.__EC_TEST_MARKERS__());
+const badged = (ms) => ms.filter((m) => m.sprites > 0);
+const left = (page) => page.evaluate(() => { const c = document.querySelector('[data-testid="points-counter"]'); return c ? Number(c.getAttribute("data-left")) : null; });
 async function select(page, id) {
   const pos = await page.evaluate((i) => window.__EC_TEST_SCREEN_POS__(i), id);
   await page.mouse.click(pos.x, pos.y);
@@ -34,8 +38,7 @@ for (const theme of ["futuris", "standard"]) {
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/ERR_CERT|ERR_CONNECTION/.test(m.text())) errs.push(m.text()); });
-  // (An "off" from the old Move costs switch, which hides nothing now.)
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true; try { localStorage.setItem("el-cabeza:show-move-costs", "0"); } catch (e) { /* none */ } });
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
   await page.goto(`file:///home/user/el-cabeza-project/dist/el-cabeza-${theme}.html`);
   await page.waitForTimeout(1500);
   await openDockPanel(page);
@@ -49,33 +52,34 @@ for (const theme of ["futuris", "standard"]) {
     await page.waitForTimeout(400);
   }
 
-  check("nothing selected, no badges", (await badges(page)).length === 0);
+  check("nothing selected, no markers", (await markers(page)).length === 0);
   await select(page, "dark-turrito");
-  let b = await badges(page);
-  check("selecting the Turrito badges each of its moves (an \"off\" left by the old switch hides nothing)", b.length >= 4, JSON.stringify(b));
-  check("each roll costs 1", b.length > 0 && b.every((x) => x.text === "1"), JSON.stringify(b));
+  let m = await markers(page);
+  check("selecting the Turrito marks each of its moves", m.length >= 4, JSON.stringify(m));
+  check("...with no cost badge on any", m.length > 0 && !badged(m).length, JSON.stringify(m));
   const card = page.locator('[data-testid="piece-card"]');
   check("the piece card names the selected piece", (await card.count()) === 1 && /Turrito/.test(await card.innerText()), await card.count() ? await card.innerText() : "none");
   check("...and says how it moves and what it costs", /rolls one square.*1 action/i.test(await page.locator('[data-testid="piece-card-text"]').innerText()));
   await page.screenshot({ path: `/tmp/e2e-costs-${theme}-1.png` });
-  // No switch for them in the menu's foot (nor in More: e2e-rings.mjs).
+  // No Move costs switch in the menu's foot (nor in More: e2e-rings.mjs).
   {
     await openDockPanel(page);
-    check("no Move costs switch among the menu's foot buttons, the badges still up", (await page.locator('[data-testid="costs-toggle"]').count()) === 0 && (await page.locator("[data-dock-foot]").count()) > 0 && (await badges(page)).length >= 4);
+    check("no Move costs switch among the menu's foot buttons", (await page.locator('[data-testid="costs-toggle"]').count()) === 0 && (await page.locator("[data-dock-foot]").count()) > 0);
     await page.mouse.click(4, 450);
     await page.waitForTimeout(400);
   }
   await page.mouse.click(500, 880);
   await page.waitForTimeout(500);
-  check("deselecting hides the card and the badges", (await card.count()) === 0 && (await badges(page)).length === 0);
+  check("deselecting hides the card and the markers", (await card.count()) === 0 && (await markers(page)).length === 0);
 
+  const left0 = await left(page);
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
   await page.waitForTimeout(1600);
-  b = await badges(page);
-  if (b.length === 0) { await select(page, "dark-turrito"); b = await badges(page); }
-  const back = b.find((x) => x.dir === "N");
-  check("after a roll, rolling back reads free", back && back.text === "free", JSON.stringify(b));
-  check("other rolls still cost 1", b.filter((x) => x.dir !== "N").every((x) => x.text === "1"), JSON.stringify(b));
+  m = await markers(page);
+  if (m.length === 0) { await select(page, "dark-turrito"); m = await markers(page); }
+  check("after a roll, the way back is still marked (a free move beside 1-action ones), and still no badges", m.some((x) => x.dir === "N") && m.length >= 4 && !badged(m).length, JSON.stringify(m));
+  const left1 = await left(page);
+  check("...the roll took an action", left0 !== null && left1 === left0 - 1, `${left0} -> ${left1}`);
   await page.screenshot({ path: `/tmp/e2e-costs-${theme}-2.png` });
   await page.locator('[data-testid="piece-card-more"]').click();
   await page.waitForTimeout(600);
@@ -85,6 +89,9 @@ for (const theme of ["futuris", "standard"]) {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
   check("the card stays with the piece for the rest of the turn", (await card.count()) === 1);
+  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "N"));
+  await page.waitForTimeout(1600);
+  check("...and rolling back hands the action back (it was free)", (await left(page)) === left0, `${left0} -> ${await left(page)}`);
   check("no page errors", errs.length === 0, errs.join(" | "));
   await context.close();
 }
@@ -125,12 +132,12 @@ for (const theme of ["futuris", "standard"]) {
     check("the other side's piece won't move on this side's turn", before === after && /Photon/i.test(await page.locator('[data-testid="points-side"]').innerText()), after);
   }
   await select(page, "dark-turrito");
-  check("every roll costs the same: no badges", (await badges(page)).length === 0, JSON.stringify(await badges(page)));
+  check("every roll costs the same: no badges", !badged(await markers(page)).length && (await markers(page)).length > 0, JSON.stringify(await markers(page)));
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
   await page.waitForTimeout(1600);
-  let b = await badges(page);
-  if (b.length === 0) { await select(page, "dark-turrito"); b = await badges(page); }
-  check("a free way back among them: badges again", b.some((x) => x.text === "free") && b.some((x) => x.text === "1"), JSON.stringify(b));
+  let b = await markers(page);
+  if (b.length === 0) { await select(page, "dark-turrito"); b = await markers(page); }
+  check("a free way back among them: still no badges (they're gone, user)", b.some((x) => x.dir === "N") && !badged(b).length, JSON.stringify(b));
   const stop = page.locator('[data-testid="stop-here-float"]');
   check("after a move, End turn above the points row", (await stop.count()) === 1 && /end turn/i.test(await stop.innerText()));
   {

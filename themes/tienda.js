@@ -71,7 +71,7 @@ export const COLORS = {
   pageBg: "#2B2219",
   pageBgDeep: "#1A140F",
   // Player colours: a harvest-gold sticker for Dark, a cream one for
-  // Light (the cost badges and the points counter use them).
+  // Light (the points counter uses them).
   accentDark: PERIOD.harvestGold,
   accentLight: "#F3E8CF",
   accentDanger: PERIOD.vinylRed,

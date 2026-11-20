@@ -26,7 +26,7 @@ const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "
 const poll = async (fn, ms = 8000, step = 150) => { const end = Date.now() + ms; let v; while (Date.now() < end) { v = await fn(); if (v) return v; await new Promise((r) => setTimeout(r, step)); } return v; };
 
 async function openLab(page, theme) {
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true; try { localStorage.removeItem("el-cabeza:lab-theme"); } catch (e) { /* none */ } });
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.removeItem("el-cabeza:lab-theme"); } catch (e) { /* none */ } });
   await page.goto(`file:///home/user/el-cabeza-project/dist/el-cabeza-lab.html?theme=${theme}`);
   await poll(() => page.evaluate(() => !!window.__LAB__ && !!document.querySelector('[data-testid="lab-hud"]')), 15000);
 }
@@ -112,7 +112,7 @@ async function waitSwitched(page, id) {
   // Dark plays a full two-point turn with its Flaco.
   const pos = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-flaco"));
   await page.mouse.click(pos.x, pos.y);
-  await poll(() => page.evaluate(() => window.__EC_TEST_COST_BADGES__().length > 0), 4000);
+  await poll(() => page.evaluate(() => window.__EC_TEST_MARKERS__().length > 0), 4000);
   const flaco0 = await pieceOf(page, "dark-flaco");
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "S"));
   await landed(page, "dark-flaco", flaco0);
@@ -124,7 +124,7 @@ async function waitSwitched(page, id) {
   // Light takes one step (mid-turn) and keeps the piece selected.
   const lp = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-chato"));
   await page.mouse.click(lp.x, lp.y);
-  await poll(() => page.evaluate(() => window.__EC_TEST_COST_BADGES__().length > 0), 4000);
+  await poll(() => page.evaluate(() => window.__EC_TEST_MARKERS__().length > 0), 4000);
   const chato0 = await pieceOf(page, "light-chato");
   await page.evaluate(() => window.__EC_TEST_MOVE__("light-chato", "N"));
   await landed(page, "light-chato", chato0);
@@ -200,8 +200,9 @@ async function waitSwitched(page, id) {
   await poll(async () => (await state(page)).player === "dark", 8000, 200);
   await page.mouse.up(); await page.waitForTimeout(400);
   if ((await state(page)).player === "light") {
-    const b2 = await page.evaluate(() => window.__EC_TEST_COST_BADGES__());
-    const d2 = (b2.find((x) => x.text !== "free" && x.dir !== "S") || {}).dir;
+    // (Not back the way it came, S: that one's free.)
+    const b2 = await page.evaluate(() => window.__EC_TEST_MARKERS__());
+    const d2 = (b2.find((x) => x.dir !== "S") || {}).dir;
     if (d2) await page.evaluate((d) => window.__EC_TEST_MOVE__("light-chato", d), d2);
   }
   check("after the switches the turn finishes and play passes to Dark", !!(await poll(async () => (await state(page)).player === "dark", 15000)));
@@ -212,8 +213,8 @@ async function waitSwitched(page, id) {
   // A switch asked for mid-animation waits for the step to land.
   const dp = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-flaco"));
   await page.mouse.click(dp.x, dp.y); await page.waitForTimeout(400);
-  const bd = await page.evaluate(() => window.__EC_TEST_COST_BADGES__());
-  const dd = (bd.find((x) => x.text !== "free" && /^[NSEW]$/.test(x.dir)) || bd[0] || {}).dir;
+  const bd = await page.evaluate(() => window.__EC_TEST_MARKERS__());
+  const dd = (bd.find((x) => /^[NSEW]$/.test(x.dir)) || bd[0] || {}).dir;
   const flacoBefore = await page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === "dark-flaco")));
   await page.evaluate((d) => { window.__EC_TEST_MOVE__("dark-flaco", d); window.__LAB__.switchTo("brutalist"); }, dd);
   await waitSwitched(page, "brutalist");

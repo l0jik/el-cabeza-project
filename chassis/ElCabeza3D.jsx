@@ -100,56 +100,6 @@ const APP_VERSION = "2.0.0";
    of this same masthead shipped (see ARCHITECTURE.md's "Known
    pitfalls"). floorPx/ceilingPx are bare px numbers, vw is a bare vw
    number; scale defaults to 1 for a theme with no opinion. */
-/* A move marker's cost badge: a small round label floating over the
-   target square, always facing the camera and drawn over everything, so
-   a player sees what a move costs before making it. `text` is the
-   points ("1", "2") or "free" for a move back to an earlier position
-   this turn (drawn as a ring on the ink colour). Colours come from the
-   mover's side. */
-/* The badges' pictures, drawn once each ("1", "2", "free" in a side's
-   colours) and shared: a piece picked used to paint and upload a new one
-   for every marker, again each time its markers were laid out. */
-const BADGE_TEXTURES = new Map();
-function buildCostBadge({ text, fill, ink, x, y, z, size }) {
-  const id = `${text}|${fill}|${ink}`;
-  let tex = BADGE_TEXTURES.get(id);
-  if (!tex) { tex = paintCostBadge(text, fill, ink); BADGE_TEXTURES.set(id, tex); }
-  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, opacity: 0 });
-  const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(size, size, 1);
-  sprite.position.set(x, y, z);
-  sprite.renderOrder = 20;
-  sprite.userData.costBadge = text;
-  return sprite;
-}
-function paintCostBadge(text, fill, ink) {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 128;
-  const g = canvas.getContext("2d");
-  const free = text === "free";
-  g.beginPath();
-  g.arc(64, 64, free ? 54 : 58, 0, Math.PI * 2);
-  if (free) {
-    g.fillStyle = ink;
-    g.fill();
-    g.lineWidth = 12;
-    g.strokeStyle = fill;
-    g.stroke();
-  } else {
-    g.fillStyle = fill;
-    g.fill();
-    g.lineWidth = 5;
-    g.strokeStyle = ink;
-    g.stroke();
-  }
-  g.fillStyle = free ? fill : ink;
-  g.textAlign = "center";
-  g.textBaseline = "middle";
-  g.font = free ? "800 38px system-ui, sans-serif" : "800 72px system-ui, sans-serif";
-  g.fillText(text, 64, free ? 66 : 70);
-  return new THREE.CanvasTexture(canvas);
-}
-
 /* Cantilever Pivot's move cue: a curved arrow floating just above the
    piece, sweeping round its planted cube from where the arm is now
    toward where the pivot would swing it — one per legal direction. The
@@ -1221,13 +1171,17 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     // The board square [row, col] under a point in the board's own space
     // (a move marker's), for tests of where a marker sits.
     window.__EC_TEST_SQUARE_OF__ = (p) => [Math.floor((p.z + OFF_Z) / SQUARE_SIZE), Math.floor((p.x + OFF_X) / SQUARE_SIZE)];
-    // The cost badges on the move markers now showing: [{ dir, text }].
-    window.__EC_TEST_COST_BADGES__ = () => {
+    // The move markers now showing (not those fading out): [{ dir,
+    // sprites }]. (sprites: the cost badges were sprites over them, gone
+    // since the user had them taken out entirely.)
+    window.__EC_TEST_MARKERS__ = () => {
       const t = three.current;
       if (!t.ghostGroup) return [];
-      const out = [];
-      t.ghostGroup.traverse((o) => { if (o.userData.costBadge) out.push({ dir: o.parent && o.parent.userData.dir, text: o.userData.costBadge }); });
-      return out;
+      return t.ghostGroup.children.filter((o) => o.userData.kind === "ghostLine" && !o.userData.fadingOut).map((o) => {
+        let sprites = 0;
+        o.traverse((c) => { if (c.isSprite) sprites++; });
+        return { dir: o.userData.dir, sprites };
+      });
     };
     // A piece's box on the screen (pieceScreenRect: the card and the note
     // keep off the chosen piece's).
@@ -7213,12 +7167,11 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     /* The move markers' shaders compiled while the page is idle, a moment
        after it opens: a shader is compiled the first time something
        wearing it is drawn, and on a slow phone that's a stall, here at
-       the first piece picked (its markers and their tap targets) and the
-       first cost badge. One of each is built (a marker, a crush marker,
-       a target, a badge), kept hidden in the scene, never drawn, and the
-       scene compiled: three.js keeps a compiled shader for as long as
-       anything wears it, and the real markers, built the same way, find
-       theirs waiting. */
+       the first piece picked (its markers and their tap targets). One of
+       each is built (a marker, a crush marker, a target), kept hidden in
+       the scene, never drawn, and the scene compiled: three.js keeps a
+       compiled shader for as long as anything wears it, and the real
+       markers, built the same way, find theirs waiting. */
     let warmId = null;
     const warmShaders = () => {
       warmId = null;
@@ -7232,7 +7185,6 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
           if (ind && ind.root) holder.add(ind.root);
         });
         holder.add(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })));
-        holder.add(buildCostBadge({ text: "2", fill: COLORS.accentLight || COLORS.bodyLight, ink: COLORS.inkOnAccent || COLORS.bodyDark, x: 0, y: 0, z: 0, size: 1 }));
         scene.add(holder);
         renderer.compile(scene, camera);
       } catch (e) { /* (they'll compile when first drawn, as before) */ }
@@ -8299,49 +8251,6 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       .filter((c) => c.userData.kind === "ghostLine")
       .forEach((c) => setGhostLineTarget(c, 0, true));
 
-    /* Every marker carries a cost badge riding its fade (see
-       buildCostBadge), so each reachable square says what it costs. A
-       move that puts the board back as it was earlier this turn is free
-       (the turn trail in commit); a crush or shove never is. */
-    const sameBoard = (a, b) =>
-      a.length === b.length && a.every((p) => { const q = b.find((x) => x.id === p.id); return q && sameState(p, q); });
-    const costLabel = (move) => {
-      const cand = move.candidate;
-      const nextBoard = pieces.map((p) => (p.id === cand.id ? cand : p));
-      const isFree = currentPlayer !== foeSide && !move.crushes && !move.shoves &&
-        turnTrailRef.current.some((e) => sameBoard(e.board, nextBoard));
-      return isFree ? "free" : String(moveCost(move));
-    };
-    /* Only when the costs differ (user): a badge on every marker saying
-       the same "1" was clutter; when they all cost the same, the piece
-       card says what that is. (Tests of the badges themselves can keep
-       them all: __EC_TEST_ALL_COSTS__.) Always, no switch for them (the
-       user had Move costs taken out of the settings): shown only when
-       they differ, they're what a move takes from the turn's actions,
-       which the turn can't be planned without. */
-    const costLabels = new Set(shadowEntries.map(([, m]) => costLabel(m)));
-    const badgesWanted = costLabels.size > 1 || (typeof window !== "undefined" && window.__EC_TEST_ALL_COSTS__);
-    const withCostBadge = (themed, move, x, y, z) => {
-      if (!badgesWanted) return themed;
-      const cand = move.candidate;
-      const dark = cand.owner === "dark";
-      const badge = buildCostBadge({
-        text: costLabel(move),
-        fill: (dark ? COLORS.accentDark : COLORS.accentLight) || (dark ? COLORS.bodyDark : COLORS.bodyLight),
-        ink: COLORS.inkOnAccent || (dark ? COLORS.bodyLight : COLORS.bodyDark),
-        x, y, z,
-        size: SQUARE_SIZE * 0.42,
-      });
-      const root = new THREE.Group();
-      root.add(themed.root, badge);
-      return {
-        ...themed,
-        root,
-        setOpacity: (o) => { themed.setOpacity(o); badge.material.opacity = Math.min(1, o * 4); },
-        dispose: () => { themed.dispose(); badge.material.dispose(); }, // (its picture is shared: BADGE_TEXTURES)
-      };
-    };
-
     // Where each pivot arrow ends: the planted cube's centre and the
     // angle of the arm's end after the turn.
     const pivotEnd = (cand) => {
@@ -8390,8 +8299,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
           dir,
         });
         group.add(arrow.hit);
-        const mid = arrow.hit.userData.midPoint;
-        const marker = withCostBadge(arrow, move, mid.x, mid.y + 0.3, mid.z);
+        const marker = arrow;
         marker.root.userData = { dir, kind: "ghostLine", isCrush: false, indicator: marker };
         setGhostLineTarget(marker.root, 0.5, false);
         group.add(marker.root);
@@ -8433,7 +8341,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
          animates is the theme's call. */
       const hx = (cand.w * SQUARE_SIZE * GHOST_SCALE) / 2;
       const hz = (cand.h * SQUARE_SIZE * GHOST_SCALE) / 2;
-      const indicator = withCostBadge(theme.buildMoveIndicator({ cx, cz, hx, hz, isCrush, dir }), move, cx, 0.55, cz);
+      const indicator = theme.buildMoveIndicator({ cx, cz, hx, hz, isCrush, dir });
       indicator.root.userData = { dir, kind: "ghostLine", isCrush, indicator };
       /* Starts invisible and is immediately targeted to fade up to its
          real (hot/cold) opacity — see the hover-emphasis effect just

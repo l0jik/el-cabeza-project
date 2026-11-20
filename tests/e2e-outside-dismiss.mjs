@@ -28,7 +28,7 @@ async function startGame(theme, laws) {
   page.setDefaultTimeout(30000);
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
-  await page.addInitScript((l) => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true; if (l) window.__EC_LAWS__ = l; }, laws || null);
+  await page.addInitScript((l) => { window.__EC_TEST_HOOKS__ = true; if (l) window.__EC_LAWS__ = l; }, laws || null);
   // (The store's sides as they were, Walnut opening, against the computer's
   // Ash: a new player's are the other way round, and this plays Walnut.)
   if (theme === "tienda") await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:opponent", JSON.stringify({ aiPlayer: "light", aiDifficulty: "easy", humanStartSide: "dark" })); } catch (e) { /* none */ } });
@@ -54,7 +54,7 @@ for (const theme of ["futuris", "tienda", "lluvia"]) {
   const at = (id) => page.evaluate((i) => window.__EC_TEST_SCREEN_POS__(i), id);
   const empty = () => page.evaluate(() => window.__EC_TEST_CUBE_POS__(6, 1));
   const select = async (id) => { const p = await at(id); await page.mouse.click(p.x, p.y); return poll(async () => (await card.count()) === 1); };
-  const badges = () => page.evaluate(() => window.__EC_TEST_COST_BADGES__().length);
+  const markers = () => page.evaluate(() => window.__EC_TEST_MARKERS__().length);
 
   check("selecting a piece shows its card", await select("dark-turrito"));
   const counter = await page.locator('[data-testid="points-counter"]').boundingBox();
@@ -64,7 +64,7 @@ for (const theme of ["futuris", "tienda", "lluvia"]) {
   check("selecting it again brings the card back", await select("dark-turrito"));
   let e = await empty();
   await page.mouse.click(e.x, e.y);
-  check("a tap on an empty square puts it away (and lets go of the piece)", await poll(async () => (await card.count()) === 0 && (await badges()) === 0));
+  check("a tap on an empty square puts it away (and lets go of the piece)", await poll(async () => (await card.count()) === 0 && (await markers()) === 0));
 
   await select("dark-turrito");
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
@@ -73,7 +73,7 @@ for (const theme of ["futuris", "tienda", "lluvia"]) {
   e = await empty();
   await page.mouse.click(e.x, e.y);
   check("mid-turn, a tap on an empty square puts the card away", await poll(async () => (await card.count()) === 0));
-  check("...but the piece stays selected (its moves still showing)", (await badges()) > 0);
+  check("...but the piece stays selected (its moves still showing)", (await markers()) > 0);
 
   {
     const menu = page.locator('[data-testid="corner-menu"]');

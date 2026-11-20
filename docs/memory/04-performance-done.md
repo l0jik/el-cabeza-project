@@ -45,7 +45,8 @@
     wore them, mid computer's-turn; now in an idle callback after load.
   - Shaders compiled the first time something was drawn: the move markers
     (theme.buildMoveIndicator, crush and not), their tap targets and the
-    cost badge's sprite compiled at the first pick/roll. One of each is
+    cost badge's sprite (gone since 2026-11-20) compiled at the first
+    pick/roll. One of each is
     built at the first idle moment, kept hidden in the scene (never
     disposed: three.js frees a program when its last material goes) and
     `renderer.compile(scene, camera)` run. No program is compiled during
