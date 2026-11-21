@@ -1535,6 +1535,9 @@ export function mountCalm(v, env) {
     const p = el("span", { textContent: "x" });
     p.style.cssText = "position:absolute;visibility:hidden;font-size:100px;line-height:1";
     document.body.append(p);
+    // (Laid out first: Android's scale can come with the layout, its
+    // text autosizer's, not the style alone.)
+    void p.offsetHeight;
     const z = parseFloat(getComputedStyle(p).fontSize) / 100;
     p.remove();
     return z > 1.02 ? Math.min(z, 1.6) : 1;
