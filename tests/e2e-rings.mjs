@@ -448,6 +448,90 @@ console.log("The store in Spanish, on a phone: its words inside their wedges");
   await ctx.close();
 }
 
+/* Words larger than they're set (user, a screenshot of the Lab's
+   Brutalism on their foldable, the phone's own font size making every
+   word half again as large and the ring's wedges reading "Starti / ng
+   positi / on", "Oppone / nt", "Concret / e": "Look at the pie menu...
+   This needs to be fixed"). Here the browser's text-size-adjust at 150%,
+   which makes the words that much larger as the phone's setting does
+   (in the app, Android's font size), with the user's game: the computer
+   at Medium, Concrete first. Before a game and in play (the corner fan),
+   on the foldable open and on a slab phone: no word broken over two
+   lines, every line inside its own wedge and no value cut short, one size
+   of words across the ring; where the screen has room (the foldable),
+   the ring larger and its words the size the phone asked for. */
+const wedgeWords = (page) => page.evaluate(() => {
+  const L = document.querySelector('[data-testid="dock-menu"][data-open="true"]');
+  const svg = L && L.querySelector("svg.cr-ring");
+  if (!svg) return null;
+  const [cx, cy] = svg.getAttribute("data-hub").split(" ").map(Number);
+  const [r0, r1, , , step] = svg.getAttribute("data-ring").split(" ").map(Number);
+  const broken = [], outside = [], sizes = new Set();
+  for (const lab of L.querySelectorAll("[data-ml-label]")) {
+    const key = lab.getAttribute("data-ml-label"), g = L.querySelector(`g[data-ml-item="${key}"]`), mid = +g.getAttribute("data-cr-at");
+    const nm = lab.querySelector(".cr-nm");
+    sizes.add(getComputedStyle(nm).fontSize);
+    for (const el of [nm, ...lab.querySelectorAll(".cr-val")]) {
+      const t = el.firstChild;
+      if (t && t.nodeType === 3) {
+        const re = /\S+/g;
+        let m;
+        while ((m = re.exec(t.data))) { const r = document.createRange(); r.setStart(t, m.index); r.setEnd(t, m.index + m[0].length); if (r.getClientRects().length > 1) broken.push(`${key}: ${m[0]}`); }
+      }
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      for (const r of range.getClientRects()) {
+        if ([[r.left, r.top], [r.right, r.top], [r.left, r.bottom], [r.right, r.bottom]].some(([x, y]) => { const a = (Math.atan2(y - cy, x - cx) * 180) / Math.PI, d = Math.hypot(x - cx, y - cy); return d < r0 - 1 || d > r1 + 1 || a < mid - step / 2 - 1 || a > mid + step / 2 + 1; })) { outside.push(`${key}: "${el.textContent}"`); break; }
+      }
+      if (el.classList.contains("cr-val") && el.scrollHeight > el.clientHeight + 1) outside.push(`${key}: "${el.textContent}" cut short`);
+    }
+  }
+  return { r1, keys: [...L.querySelectorAll("[data-ml-label]")].map((n) => n.getAttribute("data-ml-label")), broken, outside, sizes: [...sizes] };
+});
+{
+  console.log("\n[the phone's words half again as large: the Lab's Brutalism, the computer at Medium, Concrete first]");
+  for (const [what, w, hgt] of [["a foldable, open", 898, 930], ["a slab phone", 390, 844]]) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: hgt }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    await ctx.addInitScript(() => {
+      window.__EC_TEST_HOOKS__ = true;
+      const add = () => { const st = document.createElement("style"); st.textContent = "html{-webkit-text-size-adjust:150% !important;text-size-adjust:150% !important}"; document.head.appendChild(st); };
+      if (document.head) add(); else document.addEventListener("DOMContentLoaded", add);
+    });
+    const page = await ctx.newPage();
+    const errs = [];
+    page.on("pageerror", (e) => errs.push(e.message));
+    await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-lab.html?theme=brutalist");
+    await page.waitForTimeout(2500);
+    const zoomed = await page.evaluate(() => { const p = document.createElement("span"); p.style.fontSize = "100px"; p.textContent = "x"; document.body.append(p); const z = parseFloat(getComputedStyle(p).fontSize); p.remove(); return z; });
+    await openMenu(page);
+    await tapWedge(page, "opponent");
+    await poll(async () => { const x = await out(page); return x && x.card === "opponent" ? x : null; }, 3000, 100);
+    await tapIn(page, '[data-testid="menu-fan-card"] [data-mf-choice="ai-dark"]');
+    await page.waitForTimeout(400);
+    await tapIn(page, '[data-testid="menu-fan-card"] [data-mf-choice="medium"]');
+    await page.waitForTimeout(400);
+    await tapWedge(page, "opponent");
+    await page.waitForTimeout(500);
+    await tapWedge(page, "first");
+    await page.waitForTimeout(900);
+    let r = await wedgeWords(page);
+    const big = w >= 600;
+    check(`${what} (${w}x${hgt}), the words at ${zoomed}% of their size: before a game, no word broken, every line in its wedge, one size across the ring${big ? ", the ring larger and the words at the phone's size" : ""}`,
+      zoomed >= 140 && !!r && !r.broken.length && !r.outside.length && r.sizes.length === 1 && (!big || (r.r1 > 200 && parseFloat(r.sizes[0]) >= 20)), JSON.stringify(r));
+    // In play: the corner fan.
+    await tapIn(page, '[data-testid="menu-fan-primary"]');
+    await waitForDockCorner(page);
+    await page.waitForTimeout(1200);
+    await openMenu(page);
+    await page.waitForTimeout(600);
+    r = await wedgeWords(page);
+    check(`...in play, the corner fan: no word broken, every line in its wedge, one size across it${big ? ", larger, the words at the phone's size" : ""}`,
+      !!r && r.keys.length >= 3 && !r.broken.length && !r.outside.length && r.sizes.length === 1 && (!big || parseFloat(r.sizes[0]) >= 20), JSON.stringify(r));
+    check("...no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
+    await ctx.close();
+  }
+}
+
 await browser.close();
 console.log(`\n${checks - fails}/${checks} checks passed`);
 process.exit(fails ? 1 : 0);

@@ -561,10 +561,10 @@ body.mf-quiet [data-testid="toggle-hint"]{display:none!important}
 .cr-w[aria-disabled="true"]{cursor:default}
 .cr-labs{position:fixed;inset:0;pointer-events:none}
 .cr-lab{position:fixed;width:var(--w,88px);display:flex;flex-direction:column;align-items:center;text-align:center;transform:translate(-50%,-50%);pointer-events:none;color:var(--ml-ink)}
-.cr-lab .cr-ico{width:20px;height:20px;margin-bottom:3px;display:block}.cr-lab .cr-ico svg{display:block;width:100%;height:100%}
-.cr-lab .cr-nm{font-size:14px;font-weight:600;line-height:1.15;max-width:100%;overflow-wrap:break-word}
-.cr-lab .cr-val{font-size:12px;line-height:1.25;color:var(--cr-ink2);max-width:100%;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:break-word;margin-top:1px}
-.cr-big .cr-lab .cr-nm{font-size:15px}.cr-big .cr-lab .cr-val{font-size:13px}.cr-big .cr-lab .cr-ico{width:22px;height:22px}
+.cr-lab .cr-ico{width:calc(20px * var(--cr-k,1));height:calc(20px * var(--cr-k,1));margin-bottom:3px;display:block}.cr-lab .cr-ico svg{display:block;width:100%;height:100%}
+.cr-lab .cr-nm{font-size:calc(14px * var(--cr-k,1));font-weight:600;line-height:1.15;max-width:100%;overflow-wrap:normal;word-break:normal;hyphens:manual}
+.cr-lab .cr-val{font-size:calc(12px * var(--cr-k,1));line-height:1.25;color:var(--cr-ink2);max-width:100%;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:normal;word-break:normal;hyphens:manual;margin-top:1px}
+.cr-big .cr-lab .cr-nm{font-size:calc(15px * var(--cr-k,1))}.cr-big .cr-lab .cr-val{font-size:calc(13px * var(--cr-k,1))}.cr-big .cr-lab .cr-ico{width:calc(22px * var(--cr-k,1));height:calc(22px * var(--cr-k,1))}
 .cr-lab.cr-open{color:var(--ml-paper)}.cr-lab.cr-open .cr-val{color:color-mix(in srgb,var(--ml-paper) 78%,var(--ml-ink))}
 .cr-lab.cr-held{opacity:.42}
 .cr-pulse{animation:mfPulse .32s ease}
@@ -1493,6 +1493,9 @@ export function mountCalm(v, env) {
   const corner = phase === "play", narrow = vw < 640;
   let data = readDock(host, phase) || { header: "", sub: "", primary: null, items: [] };
   let geo = null, ringKeys = "", wedges = [], gone = false, noteTimer = 0, ringBack = "";
+  // (One size for the whole ring's words, the size its tightest wedge
+  // needs, so they read as one menu: fit, evenOut.)
+  let ringK = 1;
   const born = performance.now();
   // (open: a wedge's card, its key; more: the list out, with the choice
   // open in it and End game asked)
@@ -1522,6 +1525,20 @@ export function mountCalm(v, env) {
   }
 
   /* ---- the ring ---- */
+  // How much larger than they're set the phone draws words (Android's
+  // own font size, which the app's view puts on every word; a phone
+  // browser's text scaling): the ring that much larger too where the
+  // screen has the room (the corner fan to two thirds of its shorter side
+  // at most, not over the whole board), so its words keep the size
+  // chosen; fit() makes them smaller only past that (a slab phone).
+  const tz = (() => {
+    const p = el("span", { textContent: "x" });
+    p.style.cssText = "position:absolute;visibility:hidden;font-size:100px;line-height:1";
+    document.body.append(p);
+    const z = parseFloat(getComputedStyle(p).fontSize) / 100;
+    p.remove();
+    return z > 1.02 ? Math.min(z, 1.6) : 1;
+  })();
   function measure(n) {
     const big = vw >= 900 && vh >= 620;
     // (The corner piece larger on a computer's screen, 1.75x, the chassis's
@@ -1529,8 +1546,8 @@ export function mountCalm(v, env) {
     // the box measured, 106 high at 1x.)
     const base = big ? 62 : 58, out = corner ? Math.round(base * Math.max(1, (env.pieceH || 106) / 106)) - base : 0;
     geo = corner
-      ? { big, r0: base + out, r1: clamp(Math.min((big ? 232 : 206) + out, c.x - 12, c.y - 150), 150 + out, 232 + out), a0: -177, a1: -90, at: 0.6 }
-      : { big, r0: big ? 68 : 64, r1: clamp(Math.min(big ? 214 : 188, vw / 2 - 8, c.y - 96), 132, 214), a0: -180, a1: 0, at: 0.58 };
+      ? { big, r0: base + out, r1: clamp(Math.min(((big ? 232 : 206) + out) * tz, c.x - 12, c.y - 150, Math.max((big ? 232 : 206) + out, Math.min(vw, vh) * 0.66)), 150 + out, (232 + out) * tz), a0: -177, a1: -90, at: 0.6 }
+      : { big, r0: big ? 68 : 64, r1: clamp(Math.min((big ? 214 : 188) * tz, vw / 2 - 8, c.y - 96), 132, 214 * tz), a0: -180, a1: 0, at: 0.58 };
     geo.step = (geo.a1 - geo.a0) / n;
     geo.top = c.y - geo.r1;
   }
@@ -1548,6 +1565,7 @@ export function mountCalm(v, env) {
   }
   function buildRing() {
     hideTip();
+    ringK = 1;
     const list = arrange(calmPick(data.items, phase));
     ringKeys = list.map((x) => x.key).join();
     measure(list.length);
@@ -1610,21 +1628,31 @@ export function mountCalm(v, env) {
     if (it.key === "opponent") { const lv = find("level"); return [it.value, lv && lv.value].filter(Boolean); }
     return it.value ? [it.value] : [];
   };
-  /* A label kept inside its wedge, whatever face draws its words (the
-     wedge narrows toward the hub, and a line under the middle can be
-     wider than the band there): its lines measured, then the place along
-     the wedge nearest the ring's own where every one fits, 3 px in from
-     each edge; failing any, narrowed so a value wraps, to no narrower
-     than its name. False while it isn't shown (More's list over it). */
+  /* A label kept inside its wedge, whatever face draws its words and
+     however large the phone makes them (Android's own font size, which
+     the app's view puts on every word: user, a screenshot of the Lab's
+     Brutalism, its words half again as large and its wedges reading
+     "Starti / ng positi / on", "Oppone / nt", "Concret / e": "Look at the
+     pie menu... This needs to be fixed"). A word is never broken: its
+     lines break only between words. Its lines measured, then the place
+     along the wedge nearest the ring's own where every one fits, 3 px in
+     from each edge, a value whole on its two lines; failing any, narrowed
+     so a value wraps, to no narrower than its longest word; failing that
+     too, all its words a little smaller (--cr-k, down to 0.6 of their
+     size) till they fit. At the sizes it was drawn for, as before. False
+     while it isn't shown (More's list over it). */
   const span = document.createRange();
+  const SCALES = [1, 0.92, 0.85, 0.78, 0.72, 0.66, 0.6];
   function fit(w) {
     const { lab, mid } = w, { r0, r1, step } = geo;
-    const put = (rl, wd) => {
+    const put = (rl, wd, sc) => {
       const p = polar(c, rl, mid);
       Object.assign(lab.style, { left: `${r1d(p.x)}px`, top: `${r1d(p.y)}px` });
       lab.style.setProperty("--w", `${wd}px`);
+      if (sc === 1) lab.style.removeProperty("--cr-k"); else lab.style.setProperty("--cr-k", String(sc));
+      w.k = sc;
     };
-    put(w.rl, w.wd);
+    put(w.rl, w.wd, ringK);
     if (!lab.offsetWidth) return false;
     const miss = (boxes, rl) => {
       const p = polar(c, rl, mid);
@@ -1640,26 +1668,48 @@ export function mountCalm(v, env) {
     };
     const along = [w.rl];
     for (let k = 2; w.rl - k > r0 + 8 || w.rl + k < r1 - 8; k += 2) along.push(w.rl + k, w.rl - k);
-    let best = null, floor = 0;
-    for (let wd = w.wd; ; wd -= 8) {
-      if (wd !== w.wd) lab.style.setProperty("--w", `${wd}px`);
-      const L = lab.getBoundingClientRect(), ox = L.left + L.width / 2, oy = L.top + L.height / 2, boxes = [];
-      const add = (r) => boxes.push([r.left - ox, r.top - oy, r.right - ox, r.bottom - oy]);
-      for (const n of lab.children) {
-        if (n.classList.contains("cr-ico")) { add(n.getBoundingClientRect()); continue; }
-        span.selectNodeContents(n);
-        for (const r of span.getClientRects()) { add(r); if (n.classList.contains("cr-nm") && wd === w.wd) floor = Math.max(floor, r.width); }
+    const words = [...lab.children].filter((n) => !n.classList.contains("cr-ico"));
+    let best = null;
+    for (const sc of SCALES) {
+      if (sc > ringK + 1e-9) continue;
+      let here = null;
+      if (sc !== 1) lab.style.setProperty("--cr-k", String(sc));
+      // (Its longest word: the label narrower than any, a word a line.)
+      lab.style.setProperty("--w", "1px");
+      let word = 0;
+      for (const n of words) { span.selectNodeContents(n); for (const r of span.getClientRects()) word = Math.max(word, r.width); }
+      const least = Math.max(52, Math.ceil(word) + 2);
+      for (let wd = Math.max(w.wd, least); ; wd -= 8) {
+        lab.style.setProperty("--w", `${wd}px`);
+        const L = lab.getBoundingClientRect(), ox = L.left + L.width / 2, oy = L.top + L.height / 2, boxes = [];
+        const add = (r) => boxes.push([r.left - ox, r.top - oy, r.right - ox, r.bottom - oy]);
+        let cut = 0;
+        for (const n of lab.children) {
+          if (n.classList.contains("cr-ico")) { add(n.getBoundingClientRect()); continue; }
+          span.selectNodeContents(n);
+          for (const r of span.getClientRects()) add(r);
+          // (A value past its two lines, cut short: not at this width.)
+          if (n.classList.contains("cr-val") && n.scrollHeight > n.clientHeight + 1) cut = 20;
+        }
+        for (const rl of along) {
+          if (rl <= r0 + 8 || rl >= r1 - 8) continue;
+          const m = miss(boxes, rl) + cut;
+          if (m <= 0) { put(rl, wd, sc); return true; }
+          if (!here || m < here.m) here = { m, rl, wd, sc };
+        }
+        if (wd - 8 < least) break;
       }
-      for (const rl of along) {
-        if (rl <= r0 + 8 || rl >= r1 - 8) continue;
-        const m = miss(boxes, rl);
-        if (m <= 0) { put(rl, wd); return true; }
-        if (!best || m < best.m) best = { m, rl, wd };
-      }
-      if (wd - 8 < Math.max(52, Math.ceil(floor) + 2)) break;
+      // (Into its margin but not past the wedge's edge: kept at this size
+      // rather than made smaller.)
+      if (here && here.m <= 3) { put(here.rl, here.wd, sc); return true; }
+      if (here && (!best || here.m < best.m)) best = here;
     }
-    if (best) put(best.rl, best.wd);
+    if (best) put(best.rl, best.wd, best.sc);
     return true;
+  }
+  function evenOut() {
+    const k = Math.min(1, ...wedges.filter((w) => w.fitted).map((w) => w.k || 1));
+    if (k < ringK - 1e-9) { ringK = k; wedges.forEach((w) => { if (w.fitted) w.fitted = fit(w); }); }
   }
   function paintWedge(w) {
     const it = w.key === "more" ? MORE() : find(w.key) || w.it;
@@ -1843,6 +1893,7 @@ export function mountCalm(v, env) {
   }
   function paint() {
     wedges.forEach(paintWedge);
+    evenOut();
     paintTop();
     place();
     stage.classList.toggle("cr-carded", !!cardKey);
@@ -2097,7 +2148,7 @@ export function mountCalm(v, env) {
   const onLanguage = () => frames(2).then(refresh);
   window.addEventListener("el-cabeza:language-changed", onLanguage);
   // (A face that arrives after the menu, its words fitted again.)
-  const onFonts = () => { if (!gone && !moreOpen) wedges.forEach((w) => { w.fitted = fit(w); }); };
+  const onFonts = () => { if (!gone && !moreOpen) { ringK = 1; wedges.forEach((w) => { w.fitted = fit(w); }); evenOut(); } };
   if (document.fonts) document.fonts.addEventListener("loadingdone", onFonts);
 
   buildRing();

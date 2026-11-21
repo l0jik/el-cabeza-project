@@ -437,6 +437,37 @@ a value wraps; the least-bad place if nothing fits. Not while More's list
 hides the labels (closeMore's paint fits them). Checked with DejaVu Sans
 forced on the menu (the widest common face): e2e-rings 58/58, More at
 r 163, "All / settings" wrapped.
+Words never broken, at any size the phone draws them (2026-11-21; user,
+a screenshot of the Lab's Brutalism on their foldable before a game, the
+ring's wedges reading "Starti / ng positi / on", "Oppone / nt", "Concret
+/ e", "Standar / d", "All sett…": "Look at the pie menu... This needs to
+be fixed"). The cause: Android's own font size, which the app's view
+puts on every word, there about 1.5x (the Lab's bar, the title and Begin
+all half again as large as at 1x), the wedges not; JetBrains Mono's
+"Starting" wider than its wedge, and the labels allowed to break inside
+a word (overflow-wrap: break-word). Now (menu-fan.js): no word broken
+(overflow-wrap and word-break normal: lines break between words only);
+fit(w) measures the label's longest word (its width set to 1 px, a word
+a line) and goes no narrower; a value cut short at its two lines doesn't
+fit; failing every place, all the label's words smaller (--cr-k, 0.92
+down to 0.6: the name, value and icon sizes are calc()s of it), and a
+place 3 px into its margin, inside the wedge, kept at a size rather
+than made smaller; one size for the whole ring (ringK: the smallest any
+wedge needs, every wedge fitted again at it; evenOut after a paint, and
+from 1 again when a face loads or the ring is built). And the ring itself
+larger by the text's own scale (tz: a 100 px span's computed size, to
+1.6), where the screen has room: the half ring to vw/2 - 8 and c.y - 96
+as before, the corner fan to two thirds of the screen's shorter side at
+most (not over the whole board). At 1x nothing moves (every wedge at
+k 1, as before). At 1.5x (text-size-adjust 150%, which this Chromium
+honours as the phone's setting: a 14 px name computes 21): on 898x930
+the half ring 188 -> 282, every word whole at 21 px; on a 390 phone the
+half ring can't grow, its words at 0.66 (13.9 px), the corner fan 257
+px, 0.85. Test: e2e-rings, the phone's words half again as large
+(Brutalism, the computer at Medium, Concrete first; the foldable and a
+slab phone; before a game and the corner fan in play: no word broken,
+every line inside its wedge and no value cut short, one size across the
+ring, on the foldable the ring larger and the words at least 20 px).
 
 Calm Rings' tooltips (2026-11-13; user, of a screenshot of the Monolith's
 ring after a game, More, View, Opponent, Carvings, Replay a game: "add
