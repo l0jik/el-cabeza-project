@@ -1,10 +1,13 @@
 name: Browser tests
 
 # The whole browser suite (tests/run-e2e.mjs) after every push, split
-# across machines so it takes about twenty minutes instead of the two
-# hours it takes run one test at a time (user: "move forward with all",
-# after the efficiency review). It doesn't hold up the deploy; it reports.
-# The repository is public, so GitHub's machines cost nothing here.
+# across machines so it takes about half an hour instead of the four it
+# takes run one test at a time (user: "move forward with all", after the
+# efficiency review). It doesn't hold up the deploy; it reports. The
+# repository is public, so GitHub's machines cost nothing here. Ten parts,
+# even by each test's time on these machines (run-e2e.mjs SECS): about 25
+# minutes each, well inside the hour (eight by turns had one part past it,
+# 2026-11-20, another at 18).
 
 on:
   push:
@@ -27,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -44,4 +47,4 @@ jobs:
           sudo ln -sfn "$GITHUB_WORKSPACE" /home/user/el-cabeza-project
           sudo ln -sf "$(node -e 'console.log(require("playwright").chromium.executablePath())')" /opt/pw-browsers/chromium-1194/chrome-linux/chrome
       - run: npm run build
-      - run: node tests/run-e2e.mjs --shard ${{ matrix.shard }}/8
+      - run: node tests/run-e2e.mjs --shard ${{ matrix.shard }}/10

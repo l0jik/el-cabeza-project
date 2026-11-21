@@ -109,6 +109,18 @@
   into the scratchpad (cdn.playwright.dev, Playwright's own mirror, is
   refused by the proxy); unzip it (chmod +x chrome, chrome_crashpad_handler)
   and pass it as `executablePath`. That leaves the pinned browser alone.
+- **CI's browser tests in ten even parts** (2026-11-21). e2e.yml runs
+  `run-e2e.mjs --shard i/10`, each part on its own machine, 60 minutes
+  at most. The parts are made even by each test's time on GitHub's
+  machines (run-e2e.mjs SECS, from the parts' logs: "e2e-lab … pass
+  (419 s)"; a test not there counts as 90 s): the longest first, each to
+  the part with least so far. About 25 minutes each. (By turns, every
+  8th, one part held the store, the setup by hand, the tooltips, the Lab
+  and the replays, 48 minutes of them: it reached 53.7 minutes on
+  e1e3bb4 and was stopped at 60 on b522f06, all its tests passing, while
+  another took 18.) `node tests/run-e2e.mjs --shard 1/10 --plan` prints
+  the parts and their times; when a part runs long, bring SECS up to date
+  from its log.
 
 - **The Android app** (2026-11-19): `node tools/app_www.mjs` (after the
   build) makes app-www/, `npx cap sync android` puts it in android/, and

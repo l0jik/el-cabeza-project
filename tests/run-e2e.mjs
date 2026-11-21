@@ -124,10 +124,42 @@ const E2E = [
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");
-/* --shard i/n: every n-th test from the i-th (1-based), so a long run can
-   be split, here into two under the 2-hour limit of a background task,
-   or across machines (.github/workflows/e2e.yml). The round-robin keeps
-   the long tests spread out. */
+
+/* Each test's time on GitHub's runners, in seconds (the run on 2026-11-20
+   for b522f06, its eight parts' logs): what --shard balances by. A test
+   that isn't here counts as SECS_ELSE. Round-robin had put the store, the
+   setup by hand, the menu's tooltips, the Lab and the replays, 48 minutes
+   of them, in one part, which ran past its 60 minutes while another took
+   18. Brought up to date from the logs when the parts drift apart. */
+const SECS = {
+  "e2e-smoke standard": 21, "e2e-smoke futuris": 10, "e2e-smoke cromo": 13, "e2e-smoke plano": 18, "e2e-smoke luna": 67, "e2e-smoke noir": 49, "e2e-smoke lluvia": 38, "e2e-smoke tienda": 19, "e2e-smoke ciudad": 50,
+  "e2e-outside-dismiss": 118, "e2e-lab": 419, "e2e-monolith": 129, "e2e-gameplay standard": 37, "e2e-gameplay futuris": 25, "e2e-gameplay ciudad": 64,
+  "e2e-board-size": 49, "e2e-ai-worker": 18, "e2e-ai-split": 34, "e2e-movelog": 14, "e2e-replay": 355, "e2e-undo-audio": 51, "e2e-undo-wormhole": 25,
+  "e2e-lluvia": 469, "e2e-odd-pieces": 25, "e2e-shoving": 65, "e2e-anomaly": 7, "e2e-pivot": 34, "e2e-pivot-drag": 121, "e2e-points": 109, "e2e-rules": 75,
+  "e2e-costs": 89, "e2e-original": 33, "e2e-nova-mobile": 103, "e2e-ambient": 29, "e2e-singularity": 223, "e2e-tienda": 785,
+  "e2e-sound-channels": 53, "e2e-nova-sound": 36, "e2e-wood-sounds": 51, "e2e-piece-guide": 69, "e2e-den": 207, "e2e-story": 337,
+  "e2e-store-nudge": 231, "e2e-try-it": 27, "e2e-store-opening": 20, "e2e-dock-moments": 620, "e2e-wake": 14, "e2e-camera-glide": 82, "e2e-pivot-guide": 67, "e2e-fullscreen": 72,
+  "e2e-outline": 70, "audio-bell": 34, "e2e-now-playing": 206, "e2e-split-three": 60, "e2e-check-alert": 167,
+  "e2e-gate": 311, "e2e-ending": 108, "e2e-hall-after-game": 133, "e2e-summon": 306, "e2e-den-spot": 78, "e2e-den-return": 50, "e2e-drag-latch": 115, "e2e-journey": 120, "e2e-tv-lure": 89, "e2e-clerk": 73,
+  "e2e-touch-in-game": 640, "e2e-noir-streets": 52, "e2e-noir-sound": 90, "e2e-dock-call": 332, "e2e-hall-sound": 115, "e2e-luna-floors": 19, "e2e-luna-rover": 12,
+  "e2e-app": 173, "e2e-press": 57, "e2e-ghost-finger": 53, "e2e-den-phone": 158, "e2e-corner-menu": 706, "e2e-ciudad": 126, "e2e-ciudad-sound": 137,
+  "e2e-hold-to-end": 124, "e2e-ciudad-cabezas": 59, "e2e-slide-sounds": 201, "e2e-set-out": 858, "e2e-closeups": 160, "e2e-saves": 74, "e2e-online": 187,
+  "e2e-nova-city": 100, "e2e-hole-sets": 35, "e2e-first-game-tour": 315, "e2e-first-look": 63, "e2e-store-pan": 80, "e2e-tv-pull": 114,
+  "e2e-realities-over-sphere": 40, "e2e-device-fit": 134, "e2e-title": 165, "e2e-language": 47, "e2e-menu-lab": 259, "e2e-rings": 104,
+  "e2e-menu-tips worlds": 456, "e2e-menu-tips more": 164, "e2e-leave": 111, "e2e-glass-layers": 17, "e2e-see-lens": 44, "e2e-store-records": 4,
+  "e2e-cromo": 36, "e2e-you-win": 45, "e2e-arrow-lab": 75, "e2e-hidden-marker": 56, "e2e-floor-seams": 13, "e2e-undo-move": 51, "e2e-singularity-stall": 16,
+  "e2e-why-not": 233, "e2e-change-rules": 233, "e2e-piece-card-place": 51, "e2e-zoom-pan": 39, "e2e-picture-out": 64, "e2e-scene-aside": 74, "e2e-way-in": 58,
+};
+const SECS_ELSE = 90;
+const secsOf = (t) => SECS[label(t)] ?? SECS_ELSE;
+
+/* --shard i/n: the i-th (1-based) of n parts, so a long run can be split,
+   here into two under the 2-hour limit of a background task, or across
+   machines (.github/workflows/e2e.yml). The parts as even as their times
+   allow: the longest test first, each to the part with the least time so
+   far (a tie to the earlier part), every part's own run in the list's
+   order. The same on every machine, every test in exactly one part.
+   --plan prints the parts and their times without running anything. */
 const shardArg = process.argv.slice(2).find((a) => /^--shard[= ]?\d+\/\d+$/.test(a) || a === "--shard");
 let shard = null;
 {
@@ -137,9 +169,24 @@ let shard = null;
   const m = spec && spec.match(/^(\d+)\/(\d+)$/);
   if (m) shard = { k: Number(m[1]), n: Number(m[2]) };
 }
-const only = process.argv.slice(2).filter((a, i, all) => !a.startsWith("--shard") && all[i - 1] !== "--shard");
+const only = process.argv.slice(2).filter((a, i, all) => !a.startsWith("--shard") && a !== "--plan" && all[i - 1] !== "--shard");
 let list = only.length ? E2E.filter((t) => only.some((o) => label(t).includes(o))) : E2E;
-if (shard) list = list.filter((t, i) => i % shard.n === shard.k - 1);
+function parts(tests, n) {
+  const load = Array(n).fill(0), of = new Map();
+  tests.map((t, i) => ({ t, i })).sort((a, b) => secsOf(b.t) - secsOf(a.t) || a.i - b.i).forEach(({ t, i }) => {
+    let k = 0;
+    for (let j = 1; j < n; j++) if (load[j] < load[k]) k = j;
+    load[k] += secsOf(t);
+    of.set(i, k);
+  });
+  return Array.from({ length: n }, (_, k) => tests.filter((t, i) => of.get(i) === k));
+}
+if (process.argv.includes("--plan")) {
+  const n = shard ? shard.n : 1;
+  parts(list, n).forEach((p, k) => console.log(`${k + 1}/${n}: ${(p.reduce((s, t) => s + secsOf(t), 0) / 60).toFixed(1)} min, ${p.length} tests: ${p.map(label).join(", ")}`));
+  process.exit(0);
+}
+if (shard) list = parts(list, shard.n)[shard.k - 1];
 if (!list.length) { console.error(`no test matches: ${only.join(" ")}`); process.exit(2); }
 
 function run([file, ...args]) {
