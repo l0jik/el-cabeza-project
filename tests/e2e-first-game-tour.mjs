@@ -381,7 +381,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   // Your move: the pieces that can move glow, named.
   await next(page);
   t = await cardText(page);
-  check("Let's play: your move, tap a glowing piece; the boxed-in ones said", (await tourOf(page)).step === "pieces" && /Your move: tap a glowing piece\./.test(t) && /Your Cabeza and the Turrito are boxed in for now/.test(t), t);
+  check("Let's play: your move, tap a piece outlined in yellow; the boxed-in ones said", (await tourOf(page)).step === "pieces" && /Your move: tap a piece outlined in yellow\./.test(t) && /Your Cabeza and the Turrito are boxed in for now/.test(t), t);
   r = await rings(page);
   check("...the Chato, the Opa and the Flaco glow; the Cabeza and the Turrito dim", ["light-chato", "light-opa", "light-flaco"].every((id) => r.some((x) => x.id === id && x.tone === "mine" && x.pulse)) && ["light-cabeza", "light-turrito"].every((id) => r.some((x) => x.id === id && x.tone === "dim" && !x.pulse)), JSON.stringify(r));
   check("...and labelled, the dim ones boxed in", /turrito · boxed in/i.test(((await tagBox(page, "light-turrito")) || {}).text || "") && /^opa$/i.test(((await tagBox(page, "light-opa")) || {}).text || ""));

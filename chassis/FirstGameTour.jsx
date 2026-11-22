@@ -256,7 +256,10 @@ function cardText(t) {
       const l = t.lesson;
       if (!l) {
         return {
-          title: t.touch ? "Your move: tap a glowing piece." : "Your move: click a glowing piece.",
+          // (Your pieces as the tour marks them, outlined in its yellow; user:
+          // "instead of saying that the pieces are glowing, say the pieces
+          // that are outlined in yellow".)
+          title: t.touch ? "Your move: tap a piece outlined in yellow." : "Your move: click a piece outlined in yellow.",
           body: [
             "Each one moves its own way. Pick one to see its name, how it moves, and an arrow to every square it can reach.",
             t.boxed.length ? say(t.boxed.length === 1 ? "{pieces} is boxed in for now: move another piece out of the way first." : "{pieces} are boxed in for now: move another piece out of the way first.", { pieces: cap(list(t.boxed.map((b) => (b.mine ? tr("your Cabeza") : language() !== "en" ? b.name : `the ${b.name}`)))) }) : null,
