@@ -385,6 +385,8 @@ console.log("\nthree moves after the walkthrough: asked to take it to the regist
   await openDockPanel(page);
   await q(page, "tienda-try-game").click({ force: true });
   check("a new player's first game: the walkthrough", !!(await poll(() => has(page, "tour-card"), 15000)));
+  // (Its first card: how you'd like to learn; the full instructions.)
+  if (await has(page, "tour-choose-words")) { await q(page, "tour-choose-words").click(); await page.waitForTimeout(800); }
   for (let i = 0; i < 7 && (await has(page, "tour-next")); i++) { await q(page, "tour-next").click(); await page.waitForTimeout(800); }
   check("...its cards through: your first turn", (await poll(async () => (await step()) === "pieces", 8000)) === true, String(await step()));
   check("...that turn played, and the computer's (still walked through)", await playTurn(page), `log ${await logLen(page)}`);

@@ -118,6 +118,27 @@ since radius/phi can change independently afterward):
     for the rest of that pinch. Kept across handler re-binds
     (gestureKeepRef) and cleared with panAnchor. The mouse wheel still
     zooms on the middle.
+  - **The store and the den lift again** (2026-11-22; user: "In Tienda /
+    store, the maximum vertical zoom / ceiling seems to be lower than
+    before.... There is wall signage that can no longer be seen"; of the
+    fixes offered, "Let's go with 1 and 2"). B had taken the lift out
+    with the screen-plane pull: along the ground the aim's height never
+    changed, so a phone could no longer raise the view up the walls to
+    their signs (yMax, the store's 30, unchanged; a mouse's right-drag
+    still lifted). A world whose freeCamera says `lift` (tienda.js,
+    standard.js: the store and the den) has the screen-plane pull again
+    (panBy, the aim rising with two fingers drawn down), and the zoom
+    still on the fingers, step by step: the plane point under the last
+    middle before each step's zoom (roomZoomFrom), the point under it
+    after, the difference put back, then the pull. The City, Noir and
+    Luna (free cameras without `lift`) and every other world keep B. And
+    the store tilts lower: tienda.js maxPitch 1.38 (about 79 degrees from
+    straight down; the 1.25 default, held for Futuris's see-through
+    pieces, stays everywhere else; Luna 1.4, Noir 1.36, the City 1.32).
+    tests/e2e-zoom-pan.mjs 6 (the store on a phone: drawn down twice
+    over, the aim 0 to 14, then to 30 and no higher; a pinch apart there,
+    the spot 0 px off; one finger, as low as 1.380) and 7 (Luna: the aim's
+    height kept, the view slid 11 along the ground).
   - tests/e2e-zoom-pan.mjs (Futuris on a phone, theta 0.3, phi 0.55): the
     push along the board and to a corner, the screen over the board;
     radius 40 unchanged; four two-finger pulls, 4.47 squares out and no

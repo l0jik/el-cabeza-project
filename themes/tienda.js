@@ -137,7 +137,17 @@ export function cornerMenu(x) {
 // governor), so the chassis's doesn't (chassis/device-fit.js).
 export const ownsPixelRatio = true;
 
-export const freeCamera = { zoomMin: 4.5, zoomMax: 82, reach: 60, yMin: -14, yMax: 30, dollhouse: { radius: 82, phi: 0.6 } };
+// (lift: two fingers drawn down raise the view up the walls to the signs,
+// as a mouse's right-drag does; the chassis's two-finger pull. User: "There
+// is wall signage that can no longer be seen".)
+export const freeCamera = { zoomMin: 4.5, zoomMax: 82, reach: 60, yMin: -14, yMax: 30, lift: true, dollhouse: { radius: 82, phi: 0.6 } };
+/* The view tilts lower here than the board's worlds (1.25 rad, about 72
+   degrees from straight down, held there for Futuris's see-through
+   pieces, which show a dark band at grazing angles): to about 79, the
+   walls and their signs across the store seen more face on (user, the
+   store's signs out of sight: "Let's go with 1 and 2"; 2 was this). The
+   store's pieces are solid wood; Luna, the City and Noir tilt as low. */
+export const maxPitch = 1.38;
 
 export const modalBackdrop = "rgba(26, 18, 11, 0.55)";
 export const modalSurface = "rgba(236, 225, 198, 0.98)";

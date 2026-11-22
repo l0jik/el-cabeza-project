@@ -172,7 +172,8 @@ console.log("\nNova's store, phone: the tour's cards put full screen back");
   await page.touchscreen.tap(corner.x, corner.y);
   await page.waitForTimeout(800);
   check("the corner button takes it out", !(await full()));
-  const next = await centre('[data-testid="tour-next"]');
+  // (The first card's: how you'd like to learn, its full instructions.)
+  const next = await centre('[data-testid="tour-choose-words"]');
   await page.touchscreen.tap(next.x, next.y);
   await page.waitForTimeout(1500);
   check("...and the next card's tap puts it back (user: always, in the tutorial)", await full());

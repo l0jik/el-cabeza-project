@@ -20,6 +20,10 @@
       spot kept under the fingers.
    5. On a computer: the wheel out goes 1.8 times as far as in, a
       touchpad's pinch follows the fingers (see there).
+   6. The store on a phone: two fingers drawn down lift the view up the
+      walls to their signs; a pinch there still closes in on the spot
+      between the fingers; the view tilts lower (1.38).
+   7. Luna, a free camera too: two fingers still slide along the ground.
      node tests/e2e-zoom-pan.mjs */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
@@ -173,6 +177,127 @@ console.log("\nA computer's wheel and touchpad pinch, as a phone's pinch");
   check(`...and together by a quarter: out by 1.25 to the 1.8, as a phone's pinch (20 to ${pinchOut.toFixed(2)})`, Math.abs(pinchOut - 20 * Math.pow(1.25, 1.8)) < 1, String(pinchOut));
   check(`no page errors (${derrs.length})`, derrs.length === 0, derrs.slice(0, 3).join(" | "));
   await dctx.close();
+}
+
+/* 6. The store, a room to look round (user: "In Tienda / store, the
+   maximum vertical zoom / ceiling seems to be lower than before.... There
+   is wall signage that can no longer be seen"; of the fixes offered, "Let's
+   go with 1 and 2"): two fingers drawn down lift the view up the walls
+   (the aim's height, to the store's 30), as before the pinch kept the
+   board under the fingers, which only slid it along the floor; a pinch
+   there still closes in on the spot between the fingers; and one finger
+   tilts the view as low as 1.38 (about 79 degrees from straight down; the
+   board's worlds stop at 1.25). */
+{
+  console.log("\n[the store on a phone: two fingers lift the view up the walls; the view tilts lower]");
+  const sctx = await browser.newContext({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  await sctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NUDGE_MS__ = 600000; window.__EC_TEST_PA_MS__ = 600000; });
+  const sp = await sctx.newPage();
+  const serrs = [];
+  sp.on("pageerror", (e) => serrs.push(e.message));
+  await sp.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-tienda.html");
+  await sp.waitForSelector('[data-testid="tienda-open-box"]', { timeout: 60000 });
+  await sp.waitForTimeout(1500);
+  await sp.locator('[data-testid="tienda-open-box"]').click();
+  await sp.waitForTimeout(3500);
+  await openDockPanel(sp);
+  await sp.waitForTimeout(600);
+  await sp.locator('button:text-matches("Begin Game|Try a Demo Game")').first().click({ force: true });
+  await poll(() => sp.evaluate(() => window.__EC_TEST_ARMED__ === true), 15000);
+  await sp.waitForTimeout(2500);
+  const scdp = await sctx.newCDPSession(sp);
+  const aim = () => sp.evaluate(() => { const c = window.__EC_TEST_CAM__(); return { y: c.target[1], r: c.radius, phi: c.phi }; });
+  // Two fingers, side by side, drawn down the screen.
+  const drawDown = async () => {
+    await scdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: two(170, 300, 240, 300) });
+    await sp.waitForTimeout(30);
+    for (let i = 1; i <= 20; i++) { await scdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: two(170, 300 + i * 15, 240, 300 + i * 15) }); await sp.waitForTimeout(16); }
+    await scdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await sp.waitForTimeout(400);
+  };
+  await sp.evaluate(() => window.__EC_TEST_CAM__({ theta: 0, phi: 1.25, radius: 60, target: [0, 0, 0], snap: true }));
+  await sp.waitForTimeout(600);
+  await drawDown();
+  const once = await aim();
+  check(`two fingers drawn down: the view lifted up the walls (the aim from 0 to ${once.y.toFixed(1)} high), its distance kept`, once.y > 8 && Math.abs(once.r - 60) < 0.01, JSON.stringify(once));
+  for (let i = 0; i < 4; i++) await drawDown();
+  const top = await aim();
+  check(`...and on up to the store's ceiling for it, no further (${top.y.toFixed(1)}, at most 30)`, top.y > 25 && top.y <= 30.001, JSON.stringify(top));
+  // A pinch apart over a spot off the middle, the view lifted: the spot
+  // (on the aim's level) stays under the fingers.
+  await sp.evaluate(() => window.__EC_TEST_CAM__({ theta: 0, phi: 1.0, radius: 50, target: [0, 20, 0], snap: true }));
+  await sp.waitForTimeout(800);
+  const M = { x: 260, y: 560 };
+  const spotOf = (m) => sp.evaluate((m) => {
+    const t = window.__EC_TEST_THREE__(), cam = t.camera, el = t.renderer.domElement, r = el.getBoundingClientRect();
+    const V3 = cam.position.constructor;
+    const p = new V3(((m.x - r.left) / r.width) * 2 - 1, -((m.y - r.top) / r.height) * 2 + 1, 0.5).unproject(cam);
+    const dir = p.sub(cam.position).normalize();
+    const ty = window.__EC_TEST_CAM__().target[1];
+    return cam.position.clone().add(dir.multiplyScalar((ty - cam.position.y) / dir.y)).toArray();
+  }, m);
+  const spot = await spotOf(M);
+  const r0 = (await aim()).r;
+  await scdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: two(M.x - 35, M.y, M.x + 35, M.y) });
+  await sp.waitForTimeout(30);
+  for (let i = 1; i <= 18; i++) { const w = 35 + i * 5; await scdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: two(M.x - w, M.y, M.x + w, M.y) }); await sp.waitForTimeout(16); }
+  await scdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await sp.waitForTimeout(1500);
+  const seen = await sp.evaluate((w) => {
+    const t = window.__EC_TEST_THREE__(), cam = t.camera, el = t.renderer.domElement, r = el.getBoundingClientRect();
+    const v = new cam.position.constructor(w[0], w[1], w[2]).project(cam);
+    return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height, radius: window.__EC_TEST_CAM__().radius };
+  }, spot);
+  const off = Math.hypot(seen.x - M.x, seen.y - M.y);
+  check(`a pinch apart there: zoomed in (radius ${r0.toFixed(1)} to ${seen.radius.toFixed(1)}), the spot still under the fingers (${off.toFixed(0)} px off)`, seen.radius < r0 - 3 && off < 30, JSON.stringify({ M, seen }));
+  // One finger, a long way each way: the lowest the view tilts.
+  const tiltMost = async () => {
+    let most = 0;
+    for (const [y0, y1] of [[200, 800], [800, 200]]) {
+      await sp.evaluate(() => window.__EC_TEST_CAM__({ phi: 1.0, radius: 50, target: [0, 10, 0], snap: true }));
+      await sp.waitForTimeout(300);
+      await scdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 206, y: y0, id: 1, radiusX: 4, radiusY: 4, force: 1 }] });
+      for (let i = 1; i <= 30; i++) { await scdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 206, y: y0 + ((y1 - y0) * i) / 30, id: 1, radiusX: 4, radiusY: 4, force: 1 }] }); await sp.waitForTimeout(16); }
+      await scdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await sp.waitForTimeout(300);
+      most = Math.max(most, (await aim()).phi);
+    }
+    return most;
+  };
+  const low = await tiltMost();
+  check(`one finger, a long way: the view tilts as low as ${low.toFixed(3)} (the store's 1.38; the board's worlds stop at 1.25)`, Math.abs(low - 1.38) < 0.002, String(low));
+  check(`no page errors (${serrs.length})`, serrs.length === 0, serrs.slice(0, 3).join(" | "));
+  await sctx.close();
+}
+
+/* 7. ...and only there (the store and the den, freeCamera.lift): Luna, a
+   free camera too, keeps the pull along the ground, the aim's height
+   unchanged by two fingers drawn down. */
+{
+  console.log("\n[Luna on a phone: two fingers still slide along the ground]");
+  const lctx = await browser.newContext({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  await lctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  const lp = await lctx.newPage();
+  const lerrs = [];
+  lp.on("pageerror", (e) => lerrs.push(e.message));
+  await lp.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-luna.html");
+  await lp.waitForTimeout(3000);
+  await openDockPanel(lp);
+  await lp.locator("button", { hasText: /Begin Game/ }).first().click();
+  await poll(() => lp.evaluate(() => window.__EC_TEST_ARMED__ === true), 15000);
+  await lp.waitForTimeout(2000);
+  const lcdp = await lctx.newCDPSession(lp);
+  await lp.evaluate(() => window.__EC_TEST_CAM__({ theta: 0, phi: 1.0, radius: 30, target: [0, 0, 0], snap: true }));
+  await lp.waitForTimeout(600);
+  await lcdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: two(170, 300, 240, 300) });
+  await lp.waitForTimeout(30);
+  for (let i = 1; i <= 20; i++) { await lcdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: two(170, 300 + i * 10, 240, 300 + i * 10) }); await lp.waitForTimeout(16); }
+  await lcdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await lp.waitForTimeout(600);
+  const la = await lp.evaluate(() => window.__EC_TEST_CAM__().target);
+  check(`two fingers drawn down: the view slid along the ground (moved ${Math.hypot(la[0], la[2]).toFixed(1)}), its height kept (${la[1].toFixed(2)})`, Math.abs(la[1]) < 0.01 && Math.hypot(la[0], la[2]) > 1, JSON.stringify(la));
+  check(`no page errors (${lerrs.length})`, lerrs.length === 0, lerrs.slice(0, 3).join(" | "));
+  await lctx.close();
 }
 
 await browser.close();

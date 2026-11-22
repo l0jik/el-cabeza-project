@@ -980,7 +980,7 @@ function Bar({ still, mine }) {
    piece's type, how often it moves, what it costs, where your turn
    stands). `anim(i, n)` lights the menu's rows in turn (the card's), and
    `still` holds every picture still (reduced motion). */
-export function TourPicture({ t, still, anim }) {
+export function TourPicture({ t, still, anim, preview = false }) {
   const mine = t.mineSwatch || "#D9B77E", foe = t.foeSwatch || "#4A2C1C";
   const k = { t, still, mine, foe, anim };
   let body = null;
@@ -1002,7 +1002,7 @@ export function TourPicture({ t, still, anim }) {
   }
   if (!body) return null;
   return (
-    <svg data-testid="tour-picture" data-picture={t.step === "pieces" ? (t.waiting ? "waiting" : t.lessonPic ? "lesson" : "pieces") : t.step} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block", borderRadius: 8, background: GROUND, aspectRatio: `${W} / ${H}`, maxWidth: "100%" }} aria-hidden="true">
+    <svg data-testid={preview ? "tour-choice-pictures" : "tour-picture"} data-picture={t.step === "pieces" ? (t.waiting ? "waiting" : t.lessonPic ? "lesson" : "pieces") : t.step} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block", borderRadius: 8, background: GROUND, aspectRatio: `${W} / ${H}`, maxWidth: "100%" }} aria-hidden="true">
       {body}
     </svg>
   );

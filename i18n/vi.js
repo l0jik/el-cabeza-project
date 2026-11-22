@@ -1109,6 +1109,10 @@ export default {
   "{views}: ready-made views of the board.": "{views}: các góc nhìn bàn cờ có sẵn.",
   "First game": "Ván đầu tiên",
   "Your menu": "Menu của bạn",
+  // (The tour's first card: how you'd like to learn.)
+  "How would you like to learn?": "Bạn muốn học theo cách nào?",
+  "Full step-by-step instructions": "Hướng dẫn đầy đủ, từng bước",
+  "At a glance: pictures only": "Xem nhanh: chỉ có hình ảnh",
   // (The tour in pictures: its switch and its buttons' names.)
   "Words": "Chữ",
   "Pictures only": "Chỉ hình ảnh",

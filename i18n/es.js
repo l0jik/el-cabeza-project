@@ -1102,6 +1102,10 @@ export default {
   "{views}: ready-made views of the board.": "{views}: vistas del tablero ya armadas.",
   "First game": "Primera partida",
   "Your menu": "Tu menú",
+  // (The tour's first card: how you'd like to learn.)
+  "How would you like to learn?": "¿Cómo querés aprender?",
+  "Full step-by-step instructions": "Instrucciones completas, paso a paso",
+  "At a glance: pictures only": "De un vistazo: solo dibujos",
   // (The tour in pictures: its switch and its buttons' names.)
   "Words": "Palabras",
   "Pictures only": "Solo dibujos",

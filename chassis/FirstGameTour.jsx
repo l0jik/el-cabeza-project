@@ -77,12 +77,14 @@ export function markTourDone() {
    come back without it, ?fresh having forgotten everything first. */
 export const TOUR_PICS_KEY = "el-cabeza:tour-pictures";
 let picsOn = false;
+let picsGiven = false; // (said by the link this time: the first card's question not asked)
 try {
   picsOn = window.localStorage.getItem(TOUR_PICS_KEY) === "on";
   const url = new URL(window.location.href);
   const asked = url.searchParams.get("tour");
   if ((asked === "pictures" || asked === "words") && !url.searchParams.has("fresh")) {
     picsOn = asked === "pictures";
+    picsGiven = true;
     window.localStorage.setItem(TOUR_PICS_KEY, picsOn ? "on" : "off");
     url.searchParams.delete("tour");
     window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
@@ -90,6 +92,7 @@ try {
 } catch (e) { /* no window or storage: words */ }
 const picsHeard = new Set();
 export const tourPictures = () => picsOn;
+export const tourChoiceGiven = () => picsGiven;
 export function setTourPictures(on) {
   picsOn = !!on;
   try { window.localStorage.setItem(TOUR_PICS_KEY, picsOn ? "on" : "off"); } catch (e) { /* storage unavailable */ }
@@ -110,6 +113,15 @@ export function useTourPictures() {
 // and "foe" (the other side's turn after it); then the menu's (TOUR_MENU):
 // the piece in the corner, inside the menu, and the buttons along its foot.
 export const TOUR_CARDS = ["welcome", "ways", "goal", "crush", "blocks", "turn", "board"];
+/* Before them, the question (user, 2026-11-22: "give an opportunity for
+   the user to initially select either full instructions or brief
+   instructions"; of five namings, "full step-by-step instructions / at a
+   glance pictures only"): how you'd like to learn, two tiles each with a
+   small picture of what it gives (a card of words; the welcome card's
+   picture), so it can be answered without reading. Picked, the tour
+   goes on in that one, and the switch on every card after it changes it
+   (setTourPictures). Not asked when a link said how (?tour=). */
+export const TOUR_CHOOSE = "choose";
 export const TOUR_MENU = ["menu", "panel", "foot"];
 /* With the dock's own menu (chassis/menu-fan.js; user: "Replace the dock
    everywhere"), the two cards inside it are its own. Now Calm Rings (user:
@@ -190,7 +202,7 @@ export const TOUR_TONES = TONES; // (TourPictures.jsx: the pictures draw in them
    13 and 14 px), [a phone's, a wider screen's]; the card wider where
    there's room (500 at most at the top, 400 at the left of a wide
    screen), so it isn't that much taller; the board's labels to match. */
-const TYPE = { body: [16, 17], title: [20, 22], welcome: [23, 26], sub: 15, fine: 12.5, band: 11.5, row: 11, link: 14.5, back: 12.5, primary: 13.5, tag: 12.5 };
+const TYPE = { choice: [17, 19], body: [16, 17], title: [20, 22], welcome: [23, 26], sub: 15, fine: 12.5, band: 11.5, row: 11, link: 14.5, back: 12.5, primary: 13.5, tag: 12.5 };
 export const TOUR_CARD_W = { top: 500, side: 400 };
 const WORDS = ["no", "one", "two", "three", "four", "five"];
 const word = (n) => tr(WORDS[n] || String(n));
@@ -403,6 +415,8 @@ function cardText(t) {
         note: t.touch ? "That's the tour. Your move: tap any of your pieces to see what it does. Good luck!" : "That's the tour. Your move: click any of your pieces to see what it does. Good luck!",
       };
     }
+    case TOUR_CHOOSE:
+      return { title: "How would you like to learn?" };
     default:
       return null;
   }
@@ -475,6 +489,21 @@ function TourDots({ step, C }) {
   );
 }
 const plain = (label) => label.replace(/[‹›]/g, "").trim();
+// (The full instructions' tile: a card of words, small, as the tour's
+// look, its band in the world's red, its title, lines, and Next.)
+function WordsPreview({ C }) {
+  const red = C.accentDanger || "#A8321F";
+  return (
+    <svg data-testid="tour-choice-words" viewBox="0 0 320 140" width="100%" aria-hidden="true" style={{ display: "block", borderRadius: 6, background: "#F7F0DE", aspectRatio: "320 / 140" }}>
+      <rect x="0" y="0" width="320" height="22" fill={red} />
+      <rect x="14" y="8" width="150" height="6" rx="2" fill="#F6EEDA" />
+      <rect x="14" y="34" width="200" height="12" rx="3" fill={C.charcoal} />
+      {[[60, 286], [76, 262], [92, 280], [108, 190]].map(([y, w]) => <rect key={y} x="14" y={y} width={w} height="7" rx="3" fill={C.slate} opacity="0.75" />)}
+      <rect x="236" y="104" width="70" height="26" rx="2" fill={red} stroke={C.charcoal} strokeWidth="2" />
+      <path d="M265 111l7 6-7 6" fill="none" stroke="#F6EEDA" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 export default function FirstGameTour({ tour, cardRef }) {
   const { step, C, display } = tour;
@@ -488,14 +517,15 @@ export default function FirstGameTour({ tour, cardRef }) {
   if (cameRef.current.mode !== pics) { cameRef.current.mode = pics; cameRef.current.t0 = (now() - cameRef.current.at) / 1000; }
   const t0 = cameRef.current.t0;
   const card = TOUR_CARDS.includes(step);
+  const choose = step === TOUR_CHOOSE;
   const menuCard = TOUR_MENU.includes(step) || step === TOUR_BAR;
   // A card before you play: Escape skips the tour, as its link does.
   useEffect(() => {
-    if (!card) return undefined;
+    if (!card && !choose) return undefined;
     const onKey = (e) => { if (e.key === "Escape") tour.skip(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [card, tour.skip]);
+  }, [card, choose, tour.skip]);
   /* The card keeps below what a world fixes at the top over it where the
      two would meet: the corner menu's tab, and whatever the world names
      (copy.clear: the store's cart). */
@@ -533,7 +563,7 @@ export default function FirstGameTour({ tour, cardRef }) {
     : menuCard
       ? step === "foot" ? { label: "Got it", onClick: tour.finish, testid: "tour-done", icons: ["done"] } : { label: step === "menu" ? "Open it ›" : "Next ›", onClick: tour.next, testid: "tour-next", icons: ["next"] }
       : step === "foe" && !tour.waiting ? (tour.menu ? { label: "Next ›", onClick: tour.next, testid: "tour-next", icons: ["next"] } : { label: "Got it", onClick: tour.finish, testid: "tour-done", icons: ["done"] }) : null;
-  const link = card
+  const link = card || choose
     ? { label: "Skip the tour", onClick: tour.skip, testid: "tour-skip" }
     // (Over from the bar's card: the bar kept.)
     : step === TOUR_BAR ? { label: "Keep it, end the tour", onClick: tour.finish, testid: "tour-bar-keep" }
@@ -577,10 +607,51 @@ export default function FirstGameTour({ tour, cardRef }) {
     "data-testid": "tour-card",
     "data-step": step,
     "data-mode": pics ? "pictures" : "words",
-    role: card || menuCard ? "dialog" : "status",
-    "aria-live": card || menuCard ? undefined : "polite",
+    role: card || choose || menuCard ? "dialog" : "status",
+    "aria-live": card || choose || menuCard ? undefined : "polite",
     "aria-labelledby": "ec-tour-title",
   };
+  /* The question first (TOUR_CHOOSE): the band, how would you like to
+     learn, the two tiles, and Skip; the same in words or pictures. */
+  if (choose) {
+    const still = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const pick = (which) => () => { setTourPictures(which === "pictures"); tour.next(); };
+    const tile = (which, label, art, first) => (
+      <button
+        type="button"
+        className="ec-tour-choice"
+        data-testid={`tour-choose-${which}`}
+        onClick={pick(which)}
+        autoFocus={first}
+        style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 7, minWidth: 0, padding: narrow ? "7px 7px 9px" : "8px 8px 10px", textAlign: "left", cursor: "pointer", font: "inherit", color: C.charcoal, background: "rgba(255,252,242,0.5)", border: `1.5px solid ${C.slate}`, borderRadius: 4, boxShadow: `2px 2px 0 ${C.slateSoft}` }}
+      >
+        {art}
+        <span style={{ fontFamily: display, fontWeight: 700, fontSize: TYPE.choice[narrow ? 0 : 1], lineHeight: 1.15 }}>{label}</span>
+      </button>
+    );
+    return (
+      <>
+        <style>{css + ".ec-tour-choice{transition:transform .08s ease,box-shadow .08s ease}.ec-tour-choice:hover{box-shadow:3px 3px 0 rgba(46,33,24,.42)!important}.ec-tour-choice:active{transform:translate(1px,1px)}.ec-tour-choice:focus-visible{outline:2px solid currentColor;outline-offset:2px}"}</style>
+        <div key={step} {...cardProps} style={cardStyle}>
+          <div data-testid="tour-band" style={{ fontFamily: mono, fontSize: TYPE.band, letterSpacing: "0.16em", textTransform: "uppercase", color: C.slate, marginBottom: 6 }}>
+            {tr((tour.copy && tour.copy.band) || "First game")}
+          </div>
+          <h2 id="ec-tour-title" data-testid="tour-title" style={{ margin: 0, fontFamily: display, fontWeight: 600, fontSize: TYPE.title[narrow ? 0 : 1], lineHeight: 1.2, textWrap: "balance" }}>
+            How would you like to learn?
+          </h2>
+          <div data-testid="tour-choice" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: narrow ? 8 : 10, marginTop: narrow ? 10 : 12 }}>
+            {tile("words", "Full step-by-step instructions", <WordsPreview C={C} />, true)}
+            {tile("pictures", "At a glance: pictures only", <TourPicture t={{ ...tour, step: "welcome" }} still preview />, false)}
+          </div>
+          <div style={{ marginTop: narrow ? 8 : 10 }}>
+            <button type="button" data-testid={link.testid} onClick={link.onClick} style={{ background: "none", border: "none", padding: "6px 0", cursor: "pointer", color: C.slate, fontFamily: sans, fontSize: TYPE.link, textDecoration: "underline", textUnderlineOffset: 3 }}>
+              {link.label}
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
   /* In pictures: the dots, the switch, the picture, and buttons with
      icons; the words kept for a screen reader, out of sight. */
   if (pics) {

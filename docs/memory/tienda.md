@@ -468,6 +468,44 @@ box art and an ad standee (assets/tienda/*.jpg).
   (was 10), its labels 12.5 (10.5), its Back 12.5 (10.5), the card's
   padding 14/17/13. The words/pictures switch sits beside the title (the
   band left whole: the store prints it across the card's head).
+- **How would you like to learn?** (2026-11-22; user: "give an
+  opportunity for the user to initially select either full instructions
+  or brief instructions. So I'm not sure if the brief is the right word to
+  use"; of five namings mocked up, "full step-by-step instructions / at a
+  glance pictures only"). Try a Demo Game brings first the tour's question
+  card (FirstGameTour.jsx TOUR_CHOOSE, step "choose"; the computer waits
+  as for any card, tourCardUp): the band, "How would you like to learn?",
+  two tiles side by side, "Full step-by-step instructions" (a small card
+  of words, WordsPreview, the band in the world's red) and "At a glance:
+  pictures only" (the welcome card's own picture, TourPicture preview),
+  and Skip the tour (Escape too). A tile sets the tour's way
+  (setTourPictures, kept on the device) and goes on to the welcome card,
+  in words or in pictures; the switch on every card after it still
+  changes it. No Next, no Back on it, and no Back to it from the welcome.
+  A link that says how (?tour=pictures, ?tour=words) skips the question
+  (tourChoiceGiven). testids tour-choose-words / tour-choose-pictures,
+  tour-choice-words / tour-choice-pictures (the tiles' pictures); es
+  "¿Cómo querés aprender?", vi "Bạn muốn học theo cách nào?".
+  tests/e2e-first-game-tour.mjs (its begin() answers it, words unless
+  told; the question's own checks on a phone and a desktop), and the
+  tests that meet the tour's first card (e2e-first-look, e2e-story,
+  e2e-fullscreen, e2e-store-nudge).
+- **The store's signs in view again** (2026-11-22; user: "In Tienda /
+  store, the maximum vertical zoom / ceiling seems to be lower than
+  before.... There is wall signage that can no longer be seen. Is there a
+  way to increase vertical zoom more without breaking anything?"; asked to
+  hear the risks first, then "Let's go with 1 and 2"). The view's height
+  limit (freeCamera.yMax 30) hadn't changed: since the pinch kept the
+  board under the fingers (2026-11-03), two fingers only slid the view
+  along the floor, so a phone could no longer raise it. 1: two fingers
+  drawn down raise the view up the walls again, in the store and the den
+  (freeCamera.lift; the zoom still closes in on the fingers). 2: the
+  store's view tilts lower, maxPitch 1.38 (was the 1.25 default), the
+  walls' signs seen more face on. Risks said then: the two-finger slide
+  moves up the walls rather than along the floor in those two rooms;
+  lifted, the board can leave the screen (the views bring it back); low,
+  things near the camera (the standee by the table) can cut into the
+  view's foot. docs/memory/05-camera-input.md; tests/e2e-zoom-pan.mjs 6, 7.
 - **Try a Demo Game** (2026-11-22; user: "when it first opens and
   there's the wooden button, the pill-shaped button says try a game,
   change it to try a demo game"): tienda.js beginLabel; es "Probar una

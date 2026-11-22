@@ -35,7 +35,7 @@ import {
   pieceName as setOutPieceName, SET_OUT_ACCENT,
 } from "./set-out.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo, pieceLesson } from "./RulesCards.jsx";
-import FirstGameTour, { TourMarks, tourDone, markTourDone, TOUR_CARDS, TOUR_MENU, TOUR_BAR, TOUR_TONES, tourRingsHow, TOUR_RINGS_MORE } from "./FirstGameTour.jsx";
+import FirstGameTour, { TourMarks, tourDone, markTourDone, TOUR_CARDS, TOUR_CHOOSE, tourChoiceGiven, TOUR_MENU, TOUR_BAR, TOUR_TONES, tourRingsHow, TOUR_RINGS_MORE } from "./FirstGameTour.jsx";
 import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
 const FOCUS_EVENT = "el-cabeza:focus";
@@ -3678,7 +3678,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
   tourOfferRef.current = tourOffer;
   const [tourStep, setTourStep] = useState(null);
   fullscreenAlwaysRef.current = !!(setupExtras && setupExtras.fullscreenAlways) || tourStep != null;
-  const tourCardUp = TOUR_CARDS.includes(tourStep) || TOUR_MENU.includes(tourStep) || tourStep === TOUR_BAR;
+  const tourCardUp = tourStep === TOUR_CHOOSE || TOUR_CARDS.includes(tourStep) || TOUR_MENU.includes(tourStep) || tourStep === TOUR_BAR;
   // (While a card's up a tap on the board picks nothing: it's being shown.)
   const tourCardUpRef = useRef(false);
   tourCardUpRef.current = tourCardUp;
@@ -4209,7 +4209,9 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       tourSawMineRef.current = false;
       tourFoeBeforeRef.current = null;
       tourCamRef.current = null;
-      setTourStep("welcome");
+      // (First the question, words or pictures, unless a link said:
+      // FirstGameTour.jsx TOUR_CHOOSE.)
+      setTourStep(tourChoiceGiven() ? "welcome" : TOUR_CHOOSE);
     }
     // Captures BOTH views' fixed baselines for the game that's about to
     // start, before actually applying one of them — see
@@ -9994,6 +9996,13 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       if (active.size >= 2) {
         if (active.size === 2) {
           const d = pinchSpan();
+          // (A room's: the spot between the fingers before this step's
+          // zoom, to put back under them after it; below. The store and
+          // the den, freeCamera.lift; the City, Noir and Luna keep the
+          // pull along the ground.)
+          const roomPull = !!(theme.freeCamera && theme.freeCamera.lift);
+          const roomZoomAt = roomPull ? panAnchor : null;
+          const roomZoomFrom = roomZoomAt ? groundUnder(roomZoomAt.x, roomZoomAt.y) : null;
           if (pinchSpan0 && d > 0) {
             /* Out (the fingers coming together) goes further than in, by
                the ratio's 1.8th power (user: zooming in worked, out hardly
@@ -10012,19 +10021,39 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
           pinchDist = d;
 
           const mid = pinchMid();
-          /* The board's point first under the fingers kept under them,
-             through the zoom just set and the pull together: the zoom
-             closes in on it, and the board follows the fingers along the
-             ground (the turn of the view kept). Where it can't be found
-             (a line to the horizon), the screen-plane pull as before, for
-             the rest of the pinch. */
-          const under = pinchGround && groundUnder(mid.x, mid.y);
-          if (under) {
-            cam.current.target.x += pinchGround.x - under.x;
-            cam.current.target.z += pinchGround.z - under.z;
-          } else {
-            pinchGround = null;
+          if (roomPull) {
+            /* In a room to look round (theme.freeCamera.lift: the store,
+               the den), the pull is the screen's again, as before the pinch
+               kept the board under the fingers (user, the store: "the
+               maximum vertical zoom / ceiling seems to be lower than
+               before.... There is wall signage that can no longer be
+               seen"; then, of the fixes offered, "Let's go with 1 and
+               2"): two fingers drawn down lift the view up the walls to
+               their signs (to freeCamera.yMax), as a mouse's right-drag
+               does; along the ground it only slid. The zoom still closes
+               in on the spot between the fingers: that spot's put back
+               under them after each step's zoom, then the pull. */
+            const after = roomZoomAt && groundUnder(roomZoomAt.x, roomZoomAt.y);
+            if (roomZoomAt && roomZoomFrom && after) {
+              cam.current.target.x += roomZoomFrom.x - after.x;
+              cam.current.target.z += roomZoomFrom.z - after.z;
+            }
             if (panAnchor) panBy(mid.x - panAnchor.x, mid.y - panAnchor.y);
+          } else {
+            /* The board's point first under the fingers kept under them,
+               through the zoom just set and the pull together: the zoom
+               closes in on it, and the board follows the fingers along the
+               ground (the turn of the view kept). Where it can't be found
+               (a line to the horizon), the screen-plane pull as before, for
+               the rest of the pinch. */
+            const under = pinchGround && groundUnder(mid.x, mid.y);
+            if (under) {
+              cam.current.target.x += pinchGround.x - under.x;
+              cam.current.target.z += pinchGround.z - under.z;
+            } else {
+              pinchGround = null;
+              if (panAnchor) panBy(mid.x - panAnchor.x, mid.y - panAnchor.y);
+            }
           }
           panAnchor = mid;
 

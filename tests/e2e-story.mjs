@@ -171,8 +171,9 @@ console.log("\ndesktop: the store, the purchase, home");
   check("...where the game is only tried: Try a Demo Game", (await page.locator('[data-testid="dock-panel"] button', { hasText: "Try a Demo Game" }).count()) === 1 && (await page.locator('[data-testid="dock-panel"] button', { hasText: "Begin Game" }).count()) === 0);
   await page.locator('[data-testid="dock-panel"] button', { hasText: "Try a Demo Game" }).first().click();
   // (A new player's first game is walked through, chassis/FirstGameTour.jsx:
-  // its welcome comes up, skipped here; e2e-first-game-tour goes through it.)
-  check("a new player's first game: the tour's welcome", await poll(async () => (await has(page, "tour-card")) && /Welcome to your first game/.test(await q(page, "tour-card").innerText()), 10000));
+  // its first card comes up, how you'd like to learn, skipped here;
+  // e2e-first-game-tour goes through it.)
+  check("a new player's first game: the tour's first card, how you'd like to learn", await poll(async () => (await has(page, "tour-card")) && /How would you like to learn\?/.test(await q(page, "tour-card").innerText()), 10000));
   await q(page, "tour-skip").click();
   await poll(async () => !(await has(page, "tour-card")), 5000);
   check("a game begins", await poll(() => has(page, "end-game"), 10000));

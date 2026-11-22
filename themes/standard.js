@@ -90,6 +90,9 @@ export const ownsPixelRatio = true;
 
 export const freeCamera = {
   zoomMin: 4.5, zoomMax: 140, reach: 70, yMin: -8, yMax: 30,
+  // Two fingers drawn down raise the view up the walls, as in the store
+  // (tienda.js; the chassis's two-finger pull).
+  lift: true,
   // The Room view (a button, and the phone's menu): up above the den,
   // the roof off, the whole room below (chassis roomView).
   dollhouse: { radius: 118, phi: 0.78 },

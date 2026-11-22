@@ -46,7 +46,9 @@
    piece, a piece picked: as close still (in, never out). With reduced
    motion, the arrow's head steps from end to end of the row (no glide),
    and the menu card's lines and the rings round its buttons still take
-   their turns. And the tour in pictures, no reading: a switch on each
+   their turns. First, the question: how would you like to learn (full
+   step-by-step instructions, or at a glance: pictures only). And the tour
+   in pictures, no reading: a switch on each
    card, each card a picture, the board's labels icons; from a link too,
    and still with reduced motion.
 
@@ -186,12 +188,18 @@ const sweepFor = async (page, ms) => {
 const spread = (sw) => (sw.length ? Math.max(...sw.map((s) => s.u)) - Math.min(...sw.map((s) => s.u)) : 0);
 // (How many times it turns back: u moving the other way by more than 0.02.)
 const turnsOf = (sw) => { let dir = 0, turns = 0, last = sw.length ? sw[0].u : 0; sw.forEach((s) => { const d = s.u - last; if (Math.abs(d) > 0.02) { const nd = Math.sign(d); if (dir && nd !== dir) turns++; dir = nd; last = s.u; } }); return turns; };
-async function begin(page) {
+// Try a Demo Game; then the first card's question answered (words, unless
+// `choose` says otherwise; null leaves it up).
+async function begin(page, { choose = "words" } = {}) {
   await openDockPanel(page);
   await page.waitForTimeout(600);
   await page.locator('[data-testid="tienda-try-game"]').click({ force: true });
   for (let i = 0; i < 40 && !(await page.evaluate(() => window.__EC_TEST_ARMED__ === true)); i++) await page.waitForTimeout(250);
   await page.waitForTimeout(1200);
+  if (choose && (await page.locator(`[data-testid="tour-choose-${choose}"]`).count())) {
+    await page.locator(`[data-testid="tour-choose-${choose}"]`).click();
+    await page.waitForTimeout(900);
+  }
 }
 // Next, and the camera's glide to the card's view over.
 const next = async (page) => { await page.locator('[data-testid="tour-next"]').click(); await page.waitForTimeout(2600); };
@@ -212,12 +220,16 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   check("the store's menu opens on Easy picked, nothing to choose but Try a Demo Game", /easy/i.test(panel) && (await page.locator('[data-ec-diff-back]').count()) === 1 && /ash to move/i.test(panel), panel.replace(/\s+/g, " ").slice(0, 160));
   await page.locator('[data-testid="tienda-try-game"]').click({ force: true });
   for (let i = 0; i < 40 && !(await page.evaluate(() => window.__EC_TEST_ARMED__ === true)); i++) await page.waitForTimeout(250);
-  await page.waitForTimeout(3000);
+  await page.waitForTimeout(1500);
+  // (First how you'd like to learn: the full instructions, here.)
+  check("Try a Demo Game: first, how would you like to learn", (await tourOf(page)).step === "choose");
+  await page.locator('[data-testid="tour-choose-words"]').click();
+  await page.waitForTimeout(2000);
 
   // The welcome: both sides ringed and labelled, the board under the card.
   let t = await cardText(page);
   let tour = await tourOf(page);
-  check("Try a Demo Game: the welcome card", tour.step === "welcome" && /Welcome to your first game of El Cabeza\./.test(t), t);
+  check("Full step-by-step instructions: the welcome card", tour.step === "welcome" && /Welcome to your first game of El Cabeza\./.test(t), t);
   check("...the year under it, as on the box", (await page.locator('[data-testid="tour-sub"]').innerText()).includes("© 1975"));
   check("...you're Ash, ringed in yellow; the computer Walnut, ringed in red", /You play Ash: the light pieces on your side, ringed in yellow\./.test(t) && /Your opponent, the computer, plays Walnut: the dark pieces across the board, ringed in red\./.test(t), t);
   let cardBox = await card(page).boundingBox();
@@ -809,6 +821,51 @@ const seen = (page) => page.evaluate(() => {
 const picOf = (page) => page.evaluate(() => { const p = document.querySelector('[data-testid="tour-card"] [data-testid="tour-picture"]'); return p ? { picture: p.dataset.picture, moving: p.querySelectorAll("animate, animateTransform, animateMotion").length } : null; });
 const tagModes = (page) => page.evaluate(() => [...document.querySelectorAll('[data-testid="tour-marks"] [data-tag]')].map((e) => ({ key: e.dataset.tag, mode: e.dataset.tagMode, text: e.textContent.trim(), icons: e.querySelectorAll("svg").length })));
 const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector('[data-testid="tour-dots"]'); return d ? `${d.dataset.n}/${d.dataset.of}` : null; });
+/* The first card, before the tour (user: "give an opportunity for the
+   user to initially select either full instructions or brief
+   instructions"; picked: "full step-by-step instructions / at a glance
+   pictures only"): how would you like to learn, two tiles each with a
+   small picture of what it gives; the computer waits; Escape skips it;
+   each tile on into the tour that way, and kept. */
+{
+  console.log("\n[phone: the first card, how you'd like to learn]");
+  const { ctx, page, errs } = await open(true);
+  await begin(page, { choose: null });
+  let tour = await tourOf(page);
+  const words = await page.locator('[data-testid="tour-choose-words"]').innerText().catch(() => "");
+  const pics = await page.locator('[data-testid="tour-choose-pictures"]').innerText().catch(() => "");
+  check("Try a Demo Game: first, how would you like to learn?", tour.step === "choose" && /How would you like to learn\?/.test(await cardText(page)), await cardText(page));
+  check("...two tiles: Full step-by-step instructions, and At a glance: pictures only", /Full step-by-step instructions/.test(words) && /At a glance: pictures only/.test(pics), JSON.stringify({ words, pics }));
+  check("...each with a picture of what it gives: a card of words, the welcome card's picture", (await page.locator('[data-testid="tour-choose-words"] [data-testid="tour-choice-words"]').count()) === 1 && (await page.locator('[data-testid="tour-choose-pictures"] [data-testid="tour-choice-pictures"]').count()) === 1);
+  const tw = await boxOf(page, '[data-testid="tour-choose-words"]'), tp = await boxOf(page, '[data-testid="tour-choose-pictures"]');
+  check("...side by side, the same size", !!tw && !!tp && Math.abs(tw.y - tp.y) < 2 && Math.abs(tw.w - tp.w) < 2 && tp.x >= tw.x + tw.w, JSON.stringify({ tw, tp }));
+  check("...Skip the tour on it; no Next, no Back", (await page.locator('[data-testid="tour-skip"]').count()) === 1 && (await page.locator('[data-testid="tour-next"]').count()) === 0 && (await page.locator('[data-testid="tour-back"]').count()) === 0);
+  await page.waitForTimeout(1500);
+  check("...nothing on the board while it's up, and nothing moved", (await page.evaluate(() => window.__EC_TEST_TO_MOVE__())) === "light" && (await rings(page)).length === 0);
+  await page.locator('[data-testid="tour-choose-pictures"]').click();
+  await page.waitForTimeout(1200);
+  tour = await tourOf(page);
+  check("At a glance: the welcome card, in pictures, and so it's kept", tour.step === "welcome" && (await card(page).getAttribute("data-mode")) === "pictures" && (await page.evaluate(() => localStorage.getItem("el-cabeza:tour-pictures"))) === "on");
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+{
+  console.log("\n[desktop: the first card, full step by step; Escape]");
+  const { ctx, page, errs } = await open(false);
+  await begin(page, { choose: null });
+  check("the first card, at the left", (await tourOf(page)).step === "choose" && ((await card(page).boundingBox()) || { x: 99 }).x < 40);
+  await page.locator('[data-testid="tour-choose-words"]').click();
+  await page.waitForTimeout(1200);
+  check("Full step-by-step instructions: the welcome card in words, and so it's kept", (await tourOf(page)).step === "welcome" && (await card(page).getAttribute("data-mode")) === "words" && /Welcome to your first game/.test(await cardText(page)) && (await page.evaluate(() => localStorage.getItem("el-cabeza:tour-pictures"))) === "off");
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+  const two = await open(false);
+  await begin(two.page, { choose: null });
+  await two.page.keyboard.press("Escape");
+  await two.page.waitForTimeout(600);
+  check("Escape on the first card skips the tour, kept as done", (await card(two.page).count()) === 0 && (await two.page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
+  await two.ctx.close();
+}
 {
   console.log("\n[phone: the tour in pictures]");
   const { ctx, page, errs } = await open(true);
@@ -868,9 +925,9 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   await page.waitForTimeout(1500);
   await page.locator('[data-testid="tienda-open-box"]').click();
   await page.waitForTimeout(3500);
-  await begin(page);
+  await begin(page, { choose: null });
   let p = await picOf(page);
-  check("Try a Demo Game: the welcome card in pictures, held still", (await card(page).getAttribute("data-mode")) === "pictures" && !!p && p.picture === "welcome" && p.moving === 0, JSON.stringify(p));
+  check("Try a Demo Game: the link said how, so no question: the welcome card in pictures, held still", (await card(page).getAttribute("data-mode")) === "pictures" && !!p && p.picture === "welcome" && p.moving === 0, JSON.stringify(p));
   for (let i = 0; i < 6; i++) { await page.locator('[data-testid="tour-next"]').click(); await page.waitForTimeout(250); }
   await page.waitForTimeout(600);
   p = await picOf(page);
