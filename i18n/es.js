@@ -1102,6 +1102,13 @@ export default {
   "{views}: ready-made views of the board.": "{views}: vistas del tablero ya armadas.",
   "First game": "Primera partida",
   "Your menu": "Tu menú",
+  // (The tour in pictures: its switch and its buttons' names.)
+  "Words": "Palabras",
+  "Pictures only": "Solo dibujos",
+  "How the tour shows": "Cómo se muestra el recorrido",
+  "Let's play": "A jugar",
+  "Open it": "Abrilo",
+  "Back to the tour": "Volver al recorrido",
 
   // Big Glutts: the store, the order form, the PA, the catalog
   "The store's tape": "La cinta de la tienda",

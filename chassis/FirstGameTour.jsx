@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { t as say, tr, listOf, language } from "./i18n.js";
+import { TourPicture, TagIcons, TONES, ICON } from "./TourPictures.jsx";
 
 /* A new player's first game, walked through (user, 2026-10-17: "They
    click begin a game, and then a little pop-up will say, "Welcome to your
@@ -67,6 +68,44 @@ export function markTourDone() {
   try { window.localStorage.setItem(TOUR_KEY, "done"); } catch (e) { /* storage unavailable */ }
 }
 
+/* The tour in pictures, no reading (user, 2026-11-22: "Create a version
+   of the instructions that has no reading, just shows pictures";
+   chassis/TourPictures.jsx): a switch on every card, words or pictures,
+   kept on the device (TOUR_PICS_KEY) and heard by the card and the
+   board's tags at once. ?tour=pictures (or ?tour=words) sets it from a
+   link, then leaves the address; with ?fresh it waits for the page to
+   come back without it, ?fresh having forgotten everything first. */
+export const TOUR_PICS_KEY = "el-cabeza:tour-pictures";
+let picsOn = false;
+try {
+  picsOn = window.localStorage.getItem(TOUR_PICS_KEY) === "on";
+  const url = new URL(window.location.href);
+  const asked = url.searchParams.get("tour");
+  if ((asked === "pictures" || asked === "words") && !url.searchParams.has("fresh")) {
+    picsOn = asked === "pictures";
+    window.localStorage.setItem(TOUR_PICS_KEY, picsOn ? "on" : "off");
+    url.searchParams.delete("tour");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+  }
+} catch (e) { /* no window or storage: words */ }
+const picsHeard = new Set();
+export const tourPictures = () => picsOn;
+export function setTourPictures(on) {
+  picsOn = !!on;
+  try { window.localStorage.setItem(TOUR_PICS_KEY, picsOn ? "on" : "off"); } catch (e) { /* storage unavailable */ }
+  picsHeard.forEach((f) => f(picsOn));
+}
+export function useTourPictures() {
+  const [on, setOn] = useState(picsOn);
+  useEffect(() => {
+    const f = (v) => setOn(v);
+    picsHeard.add(f);
+    setOn(picsOn);
+    return () => { picsHeard.delete(f); };
+  }, []);
+  return on;
+}
+
 // The cards before you play, in order; then "pieces" (your first turn)
 // and "foe" (the other side's turn after it); then the menu's (TOUR_MENU):
 // the piece in the corner, inside the menu, and the buttons along its foot.
@@ -98,9 +137,10 @@ function turnFrames(name, n, on, off) {
   const slot = 100 / n, fade = 25 / (n * TURN_S); // (a quarter of a second in and out)
   return `@keyframes ${name}${n}{0%{${off}}${fade.toFixed(2)}%{${on}}${(slot - fade).toFixed(2)}%{${on}}${slot.toFixed(2)}%,100%{${off}}}`;
 }
-const turnAnim = (name, i, n) => `${name}${n} ${(n * TURN_S).toFixed(2)}s linear ${(i * TURN_S).toFixed(2)}s infinite both`;
+const turnAnim = (name, i, n, t0 = 0) => `${name}${n} ${(n * TURN_S).toFixed(2)}s linear ${(i * TURN_S - t0).toFixed(2)}s infinite both`;
 // (A line lit: the rings' yellow behind it, its ink dark; unlit, as it was.)
 const LIT_ON = "background:rgba(255,210,63,0.62);color:#1B1209";
+const FAN_CHEV = '<path d="M9.5 6l6 6-6 6"/>';
 
 /* The menu's buttons along its foot as the menu draws them (the chassis's
    dock panel), for the card that says what each does. */
@@ -143,7 +183,7 @@ const FOOT_ICONS = {
 /* The marks' colours, bright against the board and its pieces: yours (the
    cards call it yellow), the other side's (red), the row you win on
    (green), and a piece that can't move yet. */
-export const TOUR_TONES = { mine: "#FFD23F", foe: "#FF5470", goal: "#3FDB7C", dim: "#D9D0C1" };
+export const TOUR_TONES = TONES; // (TourPictures.jsx: the pictures draw in them too)
 
 const WORDS = ["no", "one", "two", "three", "four", "five"];
 const word = (n) => tr(WORDS[n] || String(n));
@@ -361,8 +401,85 @@ function cardText(t) {
   }
 }
 
+/* The switch on the card: words, or pictures (each its icon, the one
+   that's on dark), and the buttons and the dots the pictures have in place
+   of words. */
+const MODE_ICON = {
+  words: '<path d="M5 6.5h14M5 10.5h14M5 14.5h14M5 18.5h8"/>',
+  pictures: '<rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="8.6" cy="9.6" r="1.8" fill="currentColor" stroke="none"/><path d="M20.6 15.6l-5-5-9.6 9"/>',
+};
+const glyph = (html, size = 18, w = 2) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: "block", flexShrink: 0 }} dangerouslySetInnerHTML={{ __html: html }} />;
+function ModeSwitch({ pics, C }) {
+  const one = (on, which, label) => (
+    <button
+      type="button"
+      data-testid={`tour-mode-${which}`}
+      aria-pressed={on}
+      aria-label={label}
+      title={label}
+      onClick={() => setTourPictures(which === "pictures")}
+      style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 26, padding: 0, border: "none", borderRadius: 5, cursor: "pointer", background: on ? C.charcoal : "transparent", color: on ? C.cream : C.slate }}
+    >
+      {glyph(MODE_ICON[which], 17)}
+    </button>
+  );
+  return (
+    <div data-testid="tour-mode" data-mode={pics ? "pictures" : "words"} role="group" aria-label="How the tour shows" style={{ display: "flex", gap: 2, padding: 2, borderRadius: 7, border: `1px solid ${C.slateSoft}`, flexShrink: 0 }}>
+      {one(!pics, "words", "Words")}
+      {one(pics, "pictures", "Pictures only")}
+    </div>
+  );
+}
+// (Hidden from sight, there for a screen reader: the card's words.)
+const UNSEEN = { position: "absolute", width: 1, height: 1, margin: -1, padding: 0, border: 0, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" };
+const BUTTON_ICON = {
+  next: FAN_CHEV, back: '<path d="M14.5 6l-6 6 6 6"/>', play: '<path d="M8 5.2v13.6L18.6 12z" fill="currentColor" stroke="none"/>',
+  done: '<path d="M4.8 12.6l4.6 4.6L19.4 7"/>', close: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+};
+function IconButton({ b, icons, C, primary = false, autoFocus = false, quiet = false }) {
+  return (
+    <button
+      type="button"
+      className={primary ? "ec-btn" : undefined}
+      data-testid={b.testid}
+      onClick={b.onClick}
+      aria-label={b.aria}
+      title={b.aria}
+      autoFocus={autoFocus}
+      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 3, minWidth: quiet ? 34 : primary ? 62 : 46, height: quiet ? 30 : 40, padding: quiet ? 0 : "0 12px", borderRadius: quiet ? 7 : 8, cursor: "pointer", border: quiet ? "none" : `1px solid ${primary ? C.charcoal : C.slateSoft}`, background: primary ? C.charcoal : "transparent", color: primary ? C.cream : C.slate }}
+    >
+      {icons.map((k, i) => <React.Fragment key={i}>{glyph(BUTTON_ICON[k] || ICON(k), quiet ? 18 : 22, primary ? 2.6 : 2.2)}</React.Fragment>)}
+    </button>
+  );
+}
+/* Where you are in the tour, in dots: the cards before you play and your
+   first turn one each, this one long; the menu's after its piece's icon;
+   the control bar's icon alone. */
+function TourDots({ step, C }) {
+  let n = 0, of = 0, lead = null;
+  if (TOUR_CARDS.includes(step) || step === "pieces") { of = TOUR_CARDS.length + 1; n = step === "pieces" ? of : TOUR_CARDS.indexOf(step) + 1; }
+  else if (TOUR_MENU.includes(step)) { of = TOUR_MENU.length; n = TOUR_MENU.indexOf(step) + 1; lead = "pieces"; }
+  else if (step === TOUR_BAR) lead = "bar";
+  return (
+    <div data-testid="tour-dots" data-n={n} data-of={of} aria-hidden="true" style={{ display: "flex", alignItems: "center", gap: 5, minHeight: 26, color: C.slate }}>
+      {lead && glyph(ICON(lead), 18, 1.9)}
+      {Array.from({ length: of }, (_, i) => <span key={i} style={{ display: "block", width: i + 1 === n ? 18 : 7, height: 7, borderRadius: 4, background: i + 1 <= n ? C.charcoal : C.slateSoft, opacity: i + 1 < n ? 0.5 : 1 }} />)}
+    </div>
+  );
+}
+const plain = (label) => label.replace(/[‹›]/g, "").trim();
+
 export default function FirstGameTour({ tour, cardRef }) {
   const { step, C, display } = tour;
+  const pics = useTourPictures();
+  /* (When this card came up, and how long before the words or pictures
+     now shown were drawn: the menu's lines light in time with its rings
+     on the board, begun as the card came up, also after a switch.) */
+  const cameRef = useRef({ step: null, at: 0, mode: null, t0: 0 });
+  const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+  if (cameRef.current.step !== step) cameRef.current = { step, at: now(), mode: null, t0: 0 };
+  if (cameRef.current.mode !== pics) { cameRef.current.mode = pics; cameRef.current.t0 = (now() - cameRef.current.at) / 1000; }
+  const t0 = cameRef.current.t0;
   const card = TOUR_CARDS.includes(step);
   const menuCard = TOUR_MENU.includes(step) || step === TOUR_BAR;
   // A card before you play: Escape skips the tour, as its link does.
@@ -404,11 +521,11 @@ export default function FirstGameTour({ tour, cardRef }) {
   const nOf = (n, total) => say("{n} of {total}", { n, total });
   const band = `${tr((tour.copy && tour.copy.band) || "First game")}${card ? ` · ${nOf(index + 1, of)}` : step === "pieces" ? ` · ${nOf(of, of)}` : step === TOUR_BAR ? ` · ${tr("Your menu")}` : menuCard ? ` · ${tr("Your menu")} · ${nOf(TOUR_MENU.indexOf(step) + 1, TOUR_MENU.length)}` : ""}`;
   const primary = card
-    ? { label: index < TOUR_CARDS.length - 1 ? "Next ›" : "Let's play ›", onClick: tour.next, testid: "tour-next" }
-    : step === TOUR_BAR ? { label: "‹ Back to the tour", onClick: tour.next, testid: "tour-bar-back" }
+    ? { label: index < TOUR_CARDS.length - 1 ? "Next ›" : "Let's play ›", onClick: tour.next, testid: "tour-next", icons: [index < TOUR_CARDS.length - 1 ? "next" : "play"] }
+    : step === TOUR_BAR ? { label: "‹ Back to the tour", onClick: tour.next, testid: "tour-bar-back", icons: ["back", "pieces"] }
     : menuCard
-      ? step === "foot" ? { label: "Got it", onClick: tour.finish, testid: "tour-done" } : { label: step === "menu" ? "Open it ›" : "Next ›", onClick: tour.next, testid: "tour-next" }
-      : step === "foe" && !tour.waiting ? (tour.menu ? { label: "Next ›", onClick: tour.next, testid: "tour-next" } : { label: "Got it", onClick: tour.finish, testid: "tour-done" }) : null;
+      ? step === "foot" ? { label: "Got it", onClick: tour.finish, testid: "tour-done", icons: ["done"] } : { label: step === "menu" ? "Open it ›" : "Next ›", onClick: tour.next, testid: "tour-next", icons: ["next"] }
+      : step === "foe" && !tour.waiting ? (tour.menu ? { label: "Next ›", onClick: tour.next, testid: "tour-next", icons: ["next"] } : { label: "Got it", onClick: tour.finish, testid: "tour-done", icons: ["done"] }) : null;
   const link = card
     ? { label: "Skip the tour", onClick: tour.skip, testid: "tour-skip" }
     // (Over from the bar's card: the bar kept.)
@@ -423,44 +540,84 @@ export default function FirstGameTour({ tour, cardRef }) {
     // for reduced motion: "the legend in the upper left corner, it's not
     // highlighting like who's moved, for example, then view, and as it
     // goes through them".)
-    + (lit ? turnFrames("ecTourLit", lit, LIT_ON, `background:rgba(255,210,63,0);color:${C.slate}`) : "");
+    + (lit ? turnFrames("ecTourLit", lit, LIT_ON, `background:rgba(255,210,63,0);color:${C.slate}`) : "")
+    + (lit && pics ? turnFrames("ecTourPic", lit, "opacity:1", "opacity:0") : "");
+  const cardStyle = {
+    position: "fixed",
+    top: below ? below : "calc(var(--ec-shell-top, env(safe-area-inset-top, 0px)) + 12px)",
+    left: side ? "max(16px, env(safe-area-inset-left, 0px))" : "50%",
+    transform: side ? "none" : "translateX(-50%)",
+    zIndex: tour.rings ? 17 : 13,
+    width: side ? 360 : "min(calc(100vw - 32px), 440px)",
+    // (A phone on its side: the card scrolls rather than runs off.)
+    maxHeight: `calc(100vh - ${below ? below + 12 : 24}px)`,
+    overflowY: "auto",
+    animation: side ? "ecTourIn 0.3s ease both" : "ecTourDrop 0.3s ease both",
+    boxSizing: "border-box",
+    padding: narrow ? "10px 13px 9px" : "13px 16px 12px",
+    borderRadius: 10,
+    background: C.cream,
+    border: `1px solid ${C.slateSoft}`,
+    boxShadow: "0 14px 40px rgba(0,0,0,0.32)",
+    color: C.charcoal,
+    fontFamily: sans,
+    fontSize: narrow ? 13 : 14,
+    lineHeight: 1.45,
+    pointerEvents: "auto",
+  };
+  const cardProps = {
+    ref: cardRef,
+    "data-testid": "tour-card",
+    "data-step": step,
+    "data-mode": pics ? "pictures" : "words",
+    role: card || menuCard ? "dialog" : "status",
+    "aria-live": card || menuCard ? undefined : "polite",
+    "aria-labelledby": "ec-tour-title",
+  };
+  /* In pictures: the dots, the switch, the picture, and buttons with
+     icons; the words kept for a screen reader, out of sight. */
+  if (pics) {
+    const still = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const said = [
+      text.sub,
+      ...(text.body || []).filter(Boolean).map((p) => (typeof p === "string" ? p : p.note)),
+      ...(text.rows || []).map(([k, v]) => <><span>{k}</span>: <span>{v}</span></>),
+      ...(text.icons || []).map((x) => <><span>{x.name}</span>: <span>{x.text}</span></>),
+      text.note,
+    ].filter(Boolean);
+    return (
+      <>
+        <style>{css}</style>
+        <div key={`${step}-pictures`} {...cardProps} aria-describedby="ec-tour-words" style={{ ...cardStyle, padding: narrow ? "8px 10px 10px" : "10px 12px 12px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: narrow ? 7 : 8 }}>
+            <TourDots step={step} C={C} />
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <ModeSwitch pics C={C} />
+              <IconButton b={{ ...link, aria: link.label }} icons={["close"]} C={C} quiet />
+            </div>
+          </div>
+          <h2 id="ec-tour-title" data-testid="tour-title" style={UNSEEN}>{text.title}</h2>
+          <div id="ec-tour-words" data-testid="tour-words" style={UNSEEN}>{said.map((w, i) => <p key={i}>{w}</p>)}</div>
+          <TourPicture t={tour} still={still} anim={lit ? (i, n) => turnAnim("ecTourPic", i, n, t0) : null} />
+          {(back || primary) && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: narrow ? 8 : 10 }}>
+              <span>{back && <IconButton b={{ ...back, aria: "Back a step" }} icons={["back"]} C={C} />}</span>
+              {primary && <IconButton b={{ ...primary, aria: plain(primary.label) }} icons={primary.icons} C={C} primary autoFocus={card || menuCard} />}
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
   return (
     <>
       <style>{css}</style>
-      <div
-        ref={cardRef}
-        key={step}
-        data-testid="tour-card"
-        data-step={step}
-        role={card || menuCard ? "dialog" : "status"}
-        aria-live={card || menuCard ? undefined : "polite"}
-        aria-labelledby="ec-tour-title"
-        style={{
-          position: "fixed",
-          top: below ? below : "calc(var(--ec-shell-top, env(safe-area-inset-top, 0px)) + 12px)",
-          left: side ? "max(16px, env(safe-area-inset-left, 0px))" : "50%",
-          transform: side ? "none" : "translateX(-50%)",
-          zIndex: tour.rings ? 17 : 13,
-          width: side ? 360 : "min(calc(100vw - 32px), 440px)",
-          // (A phone on its side: the card scrolls rather than runs off.)
-          maxHeight: `calc(100vh - ${below ? below + 12 : 24}px)`,
-          overflowY: "auto",
-          animation: side ? "ecTourIn 0.3s ease both" : "ecTourDrop 0.3s ease both",
-          boxSizing: "border-box",
-          padding: narrow ? "10px 13px 9px" : "13px 16px 12px",
-          borderRadius: 10,
-          background: C.cream,
-          border: `1px solid ${C.slateSoft}`,
-          boxShadow: "0 14px 40px rgba(0,0,0,0.32)",
-          color: C.charcoal,
-          fontFamily: sans,
-          fontSize: narrow ? 13 : 14,
-          lineHeight: 1.45,
-          pointerEvents: "auto",
-        }}
-      >
-        <div data-testid="tour-band" style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: C.slate, marginBottom: 6 }}>
-          {band}
+      <div key={step} {...cardProps} style={cardStyle}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 6 }}>
+          <div data-testid="tour-band" style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: C.slate, minWidth: 0 }}>
+            {band}
+          </div>
+          <ModeSwitch pics={false} C={C} />
         </div>
         <h2 id="ec-tour-title" data-testid="tour-title" style={{ margin: 0, fontFamily: display, fontWeight: 600, fontSize: step === "welcome" ? (narrow ? 19 : 21) : narrow ? 16.5 : 18.5, lineHeight: 1.2, textWrap: "balance" }}>
           {text.title}
@@ -481,7 +638,7 @@ export default function FirstGameTour({ tour, cardRef }) {
           <div data-testid="tour-rows" style={{ marginTop: narrow ? 6 : 8, display: "grid", gridTemplateColumns: "max-content 1fr", columnGap: 10, rowGap: narrow ? 3 : 5, alignItems: "baseline" }}>
             {text.rows.map(([k, v], i) => (
               <React.Fragment key={k + i}>
-                <span data-lit={lit ? i : undefined} style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: C.slate, whiteSpace: "nowrap", ...(lit ? { animation: turnAnim("ecTourLit", i, lit), borderRadius: 3, padding: "2px 5px", margin: "-2px -5px" } : null) }}>{k}</span>
+                <span data-lit={lit ? i : undefined} style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: C.slate, whiteSpace: "nowrap", ...(lit ? { animation: turnAnim("ecTourLit", i, lit, t0), borderRadius: 3, padding: "2px 5px", margin: "-2px -5px" } : null) }}>{k}</span>
                 <span data-testid={`tour-row-${k.toLowerCase().replace(/\s+/g, "-")}`}>{v}</span>
               </React.Fragment>
             ))}
@@ -491,7 +648,7 @@ export default function FirstGameTour({ tour, cardRef }) {
           <div data-testid="tour-icons" style={{ marginTop: narrow ? 6 : 8, display: "grid", gridTemplateColumns: "22px 1fr", columnGap: 9, rowGap: narrow ? 4 : 6, alignItems: "center" }}>
             {text.icons.map((x, i) => (
               <React.Fragment key={x.icon}>
-                <span aria-hidden="true" data-lit={lit ? i : undefined} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, margin: "-2px", borderRadius: "50%", color: C.slate, ...(lit ? { animation: turnAnim("ecTourLit", i, lit) } : null) }}>{FOOT_ICONS[x.icon]}</span>
+                <span aria-hidden="true" data-lit={lit ? i : undefined} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, margin: "-2px", borderRadius: "50%", color: C.slate, ...(lit ? { animation: turnAnim("ecTourLit", i, lit, t0) } : null) }}>{FOOT_ICONS[x.icon]}</span>
                 <span data-testid={`tour-icon-${x.icon}`}><b style={{ fontWeight: 600 }}>{x.name}</b>: {x.text}</span>
               </React.Fragment>
             ))}
@@ -567,6 +724,9 @@ const WEDGE_HALO = "rgba(22,14,6,0.22)";
    point at that one specific point might be a little bit misleading"). */
 const SWEEP = { hold: 700, leg: 2400, rest: 300 };
 export function TourMarks({ marks, geo, subscribe, cardRef, raised = false }) {
+  // (In pictures, each label its icons: the chassis gives each its own,
+  // `icon`, the pills the pictures draw.)
+  const pics = useTourPictures();
   const tagEls = useRef({});
   const lineEls = useRef({});
   const boxEls = useRef({});
@@ -819,7 +979,7 @@ export function TourMarks({ marks, geo, subscribe, cardRef, raised = false }) {
     };
     tags.forEach((g) => hide(g.key));
     return subscribe(frame);
-  }, [marks, geo, subscribe, cardRef]);
+  }, [marks, geo, subscribe, cardRef, pics]);
   if (!marks) return null;
   const tone = (k) => TOUR_TONES[k] || TOUR_TONES.mine;
   const keep = (store, k, part) => (e) => { if (e) store.current[k] = { ...(store.current[k] || {}), [part]: e }; };
@@ -878,6 +1038,7 @@ export function TourMarks({ marks, geo, subscribe, cardRef, raised = false }) {
           key={g.key}
           ref={(e) => { if (e) tagEls.current[g.key] = e; }}
           data-tag={g.key}
+          data-tag-mode={pics && g.icon ? "pictures" : "words"}
           className="ec-tour-tag"
           style={{
             position: "absolute",
@@ -885,7 +1046,7 @@ export function TourMarks({ marks, geo, subscribe, cardRef, raised = false }) {
             top: 0,
             transform: "translate(-300vw, 0)",
             whiteSpace: "nowrap",
-            padding: "4px 8px 3px",
+            padding: pics && g.icon ? "3px 7px" : "4px 8px 3px",
             borderRadius: 4,
             background: tone(g.tone),
             color: "#1B1209",
@@ -899,7 +1060,7 @@ export function TourMarks({ marks, geo, subscribe, cardRef, raised = false }) {
             lineHeight: 1.25,
           }}
         >
-          {g.text}
+          {pics && g.icon ? <TagIcons icons={g.icon} /> : g.text}
         </div>
       ))}
     </div>

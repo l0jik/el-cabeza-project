@@ -844,7 +844,9 @@ function lawExtras(piece, laws = {}) {
    turn's actions; an Opa's move costs two, engine/constants.js
    OPA_MOVE_COST), what it's for, and what this game's laws add. `foe` is
    what the other side is called. Returns { name, what, moves, turn, aim,
-   extra }, any of them but the name possibly empty. */
+   extra }, any of them but the name possibly empty; and, for the tour in
+   pictures (chassis/TourPictures.jsx), cost (the actions a move takes)
+   and times (how many moves a turn allows). */
 const TIMES = ["", "once", "twice", "three times", "four times"];
 export function pieceLesson(piece, laws = {}, name = piece.type, budget = 2, foe = "the other side") {
   const type = piece.type;
@@ -861,6 +863,6 @@ export function pieceLesson(piece, laws = {}, name = piece.type, budget = 2, foe
     flaco: ["The Flaco", "The long block.", piece.z > 1 ? "Standing, it tips over to lie across the next two squares." : "Lying down, it rolls one square to the side; rolled along its length, it stands up.", rolls, crush],
   };
   const own = LESSON[type];
-  if (own) return { name: own[0], what: own[1], moves: own[2], turn: own[3], aim: own[4], extra: lawExtras(piece, laws) };
-  return { name: t("The {piece}", { piece: name }), what: "", moves: PIECE_TEXT[type] ? PIECE_TEXT[type][0] : "Rolls over one edge, 1 action a roll. " + CRUSH, turn: rolls, aim: "", extra: lawExtras(piece, laws) };
+  if (own) return { name: own[0], what: own[1], moves: own[2], turn: own[3], aim: own[4], extra: lawExtras(piece, laws), cost, times: n };
+  return { name: t("The {piece}", { piece: name }), what: "", moves: PIECE_TEXT[type] ? PIECE_TEXT[type][0] : "Rolls over one edge, 1 action a roll. " + CRUSH, turn: rolls, aim: "", extra: lawExtras(piece, laws), cost, times: n };
 }

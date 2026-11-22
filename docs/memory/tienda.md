@@ -401,6 +401,62 @@ box art and an ad standee (assets/tienda/*.jpg).
   comma should be placed."): "up, down, or sideways", and every list the
   walkthrough makes of three or more ("The Turrito, the Flaco, the
   Chato, and the Opa"); two stay "X and Y".
+- **The walkthrough in pictures, no reading** (2026-11-22; user: "Create
+  a version of the instructions that has no reading, just shows
+  pictures."). A switch on every card (FirstGameTour.jsx ModeSwitch,
+  tour-mode-words / tour-mode-pictures, aria-pressed): words or pictures,
+  kept on the device (localStorage el-cabeza:tour-pictures "on"/"off";
+  setTourPictures, useTourPictures: the card and TourMarks hear it at
+  once). A link sets it: ?tour=pictures (or =words), read once and dropped
+  from the address; with ?fresh, after its reload. In pictures each card
+  is one picture (chassis/TourPictures.jsx TourPicture: tour-picture,
+  data-picture the step, "pieces" as pieces, lesson or waiting), 320 x 140
+  on a dark ground: the board's squares from above, blocks and the disc
+  from the side, a piece from a corner, the sides' woods (SIDE_NAMES
+  swatch), yours ringed yellow, the other side's red, the winning row
+  green, and the tour's own pills (a person, you; a computer, the other
+  side; a pointing hand, tap; a lock, boxed in; a trophy, the win; tick
+  and cross badges). Moving (SMIL: a block tipping over its edge, a crush
+  flattening the disc, a tap's ripple, a fingertip round the board, a
+  pinch, an hourglass, the hold ring closing); with reduced motion none of
+  it is drawn and the arrows say it. Welcome: the opening from above, a
+  person pill and a computer pill each with its side's wood. Ways: 1, the
+  disc up to the green row, a trophy; 2, a block rolling onto the red
+  disc, a trophy. Goal: the arrow's head sliding along the green row (a
+  two-way arrow over it, still); the Cabeza's reach, every square within
+  the turn's actions, eight arrows, the action lights. Crush: yours onto
+  theirs, a trophy; theirs onto yours, a cross. Blocks: a roll over its
+  edge, tick; straight, not corner to corner, cross; a disc onto a disc,
+  cross. Turn: you, then the computer, then you; a light over each roll;
+  the Opa's one roll under two; hold till the ring closes, or End turn's
+  tick. Board: one finger round, two along, a pinch (a mouse's left
+  button, right button, wheel). Your move: a hand tapping a yellow piece,
+  its arrows; a boxed-in one locked. A piece picked: it from a corner, a
+  roll (or the Cabeza's step) per move with its lights over it, then
+  tap an arrow's square; after a move, again, End turn or hold; can't
+  move, a lock and another piece. The other side: an hourglass; its move,
+  where from, an arrow, its computer pill, then your turn (or the menu's
+  piece). The menu: tap the corner piece, the fan, tap outside. Inside
+  it: tiles lit one at a time on the rings' own beat, also after a switch
+  mid-card (turnAnim's t0, how long the card has been up): you and the
+  computer, View, Sound, More (the classic panel: undo, views, check
+  alert, end game). More: its groups' icons (the classic foot: its
+  buttons, then on and off). The control bar: the bar, ☰, back to the
+  piece. The menu's icons are its own (chassis/fan-icons.js, the fan's
+  table moved out of menu-fan.js, which loads late). The card itself:
+  dots for where you are (tour-dots data-n/data-of: 8; the menu's 3
+  after its piece's icon), the switch, a cross (Skip / End), a back
+  chevron, and the main button an icon (next, play for Let's play, a tick
+  for Got it, back and the piece for Back to the tour): the same testids,
+  named in words for a screen reader (aria-label "Next", "Let's play",
+  ..., in the tables), the card's words kept for it out of sight
+  (tour-title, tour-words). The board's labels: each tag gets icon keys
+  from the chassis (tag(..., icon)), TourPictures' TagIcons when the
+  pictures are on (data-tag-mode). pieceLesson gives cost and times too.
+  tests/e2e-first-game-tour.mjs (142 checks): the switch, each card a
+  picture with nothing to read but the two ways' numbers, the dots, the
+  buttons, the labels, a lesson, words again; ?fresh&tour=pictures on a
+  desktop, held still with reduced motion.
 - **The lights' thought** (2026-10-21; user: "When the lights get turned
   down while you're at the store, when you're first playing the game for
   a new user or new player, maybe a thought bubble should come up saying,

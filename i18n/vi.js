@@ -1109,6 +1109,13 @@ export default {
   "{views}: ready-made views of the board.": "{views}: các góc nhìn bàn cờ có sẵn.",
   "First game": "Ván đầu tiên",
   "Your menu": "Menu của bạn",
+  // (The tour in pictures: its switch and its buttons' names.)
+  "Words": "Chữ",
+  "Pictures only": "Chỉ hình ảnh",
+  "How the tour shows": "Cách hiển thị hướng dẫn",
+  "Let's play": "Chơi thôi",
+  "Open it": "Mở ra",
+  "Back to the tour": "Quay lại hướng dẫn",
 
   // Big Glutts: the store, the order form, the PA, the catalog
   "The store's tape": "Băng nhạc của cửa hàng",

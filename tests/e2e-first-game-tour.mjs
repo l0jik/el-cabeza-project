@@ -46,7 +46,9 @@
    piece, a piece picked: as close still (in, never out). With reduced
    motion, the arrow's head steps from end to end of the row (no glide),
    and the menu card's lines and the rings round its buttons still take
-   their turns.
+   their turns. And the tour in pictures, no reading: a switch on each
+   card, each card a picture, the board's labels icons; from a link too,
+   and still with reduced motion.
 
    node tests/e2e-first-game-tour.mjs */
 import { chromium } from "playwright";
@@ -783,6 +785,100 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
   check("Escape skips it, kept as done", (await card(page).count()) === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
+  await ctx.close();
+}
+
+/* The tour in pictures, no reading (user, 2026-11-22: "Create a version
+   of the instructions that has no reading, just shows pictures";
+   chassis/TourPictures.jsx): a switch on every card, words or pictures,
+   kept on the device. In pictures each card a picture of its own and
+   nothing to read but the two ways' numbers, where you are in dots, the
+   buttons icons (named for a screen reader, the card's words kept for it
+   out of sight), and the board's labels icons too; words again, as ever.
+   From a link, ?tour=pictures; with reduced motion, every picture still. */
+const seen = (page) => page.evaluate(() => {
+  const c = document.querySelector('[data-testid="tour-card"]');
+  if (!c) return null;
+  const out = [], w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT);
+  for (let n = w.nextNode(); n; n = w.nextNode()) {
+    const t = n.textContent.trim();
+    if (t && !n.parentElement.closest('[data-testid="tour-words"], [data-testid="tour-title"]')) out.push(t);
+  }
+  return out.join(" ");
+});
+const picOf = (page) => page.evaluate(() => { const p = document.querySelector('[data-testid="tour-card"] [data-testid="tour-picture"]'); return p ? { picture: p.dataset.picture, moving: p.querySelectorAll("animate, animateTransform, animateMotion").length } : null; });
+const tagModes = (page) => page.evaluate(() => [...document.querySelectorAll('[data-testid="tour-marks"] [data-tag]')].map((e) => ({ key: e.dataset.tag, mode: e.dataset.tagMode, text: e.textContent.trim(), icons: e.querySelectorAll("svg").length })));
+const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector('[data-testid="tour-dots"]'); return d ? `${d.dataset.n}/${d.dataset.of}` : null; });
+{
+  console.log("\n[phone: the tour in pictures]");
+  const { ctx, page, errs } = await open(true);
+  await begin(page);
+  const pressed = (k) => page.locator(`[data-testid="tour-mode-${k}"]`).getAttribute("aria-pressed");
+  check("the welcome card in words, a switch on it: words, or pictures", (await tourOf(page)).step === "welcome" && (await pressed("words")) === "true" && (await pressed("pictures")) === "false" && /Welcome to your first game/.test(await cardText(page)));
+  await page.locator('[data-testid="tour-mode-pictures"]').click();
+  await page.waitForTimeout(700);
+  let p = await picOf(page);
+  check("Pictures only: the card a picture, moving, nothing on it to read", (await card(page).getAttribute("data-mode")) === "pictures" && !!p && p.picture === "welcome" && p.moving > 0 && (await seen(page)) === "" && (await pressed("pictures")) === "true", JSON.stringify({ p, seen: await seen(page) }));
+  const title = page.locator('[data-testid="tour-title"]');
+  check("...its words kept for a screen reader, out of sight", /Welcome to your first game/.test(await title.textContent()) && (await title.boundingBox()).width <= 1 && /the computer/.test(await page.locator('[data-testid="tour-words"]').textContent()));
+  check("...kept on the device", (await page.evaluate(() => localStorage.getItem("el-cabeza:tour-pictures"))) === "on");
+  let tg = await tagModes(page);
+  check("...the board's labels icons: you, the computer", tg.length === 2 && tg.every((g) => g.mode === "pictures" && g.text === "" && g.icons === 1), JSON.stringify(tg));
+  check("...its buttons icons, named for a screen reader", (await page.locator('[data-testid="tour-next"]').getAttribute("aria-label")) === "Next" && (await page.locator('[data-testid="tour-skip"]').getAttribute("aria-label")) === "Skip the tour" && (await page.locator('[data-testid="tour-next"]').innerText()).trim() === "");
+  check("...where you are in dots: the first of 8", (await dotsAt(page)) === "1/8");
+  const steps = ["ways", "goal", "crush", "blocks", "turn", "board"], off = [];
+  for (let i = 0; i < steps.length; i++) {
+    await page.locator('[data-testid="tour-next"]').click();
+    await page.waitForTimeout(1800);
+    const s = (await tourOf(page)).step, q = await picOf(page), w = await seen(page), d = await dotsAt(page);
+    // (Nothing to read but the two ways' numbers, as the board's labels.)
+    if (s !== steps[i] || !q || q.picture !== steps[i] || !/^[\d\s]*$/.test(w) || d !== `${i + 2}/8`) off.push(JSON.stringify({ s, q, w, d }));
+  }
+  check("...each card on to the board's a picture of its own, nothing to read, the dots along", off.length === 0, off.join(" | "));
+  tg = await tagModes(page);
+  check("...the board's label two icons (turn it, zoom)", tg.length === 1 && tg[0].key === "orbit" && tg[0].icons === 2 && tg[0].text === "", JSON.stringify(tg));
+  check("...and Let's play a play button", (await page.locator('[data-testid="tour-next"]').getAttribute("aria-label")) === "Let's play");
+  await page.locator('[data-testid="tour-next"]').click();
+  await page.waitForTimeout(2600);
+  p = await picOf(page);
+  tg = await tagModes(page);
+  check("your move: its picture; your pieces' labels a hand, the boxed-in ones' a lock", (await tourOf(page)).step === "pieces" && !!p && p.picture === "pieces" && tg.length === 5 && tg.every((g) => g.icons === 1 && g.text === "") && (await seen(page)) === "" && (await dotsAt(page)) === "8/8", JSON.stringify({ p, tg }));
+  const at = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-opa"));
+  await page.touchscreen.tap(at.x, at.y);
+  await page.waitForTimeout(2800);
+  p = await picOf(page);
+  check("the Opa tapped: a picture of it, its roll and what it takes, the arrows' squares to tap", !!p && p.picture === "lesson" && (await seen(page)) === "", JSON.stringify(p));
+  await page.locator('[data-testid="tour-mode-words"]').click();
+  await page.waitForTimeout(700);
+  tg = await tagModes(page);
+  check("Words: the same card in words again, and so it's kept", (await card(page).getAttribute("data-mode")) === "words" && /The Opa/.test(await cardText(page)) && (await page.locator('[data-testid="tour-picture"]').count()) === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:tour-pictures"))) === "off", await cardText(page));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+{
+  console.log("\n[desktop: the tour in pictures from a link, held still]");
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce" });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto(`${NOVA}?fresh&tour=pictures`);
+  await page.waitForSelector('[data-testid="tienda-open-box"]', { timeout: 60000 });
+  check("?fresh&tour=pictures: everything forgotten, then the pictures kept, the word gone from the address", (await page.evaluate(() => localStorage.getItem("el-cabeza:tour-pictures"))) === "on" && !/tour=/.test(page.url()), page.url());
+  await page.waitForTimeout(1500);
+  await page.locator('[data-testid="tienda-open-box"]').click();
+  await page.waitForTimeout(3500);
+  await begin(page);
+  let p = await picOf(page);
+  check("Try a Game: the welcome card in pictures, held still", (await card(page).getAttribute("data-mode")) === "pictures" && !!p && p.picture === "welcome" && p.moving === 0, JSON.stringify(p));
+  for (let i = 0; i < 6; i++) { await page.locator('[data-testid="tour-next"]').click(); await page.waitForTimeout(250); }
+  await page.waitForTimeout(600);
+  p = await picOf(page);
+  check("...the board card: its picture, held still too", (await tourOf(page)).step === "board" && !!p && p.picture === "board" && p.moving === 0, JSON.stringify(p));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(500);
+  check("Escape skips it, kept as done", (await card(page).count()) === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
 

@@ -5413,7 +5413,9 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     const nameOf = (p) => (PIECE_META[p.type] ? PIECE_META[p.type].name : p.type);
     const at = (p) => ({ id: p.id, type: p.type, row: p.row, col: p.col, w: p.w, h: p.h, z: p.z });
     const ring = (p, tone, more) => t3.rings.push({ ...at(p), tone, ...more });
-    const tag = (key, where, text, tone, side) => t2.tags.push({ key, at: where, text, tone, ...(side ? { side } : {}) });
+    // (Each label's icons too, for the tour in pictures: FirstGameTour.jsx's
+    // TourMarks shows them in place of its words then.)
+    const tag = (key, where, text, tone, side, icon) => t2.tags.push({ key, at: where, text, tone, ...(side ? { side } : {}), ...(icon ? { icon } : {}) });
     const myCab = mineP.find((p) => p.type === "cabeza"), foeCab = foeP.find((p) => p.type === "cabeza");
     const blocks = mineP.filter((p) => p.type !== "cabeza").sort((a, b) => cubeCount(a) - cubeCount(b));
     blocks.forEach((p) => tourBlocks.push(nameOf(p)));
@@ -5421,8 +5423,8 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     if (tourStep === "welcome") {
       mineP.forEach((p) => ring(p, "mine", { pulse: true }));
       foeP.forEach((p) => ring(p, "foe"));
-      tag("mine", { pieces: mineP.map((p) => p.id) }, t("{side} · you", { side: sideName(tourMine) }), "mine");
-      tag("foe", { pieces: foeP.map((p) => p.id) }, t("{side} · the computer", { side: sideName(tourFoe) }), "foe");
+      tag("mine", { pieces: mineP.map((p) => p.id) }, t("{side} · you", { side: sideName(tourMine) }), "mine", null, ["person"]);
+      tag("foe", { pieces: foeP.map((p) => p.id) }, t("{side} · the computer", { side: sideName(tourFoe) }), "foe", null, ["computer"]);
     } else if (tourStep === "ways") {
       // Both, before each in turn: the row your Cabeza wins on, and theirs
       // to crush. (No arrow to the row here: it's the next card's, user:
@@ -5431,21 +5433,21 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       t3.band = { row: goalRow, tone: "goal" };
       if (myCab) {
         ring(myCab, "mine", { pulse: true });
-        tag("way-1", { piece: myCab.id }, "1 · Your Cabeza across", "mine");
+        tag("way-1", { piece: myCab.id }, "1 · Your Cabeza across", "mine", null, ["n1"]);
       }
       // (User: it "should read, 'Crush opponent's Cabeza'".)
-      if (foeCab) { ring(foeCab, "foe", { pulse: true }); tag("way-2", { piece: foeCab.id }, "2 · Crush opponent's Cabeza", "foe"); }
+      if (foeCab) { ring(foeCab, "foe", { pulse: true }); tag("way-2", { piece: foeCab.id }, "2 · Crush opponent's Cabeza", "foe", null, ["n2"]); }
     } else if (tourStep === "goal") {
       t3.band = { row: goalRow, tone: "goal" };
-      tag("goal", { row: goalRow }, "Opponent's back row · your goal", "goal");
+      tag("goal", { row: goalRow }, "Opponent's back row · your goal", "goal", null, ["trophy"]);
       if (myCab) {
         ring(myCab, "mine", { pulse: true });
         // (Shown big first, its label going down with it into the ring;
         // the arrow once it's in its place.)
-        if (tourCabIntro) tag("cabeza", { intro: true }, "Your Cabeza", "mine", "below");
+        if (tourCabIntro) tag("cabeza", { intro: true }, "Your Cabeza", "mine", "below", ["disc"]);
         else {
           t2.arrows.push({ key: "path", from: { piece: myCab.id }, to: { box: { type: "square", row: goalRow, col: myCab.col, w: 1, h: 1, z: 0 } }, sweep: { lo: 0, hi: BOARD_COLS - 1 }, tone: "goal", bend: 0.08 });
-          tag("cabeza", { piece: myCab.id }, "Your Cabeza", "mine");
+          tag("cabeza", { piece: myCab.id }, "Your Cabeza", "mine", null, ["disc"]);
         }
       }
     } else if (tourStep === "crush") {
@@ -5453,21 +5455,21 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       if (tourCrushSite) {
         ring(tourCrushSite.cab, "foe", { pulse: true });
         // (Set off to either side, so the block's label, following it as it rolls, never swaps sides.)
-        tag("crush-cabeza", { box: tourCrushSite.cab }, "Opponent's Cabeza", "foe", "right");
-        tag("crush-block", { crush: "block", box: tourCrushSite.from }, t("Your {piece}", { piece: tourCrushSite.blockName }), "mine", "left");
+        tag("crush-cabeza", { box: tourCrushSite.cab }, "Opponent's Cabeza", "foe", "right", ["computer"]);
+        tag("crush-block", { crush: "block", box: tourCrushSite.from }, t("Your {piece}", { piece: tourCrushSite.blockName }), "mine", "left", ["person"]);
       } else {
-        if (foeCab) { ring(foeCab, "foe", { pulse: true }); tag("foe-cabeza", { piece: foeCab.id }, "Opponent's Cabeza · crush it", "foe"); }
-        if (myCab) { ring(myCab, "mine"); tag("cabeza", { piece: myCab.id }, "Yours · keep it safe", "mine"); }
+        if (foeCab) { ring(foeCab, "foe", { pulse: true }); tag("foe-cabeza", { piece: foeCab.id }, "Opponent's Cabeza · crush it", "foe", null, ["computer"]); }
+        if (myCab) { ring(myCab, "mine"); tag("cabeza", { piece: myCab.id }, "Yours · keep it safe", "mine", null, ["person"]); }
       }
     } else if (tourStep === "blocks") {
-      blocks.forEach((p) => { ring(p, "mine", { pulse: true }); tag(p.id, { piece: p.id }, nameOf(p), "mine"); });
+      blocks.forEach((p) => { ring(p, "mine", { pulse: true }); tag(p.id, { piece: p.id }, nameOf(p), "mine", null, ["block"]); });
     } else if (tourStep === "turn") {
       const sel = shell ? '[data-testid="shell-points"]' : '[data-testid="points-counter"]';
       t2.boxes.push({ key: "actions", sel, tone: "mine" });
-      tag("actions", { el: sel }, t("{n} actions a turn", { n: ACTIVE_LAWS.threeActions ? 3 : 2 }), "mine", "above");
+      tag("actions", { el: sel }, t("{n} actions a turn", { n: ACTIVE_LAWS.threeActions ? 3 : 2 }), "mine", "above", [ACTIVE_LAWS.threeActions ? "dots3" : "dots2"]);
     } else if (tourStep === "board") {
       t2.orbit = { tone: "mine", mouse: !isCoarsePointer() };
-      tag("orbit", { orbit: true }, isCoarsePointer() ? "Drag to turn · pinch to zoom" : "Drag to turn · scroll to zoom", "mine");
+      tag("orbit", { orbit: true }, isCoarsePointer() ? "Drag to turn · pinch to zoom" : "Drag to turn · scroll to zoom", "mine", null, ["turn", "zoom"]);
     } else if (tourStep === "pieces" && currentPlayer === tourMine) {
       if (tourYours) {
         ring(selectedPiece, "mine");
@@ -5475,13 +5477,13 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
         if (turnLocked && tourLeft > 0) {
           const sel = shell ? '[data-testid="shell-end-turn"]' : '[data-testid="stop-here-float"]';
           t2.boxes.push({ key: "end", sel, tone: "mine" });
-          tag("end", { el: sel }, "Or end your turn here", "mine", "above");
+          tag("end", { el: sel }, "Or end your turn here", "mine", "above", ["tap"]);
         }
       } else if (!selectedId) {
         mineP.forEach((p) => {
           const go = !!tourCanGo && tourCanGo.has(p.id);
           ring(p, go ? "mine" : "dim", { pulse: go });
-          tag(p.id, { piece: p.id }, go ? nameOf(p) : t("{piece} · boxed in", { piece: nameOf(p) }), go ? "mine" : "dim");
+          tag(p.id, { piece: p.id }, go ? nameOf(p) : t("{piece} · boxed in", { piece: nameOf(p) }), go ? "mine" : "dim", null, [go ? "tap" : "lock"]);
           if (!go) tourBoxed.push(p.type === "cabeza" ? { mine: true } : { name: nameOf(p) });
         });
       }
@@ -5493,14 +5495,14 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
         ring(b, "foe", { faint: true });
         ring(now, "foe", { pulse: true });
         t2.arrows.push({ key: `moved-${now.id}`, from: { box: at(b) }, to: { piece: now.id }, tone: "foe", bend: 0.18, trimEnd: true });
-        tag(now.id, { piece: now.id }, t("Opponent's {piece}", { piece: nameOf(now) }), "foe");
+        tag(now.id, { piece: now.id }, t("Opponent's {piece}", { piece: nameOf(now) }), "foe", null, ["computer"]);
       });
     } else if (tourStep === "menu") {
       // The piece in the corner: its box runs past the screen's edges with
       // the piece in its middle, so the ring and the label go round the
       // piece (inset).
       t2.boxes.push({ key: "dock", sel: "[data-dock-piece]", inset: Math.round(26 * dockCornerK), tone: "mine" });
-      tag("dock", { el: "[data-dock-piece]", inset: Math.round(26 * dockCornerK) }, isCoarsePointer() ? t("Tap to open your menu") : t("Click to open your menu"), "mine", "above");
+      tag("dock", { el: "[data-dock-piece]", inset: Math.round(26 * dockCornerK) }, isCoarsePointer() ? t("Tap to open your menu") : t("Click to open your menu"), "mine", "above", ["tap"]);
     } else if (tourStep === "panel" && ringsOpen) {
       // Calm Rings: the line over the corner fan, then its wedges; each
       // ringed in turn as its card lights its line.
@@ -5520,7 +5522,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       // inside its edges) and its menu's button at the top right.
       t2.boxes.push({ key: "shell-bar", sel: '[data-testid="shell-bar"]', inset: 8, tone: "mine" });
       t2.boxes.push({ key: "shell-menu", sel: '[data-testid="shell-menu-button"]', tone: "mine" });
-      tag("shell-menu", { el: '[data-testid="shell-menu-button"]' }, "The rest of the menu", "mine", "left");
+      tag("shell-menu", { el: '[data-testid="shell-menu-button"]' }, "The rest of the menu", "mine", "left", ["tap"]);
     }
   }
   const tour3dSig = tourShown ? JSON.stringify(t3) : "";
@@ -12874,6 +12876,12 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             foe: sideName(tourFoe),
             mineHint: SIDE_NAMES.hint ? SIDE_NAMES.hint[tourMine] : null,
             foeHint: SIDE_NAMES.hint ? SIDE_NAMES.hint[tourFoe] : null,
+            // (For the tour in pictures, chassis/TourPictures.jsx: each
+            // side's wood, and a picked piece: its shape, how often a turn
+            // it moves and what that takes, where your turn stands.)
+            mineSwatch: SIDE_NAMES.swatch ? SIDE_NAMES.swatch[tourMine] : null,
+            foeSwatch: SIDE_NAMES.swatch ? SIDE_NAMES.swatch[tourFoe] : null,
+            lessonPic: tourLesson ? { type: selectedPiece.type, w: selectedPiece.w, h: selectedPiece.h, z: selectedPiece.z, cost: tourLesson.cost, times: tourLesson.times, can: turnLocked || shadowEntries.length > 0, locked: turnLocked, left: tourLeft } : null,
             youFirst: currentPlayer === tourMine,
             budget: ACTIVE_LAWS.threeActions ? 3 : 2,
             split: ACTIVE_LAWS.splitMovement ? maxPiecesPerTurn() : 0,
