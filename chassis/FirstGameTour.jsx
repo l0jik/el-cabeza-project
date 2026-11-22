@@ -185,6 +185,13 @@ const FOOT_ICONS = {
    (green), and a piece that can't move yet. */
 export const TOUR_TONES = TONES; // (TourPictures.jsx: the pictures draw in them too)
 
+/* The tour's type (user, 2026-11-22: "On the tutorial, the words need to
+   be bigger on the screen"): about a fifth up from where it was (the body
+   13 and 14 px), [a phone's, a wider screen's]; the card wider where
+   there's room (500 at most at the top, 400 at the left of a wide
+   screen), so it isn't that much taller; the board's labels to match. */
+const TYPE = { body: [16, 17], title: [20, 22], welcome: [23, 26], sub: 15, fine: 12.5, band: 11.5, row: 11, link: 14.5, back: 12.5, primary: 13.5, tag: 12.5 };
+export const TOUR_CARD_W = { top: 500, side: 400 };
 const WORDS = ["no", "one", "two", "three", "four", "five"];
 const word = (n) => tr(WORDS[n] || String(n));
 const mono = "'IBM Plex Mono', monospace";
@@ -548,7 +555,7 @@ export default function FirstGameTour({ tour, cardRef }) {
     left: side ? "max(16px, env(safe-area-inset-left, 0px))" : "50%",
     transform: side ? "none" : "translateX(-50%)",
     zIndex: tour.rings ? 17 : 13,
-    width: side ? 360 : "min(calc(100vw - 32px), 440px)",
+    width: side ? TOUR_CARD_W.side : `min(calc(100vw - 32px), ${TOUR_CARD_W.top}px)`,
     // (A phone on its side: the card scrolls rather than runs off.)
     maxHeight: `calc(100vh - ${below ? below + 12 : 24}px)`,
     overflowY: "auto",
@@ -561,7 +568,7 @@ export default function FirstGameTour({ tour, cardRef }) {
     boxShadow: "0 14px 40px rgba(0,0,0,0.32)",
     color: C.charcoal,
     fontFamily: sans,
-    fontSize: narrow ? 13 : 14,
+    fontSize: TYPE.body[narrow ? 0 : 1],
     lineHeight: 1.45,
     pointerEvents: "auto",
   };
@@ -613,17 +620,19 @@ export default function FirstGameTour({ tour, cardRef }) {
     <>
       <style>{css}</style>
       <div key={step} {...cardProps} style={cardStyle}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 6 }}>
-          <div data-testid="tour-band" style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: C.slate, minWidth: 0 }}>
-            {band}
-          </div>
+        <div data-testid="tour-band" style={{ fontFamily: mono, fontSize: TYPE.band, letterSpacing: "0.16em", textTransform: "uppercase", color: C.slate, marginBottom: 6 }}>
+          {band}
+        </div>
+        {/* (The switch beside the title, the band left whole: a world
+            prints it across the card's head, the store's red.) */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <h2 id="ec-tour-title" data-testid="tour-title" style={{ flex: "1 1 auto", minWidth: 0, margin: 0, fontFamily: display, fontWeight: 600, fontSize: (step === "welcome" ? TYPE.welcome : TYPE.title)[narrow ? 0 : 1], lineHeight: 1.2, textWrap: "balance" }}>
+            {text.title}
+          </h2>
           <ModeSwitch pics={false} C={C} />
         </div>
-        <h2 id="ec-tour-title" data-testid="tour-title" style={{ margin: 0, fontFamily: display, fontWeight: 600, fontSize: step === "welcome" ? (narrow ? 19 : 21) : narrow ? 16.5 : 18.5, lineHeight: 1.2, textWrap: "balance" }}>
-          {text.title}
-        </h2>
         {text.sub && (
-          <div data-testid="tour-sub" style={{ marginTop: 3, fontFamily: step === "welcome" ? mono : sans, fontSize: step === "welcome" ? 11 : 13, letterSpacing: step === "welcome" ? "0.14em" : 0, color: C.slate }}>
+          <div data-testid="tour-sub" style={{ marginTop: 3, fontFamily: step === "welcome" ? mono : sans, fontSize: step === "welcome" ? TYPE.fine : TYPE.sub, letterSpacing: step === "welcome" ? "0.14em" : 0, color: C.slate }}>
             {text.sub}
           </div>
         )}
@@ -638,14 +647,14 @@ export default function FirstGameTour({ tour, cardRef }) {
           <div data-testid="tour-rows" style={{ marginTop: narrow ? 6 : 8, display: "grid", gridTemplateColumns: "max-content 1fr", columnGap: 10, rowGap: narrow ? 3 : 5, alignItems: "baseline" }}>
             {text.rows.map(([k, v], i) => (
               <React.Fragment key={k + i}>
-                <span data-lit={lit ? i : undefined} style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: C.slate, whiteSpace: "nowrap", ...(lit ? { animation: turnAnim("ecTourLit", i, lit, t0), borderRadius: 3, padding: "2px 5px", margin: "-2px -5px" } : null) }}>{k}</span>
+                <span data-lit={lit ? i : undefined} style={{ fontFamily: mono, fontSize: TYPE.row, letterSpacing: "0.14em", textTransform: "uppercase", color: C.slate, whiteSpace: "nowrap", ...(lit ? { animation: turnAnim("ecTourLit", i, lit, t0), borderRadius: 3, padding: "2px 5px", margin: "-2px -5px" } : null) }}>{k}</span>
                 <span data-testid={`tour-row-${k.toLowerCase().replace(/\s+/g, "-")}`}>{v}</span>
               </React.Fragment>
             ))}
           </div>
         )}
         {text.icons && (
-          <div data-testid="tour-icons" style={{ marginTop: narrow ? 6 : 8, display: "grid", gridTemplateColumns: "22px 1fr", columnGap: 9, rowGap: narrow ? 4 : 6, alignItems: "center" }}>
+          <div data-testid="tour-icons" style={{ marginTop: narrow ? 6 : 8, display: "grid", gridTemplateColumns: "26px 1fr", columnGap: 10, rowGap: narrow ? 4 : 6, alignItems: "center" }}>
             {text.icons.map((x, i) => (
               <React.Fragment key={x.icon}>
                 <span aria-hidden="true" data-lit={lit ? i : undefined} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, margin: "-2px", borderRadius: "50%", color: C.slate, ...(lit ? { animation: turnAnim("ecTourLit", i, lit, t0) } : null) }}>{FOOT_ICONS[x.icon]}</span>
@@ -660,13 +669,13 @@ export default function FirstGameTour({ tour, cardRef }) {
           </div>
         )}
         <div style={{ display: "flex", alignItems: "center", justifyContent: primary || back ? "space-between" : "flex-end", gap: 12, marginTop: narrow ? 6 : 10 }}>
-          <button type="button" data-testid={link.testid} onClick={link.onClick} style={{ background: "none", border: "none", padding: "6px 0", cursor: "pointer", color: C.slate, fontFamily: sans, fontSize: 12.5, textDecoration: "underline", textUnderlineOffset: 3 }}>
+          <button type="button" data-testid={link.testid} onClick={link.onClick} style={{ background: "none", border: "none", padding: "6px 0", cursor: "pointer", color: C.slate, fontFamily: sans, fontSize: TYPE.link, textDecoration: "underline", textUnderlineOffset: 3 }}>
             {link.label}
           </button>
           {(back || primary) && (
             <div style={{ display: "flex", alignItems: "center", gap: narrow ? 6 : 10 }}>
               {back && (
-                <button type="button" data-testid={back.testid} onClick={back.onClick} aria-label="Back a step" style={{ background: "none", border: "none", padding: "8px 6px", cursor: "pointer", color: C.slate, fontFamily: mono, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                <button type="button" data-testid={back.testid} onClick={back.onClick} aria-label="Back a step" style={{ background: "none", border: "none", padding: "8px 6px", cursor: "pointer", color: C.slate, fontFamily: mono, fontSize: TYPE.back, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>
                   {back.label}
                 </button>
               )}
@@ -677,7 +686,7 @@ export default function FirstGameTour({ tour, cardRef }) {
                   data-testid={primary.testid}
                   onClick={primary.onClick}
                   autoFocus={card || menuCard}
-                  style={{ background: C.charcoal, color: C.cream, border: `1px solid ${C.charcoal}`, borderRadius: 6, padding: narrow ? "8px 15px" : "9px 17px", cursor: "pointer", fontFamily: mono, fontSize: 11.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}
+                  style={{ background: C.charcoal, color: C.cream, border: `1px solid ${C.charcoal}`, borderRadius: 6, padding: narrow ? "9px 15px" : "10px 18px", cursor: "pointer", fontFamily: mono, fontSize: TYPE.primary, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}
                 >
                   {primary.label}
                 </button>
@@ -1046,21 +1055,21 @@ export function TourMarks({ marks, geo, subscribe, cardRef, raised = false }) {
             top: 0,
             transform: "translate(-300vw, 0)",
             whiteSpace: "nowrap",
-            padding: pics && g.icon ? "3px 7px" : "4px 8px 3px",
+            padding: pics && g.icon ? "4px 8px" : "5px 9px 4px",
             borderRadius: 4,
             background: tone(g.tone),
             color: "#1B1209",
             border: `1.5px solid ${HALO}`,
             boxShadow: "0 3px 10px rgba(0,0,0,0.35)",
             fontFamily: mono,
-            fontSize: 10.5,
+            fontSize: TYPE.tag,
             fontWeight: 700,
             letterSpacing: "0.1em",
             textTransform: "uppercase",
             lineHeight: 1.25,
           }}
         >
-          {pics && g.icon ? <TagIcons icons={g.icon} /> : g.text}
+          {pics && g.icon ? <TagIcons icons={g.icon} size={20} /> : g.text}
         </div>
       ))}
     </div>

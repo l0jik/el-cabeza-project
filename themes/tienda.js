@@ -337,18 +337,19 @@ export const styleSheet = `
      printed card, with the circular's red band across its head and the
      price-tag red on its button. */
   [data-testid="tour-card"] {
-    background-color: #ece1c6 !important; background-image: var(--tienda-paper) !important; padding: 12px 15px 11px !important;
+    background-color: #ece1c6 !important; background-image: var(--tienda-paper) !important; padding: 14px 17px 13px !important;
     border-radius: 3px !important; border: 1px solid rgba(46,33,24,0.55) !important; overflow: hidden;
     box-shadow: inset 0 0 0 4px #ece1c6, inset 0 0 0 5px rgba(46,33,24,0.28), 0 12px 30px rgba(20,12,6,0.45) !important;
   }
   [data-testid="tour-band"] {
-    margin: -12px -15px 9px !important; padding: 5px 15px !important;
-    font: 800 10px/1.3 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; letter-spacing: 0.18em !important;
+    margin: -14px -17px 10px !important; padding: 6px 17px !important;
+    font: 800 12px/1.3 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; letter-spacing: 0.18em !important;
     color: ${NEWS.paper} !important; background: ${NEWS.redInk};
   }
   [data-testid="tour-title"] { font-weight: 700 !important; color: ${PERIOD.ink}; }
-  /* Its labels over the board, in the circular's bold type. */
-  .ec-tour-tag { font: 800 10.5px/1.25 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; letter-spacing: 0.12em !important; border-radius: 2px !important; }
+  /* Its labels over the board, in the circular's bold type (bigger, as
+     the card's words, user: "the words need to be bigger on the screen"). */
+  .ec-tour-tag { font: 800 12.5px/1.25 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; letter-spacing: 0.12em !important; border-radius: 2px !important; }
   [data-testid="tour-next"], [data-testid="tour-done"] {
     background: #A8321F !important; color: #F6EEDA !important; border: 2px solid #2E2118 !important; border-radius: 2px !important;
     font-family: 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; font-weight: 800 !important; letter-spacing: 0.14em !important;
@@ -357,7 +358,7 @@ export const styleSheet = `
   /* Its Back: the button's lettering without the button, quiet beside it
      (user: "subtle though, but still within theme"). */
   [data-testid="tour-back"] {
-    font: 800 10.5px/1 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; letter-spacing: 0.14em !important;
+    font: 800 12.5px/1 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; letter-spacing: 0.14em !important;
     color: rgba(46,33,24,0.58) !important;
   }
   [data-testid="tour-back"]:hover, [data-testid="tour-back"]:focus-visible { color: #2E2118 !important; }
@@ -538,9 +539,11 @@ export const styleSheet = `
 /* ------------------------------------------------------------ setup row */
 
 /* In the store the game isn't bought yet, only tried on the demonstration
-   table (user): "Try a Game". At home it's Begin Game again. */
+   table (user): "Try a Demo Game" (first "Try a Game"; user, 2026-11-22:
+   "the pill-shaped button says try a game, change it to try a demo
+   game"). At home it's Begin Game again. */
 export function beginLabel(x) {
-  return x && x.story && x.story.mode === "home" ? null : "Try a Game";
+  return x && x.story && x.story.mode === "home" ? null : "Try a Demo Game";
 }
 
 /* Begin Game shares its row with the catalog's order form (custom rules,
@@ -596,7 +599,7 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
       // (Before it's bought: into the cart, then to the register; user:
       // nothing about "your order" in the store, tienda-shopping.js. Held
       // back in a new player's first look at the menu, the chassis's
-      // firstLook: only See the pieces and Try a Game, user.)
+      // firstLook: only See the pieces and Try a Demo Game, user.)
       : h(CartButton, { key: "buy", story, style: buyStyle, locked: !!firstLook }))
     // One line, however narrow the phone (the type shrinks a little): on
     // two, the dock's panel ran past its height and scrolled, and the

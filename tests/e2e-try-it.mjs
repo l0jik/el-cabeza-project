@@ -3,7 +3,7 @@
    game, $7.97; the page the user picked, the store's stripes round it,
    all of it on the screen), deaf to taps for five seconds, then up until
    its "Let's play!" is pressed, circled in red pen; that opens the menu
-   as the piece's tap opens it, Try a Game lit (tienda-fx.js
+   as the piece's tap opens it, Try a Demo Game lit (tienda-fx.js
    pickScene/sceneTap, tienda-overlay.js). Every other tap shakes it, on
    it or beside it, with no blue flash (user: "I want it to shake no
    matter where you tap until the play a game is circled at the bottom",
@@ -128,7 +128,7 @@ await page.waitForTimeout(900);
 const ringsOut = () => page.evaluate(() => !!document.querySelector('[data-testid="dock-menu"][data-open="true"] [data-testid="menu-fan"]'));
 for (let i = 0; i < 20 && !(await ringsOut()); i++) await page.waitForTimeout(150);
 check("then a press on \"Let's play!\": the menu, as the piece's tap opens it", (await card.count()) === 0 && (await ringsOut()) && !(await panelOpen()) && (await shakes()) === 6, `${await shakes()} shakes`);
-check("...Try a Game lit", await page.evaluate(() => document.documentElement.classList.contains("td-idle-nudge")) && (await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-primary"].td-try-game').count()) === 1 && /try a game/i.test(await page.locator('[data-testid="menu-fan-primary"]').innerText()));
+check("...Try a Demo Game lit", await page.evaluate(() => document.documentElement.classList.contains("td-idle-nudge")) && (await page.locator('[data-testid="dock-menu"] [data-testid="menu-fan-primary"].td-try-game').count()) === 1 && /try a demo game/i.test(await page.locator('[data-testid="menu-fan-primary"]').innerText()));
 // (The shakes counted above as asked for; here, that the sheet really shook.)
 const nudges = await page.evaluate(() => window.__NUDGES__);
 check(`the shakes seen on the sheet (its tdTryNudge played ${nudges} times)`, nudges > 0);

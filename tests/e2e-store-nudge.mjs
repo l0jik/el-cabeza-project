@@ -1,7 +1,7 @@
 /* The store's idle nudge (themes/tienda-overlay.js): the story's first
    visit, the lid off and nothing tried for a while (30 s; shortened here
    by window.__EC_TEST_NUDGE_MS__), the dock's turning piece lights in the
-   Singularity's blue; opened, Try a Game lights until it's pressed.
+   Singularity's blue; opened, Try a Demo Game lights until it's pressed.
    Looking round doesn't count as doing something, and nor does a look in
    the dock (opened and shut, it still lights); only a game begun does.
    Once lit, the blue grows the longer it's left
@@ -44,7 +44,7 @@ async function open(ms, grow) {
   return { ctx, page, errs };
 }
 
-console.log("\nidle in the store: the piece, then Try a Game");
+console.log("\nidle in the store: the piece, then Try a Demo Game");
 {
   const { ctx, page, errs } = await open(2500);
   await page.waitForTimeout(3500);
@@ -57,7 +57,7 @@ console.log("\nidle in the store: the piece, then Try a Game");
   check("...in the blue halo", (await anim(page, "[data-dock-piece] canvas")) === "tdPieceHalo" && (await has(page, "tienda-dock-aura")));
   check("...starting small (it grows over a minute and a half)", (await page.evaluate(() => +document.querySelector('[data-testid="tienda-dock-aura"]').dataset.grow)) < 0.2);
   check("the dock opens from it", await openDockPanel(page));
-  check("...Try a Game is lit", (await anim(page, '[data-testid="tienda-try-game"]')) === "tdTryGlow" && /Try a Game/i.test(await q(page, "tienda-try-game").innerText()));
+  check("...Try a Demo Game is lit", (await anim(page, '[data-testid="tienda-try-game"]')) === "tdTryGlow" && /Try a Demo Game/i.test(await q(page, "tienda-try-game").innerText()));
   await q(page, "tienda-try-game").click();
   check("pressed: a game, and the nudge is gone", await poll(async () => (await has(page, "end-game")) && !(await nudging(page)) && !(await has(page, "tienda-dock-aura")), 10000));
   check("no page errors", errs.length === 0, errs.join(" | "));

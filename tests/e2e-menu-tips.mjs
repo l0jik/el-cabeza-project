@@ -187,7 +187,7 @@ console.log("The Monolith after a game (the user's picture)");
   await openDockPanel(page);
   const ai = page.locator('[data-opponent="ai-dark"]');
   if (await ai.count()) { await ai.first().click(); await page.waitForTimeout(400); }
-  await page.locator("button", { hasText: /Begin Game|Try a Game/i }).first().click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/i }).first().click();
   await page.mouse.move(1270, 400);
   await page.waitForTimeout(2500);
   await openDockPanel(page);

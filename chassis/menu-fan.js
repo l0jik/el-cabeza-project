@@ -143,7 +143,7 @@ const TIPS = {
    own page; action: does a thing; info: says something, nothing to
    press), disabled }, with the button each presses; and the line on top
    (whose move; after a game, how it ended) with, in play, who's who under
-   it (sub), and the one big button (Begin, the store's Try a Game; New
+   it (sub), and the one big button (Begin, the store's Try a Demo Game; New
    game). A
    button the panel holds back (a new player's first look, the computer
    thinking) is held back here. */
@@ -200,7 +200,7 @@ export function readDock(host, phase) {
   }
   if (phase === "setup") {
     const begin = one('[data-dock-role="begin"]');
-    // (The store's idle nudge lights its Try a Game, td-try-game:
+    // (The store's idle nudge lights its Try a Demo Game, td-try-game:
     // tienda-overlay.js; this one lit the same.)
     if (begin) primary = { label: words(begin), disabled: off(begin), lit: begin.classList.contains("td-try-game"), press: () => begin.click() };
     if (status) {
@@ -1479,7 +1479,7 @@ export function mountCalm(v, env) {
   const hold = (node) => node.addEventListener("pointerdown", (e) => e.stopPropagation());
   hold(primary);
   primary.addEventListener("click", () => go(data.primary, primary));
-  // The big button (Begin, the store's Try a Game, New game): the menu away
+  // The big button (Begin, the store's Try a Demo Game, New game): the menu away
   // and the game on; one held back nudges.
   function go(p, node) {
     if (!p || p.disabled) { flash(node, "ml-nudge", 380); return; }
@@ -2173,7 +2173,7 @@ const reduced = () => { try { return window.matchMedia("(prefers-reduced-motion:
 
 /* The world's colours and face on a menu's layer: the panel's paper and
    ink (host.colors), and the face, case and colours of its Begin (the
-   store's Try a Game wears the wood). */
+   store's Try a Demo Game wears the wood). */
 export function dress(layer, host) {
   const c = host.colors || {};
   const set = (k, v) => { if (v) layer.style.setProperty(k, v); };

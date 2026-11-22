@@ -39,7 +39,7 @@ for (const [name, opening, w] of PAGES) {
   if (opening) { await page.locator(opening).click({ timeout: 30000 }); await page.waitForTimeout(1500); }
   check("setup: the dock opens", await openDockPanel(page));
   check("setup: no end game or new game yet", !(await has(page, "end-game")) && !(await has(page, "new-game")));
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).first().click();
   const corner = await waitForDockCorner(page, { timeoutMs: 10000 });
   await reopenDockPanelFromCorner(page, corner);
   await page.waitForTimeout(400);

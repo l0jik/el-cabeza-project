@@ -69,7 +69,7 @@ const E2E = [
   ["e2e-hole-sets.mjs"],
   // A new player's first game in the store: walked through, once.
   ["e2e-first-game-tour.mjs"],
-  // ...and before it, the store's menu: only See the pieces and Try a Game.
+  // ...and before it, the store's menu: only See the pieces and Try a Demo Game.
   ["e2e-first-look.mjs"],
   // The store's slow pan at its opening; the set pulling the player in.
   ["e2e-store-pan.mjs"], ["e2e-tv-pull.mjs"],

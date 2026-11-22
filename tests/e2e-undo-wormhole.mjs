@@ -29,7 +29,7 @@ async function setup(laws) {
   await page.waitForTimeout(400);
   await openDockPanel(page);
   await page.waitForTimeout(600);
-  await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1500);
   return { page, errs };
 }
@@ -90,7 +90,7 @@ async function watchStray(page, ms) {
   await page.waitForTimeout(400);
   await openDockPanel(page);
   await page.waitForTimeout(600);
-  await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1500);
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-chato", "slide-E"));
   await page.waitForTimeout(1600);

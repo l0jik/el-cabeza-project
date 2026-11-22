@@ -147,7 +147,7 @@ for (const [name, url, seed, opts = {}] of WORLDS) {
   if (await page.locator('[data-testid="shell-begin"]').count()) await page.locator('[data-testid="shell-begin"]').first().click().catch(() => {});
   else {
     await openDockPanel(page).catch(() => {});
-    const b = page.locator('[data-testid="dock-panel"] button:text-matches("Begin Game|Try a Game")').first();
+    const b = page.locator('[data-testid="dock-panel"] button:text-matches("Begin Game|Try a Demo Game")').first();
     if (await b.count()) await b.click().catch(() => {});
   }
   for (let i = 0; i < 40 && !(await page.evaluate(() => window.__EC_TEST_ARMED__ === true)); i++) await page.waitForTimeout(250);

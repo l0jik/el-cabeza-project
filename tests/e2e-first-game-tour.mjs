@@ -14,7 +14,7 @@
    illustrate"; chassis/FirstGameTour.jsx).
 
    On a phone, from a fresh story: the computer on Easy playing Walnut and
-   you Ash, moving first, chosen already; Try a Game brings the cards at
+   you Ash, moving first, chosen already; Try a Demo Game brings the cards at
    the top, the board framed under them and what each names lit up: both
    sides ringed and labelled; the two ways to win, both Cabezas ringed and
    numbered; your Cabeza, the row you win on lit green and an arrow to it,
@@ -38,7 +38,7 @@
    row ringed and said in the menu's words; Next, the buttons along its
    foot, drawn on the card, one ring round them; Back; a tap outside puts
    it away (the piece's card again), Open it opens it; Got it, the menu put
-   away, the camera back, kept as done: Try a Game again brings no tour. On
+   away, the camera back, kept as done: Try a Demo Game again brings no tour. On
    a desktop: the card at the left, a mouse's words and a mouse's way round
    for the board; Skip the tour ends it, kept as done, and the game goes on
    as ever; the menu's cards in a mouse's words, the card beside the open
@@ -209,7 +209,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await openDockPanel(page);
   await page.waitForTimeout(600);
   const panel = await page.locator('[data-testid="dock-panel"]').innerText();
-  check("the store's menu opens on Easy picked, nothing to choose but Try a Game", /easy/i.test(panel) && (await page.locator('[data-ec-diff-back]').count()) === 1 && /ash to move/i.test(panel), panel.replace(/\s+/g, " ").slice(0, 160));
+  check("the store's menu opens on Easy picked, nothing to choose but Try a Demo Game", /easy/i.test(panel) && (await page.locator('[data-ec-diff-back]').count()) === 1 && /ash to move/i.test(panel), panel.replace(/\s+/g, " ").slice(0, 160));
   await page.locator('[data-testid="tienda-try-game"]').click({ force: true });
   for (let i = 0; i < 40 && !(await page.evaluate(() => window.__EC_TEST_ARMED__ === true)); i++) await page.waitForTimeout(250);
   await page.waitForTimeout(3000);
@@ -217,7 +217,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   // The welcome: both sides ringed and labelled, the board under the card.
   let t = await cardText(page);
   let tour = await tourOf(page);
-  check("Try a Game: the welcome card", tour.step === "welcome" && /Welcome to your first game of El Cabeza\./.test(t), t);
+  check("Try a Demo Game: the welcome card", tour.step === "welcome" && /Welcome to your first game of El Cabeza\./.test(t), t);
   check("...the year under it, as on the box", (await page.locator('[data-testid="tour-sub"]').innerText()).includes("© 1975"));
   check("...you're Ash, ringed in yellow; the computer Walnut, ringed in red", /You play Ash: the light pieces on your side, ringed in yellow\./.test(t) && /Your opponent, the computer, plays Walnut: the dark pieces across the board, ringed in red\./.test(t), t);
   let cardBox = await card(page).boundingBox();
@@ -650,9 +650,9 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const { ctx, page, errs } = await open(false);
   await begin(page);
   await page.waitForTimeout(1500);
-  check("Try a Game: the welcome card", (await tourOf(page)).step === "welcome");
+  check("Try a Demo Game: the welcome card", (await tourOf(page)).step === "welcome");
   const box = await card(page).boundingBox();
-  check("...at the left, the board beside it", !!box && box.x < 40 && Math.abs(box.width - 360) < 2, JSON.stringify(box));
+  check("...at the left, the board beside it", !!box && box.x < 40 && Math.abs(box.width - 400) < 2, JSON.stringify(box));
   for (let i = 0; i < 6; i++) { await page.locator('[data-testid="tour-next"]').click(); await page.waitForTimeout(150); }
   await page.waitForTimeout(600);
   const t = await cardText(page);
@@ -764,7 +764,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   console.log("\n[desktop: Escape]");
   const { ctx, page } = await open(false);
   await begin(page);
-  check("Try a Game: the welcome card", (await tourOf(page)).step === "welcome");
+  check("Try a Demo Game: the welcome card", (await tourOf(page)).step === "welcome");
   // With reduced motion, the arrow to the row on the goal card, 3 of 8, the
   // one it's on (user: "That should only be on the following slide, 3 of
   // 8."), drawn at once, the Cabeza not shown big first; its head stepping
@@ -870,7 +870,7 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   await page.waitForTimeout(3500);
   await begin(page);
   let p = await picOf(page);
-  check("Try a Game: the welcome card in pictures, held still", (await card(page).getAttribute("data-mode")) === "pictures" && !!p && p.picture === "welcome" && p.moving === 0, JSON.stringify(p));
+  check("Try a Demo Game: the welcome card in pictures, held still", (await card(page).getAttribute("data-mode")) === "pictures" && !!p && p.picture === "welcome" && p.moving === 0, JSON.stringify(p));
   for (let i = 0; i < 6; i++) { await page.locator('[data-testid="tour-next"]').click(); await page.waitForTimeout(250); }
   await page.waitForTimeout(600);
   p = await picOf(page);

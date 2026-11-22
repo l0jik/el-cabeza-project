@@ -30,7 +30,7 @@ async function play(opp) {
   await openDockPanel(page);
   await page.locator(opp === "human" ? '[data-opponent="human"]' : '[data-opponent="ai-dark"]').first().click();
   await page.waitForTimeout(300);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).first().click();
   await page.waitForTimeout(2500);
   if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open").catch(() => null)) === "true") { await page.mouse.click(640, 790); await page.waitForTimeout(500); }
   const S = () => page.evaluate(() => ({

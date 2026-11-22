@@ -89,7 +89,7 @@ async function open({ phone = false, guide = true, whyNot = null, lang = null, p
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), pieces);
   await page.waitForTimeout(400);
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game|Empezar partida|Probar una partida/ }).first().click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game|Empezar partida|Probar una partida/ }).first().click();
   await page.waitForTimeout(2500);
   // Pink opens: steps of its Turrito (its whole turn), and it's yellow's turn.
   for (const d of opening) { await page.evaluate((d) => window.__EC_TEST_MOVE__("dark-turrito", d), d); await page.waitForTimeout(1600); }

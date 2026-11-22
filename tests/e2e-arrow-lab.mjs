@@ -44,7 +44,7 @@ async function begin(query = "") {
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), POSITION);
   await page.waitForTimeout(300);
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1200);
   const from = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-chato"));
   const east = await page.evaluate(() => { const a = window.__EC_TEST_CUBE_POS__(4, 3), b = window.__EC_TEST_CUBE_POS__(4, 4); return { x: (b.x - a.x) * 1.5, y: (b.y - a.y) * 1.5 }; });

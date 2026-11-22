@@ -21,7 +21,7 @@ async function play(laws) {
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-standard.html");
   await page.waitForTimeout(1500);
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).first().click();
   await page.waitForTimeout(1500);
   const state = () => page.evaluate(() => ({ pieces: window.__EC_TEST_PIECES__.map((p) => ({ id: p.id, owner: p.owner, type: p.type, row: p.row, col: p.col })), log: (window.__EC_TEST_TURNS__ || []).length }));
   // Dark moves first: three different block pieces, one roll each.

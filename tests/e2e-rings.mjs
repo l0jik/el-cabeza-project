@@ -15,8 +15,8 @@
    first, at the list's edge (Leave game under it, in Nova).
 
    On a phone in the store: before a game the half ring round the piece,
-   Try a Game over it; the opponent's card (its levels with it); Online
-   opens the panel; More, every setting in one list; Try a Game begins. In
+   Try a Demo Game over it; the opponent's card (its levels with it); Online
+   opens the panel; More, every setting in one list; Try a Demo Game begins. In
    play (B): the corner fan out of the corner piece, which stays in its
    corner, the board in view; a touch held on it; View's card; End game
    from More, asked first. After the game: the call answered, New game over
@@ -178,7 +178,7 @@ console.log("The store, on a phone: Calm Rings is the menu");
   let m = await openMenu(page);
   check("a tap on the piece: the calm menu out round it at once, not the panel", !!soon && !!m && m.fan === "calm" && m.version === "4.6" && m.phase === "setup" && !(await panelOpen(page)), JSON.stringify(m));
   check("...five wedges in their places: More at the left end, Opponent at the top, First move and Starting position beside it, See the pieces", !!m && m.keys.join() === "more,start,opponent,first,pieces" && Math.abs(m.at.opponent + 90) < 0.5, JSON.stringify(m && [m.keys, m.at]));
-  check("...Try a Game over it; nothing said in a line before a game", !!m && /try a game/i.test(m.primary || "") && m.status === "", JSON.stringify(m));
+  check("...Try a Demo Game over it; nothing said in a line before a game", !!m && /try a demo game/i.test(m.primary || "") && m.status === "", JSON.stringify(m));
   let l = await looks(page);
   check(`...its words straight, in sentence case, 14 px names and 12 px values, inside their wedges${l && l.bad.length ? ` (${l.bad.join("; ")})` : ""}`, !!l && !l.bad.length, JSON.stringify(l));
   check("...every button 44 px or more; its motion under 0.2 s", !!l && !l.small.length && l.motion <= 0.2, JSON.stringify(l));
@@ -272,7 +272,7 @@ console.log("The store, on a phone: Calm Rings is the menu");
   await openMenu(page);
   await tapIn(page, '[data-testid="menu-fan-primary"]');
   const corner = await waitForDockCorner(page, { timeoutMs: 15000 });
-  check("Try a Game from it: the game begun, the piece in its corner, the menu away", !!corner && !(await menu(page)) && (await page.evaluate(() => document.querySelector("[data-dock-piece]").style.left === "calc(100% - 108px)")), JSON.stringify(corner));
+  check("Try a Demo Game from it: the game begun, the piece in its corner, the menu away", !!corner && !(await menu(page)) && (await page.evaluate(() => document.querySelector("[data-dock-piece]").style.left === "calc(100% - 108px)")), JSON.stringify(corner));
   await page.waitForTimeout(1500);
   // In play: the corner fan, out of the corner piece; a touch held on it.
   const cdp = await ctx.newCDPSession(page);
@@ -364,7 +364,7 @@ console.log("A new player's first look");
   const { ctx, page, errs } = await store({ toured: false });
   const m = await openMenu(page);
   const held = (k) => page.evaluate((k) => { const n = document.querySelector(`[data-testid="dock-menu"] g[data-ml-item="${k}"]`); return n ? n.getAttribute("aria-disabled") === "true" : null; }, k);
-  check("the menu out, Try a Game and See the pieces pressable", !!m && (await held("pieces")) === false && /try a game/i.test(m.primary || ""), JSON.stringify(m));
+  check("the menu out, Try a Demo Game and See the pieces pressable", !!m && (await held("pieces")) === false && /try a demo game/i.test(m.primary || ""), JSON.stringify(m));
   // Who to play held back as the panel holds it back: a tap says so,
   // nothing changes (or, its card out, the level's buttons held back).
   await tapWedge(page, "opponent");

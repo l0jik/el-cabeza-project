@@ -109,7 +109,7 @@ await world("tienda", "tienda");
   const before = await programs();
   await openDockPanel(page);
   await page.waitForTimeout(600);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click({ force: true });
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).first().click({ force: true });
   for (let i = 0; i < 40 && !(await page.evaluate(() => window.__EC_TEST_ARMED__ === true)); i++) await page.waitForTimeout(250);
   await page.waitForTimeout(2000);
   const side = await page.evaluate(() => window.__EC_TEST_TO_MOVE__());

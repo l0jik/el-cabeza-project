@@ -84,7 +84,7 @@ const BODONI = "'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif";
 let lidDone = false;
 /* The story's first visit to the store: the lid off and nothing tried
    for a while (looking round doesn't count), the dock's turning piece
-   lights in the Singularity's blue, then, once it's opened, Try a Game
+   lights in the Singularity's blue, then, once it's opened, Try a Demo Game
    does, until it's pressed (user). Once a story.
    A look in the dock doesn't count as trying it either (user: they tapped
    it once, went back out to look round, and it never lit): only a game
@@ -104,11 +104,11 @@ function noteHeld() {
   return !!(el && el.dataset.since && performance.now() - Number(el.dataset.since) < NOTE_HOLD_MS);
 }
 /* The "Try it!" card on the table (user: a tap on it, and the store says
-   so in a friendly way, then takes you to the menu with Try a Game lit):
+   so in a friendly way, then takes you to the menu with Try a Demo Game lit):
    the store's flyer, deaf to taps for its first five seconds (user:
    "Ignore taps for the first five seconds"), then up until it's
    tapped (user: "it doesn't automatically pop down. You have to click on
-   it in order to dismiss it"), and the tap goes on to the menu, Try a Game
+   it in order to dismiss it"), and the tap goes on to the menu, Try a Demo Game
    lit. A tap beside it doesn't reach the store behind: the flyer gives a
    little shake instead, and its "Let's play" calls once it's free. Until
    then, a tap on it shakes it too, with no flash of the browser's blue
@@ -575,7 +575,7 @@ export function useSetupExtras(x) {
      off and nothing's open over the table (the dock open or shut alike),
      keeping what it had counted through any pause; only a game begun
      means it isn't needed. Once lit, it stays (and grows) until a game
-     begins: on the piece while the dock is shut, on Try a Game while it's
+     begins: on the piece while the dock is shut, on Try a Demo Game while it's
      open (and on the phone bar's button). */
   const [idleNudge, setIdleNudge] = React.useState(false);
   const nudgeHere = store && arrival.current !== "cut" && !(story.after && story.after()) && !(story.realities && story.realities());
@@ -594,7 +594,7 @@ export function useSetupExtras(x) {
     if (idleNudge && !x.awaitingBegin) { idleNudgeDone = true; setIdleNudge(false); }
   }, [idleNudge, x.awaitingBegin]);
   // The "Try it!" card's tap (tienda-fx.js): the store's word, then the
-  // menu open (as the piece's tap opens it), Try a Game lit.
+  // menu open (as the piece's tap opens it), Try a Demo Game lit.
   /* The store's opening view (tienda-fx.js OPENING_VIEW): told when the
      lid's off, and whether anything's open over the store, so the camera
      only glides back to the table when the player's simply been still. */

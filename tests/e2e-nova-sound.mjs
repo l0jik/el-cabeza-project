@@ -31,7 +31,7 @@ async function waitFor(fn, ms = 8000) {
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-futuris.html");
   await page.waitForTimeout(1500);
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(3500);
   await openDockPanel(page).catch(() => {});
   await q(page, "sound-button").click();

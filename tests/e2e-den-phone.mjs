@@ -79,7 +79,7 @@ async function begin(page) {
   if (await page.locator('[data-testid="shell-begin"]').count()) await page.locator('[data-testid="shell-begin"]').first().click().catch(() => {});
   else {
     await openDockPanel(page).catch(() => {});
-    const b = page.locator('[data-testid="dock-panel"] button:text-matches("Begin Game|Try a Game")').first();
+    const b = page.locator('[data-testid="dock-panel"] button:text-matches("Begin Game|Try a Demo Game")').first();
     if (await b.count()) await b.click().catch(() => {});
   }
   return !!(await poll(page, () => page.evaluate(() => window.__EC_TEST_ARMED__ === true), 15000));

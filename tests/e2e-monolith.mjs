@@ -267,7 +267,7 @@ console.log("the page");
   // ---- a game: the recordings, and the stones' weight in their sound
   await page.mouse.click(5, 400); // (a gesture)
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).first().click();
   await page.mouse.move(1096, 380);
   await page.waitForTimeout(2200);
   if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true") { await page.mouse.click(550, 756); await page.waitForTimeout(500); }

@@ -67,7 +67,7 @@ async function desktop(world) {
   if (await human.count()) { await human.click(); await page.waitForTimeout(300); }
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), POSITION);
   await page.waitForTimeout(300);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).first().click();
   await page.mouse.move(4, 430);
   await page.waitForTimeout(1500);
   if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true") { await page.mouse.click(4, 430); await page.waitForTimeout(400); }

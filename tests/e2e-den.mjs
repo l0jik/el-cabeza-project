@@ -71,7 +71,7 @@ async function waitFor(fn, ms = 8000) {
   check(`the whole room is a few dozen draw calls (${s.meshes})`, s.meshes > 20 && s.meshes < 196, String(s.meshes));
 
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(2000);
   const pieces = await page.evaluate(() => {
     const ps = window.__DEN_THREE__.pieceGroup.children.filter((c) => c.userData.kind === "piece");
@@ -166,7 +166,7 @@ async function waitFor(fn, ms = 8000) {
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-standard.html");
   await waitFor(() => page.evaluate(() => !!window.__DEN_ROOM__ && !!window.__DEN_THREE__));
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1500);
   // A tap on the turntable, in the room, opens the panel (once the camera
   // has settled where the test put it: the software renderer is slow).
@@ -238,7 +238,7 @@ async function waitFor(fn, ms = 8000) {
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-standard.html");
   await waitFor(() => page.evaluate(() => !!window.__DEN_ROOM__ && !!window.__DEN_THREE__));
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1500);
   await openDockPanel(page);
   await q(page, "sound-button").click();
@@ -289,7 +289,7 @@ async function waitFor(fn, ms = 8000) {
   await waitFor(() => page.evaluate(() => !!window.__DEN_ROOM__ && !!window.__DEN_THREE__));
   // A game under way, the title out of the way (as the stereo test above).
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1500);
   await page.evaluate(() => window.__EC_TEST_CAM__({ theta: Math.PI, phi: 1.28, radius: 50 }));
   const discAt = () => page.evaluate(() => {
@@ -459,7 +459,7 @@ async function waitFor(fn, ms = 8000) {
   check("Escape leaves it", await settled(false));
   // The dock's switch (with the camera views, once a game is under way).
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1500);
   await openDockPanel(page);
   const sw = q(page, "focus-switch");

@@ -121,7 +121,7 @@ in; leaving Singularity, back in the den as the set switches off.
   first, the moves or the clock.
 - **The first game in the store** (2026-10-17): a new player is Ash and
   opens, against the computer as Walnut on Easy (tienda.js
-  defaultOpponent), and their first Try a Game is walked through
+  defaultOpponent), and their first Try a Demo Game is walked through
   (chassis/FirstGameTour.jsx, tienda.js firstGameTour: the story's store
   before the game's bought; once a device, `el-cabeza:first-game-tour`).
   Since 2026-10-18 each card lights up what it speaks of (rings on the
@@ -137,7 +137,7 @@ in; leaving Singularity, back in the den as the set switches off.
 - **The store's menu at first** (2026-10-19; user: "For a first-time
   player on a new game, the only buttons that can be pressed if they hit
   the 3D rotating piece menu is the ones that are circled in red", See
-  the pieces and Try a Game): until the walkthrough's done (TOUR_KEY),
+  the pieces and Try a Demo Game): until the walkthrough's done (TOUR_KEY),
   the dock's setup is that first game's, the rest of the panel faded and
   not to be pressed (the chassis's firstLook; the bar's setup too); and
   the catalog's page (See the pieces) has no Purchase and bring home

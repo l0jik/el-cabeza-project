@@ -38,7 +38,7 @@ async function game(pieces) {
   if (await human.count()) { await human.click(); await page.waitForTimeout(300); }
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), pieces);
   await page.waitForTimeout(300);
-  await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Game/ }).first().click({ force: true });
+  await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Demo Game/ }).first().click({ force: true });
   await page.waitForTimeout(2500);
   // A player's tilted view (the test's own is straight down).
   const cam = await page.evaluate(() => window.__EC_TEST_CAM__());

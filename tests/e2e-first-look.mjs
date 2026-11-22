@@ -1,17 +1,17 @@
 /* A new player's first look at the store's menu (user, 2026-10-19, with a
-   screenshot of the dock's panel, See the pieces and Try a Game circled in
+   screenshot of the dock's panel, See the pieces and Try a Demo Game circled in
    red: "For a first-time player on a new game, the only buttons that can
    be pressed if they hit the 3D rotating piece menu is the ones that are
    circled in red"; chassis/ElCabeza3D.jsx firstLook).
 
    On a phone, from a fresh story: the dock's menu opens with See the
-   pieces and Try a Game at full strength; everything else in it (the
+   pieces and Try a Demo Game at full strength; everything else in it (the
    opponent and the difficulty, the check alert, the start, the cart, the
    footer's links and corner switches, the side to move first) is in
    sight, faded, and taps on it change nothing. See the pieces opens the
    catalog, with no Purchase and bring home in it yet (user: "should not be
    available unless they have already gone through the tutorial and played
-   the game a little bit first"). Try a Game begins the walkthrough; skipped, and the game
+   the game a little bit first"). Try a Demo Game begins the walkthrough; skipped, and the game
    ended, New Game's setup is the whole menu again. On a desktop the same,
    by mouse. With the phone's control bar, its setup holds back the same.
    A player whose first game's been walked through has the whole menu.
@@ -96,7 +96,7 @@ async function lockedMenu(page, phone, label) {
   // is done, not at a fixed time after.)
   await waitForPanelSettled(page);
   check("...a new player's first look", (await page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.firstLook)) === "true");
-  for (const [name, id] of [["See the pieces", "tienda-order-form"], ["Try a Game", "tienda-try-game"]]) {
+  for (const [name, id] of [["See the pieces", "tienda-order-form"], ["Try a Demo Game", "tienda-try-game"]]) {
     const l = await look(page, `[data-testid="${id}"]`);
     check(`...${name}: pressable, at full strength`, !!l && !l.disabled && l.opacity > 0.95 && l.takesTaps, JSON.stringify(l));
   }
@@ -151,11 +151,11 @@ console.log("\nphone: a new player's first look at the store's menu");
   await q(page, "tienda-catalog-close").tap();
   await poll(async () => !(await has(page, "tienda-catalog")), 8000);
 
-  // Try a Game: the walkthrough, skipped; then the game ended.
+  // Try a Demo Game: the walkthrough, skipped; then the game ended.
   check("the menu opens again", await openDockPanel(page));
   await page.waitForTimeout(600);
   await q(page, "tienda-try-game").tap();
-  check("Try a Game: the walkthrough's welcome", await poll(async () => (await has(page, "tour-card")) && /Welcome to your first game/.test(await q(page, "tour-card").innerText()), 12000));
+  check("Try a Demo Game: the walkthrough's welcome", await poll(async () => (await has(page, "tour-card")) && /Welcome to your first game/.test(await q(page, "tour-card").innerText()), 12000));
   await q(page, "tour-skip").tap();
   await poll(async () => !(await has(page, "tour-card")), 5000);
   check("...skipped, kept as done", (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
@@ -211,8 +211,8 @@ console.log("\nphone with the control bar: its setup holds back the same");
     };
   });
   check(`...the setup held back (${JSON.stringify(state)})`, state.firstMove && state.opponent && state.aiSide && state.level && state.checkAlert && state.start && state.purchase === false);
-  check("...See the pieces and Try a Game pressable", state.see === true && state.begin === true);
-  check("...Try a Game says so", /Try a Game/i.test(await q(page, "shell-begin").innerText()));
+  check("...See the pieces and Try a Demo Game pressable", state.see === true && state.begin === true);
+  check("...Try a Demo Game says so", /Try a Demo Game/i.test(await q(page, "shell-begin").innerText()));
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

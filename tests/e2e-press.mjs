@@ -47,7 +47,7 @@ for (const world of ["futuris", "ciudad", "lab.html?theme=destijl"]) {
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);
   await page.waitForTimeout(300);
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).first().click();
   await page.waitForTimeout(1500);
   const a = await drawn(page);
   check("both drawn", !!(a.dark && a.light), JSON.stringify(a));

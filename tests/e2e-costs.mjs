@@ -44,7 +44,7 @@ for (const theme of ["futuris", "standard"]) {
   await openDockPanel(page);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);
   await page.waitForTimeout(300);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.mouse.move(4, 450);
   await page.waitForTimeout(1500);
   if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true") {
@@ -111,7 +111,7 @@ for (const theme of ["futuris", "standard"]) {
   await openDockPanel(page);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);
   await page.waitForTimeout(300);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.mouse.move(4, 450);
   await page.waitForTimeout(1500);
   if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true") {
@@ -182,7 +182,7 @@ for (const theme of ["futuris", "standard"]) {
   await openDockPanel(page);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);
   await page.waitForTimeout(300);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.mouse.move(4, 450);
   await page.waitForTimeout(1500);
   if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true") { await page.mouse.click(4, 450); await page.waitForTimeout(400); }

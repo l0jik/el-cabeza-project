@@ -457,6 +457,29 @@ box art and an ad standee (assets/tienda/*.jpg).
   picture with nothing to read but the two ways' numbers, the dots, the
   buttons, the labels, a lesson, words again; ?fresh&tour=pictures on a
   desktop, held still with reduced motion.
+- **The walkthrough's words bigger** (2026-11-22; user: "On the
+  tutorial, the words need to be bigger on the screen"): FirstGameTour.jsx
+  TYPE, about a fifth up (the body 13/14 px to 16/17, a phone's and a
+  wider screen's; titles 20/22, the welcome's 23/26; the band 11.5, the
+  rows' names 11, the buttons 13.5, Skip 14.5; the board's labels 12.5);
+  the card wider where there's room (TOUR_CARD_W: 500 at most at the top,
+  was 440; 400 at the left of a screen 900+ wide, was 360), so it isn't
+  much taller. The store's print (tienda.js) to match: its red band 12 px
+  (was 10), its labels 12.5 (10.5), its Back 12.5 (10.5), the card's
+  padding 14/17/13. The words/pictures switch sits beside the title (the
+  band left whole: the store prints it across the card's head).
+- **Try a Demo Game** (2026-11-22; user: "when it first opens and
+  there's the wooden button, the pill-shaped button says try a game,
+  change it to try a demo game"): tienda.js beginLabel; es "Probar una
+  partida demo", vi "Chơi thử một ván demo"; the tests that find the
+  button by its words, /Begin Game|Try a Demo Game/.
+- **The closing announcement names the game** (2026-11-22; user: "It says
+  take it to the register. Change the word it to your new El Cabezon game
+  to the register"; El Cabeza, the game's name): the PA's line under the
+  closing words (and each later one's, five minutes down to two), tienda-shopping.js,
+  "Take your new El Cabeza game to the register ›" (was "Take it to the
+  register ›"); es "Llevá tu nuevo juego El Cabeza a la caja ›", vi "Mang
+  trò chơi El Cabeza mới của bạn ra quầy thu ngân ›".
 - **The lights' thought** (2026-10-21; user: "When the lights get turned
   down while you're at the store, when you're first playing the game for
   a new user or new player, maybe a thought bubble should come up saying,
@@ -542,7 +565,7 @@ box art and an ad standee (assets/tienda/*.jpg).
   (a tap fills the cart or checks out), Big Glutts' closing notice, and
   the cart at the top left. The walkthrough's card keeps below the cart
   if one's up (tienda.js FIRST_GAME_TOUR clear ".td-shop"; the in-stock
-  PA can fill it before Try a Game), otherwise it sits at the top (12 px
+  PA can fill it before Try a Demo Game), otherwise it sits at the top (12 px
   on a phone). Tests: e2e-story (no tag in a game; Put one in the cart
   from the dock after New Game, then Check out), e2e-store-nudge (a game
   is on: end-game, not the tag).
@@ -610,7 +633,7 @@ box art and an ad standee (assets/tienda/*.jpg).
   Let's play!" stuck on the bottom corner, wiggling now and then; D, a
   full-width red bar in the 3 DAYS ONLY! sticker's style, breathing,
   a shine over it; E, the order form's pointing hand (Noto Sans Symbols
-  2) poking at it; F, the store's own blue tap-me glow (Try a Game's)
+  2) poking at it; F, the store's own blue tap-me glow (Try a Demo Game's)
   round it as a pill. https://claude.ai/artifact/NyehatFyneA1yEWqN8Ruf4
   (scratchpad flyer-go/page). The user: "Let's go with A, circled in red
   pen, but make the circle a bit messier and have it redraw the line

@@ -371,7 +371,7 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, awaiting
       }
     },
     /* The "Try it!" card on the table takes a tap (user): the store's own
-       word on it, then the menu, Try a Game lit (tienda-overlay.js, on
+       word on it, then the menu, Try a Demo Game lit (tienda-overlay.js, on
        TRY_IT_EVENT). */
     pickScene(raycaster) {
       if (!table || !table.tent || !table.tent.length || !table.tent[0].visible) return null;

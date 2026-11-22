@@ -70,7 +70,7 @@ for (const [name, page0, quiet, hasSlide, counted, computer] of WORLDS) {
   if (await human.count()) { await human.click(); await page.waitForTimeout(300); }
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), POSITION);
   await page.waitForTimeout(300);
-  await page.locator('[data-testid="dock-panel"] button', { hasText: /begin|try a game/i }).first().click();
+  await page.locator('[data-testid="dock-panel"] button', { hasText: /begin|try a demo game/i }).first().click();
   await page.waitForTimeout(2000);
   await page.evaluate(() => { window.__EC_TEST_MOVE_SOUNDS__.length = 0; window.__EC_TEST_LANDINGS__.length = 0; });
 

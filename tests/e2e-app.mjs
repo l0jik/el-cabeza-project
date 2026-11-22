@@ -151,7 +151,7 @@ const usedLine = (t) => `${t.faces} faces, all loaded; drawing with ${t.used.sli
 async function cornerFonts(page, world) {
   await page.goto(base + world);
   await page.waitForTimeout(2500);
-  if (await openDockPanel(page)) { await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click().catch(() => {}); }
+  if (await openDockPanel(page)) { await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).first().click().catch(() => {}); }
   return poll(() => page.evaluate(() => { const l = document.querySelector('link[id^="cm-fonts-"]'); return l ? l.getAttribute("href") : null; }), 15000);
 }
 

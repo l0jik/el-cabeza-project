@@ -35,7 +35,7 @@ async function run(theme) {
     await page.waitForTimeout(5000);
   }
   await openDockPanel(page);
-  await page.locator('[data-testid="dock-panel"] button', { hasText: /begin|try a game/i }).first().click(); // (the store's says Try a Game)
+  await page.locator('[data-testid="dock-panel"] button', { hasText: /begin|try a demo game/i }).first().click(); // (the store's says Try a Demo Game)
   await page.waitForTimeout(theme === "tienda" ? 4000 : 2000);
   // The side to move rolls its Flaco toward the other (the store's new
   // player is Ash and moves first; elsewhere Walnut opens).

@@ -168,8 +168,8 @@ console.log("\ndesktop: the store, the purchase, home");
 
   // A game in the store: the classic game, and the slip sells it too.
   check("the dock's panel opens again", await openDockPanel(page));
-  check("...where the game is only tried: Try a Game", (await page.locator('[data-testid="dock-panel"] button', { hasText: "Try a Game" }).count()) === 1 && (await page.locator('[data-testid="dock-panel"] button', { hasText: "Begin Game" }).count()) === 0);
-  await page.locator('[data-testid="dock-panel"] button', { hasText: "Try a Game" }).first().click();
+  check("...where the game is only tried: Try a Demo Game", (await page.locator('[data-testid="dock-panel"] button', { hasText: "Try a Demo Game" }).count()) === 1 && (await page.locator('[data-testid="dock-panel"] button', { hasText: "Begin Game" }).count()) === 0);
+  await page.locator('[data-testid="dock-panel"] button', { hasText: "Try a Demo Game" }).first().click();
   // (A new player's first game is walked through, chassis/FirstGameTour.jsx:
   // its welcome comes up, skipped here; e2e-first-game-tour goes through it.)
   check("a new player's first game: the tour's welcome", await poll(async () => (await has(page, "tour-card")) && /Welcome to your first game/.test(await q(page, "tour-card").innerText()), 10000));

@@ -3627,7 +3627,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     // the den's order paper, tienda-overlay.js).
     resetToSetup: () => handleReset(),
     // Which of the dock's views is showing ("piece" | "panel" | "corner"),
-    // read only (Tienda's store nudges toward the piece, then Try a Game).
+    // read only (Tienda's store nudges toward the piece, then Try a Demo Game).
     dockView,
     // Opens the dock's menu as a tap on its piece does (the store's "Try
     // it!" card); nothing with the phone's bar, whose menu is its own.
@@ -3691,7 +3691,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
   /* A new player's first look at the dock's menu (user, 2026-10-19: "For
      a first-time player on a new game, the only buttons that can be
      pressed if they hit the 3D rotating piece menu is the ones that are
-     circled in red": See the pieces and Try a Game). While the first game
+     circled in red": See the pieces and Try a Demo Game). While the first game
      a world walks through is still to come (tourOffer, TOUR_KEY), its
      setup is the one that game is played with: the rest of the menu (the
      opponent, the check alert, the start, the cart, the footer's links
@@ -3712,7 +3712,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
   const cornerRaw = cornerShown ? (typeof theme.cornerMenu === "function" ? theme.cornerMenu(setupExtras || {}) : theme.cornerMenu) : null;
   const cornerMenu = cornerRaw ? (typeof cornerRaw === "string" ? { look: cornerRaw } : cornerRaw) : null;
   // The Begin Game button's words, which a theme may change for where the
-  // game is (Tienda's store: "Try a Game", it isn't bought yet).
+  // game is (Tienda's store: "Try a Demo Game", it isn't bought yet).
   const beginLabel = (theme.beginLabel && theme.beginLabel(setupExtras)) || "Begin Game";
   /* The dock's words, which a theme may say in its own voice (user: each
      menu with its own evocations), by the moment: in play the views and

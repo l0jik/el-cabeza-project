@@ -69,7 +69,7 @@ const iconOf = (it) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 /* ------------------------------------------------------ the panel, read */
 
 /* What the panel offers right now, each with the button it presses:
-   play (Begin Game, or the world's own: the store's Try a Game), level
+   play (Begin Game, or the world's own: the store's Try a Demo Game), level
    (Easy, Medium, Hard; or, with no computer picked, who to play),
    pieces (the store's See the pieces or Custom rules; a world's other
    buttons beside Begin come after it), cart (the store's), start
@@ -813,7 +813,7 @@ export function installMenuLab(host) {
       const g0 = svgEl("g", { class: "ml-wedges-shadow" });
       svg.append(g0);
       m.layer.append(svg);
-      // (Try a Game's wedge in its wood, as the button is.)
+      // (Try a Demo Game's wedge in its wood, as the button is.)
       const img = m.layer.style.getPropertyValue("--ml-pimg");
       const url = img && (img.match(/url\(["']?(.*?)["']?\)/) || [])[1];
       const wood = url ? `ml-wood-${++seq}` : null;

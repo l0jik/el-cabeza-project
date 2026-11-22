@@ -9,7 +9,7 @@
    panel's do: a level chosen from Speed dial's choices, Just three's level
    moved on by a tap, the cart filled with the Ring kept out, the start and
    then the panel from Two steps' second step, the catalog from Pill row,
-   the panel from Crown's More, and the game begun from Thumb's Try a Game.
+   the panel from Crown's More, and the game begun from Thumb's Try a Demo Game.
    A new player's first look holds back here what the panel holds back. In
    another world on a desktop, by mouse: who to play, then the levels once
    the computer's picked; Escape puts the menu away; the bar's ✕ leaves the
@@ -247,13 +247,13 @@ console.log("The store, on a phone: the buttons at work");
   await poll(async () => !(await panelOpen(page)), 4000, 100);
   await page.waitForTimeout(800);
 
-  // Thumb: Try a Game begins the game.
+  // Thumb: Try a Demo Game begins the game.
   await pick(page, 10);
   await openMenu(page);
   await settled(page);
   check("Thumb: the piece moved into the corner while it's out", await page.evaluate(() => /translate\(calc\(-50% \+ \d/.test(document.querySelector("[data-dock-piece]").style.transform)));
   await tapItem(page, "play");
-  check("...Try a Game begins the game (the piece to its corner)", await poll(() => page.evaluate(() => document.querySelector("[data-dock-piece]").style.left === "calc(100% - 108px)"), 8000, 100));
+  check("...Try a Demo Game begins the game (the piece to its corner)", await poll(() => page.evaluate(() => document.querySelector("[data-dock-piece]").style.left === "calc(100% - 108px)"), 8000, 100));
   check("...the menu away", !(await isOpen(page)));
   check("...the bar says the menu's for before a game", await poll(() => page.evaluate(() => /Before a game/.test(document.querySelector('[data-testid="menu-lab-about"]').textContent)), 3000, 100));
   check("no page errors", !errs.length, errs.slice(0, 3).join(" | "));
@@ -336,7 +336,7 @@ console.log("The fans, on a phone in the store: every setting, turned");
     check(`${n} ${id}: a tap on the piece brings the fan out`, !!f && f.id === id && f.phase === "setup");
     if (!f) continue;
     check(`${n}: every setting the panel has before a game, and no Move costs`, SETUP.every((k) => f.keys.includes(k)) && !f.keys.includes("costs"), f.keys.join());
-    check(`${n}: Try a Game above it`, /try a game/i.test(f.primary || ""), f.primary);
+    check(`${n}: Try a Demo Game above it`, /try a demo game/i.test(f.primary || ""), f.primary);
     const shown = f.slots.filter((s) => s.op > 0.9);
     const off = shown.filter((s) => s.x < 0 || s.x > W || s.y < 0 || s.y > H);
     check(`${n}: those showing on the screen (${shown.map((s) => s.key).join()})`, shown.length >= 3 && !off.length, off.map((s) => s.key).join());
@@ -437,13 +437,13 @@ console.log("The fans at work: before a game, in play, after it");
   await poll(() => page.evaluate(() => !document.querySelector('[data-testid="tienda-catalog"]')), 6000, 100);
   await page.waitForTimeout(800);
 
-  // Corner: the piece in the corner, Try a Game begins the game.
+  // Corner: the piece in the corner, Try a Demo Game begins the game.
   await pick(page, "4.5");
   await openMenu(page);
   await fanStill(page);
   check("Corner: the piece moved into the corner while it's out", await page.evaluate(() => /translate\(calc\(-50% \+ \d/.test(document.querySelector("[data-dock-piece]").style.transform)));
   await page.locator('[data-testid="menu-fan-primary"]').tap();
-  check("...Try a Game begins the game (the piece to its corner)", !!(await poll(() => page.evaluate(() => document.querySelector("[data-dock-piece]").style.left === "calc(100% - 108px)"), 8000, 100)));
+  check("...Try a Demo Game begins the game (the piece to its corner)", !!(await poll(() => page.evaluate(() => document.querySelector("[data-dock-piece]").style.left === "calc(100% - 108px)"), 8000, 100)));
   check("...the fan away", !(await isOpen(page)));
   await page.waitForTimeout(2500);
 
@@ -481,7 +481,7 @@ console.log("A new player's first look");
   await openMenu(page);
   const items = await settled(page);
   const held = (k) => (items.find((i) => i.key === k) || {}).held;
-  check("Try a Game and See the pieces pressable", held("play") === false && held("pieces") === false);
+  check("Try a Demo Game and See the pieces pressable", held("play") === false && held("pieces") === false);
   check("the level and the cart held back, as in the panel", held("level") === true && held("cart") === true);
   await tapItem(page, "level");
   await page.waitForTimeout(600);

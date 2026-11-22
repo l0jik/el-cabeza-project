@@ -89,7 +89,7 @@ console.log("a game played, ended and copied");
 await openDockPanel(page);
 check("the setup offers Replay a game", await page.locator('[data-testid="replay-link"]').isVisible());
 // (Out of the panel's flow: Begin Game where it always was.)
-await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click();
+await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).first().click();
 await page.waitForTimeout(1500);
 const state = () => page.evaluate(() => ({ pieces: window.__EC_TEST_PIECES__.map((p) => ({ ...p })), turns: window.__EC_TEST_TURNS__ || [] }));
 const plan = planGame(5, LAWS, 8);

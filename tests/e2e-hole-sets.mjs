@@ -30,7 +30,7 @@ async function setup(laws, pieces) {
   await page.waitForTimeout(400);
   await openDockPanel(page);
   await page.waitForTimeout(600);
-  await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1500);
   return { page, errs };
 }
@@ -142,7 +142,7 @@ const tapPiece = async (page, id) => {
   await page.waitForTimeout(400);
   await openDockPanel(page);
   await page.waitForTimeout(600);
-  await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1500);
   await tapPiece(page, "dark-cabeza");
   let m = await markers(page);

@@ -142,7 +142,7 @@ shut, so the lift's tap is skipped when the hold opened it (dockHeldRef).
 Online's page in the panel (picked from Rings, then put away): Rings'
 Opponent says Online and its other choices press Back first (twice from
 the join page); with a game hosted or joined they're held, Leave being
-the page's own. The store's idle nudge lights Rings' Try a Game
+the page's own. The store's idle nudge lights Rings' Try a Demo Game
 (td-try-game) as it lights the panel's. In other languages: a kind's
 name longer than its piece of the inner ring (Spanish CONFIGURACIÓN)
 closes its letters up, then shrinks, to fit (nameKind, again on a
@@ -352,7 +352,7 @@ r0 64 / r1 up to 188 on a phone (68 / 214 on a big screen), five wedges,
 More at the left end, the most wanted at the top, then right, left, far
 right (CALM_QUICK: before opponent, first, start, the world's extra
 (pieces, a world setting, the cart, nova); after opponent, movelog,
-view, replay; CALM_SPARE fills in). The big button (Begin, Try a Game,
+view, replay; CALM_SPARE fills in). The big button (Begin, Try a Demo Game,
 New game, the world's wood via dress()) above the ring; after a game no
 line above it any more (it was the world's caption, flavour: user, "I
 don't think this is an actual button. This looks like just flavor text.

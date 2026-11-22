@@ -173,7 +173,7 @@ const CSS = `
   .td-cart button { all: unset; cursor: pointer; padding: 8px 10px; background: ${RED}; color: #FFF4E2; border-radius: 2px; font: 800 11px/1 ${FRANKLIN}; letter-spacing: 0.14em; }
   .td-cart button:focus-visible { outline: 2px solid ${PAPER}; outline-offset: 2px; }
   /* Glowing till it's checked out, in the blue the store's other next
-     steps glow in (Try a Game, the special-orders note; user: "When you
+     steps glow in (Try a Demo Game, the special-orders note; user: "When you
      put one in your cart, in the upper left-hand corner, you have a cart
      that shows the red button that says one's in your cart, and then
      checkout. That needs to glow to direct the user's attention to it."). */
@@ -511,7 +511,9 @@ export function StorePA({ active, game, audio, onPurchase }) {
       setSay(null);
       addToCart();
     },
-  }, h("style", null, CSS), LINES[say], h("small", null, toRegister ? "Take it to the register ›" : "Put one in the cart ›"));
+  }, h("style", null, CSS), LINES[say], // (The game named on the way to the register, user: "It says take it to
+  // the register. Change the word it to your new El Cabezon game".)
+  h("small", null, toRegister ? "Take your new El Cabeza game to the register ›" : "Put one in the cart ›"));
 }
 
 export function useShoppingVisit(active) {

@@ -42,7 +42,7 @@ const cabezas = [P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cab
   ]);
   await page.waitForTimeout(300);
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1200);
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-chato", "slide-E"));
   await page.waitForTimeout(120);
@@ -67,7 +67,7 @@ const cabezas = [P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cab
   ]);
   await page.waitForTimeout(300);
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1200);
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "E"));
   await page.waitForTimeout(1500);
@@ -90,7 +90,7 @@ const cabezas = [P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cab
   ]);
   await page.waitForTimeout(300);
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1200);
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "E"));
   await page.waitForTimeout(1500);
@@ -115,7 +115,7 @@ const cabezas = [P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cab
   ]);
   await page.waitForTimeout(300);
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1200);
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "E"));
   await page.waitForTimeout(1500);
@@ -144,7 +144,7 @@ const cabezas = [P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cab
   ]);
   await page.waitForTimeout(300);
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1200);
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "slide-E"));
   await page.waitForTimeout(1500);
@@ -170,7 +170,7 @@ const cabezas = [P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cab
   ]);
   await page.waitForTimeout(300);
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1200);
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-opa", "E"));
   await page.waitForTimeout(1800);
@@ -192,7 +192,7 @@ const cabezas = [P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cab
   if (await aiBtn.count()) { await aiBtn.click(); await page.waitForTimeout(300); }
   const easy = page.locator('[data-testid="dock-panel"] button', { hasText: /^Easy$/i }).first();
   if (await easy.count()) { await easy.click(); await page.waitForTimeout(200); }
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   let turns = [];
   for (let i = 0; i < 40 && !turns.length; i++) {
     await page.waitForTimeout(400);
@@ -216,7 +216,7 @@ const cabezas = [P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cab
   ]);
   await page.waitForTimeout(300);
   await openDockPanel(page);
-  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).click();
   await page.waitForTimeout(1200);
   const from = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-chato"));
   const to = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-turrito"));
