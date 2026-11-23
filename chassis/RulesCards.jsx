@@ -39,7 +39,7 @@ export const LAW_TEXT = {
   slide: { name: "Orthogonal Slide", text: "Any piece can move one open square along its row or column (north, south, east or west, not corner to corner) without tipping. A slide costs 2 actions." },
   diagonalSlide: { name: "Diagonal Slide", text: "Any piece can move one open square corner to corner without tipping, for 2 actions. On its own, or with Orthogonal Slide for all eight ways. A diagonal slide never shoves." },
   blackHoleSquares: { name: "Singularity Squares", text: "Two linked singularities. A piece standing on one square that enters one comes out of the other, one square past it on the same side it went in, and the turn ends. With two sets, the player picks which singularity it comes out of, either one in the other half of the board (with Exit from any other singularity, any of the other three), and it comes out of that one the same way; a piece pushed in comes out of that singularity's own partner." },
-  cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube can turn a quarter turn around it, for 1 action." },
+  cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube can turn a quarter turn around it, for 1 action. Not while it's caught in a narrow Arco's opening (a Chico or an Alto); under an Arco Ancho, it can." },
   threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 actions instead of 2." },
   splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 actions can be shared between up to three pieces in one turn, one action each." },
   shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra action. A slide pushes them one square; a roll pushes them just past where it lands. Never diagonally, even with Diagonal Slide. Nothing may be behind them." },
@@ -472,7 +472,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "cantileverPivot", law: "cantileverPivot", title: "Pivot", cost: <Dots n={1} C={C} />, text: "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube turns a quarter turn around it. Its arm is held up, so it swings right over a Cabeza.",
+      key: "cantileverPivot", law: "cantileverPivot", title: "Pivot", cost: <Dots n={1} C={C} />, text: "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube turns a quarter turn around it. Its arm is held up, so it swings right over a Cabeza. Not while it's caught in a narrow Arco's opening (a Chico or an Alto); under an Arco Ancho, it can.",
       svg: (
         <>
           {panels}

@@ -3,7 +3,7 @@
    build/scratch/. Pure logic: no React, no Three.js, no DOM. */
 
 import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, otherExitKey, BLACK_HOLES, MISSING_SQUARES, SLIDE_COST, OPA_MOVE_COST, maxPiecesPerTurn, moveCost, PIVOT_KEYS } from "./constants.js";
-import { rollVox, groundCellsOf, piecesClash, rollSweepClashes, anyOddShape, cubeCount, pivotCellOf, pivotPiece, pivotSweepClashes } from "./shapes.js";
+import { rollVox, groundCellsOf, piecesClash, rollSweepClashes, anyOddShape, cubeCount, pivotCellOf, pivotPiece, pivotSweepClashes, caughtInNarrowArch } from "./shapes.js";
 
 /* Dark's half of the opening setup, with columns expressed RELATIVE to
    the leftmost of the four columns the formation occupies, so the whole
@@ -717,10 +717,13 @@ export function legalSlideSteps(pieces, piece) {
    The new pose must be on the board and clear of every other piece's
    cubes, and the swinging arm mustn't pass through one on the way
    (pivotSweepClashes). The arm is held up in the air, so it never
-   crushes: a Cabeza it swings over is sheltered, like any overhang. */
+   crushes: a Cabeza it swings over is sheltered, like any overhang.
+   Caught in a narrow Arco's opening (a Chico or an Alto), it can't turn
+   at all; under an Arco Ancho it can (user: "a global rule";
+   caughtInNarrowArch). */
 export function legalPivots(pieces, piece) {
   const out = {};
-  if (!ACTIVE_LAWS.cantileverPivot || !pivotCellOf(piece)) return out;
+  if (!ACTIVE_LAWS.cantileverPivot || !pivotCellOf(piece) || caughtInNarrowArch(pieces, piece)) return out;
   for (const turn of ["cw", "ccw"]) {
     const candidate = pivotPiece(piece, turn);
     if (!inBounds(candidate)) continue;

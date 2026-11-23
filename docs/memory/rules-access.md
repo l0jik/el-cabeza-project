@@ -44,6 +44,33 @@ story").
   City is, apps/unified.jsx LAZY), those calls would want its gate
   (`story: true`), or the city's settings would open nothing.
 
+## The corner menu at any size of words (2026-11-23)
+
+User, the app on a phone with its large font: "The bottom of the menu
+circled in red is cut off. Also, I'm not sure if this menu says what the
+current AI level I'm playing against is. Also, some horizontal separator
+lines between the different sections in this menu might be helpful to
+parse the information."
+
+- Fitted as it opens (chassis/CornerMenu.jsx): the card's max-height the
+  room from its measured top to the screen's foot (less 14 px and the
+  safe area; in the shell, less --ec-shell-bottom), the rest a scroll
+  inside it. The stylesheet's calc(100vh - 96px) guessed where it starts:
+  a camera's notch (the app draws round it) and the bigger tab put it
+  lower, and its foot ran off the screen.
+- As much wider as the words are bigger: --cm-tz, the phone's size of
+  words measured (a probe at 100 px, its computed size / 100, 1 to 2),
+  the card calc(304px * --cm-tz); a piece's name may wrap, its count
+  never leaves its line.
+- Who you're playing: a first row, "Opponent", the AI at its level ("AI
+  · Medium"), "Human" at one screen, "Online"; none in a replay
+  (rulesNow.opponent, ElCabeza3D.jsx; corner-menu.js `cm-opp`,
+  data-testid corner-menu-opponent).
+- Lines between the sections in the looks that had none (Futuris,
+  Lluvia, Luna, the City, Parrish), each in its own colour
+  (`.cm-sec + .cm-sec`); the den, store, Cromo, Plano and Noir had their
+  own already.
+
 ## Change rules (B)
 
 chassis/ElCabeza3D.jsx: rulesChoice = gate && rulesOpen(gate);

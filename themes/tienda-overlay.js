@@ -1201,7 +1201,11 @@ const STORY_CSS = `
   body:has(.td-clerk-layer) [data-fullscreen-toggle] { opacity: 0.28 !important; }
   body:has([data-testid="tienda-lid"]) [data-fullscreen-toggle] { visibility: hidden !important; pointer-events: none !important; }
   .td-row-look { grid-template-columns: 64px 5.2em minmax(0, 1fr) 4em; }
-  .td-clerk-layer { cursor: pointer; }
+  /* (Centred while it fits; taller than the screen, from its top, the
+     rest a scroll away: centred, its top went off the screen where it
+     couldn't be scrolled to.) */
+  .td-clerk-layer { cursor: pointer; align-items: flex-start; justify-content: flex-start; }
+  .td-clerk-layer > .td-clerk { margin: auto; }
   .td-clerk { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: default; animation: tdClerkIn 0.4s ease both;
     width: min(420px, 100%); }
   @keyframes tdClerkIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -1262,6 +1266,8 @@ const STORY_CSS = `
     font-size: 11px; padding: 4px 9px 3px; opacity: 0.92; animation: tdClerkTopIn 0.35s ease both; }
   /* (Two lines: a little higher, clear of the tape's ends.) */
   .td-clerk-narration.td-clerk-when.td-clerk-top.td-clerk-long { bottom: calc(100% + 32px); }
+  .td-clerk-narration.td-clerk-when.td-clerk-top.td-clerk-sizer { visibility: hidden; animation: none; pointer-events: none; }
+  .td-clerk-print[data-settled="true"] { transition: width 0.35s ease, margin-top 0.35s ease; }
   /* The store's own stripes on it (user: Big Glutts' branding "that go up
      the left side vertically and then curve and then go across the top"):
      its four earth tones, as on its flyer, 2px each, up the caption's left
@@ -1294,7 +1300,7 @@ const STORY_CSS = `
   .td-clerk-actions .td-plain:hover { background: #FFFDF3; color: #17110D; }
   .td-clerk-actions .td-plain { background: #FBF6E6; color: #17110D; }
   .td-clerk-actions [data-testid="tienda-clerk-go-home"], .td-clerk-actions [data-testid="tienda-clerk-go-home"]:hover { background: #C8392B; color: #FBF6E6; }
-  @media (prefers-reduced-motion: reduce) { .td-clerk-shot, .td-clerk-print[data-fade="slow"] .td-clerk-shot { transition-duration: 0.01s; } .td-clerk-narration, .td-clerk-pa, .td-clerk-narration.td-clerk-when.td-clerk-top { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .td-clerk-shot, .td-clerk-print[data-fade="slow"] .td-clerk-shot { transition-duration: 0.01s; } .td-clerk-narration, .td-clerk-pa, .td-clerk-narration.td-clerk-when.td-clerk-top { animation: none; } .td-clerk-print[data-settled="true"] { transition: none; } }
   .td-clerk-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; padding: 14px 6px 16px; }
   /* A larger screen (user: the captions "are really small on a desktop or
      laptop ... Maybe not on the phone, but definitely on desktop or laptop
@@ -1503,6 +1509,8 @@ const CLERK_FRAMES = [
   { shots: ["manager-7"], lines: ["But we'd love to help you if we could\u2026"] },
   { shots: ["manager-8"], lines: ["Is there anything else I can help you with today?"] },
 ];
+// The longest of the times over the clipping (the room kept for them).
+const LONGEST_WHEN = CLERK_FRAMES.reduce((a, f) => (f.narration && f.narration.length > a.length ? f.narration : a), "");
 // Every shot in order, with its frame.
 const CLERK_STEPS = CLERK_FRAMES.flatMap((f, fi) => f.shots.map((shot, si) => ({ shot, frame: fi, line: f.lines[si], alt: f.alt, narration: f.narration, handover: !!f.handover, page: !!f.page && si === 0 })));
 /* The clipping's edge: cut by hand with scissors, a little off true, so
@@ -1599,6 +1607,60 @@ function ClerkScene({ audio, onStay, onGoHome }) {
     if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3) { swipe.swiped = true; if (dx < 0) next(); else back(); }
   };
   const onLayerClick = () => { if (swipe.swiped) { swipe.swiped = false; return; } next(); };
+  /* The clipping sized to the screen by what's on it, measured (user, the
+     app on a phone with its large font, every word half again as big:
+     "Look at the top of this image, it's getting cut off now", the time's
+     caption over the clipping; and the last panel's two ways out, "Why is
+     this not fitting on the screen correctly?"). Room above it for the
+     time's caption: the longest one's, set unseen (so the panel holds
+     still from frame to frame, a caption or none); under the panel, the
+     tallest caption-and-Next yet; and the photograph as tall as the
+     screen leaves once those and the paper's margins are counted. At the
+     end, the two ways out under it: the clipping draws in to make room
+     for them. The stylesheet's sizes (guessed for normal-sized words)
+     until it's measured, before it's drawn. */
+  const printRef = React.useRef(null);
+  const footHeld = React.useRef({ key: "", px: 0 });
+  const [fitBox, setFitBox] = React.useState(null);
+  React.useLayoutEffect(() => {
+    const fig = printRef.current;
+    if (!fig) return undefined;
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      if (!fig.isConnected) return;
+      const shots = fig.querySelector(".td-clerk-shots"), sizer = fig.querySelector(".td-clerk-sizer");
+      const foot = fig.querySelector(".td-clerk-actions, .td-clerk-foot");
+      const layer = fig.closest(".td-layer");
+      if (!shots || !foot || !layer) return;
+      const vh = window.innerHeight, key = `${window.innerWidth}x${vh}`;
+      if (footHeld.current.key !== key) footHeld.current = { key, px: 0 };
+      const footNow = foot.offsetHeight;
+      if (!last) footHeld.current.px = Math.max(footHeld.current.px, footNow);
+      const footH = last ? footNow : footHeld.current.px;
+      const cap = sizer ? Math.max(0, Math.ceil(fig.getBoundingClientRect().top - sizer.getBoundingClientRect().top)) + 12 : 0;
+      const ls = getComputedStyle(layer);
+      const pad = parseFloat(ls.paddingTop) + parseFloat(ls.paddingBottom);
+      const tilt = Math.ceil(fig.offsetWidth * 0.02) + 6; // (its turn on the table, and a little air)
+      const margins = fig.offsetHeight - shots.offsetHeight - footNow; // (the paper's top margin, the dots)
+      const photoH = Math.max(140, vh - pad - tilt - cap - margins - footH);
+      const w = Math.round((photoH * 368) / 474 + 32);
+      setFitBox((b) => (b && Math.abs(b.w - w) < 2 && Math.abs(b.cap - cap) < 2 ? b : { w, cap }));
+    };
+    measure();
+    const again = () => { if (!raf) raf = requestAnimationFrame(measure); };
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(again) : null;
+    if (ro) ro.observe(fig);
+    window.addEventListener("resize", again);
+    return () => { if (ro) ro.disconnect(); window.removeEventListener("resize", again); if (raf) cancelAnimationFrame(raf); };
+  }, [step, lettered]);
+  // (Drawn in at its size from the first; it eases from then on.)
+  const [settled, setSettled] = React.useState(false);
+  React.useEffect(() => {
+    if (!fitBox || settled) return undefined;
+    const id = requestAnimationFrame(() => setSettled(true));
+    return () => cancelAnimationFrame(id);
+  }, [fitBox]);
   const frameOfSeen = CLERK_STEPS[seen].frame;
   const said = s.line || s.alt || "";
   const lost = failed.has(s.shot);
@@ -1608,7 +1670,8 @@ function ClerkScene({ audio, onStay, onGoHome }) {
       // A panel clipped out of a 1975 comic book and kept: yellowed
       // newsprint cut by hand, two strips of old tape, the panel in its
       // ink border, printed in Ben-Day dots, a little faded.
-      h("figure", { className: "td-clerk-print", "data-fade": fade },
+      h("figure", { ref: printRef, className: "td-clerk-print", "data-fade": fade, "data-settled": settled ? "true" : "false", style: fitBox ? { width: `min(100%, ${fitBox.w}px)`, marginTop: fitBox.cap } : undefined },
+        h("p", { className: "td-clerk-narration td-clerk-when td-clerk-top td-clerk-long td-clerk-sizer", "aria-hidden": "true" }, LONGEST_WHEN),
         s.narration && h("p", { key: `w${s.frame}`, className: `td-clerk-narration td-clerk-when td-clerk-top${s.narration.length > 32 ? " td-clerk-long" : ""}`, "data-testid": "tienda-clerk-when" },
           h("span", { className: "td-clerk-stripes", "aria-hidden": "true" }, h("i"), h("i"), h("i"), h("i")), s.narration),
         h("span", { className: "td-clerk-tape td-clerk-tape-l", "aria-hidden": "true" }),

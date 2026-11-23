@@ -197,9 +197,14 @@ const CSS = `
 .den-hall-white { position: fixed; inset: 0; z-index: 1345; pointer-events: none; opacity: 0;
   background: radial-gradient(ellipse at 50% 50%, #ffffff 0%, #eef4ff 55%, #dbe6ff 100%); }
 .den-hall-block { position: fixed; inset: 0; z-index: 1330; background: transparent; }
-.den-hall-say { position: fixed; left: 7%; bottom: 30%; z-index: 1350; max-width: min(78vw, 420px); padding: 14px 20px 15px; background: #fffdf6;
+/* (Its width its words', in balanced lines, as wide as they'd want at
+   any size of words: user, the app on a phone with its large font, the
+   line broke before its last word, "of…" alone under it; and kept clear
+   of the choice under it, showSay. Its room in ch, which grows with the
+   phone's size of words, as em doesn't.) */
+.den-hall-say { position: fixed; left: 7%; bottom: 30%; z-index: 1350; width: max-content; max-width: min(78vw, 24ch); text-wrap: balance; padding: 14px 20px 15px; background: #fffdf6;
   color: #1d1610; border: 3px solid #1d1610; border-radius: 22px; box-shadow: 4px 5px 0 rgba(0,0,0,0.35); pointer-events: none;
-  font: 400 clamp(24px, 6.4vw, 36px)/1.12 'Patrick Hand', 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', cursive;
+  font: 400 clamp(24px, min(6.4vw, 7.5vh), 36px)/1.12 'Patrick Hand', 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', cursive;
   opacity: 0; transform: scale(0.6) rotate(-2deg); transform-origin: 12% 110%; transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.2, 1.6, 0.4, 1); }
 .den-hall-say::after { content: ""; position: absolute; left: 28px; bottom: -22px; width: 26px; height: 24px; background: #fffdf6;
   border-left: 3px solid #1d1610; border-bottom: 3px solid #1d1610; transform: skewX(-28deg) rotate(-12deg); border-bottom-left-radius: 6px; }
@@ -673,23 +678,45 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
   /* ---- the words and the choice ---- */
   function showSay(on) {
     if (!doc) return;
-    if (on && !sayEl) { style(); sayEl = div("den-hall-say"); sayEl.setAttribute("role", "status"); sayEl.setAttribute("data-testid", "den-hall-say"); sayEl.textContent = flares > 1 ? LINE_AGAIN : LINE; requestAnimationFrame(() => requestAnimationFrame(() => sayEl && sayEl.classList.add("on"))); }
+    if (on && !sayEl) {
+      style();
+      sayEl = div("den-hall-say"); sayEl.setAttribute("role", "status"); sayEl.setAttribute("data-testid", "den-hall-say"); sayEl.textContent = flares > 1 ? LINE_AGAIN : LINE;
+      // Over the choice that comes up under it, clear of it (its tail
+      // too): the card made unseen a moment to be measured, at whatever
+      // size the phone sets its words at; on a screen too short for both,
+      // as high as it fits.
+      const probe = choiceCard().el, ch = probe.offsetHeight;
+      probe.remove();
+      const vh = doc.documentElement.clientHeight;
+      const clear = ch + 40 + 36; // (the card's 40px off the bottom; the tail, and air)
+      const up = Math.min(Math.max(vh * 0.3, clear), Math.max(8, vh - sayEl.offsetHeight - 12 - Math.ceil(sayEl.offsetWidth * 0.035))); // (its tilt)
+      sayEl.style.bottom = `calc(${Math.round(up)}px + env(safe-area-inset-bottom, 0px))`;
+      requestAnimationFrame(() => requestAnimationFrame(() => sayEl && sayEl.classList.add("on")));
+    }
     if (!on && sayEl) { const el = sayEl; sayEl = null; el.classList.remove("on"); setTimeout(() => el.remove(), 400); }
+  }
+  // The choice's card: Investigate, or keep playing (its words the second
+  // time round, after a second flare, its own).
+  function choiceCard() {
+    const el = div("den-hall-choice"); el.setAttribute("data-testid", "den-hall-choice"); el.setAttribute("role", "group"); el.setAttribute("aria-label", "The hall");
+    const go = doc.createElement("button"); go.type = "button"; go.className = "go"; go.textContent = INVESTIGATE; go.setAttribute("data-testid", "den-hall-investigate");
+    const stay = doc.createElement("button"); stay.type = "button"; stay.className = "stay"; stay.setAttribute("data-testid", "den-hall-keep");
+    if (flares > 1) stay.append(doc.createTextNode(KEEP_AGAIN[0]), doc.createElement("br"), doc.createTextNode(KEEP_AGAIN[1]));
+    else stay.textContent = KEEP;
+    el.append(go, stay);
+    return { el, go, stay };
   }
   function showChoice(on) {
     if (!doc) return;
     if (on && !choiceEl) {
       style();
-      choiceEl = div("den-hall-choice"); choiceEl.setAttribute("data-testid", "den-hall-choice"); choiceEl.setAttribute("role", "group"); choiceEl.setAttribute("aria-label", "The hall");
-      const go = doc.createElement("button"); go.type = "button"; go.className = "go"; go.textContent = INVESTIGATE; go.setAttribute("data-testid", "den-hall-investigate"); go.onclick = () => pick("investigate");
-      const stay = doc.createElement("button"); stay.type = "button"; stay.className = "stay"; stay.setAttribute("data-testid", "den-hall-keep"); stay.onclick = () => pick("keep");
-      if (flares > 1) stay.append(doc.createTextNode(KEEP_AGAIN[0]), doc.createElement("br"), doc.createTextNode(KEEP_AGAIN[1]));
-      else stay.textContent = KEEP;
-      choiceEl.append(go, stay);
+      const { el, go, stay } = choiceCard();
+      choiceEl = el;
+      go.onclick = () => pick("investigate");
+      stay.onclick = () => pick("keep");
       // Held a moment (user: an impatient player tapping wildly could take
       // a choice unread, and Investigate is the way to the end): no tap
       // counts for CHOICE_HOLD_MS, the buttons dimmed till then.
-      const el = choiceEl;
       el.setAttribute("data-held", "");
       choiceFreeAt = performance.now() + CHOICE_HOLD_MS;
       setTimeout(() => el.removeAttribute("data-held"), CHOICE_HOLD_MS);

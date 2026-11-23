@@ -795,3 +795,30 @@ box art and an ad standee (assets/tienda/*.jpg).
   tests/e2e-store-records.mjs. On every device; seen on a laptop, whose
   wheel takes the camera in close.
 
+
+## The clerk comic and the receipt, at any size of words (2026-11-23)
+
+User, in the app (the phone's large font): of the comic, "Look at the
+top of this image, it's getting cut off now. Why is this happening? This
+wasn't like this before, and I think the following frame also has the
+same issue."; with a video of its last panel, "Why is this not fitting
+on the screen correctly?"; of the receipt, "The printing on the store
+receipt isn't correct; it runs off either edge." The cause: the app
+takes the phone's font size (docs/memory/android-app.md).
+
+- The comic (themes/tienda-overlay.js ClerkScene): the clipping sized by
+  what's on it, measured. Room above it for the time's caption, the
+  longest one's, set unseen (`.td-clerk-sizer`), so the panel holds still
+  from frame to frame with a caption or none; under the panel the tallest
+  caption-and-Next yet; the photograph as tall as the screen leaves. At
+  the last panel the two ways out are taller: the clipping draws in to
+  make room (eased, 0.35 s, after its first size). The layer centres it
+  while it fits and, taller than the screen, starts it at the top, the
+  rest a scroll away (centred, its top went where it couldn't be scrolled
+  to).
+- The receipt (apps/novaStory.jsx StoryCut): the tape 40ch wide (300 px
+  for normal-sized words), its 30 columns 30ch, so it grows with the
+  words; on a screen without the room, the margins give first, then its
+  type a little smaller (to fit across, and all twelve lines over the
+  register); its height the printed lines' as drawn (a fixed 18.75 px a
+  line cut the last ones off).

@@ -72,7 +72,7 @@ export const LAW_OPTIONS = [
   // and All rules leaves it alone, as it does Missing squares: `board`.)
   { key: "blackHoleSquares", name: "Singularity squares", board: true, note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn. One set or two." },
   { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal slide. 1 action more. Choose whether rolls shove too, or only slides, whether a shove may push your own pieces, and whether pieces behind block it or are pushed along too." },
-  { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Hombro, Cruce, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 action." },
+  { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Hombro, Cruce, Rayo or Zeta standing on one cube turns a quarter turn round it. Not while it's caught in a narrow Arco's opening (a Chico or an Alto); under an Arco Ancho, it can. 1 action." },
   // (3 actions per turn directly above Split movement: user.)
   { key: "threeActions", name: "3 actions per turn", note: "3 actions a turn instead of 2." },
   { key: "splitMovement", name: "Split movement, 2 pieces", note: "Spend a turn's actions on up to two pieces." },

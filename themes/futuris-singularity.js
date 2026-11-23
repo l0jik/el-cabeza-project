@@ -579,7 +579,7 @@ const LAWS_ITEMS = [
   // TOPOLOGY with the board, under Missing Squares, not in LAWS, and All
   // Laws leaves it alone, user: `board`.)
   { key: "blackHoleSquares", label: "Singularity Squares", board: true, blurb: "Two linked squares. A one-square piece that enters one comes out beside the other, on the same side it went in. Ends the turn." },
-  { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Hombro, Cruce, Rayo or Zeta can be) turns a quarter turn around it. Costs 1 action." },
+  { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Hombro, Cruce, Rayo or Zeta can be) turns a quarter turn around it. Not while it's caught in a narrow Arco's opening (a Chico or an Alto); under an Arco Ancho, it can. Costs 1 action." },
   { key: "threeActions", label: "3 Actions Per Turn", blurb: "3 actions per turn instead of 2." },
   // (On by default: a game begun here is never the standard game.)
   { key: "punto", label: "Punto (Komi)", def: true, blurb: "The side that opens has one action fewer on the game's first turn, to blunt the first strike: one action with 2 a turn, two with 3. On by default unless you turn it off; the standard game has no handicap." },

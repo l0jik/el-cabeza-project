@@ -3586,6 +3586,9 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
   // board. Read fresh each render: the laws and the board's size are the
   // engine's, set as a game begins.
   const rulesNow = gameRules(turnHistory.length && turnHistory[0].pieces ? turnHistory[0].pieces : pieces, missingSquares, blackHoles);
+  // (Who you're playing, on the corner menu: the AI at its level, a second
+  // player at the same screen, or someone online; nothing in a replay.)
+  rulesNow.opponent = replay ? null : aiPlayer ? t("AI · {level}", { level: t(AI_DIFFICULTY[aiDifficulty].label) }) : online ? t("Online") : t("Human");
   /* The result said to you (user: "Since I won and I was Chrome, it should
      say you win, not Chrome wins. And I probably need to propagate this
      throughout the rest of the game globally."): against the computer or

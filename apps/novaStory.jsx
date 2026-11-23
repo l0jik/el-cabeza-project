@@ -14,7 +14,7 @@
    through black with a line of text between any two places. The places
    themselves are the themes; apps/unified.jsx swaps them under the black. */
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { facesReady, loadFaces } from "../themes/faces.js";
 import { tr } from "../chassis/i18n.js";
 
@@ -155,12 +155,20 @@ const CSS = `
   @keyframes ns-in { from { opacity: 0; } to { opacity: 1; } }
   @keyframes ns-out { from { opacity: 1; } to { opacity: 0; } }
   .ns-dim { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 70%, rgba(24,15,8,0.5), rgba(12,7,3,0.82)); animation: ns-in 0.5s ease both; }
-  .ns-register { position: absolute; left: 50%; bottom: max(18dvh, 120px); transform: translateX(-50%); width: min(300px, calc(100vw - 48px)); }
+  /* The tape as wide as its 30 columns and a margin each side, in its own
+     letters (user, the app on a phone with its large font, every letter
+     half again as wide: "The printing on the store receipt isn't correct;
+     it runs off either edge"): the paper 300px for normal-sized words, as
+     it was, and wider for bigger ones. On a screen too narrow for that,
+     the margins give first, then its type a little smaller (StoryCut). */
+  .ns-register { position: absolute; left: 50%; bottom: max(18dvh, 120px); transform: translateX(-50%);
+    font: 700 12.5px/1.5 'Courier Prime', 'Courier New', monospace; width: min(40ch, calc(100vw - 40px)); }
   .ns-tape { filter: drop-shadow(0 12px 22px rgba(0,0,0,0.5)); transition: transform 0.7s cubic-bezier(.2,.7,.2,1); transform-origin: 50% 100%; }
   .ns-tape.torn { transform: translateY(-28px) rotate(-3deg); }
   .ns-paper { box-sizing: border-box; overflow: hidden; padding: 16px 0 10px; background: linear-gradient(90deg, #EDE5CF, #F6F0DF 30%, #F4EDDB 70%, #E9E0C8);
-    color: #4A3F66; font: 700 12.5px/1.5 'Courier Prime', 'Courier New', monospace; white-space: pre; text-align: center; transition: height 0.12s linear; }
-  .ns-paper div { display: block; margin: 0 auto; text-align: left; width: 30ch; text-shadow: 0 0 0.5px rgba(74,63,102,0.6); }
+    color: #4A3F66; font: inherit; white-space: pre; text-align: center; transition: height 0.12s linear; }
+  .ns-lines { margin: 0 auto; text-align: left; width: 30ch; }
+  .ns-line { display: block; text-shadow: 0 0 0.5px rgba(74,63,102,0.6); }
   .ns-slot { position: absolute; left: -16px; right: -16px; bottom: -12px; height: 14px; border-radius: 3px;
     background: linear-gradient(#17100a, #3b2c20); box-shadow: inset 0 1px 0 rgba(255,240,210,0.16), 0 8px 20px rgba(0,0,0,0.5); transition: opacity 0.5s ease; }
   .ns-tape.torn + .ns-slot { opacity: 0; }
@@ -278,7 +286,33 @@ export function StoryCut({ cut, onSwap, onDone, sfx }) {
 
   useEffect(() => () => { alive.current = false; clear(); }, []);
 
-  const lineH = 12.5 * 1.5;
+  /* The tape's size, measured: as tall as the lines printed are (their
+     height as drawn, whatever size the phone sets its words at: a fixed
+     one cut the last lines off), and its type a little smaller only if
+     the screen hasn't the room for its 30 columns across, or for all its
+     lines over the register. */
+  const regRef = useRef(null), paperRef = useRef(null), linesRef = useRef(null);
+  const fitTape = () => {
+    const reg = regRef.current, paper = paperRef.current, inner = linesRef.current;
+    if (!reg || !paper || !inner) return;
+    reg.style.fontSize = "";
+    const across = inner.offsetWidth; // (30 columns, as drawn)
+    const room = reg.offsetWidth - 16;
+    const fs = parseFloat(getComputedStyle(inner).fontSize) || 12.5;
+    const above = reg.getBoundingClientRect().bottom - 12; // (from the register's slot up)
+    const k = Math.min(1, room / across, (above - 26 - 40) / (lines.length * fs * 1.5)); // (26: its margins; 40: the lift as it's torn)
+    if (k < 0.995) reg.style.fontSize = `${(12.5 * Math.max(0.4, k)).toFixed(2)}px`;
+    paper.style.height = inner.childElementCount ? `${inner.offsetHeight + 26}px` : "0px";
+  };
+  useLayoutEffect(fitTape);
+  useEffect(() => {
+    // (Again if the screen or the words' size changes.)
+    const inner = linesRef.current;
+    const ro = inner && typeof ResizeObserver === "function" ? new ResizeObserver(() => fitTape()) : null;
+    if (ro) ro.observe(inner);
+    window.addEventListener("resize", fitTape);
+    return () => { if (ro) ro.disconnect(); window.removeEventListener("resize", fitTape); };
+  }, []);
   const clip = tapeClip(torn);
   return (
     <div
@@ -291,19 +325,22 @@ export function StoryCut({ cut, onSwap, onDone, sfx }) {
       {purchase && !swapped && (
         <>
           <div className="ns-dim on" />
-          <div className="ns-register" aria-hidden={stage !== "tape"}>
+          <div className="ns-register" ref={regRef} aria-hidden={stage !== "tape"}>
             <div className={"ns-tape" + (torn ? " torn" : "")}>
               <div
+                ref={paperRef}
                 className="ns-paper"
                 data-testid="story-receipt"
                 data-lines={printed}
                 role="img"
                 aria-label="Receipt: El Cabeza, 7.97, tax .48, total 8.45"
-                style={{ height: printed ? `${printed * lineH + 26}px` : "0px", paddingTop: printed ? 16 : 0, clipPath: clip, WebkitClipPath: clip }}
+                style={{ paddingTop: printed ? 16 : 0, clipPath: clip, WebkitClipPath: clip }}
               >
-                {lines.slice(0, printed).map((l, i) => (
-                  <div key={i} style={{ opacity: 0.82 + ((i * 37) % 17) / 100 }}>{l}</div>
-                ))}
+                <div className="ns-lines" ref={linesRef}>
+                  {lines.slice(0, printed).map((l, i) => (
+                    <div key={i} className="ns-line" style={{ opacity: 0.82 + ((i * 37) % 17) / 100 }}>{l}</div>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="ns-slot" />

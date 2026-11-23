@@ -142,3 +142,27 @@ phone (an APK); the same project is the way to Google Play later.
   asked of the internet and every face they declare loading from the copy;
   the same page in a phone's browser still with its button and Google's
   fonts for the corner menu.
+
+## The phone's size of words (2026-11-23)
+
+The app's WebView takes the phone's own font size (Android's WebView text
+zoom follows the system's font scale; the user's phone is set large,
+about 1.5x). Every word is half again as big, as in a browser set to
+large text; the website in Chrome hadn't been. What reserved a fixed room
+for words then ran out of it: the clerk comic's caption over the clipping
+and its last panel's two buttons, the receipt's 30 columns on a 300 px
+tape, the hall's bubble breaking before its last word, the corner menu's
+card. Each is measured and fitted now, whatever the size (user: "This
+wasn't like this before").
+
+- How the large font works (Chromium's text autosizer, the same as
+  `-webkit-text-size-adjust`): getComputedStyle reports the bigger size,
+  and `ch` grows with it, but `em` lengths (a width, a padding) don't:
+  they still resolve against the unenlarged size. So a room meant to
+  grow with the words is in `ch`, or measured.
+- Emulated in a test: a mobile context (isMobile) and
+  `html{-webkit-text-size-adjust:150%}`.
+- Not done (offered): the app ignoring the phone's font size
+  (setTextZoom(100) in MainActivity), which would put everything back as
+  on the website at once, but its words smaller than the user's phone
+  sets them everywhere.

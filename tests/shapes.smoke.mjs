@@ -4,7 +4,7 @@
    (the Codo's shape) as the test piece. Box pieces must behave exactly
    as before — the rest of the suite covers that. */
 import { rollBlock, legalMovesFor, evaluateBlockLanding, sameState } from "../engine/rules.js";
-import { parseVox, voxKey, groundCellsOf, piecesClash, rollSweepClashes, maskAt, cubeCount, pivotCellOf, pivotArmPoint } from "../engine/shapes.js";
+import { parseVox, voxKey, groundCellsOf, piecesClash, rollSweepClashes, maskAt, cubeCount, pivotCellOf, pivotArmPoint, caughtInNarrowArch } from "../engine/shapes.js";
 import { setBoardDimensions, setMissingSquares, setBlackHoles, setActiveLaws, STEP_DIRS } from "../engine/constants.js";
 
 let failures = 0;
@@ -219,6 +219,41 @@ check("a box still fills every level of its footprint", maskAt({ row: 0, col: 0,
   check("...and past one beyond its tip", turns(tower(6, 4)) === "pivot-ccw pivot-cw", turns(tower(6, 4)));
   check("a piece on the landing square blocks that way round", turns(tower(4, 3)) === "pivot-ccw", turns(tower(4, 3)));
   check("so does one on the diagonal square it sweeps", turns(tower(5, 3)) === "pivot-ccw", turns(tower(5, 3)));
+  // Caught in a narrow Arco (user: "If a piece is captured or caught
+  // between a narrow arch, whether it's tall or short, it should not be
+  // allowed to rotate. If it is caught underneath a laying down wide
+  // arch, it should be allowed. This is a global rule."). A Codo on one
+  // cube, its arm up over the next square south (the user's game): its
+  // foot in the opening of an Arco Chico lying flat as a U, opening south
+  // (the arm's over the open side, a level above the arch), can't turn;
+  // nor in an Arco Alto's lying flat, nor standing in a standing Chico's
+  // (a Turrito-high gap: a Zeta's foot, its arm over the top). Under an
+  // Arco Ancho, lying or standing, it turns as anywhere; and so it does
+  // right beside a narrow one, not in it.
+  {
+    const codo = { id: "k", type: "codo", owner: 0, row: 5, col: 5, w: 1, h: 2, z: 2, vox: "0,0,0;0,0,1;0,1,1" };
+    const arch = (type, row, col, w, h, z, vox) => ({ id: "a", type, owner: 1, row, col, w, h, z, vox });
+    const chicoU = arch("arcoChico", 4, 4, 3, 2, 1, "0,0,0;1,0,0;2,0,0;0,1,0;2,1,0"); // (its opening at row 5, col 5)
+    const altoU = arch("arcoAlto", 3, 4, 3, 3, 1, "0,0,0;1,0,0;2,0,0;0,1,0;2,1,0;0,2,0;2,2,0"); // (open at rows 4-5, col 5)
+    const anchoU = arch("arcoAncho", 4, 4, 4, 2, 1, "0,0,0;1,0,0;2,0,0;3,0,0;0,1,0;3,1,0"); // (open at row 5, cols 5-6)
+    const pivots = (others) => Object.keys(legalMovesFor([codo, ...others], codo)).filter((k) => k.startsWith("pivot")).sort().join(" ");
+    check("a Codo on one cube can pivot on its own", pivots([]) === "pivot-ccw pivot-cw", pivots([]));
+    check("caught in a lying Arco Chico's opening, it can't pivot", caughtInNarrowArch([codo, chicoU], codo) && pivots([chicoU]) === "", pivots([chicoU]));
+    check("...nor in a lying Arco Alto's", caughtInNarrowArch([codo, altoU], codo) && pivots([altoU]) === "", pivots([altoU]));
+    check("under a lying Arco Ancho, it can", !caughtInNarrowArch([codo, anchoU], codo) && pivots([anchoU]) !== "", pivots([anchoU]));
+    const beside = { ...chicoU, col: 6 }; // (the opening a square east: the Codo's foot against a leg's side, not in it)
+    check("...and beside a narrow Arco, not in it, it can", !caughtInNarrowArch([codo, beside], codo));
+    // Standing: an Arco Alto's opening is two high, room for the Codo's
+    // foot and the cube on it, its arm out the front, a level up. There
+    // its arm would swing into the legs anyway; caught, it doesn't try.
+    const altoUp = arch("arcoAlto", 5, 4, 3, 1, 3, "0,0,0;0,0,1;0,0,2;1,0,2;2,0,0;2,0,1;2,0,2");
+    check("the Codo stands in a standing Arco Alto's opening (no clash)", !piecesClash(codo, altoUp));
+    check("...caught there, it can't pivot", caughtInNarrowArch([codo, altoUp], codo) && pivots([altoUp]) === "", pivots([altoUp]));
+    // An arm held over a lying Chico's opening, its foot outside: the
+    // arm's a level above the arch, not in it.
+    const lean = { ...codo, row: 5, col: 5, w: 1, h: 2, vox: "0,0,1;0,1,0;0,1,1" }; // (foot at row 6, arm over row 5)
+    check("an arm over a narrow opening, a level above the arch, isn't caught", !piecesClash(lean, chicoU) && !caughtInNarrowArch([lean, chicoU], lean));
+  }
   setActiveLaws({ cantileverPivot: false });
 }
 

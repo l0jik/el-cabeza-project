@@ -334,6 +334,23 @@ The move:
   between the headings. Only a piece with a cube at the arm's level (2+
   tall) blocks it, and swinging over the board edge is allowed.
 - The arm never crushes: a Cabeza under it is sheltered.
+- Caught in a narrow Arco, no turn at all (user, 2026-11-23: "If a piece
+  is captured or caught between a narrow arch, whether it's tall or
+  short, it should not be allowed to rotate. If it is caught underneath
+  a laying down wide arch, it should be allowed. This is a global
+  rule."). `caughtInNarrowArch` (shapes.js), checked first in
+  `legalPivots`: a cube of the piece in the opening of an Arco Chico or
+  an Arco Alto, any owner's, standing or lying, any way up. The opening
+  is what the arch's own box (its footprint, its lowest to highest
+  level) holds empty: the Chico's one square, the Alto's two. The Arco
+  Ancho (opening two wide) never catches. Only pivots are refused; rolls
+  and slides out of the opening are as before (the legs already block
+  the sideways ones). Lying flat, the arch is one cube high, so an arm a
+  level up over its opening isn't caught, and before this a Codo standing
+  in a lying Chico's notch could swing its arm over the legs (the user's
+  game, Futuris). The rule texts say it (LAW_TEXT and the Pivot card in
+  RulesCards.jsx, rules-selections.js, the sphere's blurb), es and vi
+  too. tests/shapes.smoke.mjs.
 
 Chassis:
 - The spin reuses the roll carrier with axis +Y through the planted cube

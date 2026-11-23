@@ -428,6 +428,34 @@ export function pivotPiece(piece, turn) {
   };
 }
 
+/* Caught in a narrow Arco (user: "If a piece is captured or caught
+   between a narrow arch, whether it's tall or short, it should not be
+   allowed to rotate. If it is caught underneath a laying down wide arch,
+   it should be allowed. This is a global rule."): a cube of the piece in
+   the opening of an Arco Chico or an Arco Alto, standing or lying, any
+   way up. The opening is what the arch's own box holds empty: the
+   Chico's one square, the Alto's two in a line. Its legs hold whatever's
+   in it, so it can't turn (legalPivots). The Arco Ancho's opening is two
+   squares wide: a piece under it turns as it would anywhere. */
+const NARROW_ARCOS = ["arcoChico", "arcoAlto"];
+export function caughtInNarrowArch(pieces, piece) {
+  for (const a of pieces) {
+    if (a.id === piece.id || !a.vox || !NARROW_ARCOS.includes(a.type)) continue;
+    const r0 = Math.max(a.row, piece.row), r1 = Math.min(a.row + a.h, piece.row + piece.h);
+    const c0 = Math.max(a.col, piece.col), c1 = Math.min(a.col + a.w, piece.col + piece.w);
+    if (r0 >= r1 || c0 >= c1) continue;
+    let all = 0;
+    for (let r = a.row; r < a.row + a.h; r++) for (let c = a.col; c < a.col + a.w; c++) all |= maskAt(a, r, c);
+    if (!all) continue;
+    const lo = 31 - Math.clz32(all & -all), hi = 31 - Math.clz32(all);
+    const box = (2 ** (hi + 1) - 1) - (2 ** lo - 1); // (the arch's own levels, bottom to top)
+    for (let r = r0; r < r1; r++) {
+      for (let c = c0; c < c1; c++) if (maskAt(piece, r, c) & box & ~maskAt(a, r, c)) return true;
+    }
+  }
+  return false;
+}
+
 /* Where a pivot's arm ends up: the bounding box of every square the
    piece covers other than its planted one. The move indicator for a
    pivot sits there — the square the player taps to swing the arm onto. */

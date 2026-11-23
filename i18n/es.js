@@ -801,6 +801,7 @@ export default {
   "Otherwise anything behind them blocks.": "Si no, cualquier cosa detrás de ellas bloquea.",
   "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube turns a quarter turn around it.": "Un Codo, Hombro, Cruce, Rayo o Zeta en equilibrio sobre un solo cubo gira un cuarto de vuelta alrededor de él.",
   "Its arm is held up, so it swings right over a Cabeza.": "Su brazo va en alto, así que pasa por encima de una Cabeza.",
+  "Not while it's caught in a narrow Arco's opening (a Chico or an Alto); under an Arco Ancho, it can.": "No si está atrapado en la abertura de un Arco estrecho (un Chico o un Alto); bajo un Arco Ancho, sí puede.",
   "Singularity": "Singularidad",
   "Only a piece standing on one square can enter: a Cabeza, a Turrito, or an upright Flaco or 1×3.": "Solo puede entrar una pieza parada sobre una sola casilla: una Cabeza, un Turrito, o un Flaco o un 1×3 parados.",
   "It comes out of the other singularity on the same side it went in (here: in from the west, out to the west), and the turn ends.": "Sale por la otra singularidad del mismo lado por el que entró (acá: entra desde el oeste, sale hacia el oeste), y el turno termina.",

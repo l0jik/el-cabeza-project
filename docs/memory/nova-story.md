@@ -954,3 +954,13 @@ in; leaving Singularity, back in the den as the set switches off.
   after. Test: tests/e2e-scene-aside.mjs (a phone: a visit to the set,
   home again and the bulb, the hall flaring, its choice, keep playing,
   the walk; a computer: the look round; a phone with the bar: the call).
+
+## The hall's bubble at any size of words (2026-11-23)
+
+The user's photo of the hall's second flare in the app (the phone's large
+font): "Oh, for the love of…" broke before "of…", which sat alone under
+it, the bubble's tail on the choice's card. themes/den-hall.js: the bubble
+its words' width, in balanced lines, its room 24ch (which grows with the
+words, as em doesn't); kept clear of the choice under it (the card made
+unseen a moment and measured as the bubble comes up, so it doesn't move
+when the card does); on a screen too short for both, as high as fits.

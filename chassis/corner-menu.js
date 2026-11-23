@@ -98,8 +98,13 @@ function card(r, L, extra, change) {
   // with A + B"): the two buttons back, the game asked about first (the
   // chassis's askChangeRules). Where the rules can be chosen.
   const swap = change ? `<button type="button" class="go cm-extra cm-change" data-cm="change" data-testid="corner-menu-change-rules">${esc(t("Change rules"))} ›</button>` : "";
+  // Who you're playing (user: "I'm not sure if this menu says what the
+  // current AI level I'm playing against is"): the AI at its level, a
+  // second player at the same screen, or someone online (r.opponent, the
+  // chassis's, already in the player's language).
+  const opp = r.opponent ? `<section class="cm-sec cm-opp"><ul><li class="cm-bd" data-testid="corner-menu-opponent"><span class="k">${esc(t("Opponent"))}</span><span class="v">${esc(r.opponent)}</span></li></ul></section>` : "";
   return `${L.head || ""}
-    <section class="cm-sec cm-laws"><h4>${L.laws(r)}</h4><ul>${laws}</ul></section>
+    ${opp}<section class="cm-sec cm-laws"><h4>${L.laws(r)}</h4><ul>${laws}</ul></section>
     <section class="cm-sec cm-pieces"><h4>${L.pieces(r)}</h4><ul>${pieces}</ul>${L.piecesExtra ? L.piecesExtra(r) : ""}</section>
     <section class="cm-sec cm-board"><h4>${L.board(r)}</h4><ul>${board}</ul>${L.boardExtra ? L.boardExtra(r) : ""}</section>
     ${go}${swap}${L.foot(r)}`;
@@ -130,14 +135,21 @@ const BASE = `
   .cm[data-raised="true"] .cm-tab, .cm[data-open="true"] .cm-tab, .cm .cm-tab:focus-visible { opacity: 1; }
   @media (hover: hover) { .cm .cm-tab:hover { opacity: 1; } }
   .cm button:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
-  .cm .cm-card { width: 304px; max-width: calc(100vw - 28px); max-height: calc(100vh - 96px); overflow-y: auto; overscroll-behavior: contain; }
+  /* (Its height, as it opens, the room down to the screen's foot from
+     where it stands, measured: CornerMenu.jsx. Its width grows with the
+     phone's size of words, --cm-tz: user, the app on a phone with its
+     large font, "The bottom of the menu circled in red is cut off", and
+     the pieces' names and counts broken over lines.) */
+  .cm .cm-card { width: calc(304px * var(--cm-tz, 1)); max-width: calc(100vw - 28px); max-height: calc(100vh - 96px); overflow-y: auto; overscroll-behavior: contain; }
   html.ec-shell .cm .cm-card { max-height: calc(100vh - var(--ec-shell-top, 60px) - var(--ec-shell-bottom, 120px) - 70px); }
   .cm ul { list-style: none; margin: 0; padding: 0; }
   .cm h4 { margin: 0; }
   .cm .cm-law { display: flex; flex-direction: column; align-items: flex-start; }
   .cm .cm-law .cm-name:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
   .cm .cm-set { display: flex; gap: 6px; align-items: baseline; }
-  .cm .cm-pieces ul { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; }
+  .cm .cm-pieces ul { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; }
+  .cm .cm-pc .n { min-width: 0; overflow-wrap: break-word; }
+  .cm .cm-pc .c { flex: none; white-space: nowrap; }
   .cm .cm-pc, .cm .cm-bd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .cm .cm-bd .v { text-align: right; } /* (a long one, "Any other singularity", wraps flush right) */
   .cm .cm-extra { display: block; margin-top: 10px; text-decoration: underline; }
@@ -227,6 +239,8 @@ export const LOOKS = {
     .cm-futuris .cm-pc .n, .cm-futuris .cm-bd .k { text-transform:uppercase; letter-spacing:.06em; color:var(--mut); }
     .cm-futuris .cm-pc.changed .c { color:#fff; text-shadow:0 0 8px var(--c); }
     .cm-futuris .cm-pc.changed .c::before { content:"Δ "; color:var(--c); }
+    .cm-futuris .cm-sec + .cm-sec { margin-top:10px; border-top:1px solid rgba(34,228,255,.25); }
+    .cm-futuris .cm-opp + .cm-sec { margin-top:6px; } .cm-futuris .cm-opp .cm-bd { margin-top:4px; }
     .cm-futuris .ft { display:flex; justify-content:space-between; gap:10px; margin-top:12px; padding-top:8px; border-top:1px solid rgba(34,228,255,.25); font:500 10px/1 'IBM Plex Mono', monospace; color:var(--mut); }
     .cm-futuris .ft .go, .cm-futuris .cm-extra { color:var(--c); letter-spacing:.12em; font:500 10px/1 'IBM Plex Mono', monospace; }
     `,
@@ -303,6 +317,7 @@ export const LOOKS = {
     .cm-lluvia .cm-set { font:500 13.5px/1.3 'Saira Condensed', sans-serif; color:var(--mut); padding-left:10px; } .cm-lluvia .cm-set .k::after { content:":"; } .cm-lluvia .cm-set .v { color:#FF9ADB; }
     .cm-lluvia .cm-pc, .cm-lluvia .cm-bd { font:600 14.5px/1.55 'Saira Condensed', sans-serif; }
     .cm-lluvia .cm-pc.changed .c, .cm-lluvia .cm-pc.changed .n { color:#FF9ADB; text-shadow:0 0 8px rgba(255,61,187,.7); }
+    .cm-lluvia .cm-sec + .cm-sec { margin-top:10px; border-top:1px solid rgba(255,61,187,.28); }
     .cm-lluvia .ft { display:flex; justify-content:space-between; gap:10px; margin-top:12px; font:600 12px/1 'Saira Condensed', sans-serif; letter-spacing:.06em; color:var(--mut); }
     .cm-lluvia .ft .go, .cm-lluvia .cm-extra { color:var(--p); letter-spacing:.16em; font:600 12px/1 'Saira Condensed', sans-serif; }
     html[lang="vi"] .cm-lluvia .en { display:none; }
@@ -425,6 +440,7 @@ export const LOOKS = {
     .cm-luna .cm-pc, .cm-luna .cm-bd { font:500 13.5px/1.9 'Jost', sans-serif; }
     .cm-luna .cm-pc .c, .cm-luna .cm-bd .v { font:500 11px/1 'IBM Plex Mono', monospace; padding:3px 7px; border-radius:8px; background:rgba(232,236,242,.08); }
     .cm-luna .cm-pc.changed .c { color:var(--o); box-shadow: inset 0 0 0 1px var(--o); }
+    .cm-luna .cm-sec + .cm-sec { margin-top:10px; border-top:1px solid rgba(154,166,182,.28); }
     .cm-luna .ft { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:12px; font:400 10.5px/1 'IBM Plex Mono', monospace; color:var(--mut); }
     .cm-luna .ft .dot { display:inline-block; width:8px; height:8px; border-radius:3px; box-shadow: inset 0 0 0 1px var(--o); vertical-align:-1px; }
     .cm-luna .ft .go, .cm-luna .cm-extra { font:600 11px/1 'Jost', sans-serif; letter-spacing:.18em; text-transform:uppercase; color:var(--o); }
@@ -497,6 +513,7 @@ export const LOOKS = {
     .cm-ciudad .cm-pc, .cm-ciudad .cm-bd { font:600 13.5px/1.9 'Overpass', 'Arial Narrow', Arial, sans-serif; }
     .cm-ciudad .cm-pc .c, .cm-ciudad .cm-bd .v { font:600 11.5px/1 'Overpass Mono', 'DejaVu Sans Mono', monospace; padding:3px 6px; border-radius:4px; background:rgba(47,68,88,.1); font-variant-numeric:tabular-nums; }
     .cm-ciudad .cm-pc.changed .c { background:var(--y); color:var(--ink); }
+    .cm-ciudad .cm-sec + .cm-sec { margin-top:10px; border-top:1px solid rgba(94,110,126,.28); }
     .cm-ciudad .ft { display:flex; justify-content:space-between; align-items:center; gap:10px; margin:13px 16px 0; font:400 10.5px/1.2 'Overpass Mono', 'DejaVu Sans Mono', monospace; color:var(--mut); }
     .cm-ciudad .ft .mk { display:inline-block; width:9px; height:9px; border-radius:2px; background:var(--y); vertical-align:-1px; margin-right:5px; }
     .cm-ciudad .ft .go, .cm-ciudad .cm-extra { font:800 11px/1 'Overpass', 'Arial Narrow', Arial, sans-serif; letter-spacing:.14em; text-transform:uppercase; color:var(--sign); white-space:nowrap; }
@@ -534,6 +551,7 @@ export const LOOKS = {
     .cm-parrish-orinoco .cm-pc, .cm-parrish-orinoco .cm-bd { font:600 16px/1.45 'Cormorant Garamond', Georgia, serif; }
     .cm-parrish-orinoco .cm-pc .c, .cm-parrish-orinoco .cm-bd .v { font-style:italic; color:var(--mut); }
     .cm-parrish-orinoco .cm-pc.changed .c, .cm-parrish-orinoco .cm-pc.changed .n { color:var(--gold); }
+    .cm-parrish-orinoco .cm-sec + .cm-sec { margin-top:10px; border-top:1px solid rgba(201,150,59,.55); }
     .cm-parrish-orinoco .ft { display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-top:12px; font:500 14px/1 'Cormorant Garamond', Georgia, serif; color:var(--mut); }
     .cm-parrish-orinoco .ft .go, .cm-parrish-orinoco .cm-extra { font:700 10.5px/1 'Cinzel', Georgia, serif; letter-spacing:.18em; color:var(--ink); }
     /* Out of the way till it's wanted (user: "On Watermark & Orinoco, the
