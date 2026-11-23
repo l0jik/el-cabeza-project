@@ -197,7 +197,10 @@ export function coachFor(t) {
 }
 
 function coachSays(t) {
-  const N = Math.max(1, t.budget || 2);
+  // (The basic game's two actions a turn, always: its demonstration is
+  // no other; user: "Steve should only be giving instructions in the
+  // tutorial about how to play the basic game ... no 3 moves per piece".)
+  const N = 2;
   const tap = (touch, click) => (t.touch ? touch : click);
   switch (pictureOf(t)) {
     case "welcome":
@@ -228,11 +231,11 @@ function coachSays(t) {
         { focus: [4, 3, 162, 134], mood: "grin", line: "One way: get your disc across in one piece.", notes: [note([127, 46, 41, 50], GOAL, "far row wins!", { v: "top" })] },
         {
           focus: [174, 1, 144, 137], mood: "grin",
-          line: N === 1 ? "Only your disc moves like this: one square any way, once a turn." : N === 2 ? "Only your disc moves like this: one square any way, once or twice a turn." : say("Only your disc moves like this: one square any way, up to {n} times a turn.", { n: N }),
+          line: "Only your disc moves like this: one square any way, once or twice a turn.",
           notes: [
             note([178, 0, 136, 16], YOURS, "only your disc", { align: "center", v: "bottom" }),
             note([246 + (n * s2) / 2 + 3, 20, 316 - (246 + (n * s2) / 2 + 3), 70], YOURS, "any way!", { align: "center" }),
-            note([x0, 16 + n * s2 + 2, 318 - x0, 40], YOURS, N === 1 ? "one step a turn" : say("{n} steps a turn", { n: N })),
+            note([x0, 16 + n * s2 + 2, 318 - x0, 40], YOURS, say("{n} steps a turn", { n: N })),
           ],
         },
       ];
@@ -260,22 +263,17 @@ function coachSays(t) {
          his points one at a time, each lighting its part of the picture
          (focus), the rest dimmed: whose turn; a block rolled once or twice;
          the big one, once; done early. */
-      const opa = !t.split && N === 2 && t.hasOpa;
       const left = 16 + (N + 1) * 19 + 8;
       const parts = [
         { focus: [6, 4, 308, 40], mood: "grin", line: t.youFirst ? "You go first, then the computer." : "The computer goes first, then you.", notes: [] },
-        {
-          focus: [2, 50, Math.max(left - 2, 86), 88], mood: "grin",
-          line: t.split ? say("Each turn, {n} moves, shared by your pieces.", { n: N }) : N === 1 ? "Pick a block and roll it once." : N === 2 ? "Pick a block. Roll it once or twice." : say("Pick a block. Roll it up to {n} times.", { n: N }),
-          notes: [note([4, 50, 82, 22], YOURS, t.split ? say("{n} moves a turn", { n: N }) : N === 1 ? "one roll a turn" : say("up to {n} rolls", { n: N }))],
-        },
+        { focus: [2, 50, Math.max(left - 2, 86), 88], mood: "grin", line: "Pick a block. Roll it once or twice.", notes: [note([4, 50, 82, 22], YOURS, say("up to {n} rolls", { n: N }))] },
       ];
-      if (opa) parts.push({ focus: [90, 50, 134, 88], mood: "hmm", line: "The big block is heavy: it rolls just once.", notes: [note([156, 64, 66, 44], YOURS, "the big one rolls once")] });
+      if (t.hasOpa) parts.push({ focus: [90, 50, 134, 88], mood: "hmm", line: "The big block is heavy: it rolls just once.", notes: [note([156, 64, 66, 44], YOURS, "the big one rolls once")] });
       // (User: "instead of done early? have him say, don't want to move your
       // piece twice? You don't have to!"; and only the hold, as the game is
       // played: "you can press and hold to end your turn ... there's no check
       // mark".)
-      if (N > 1) parts.push({ focus: [228, 50, 90, 88], mood: "grin", line: "Don't want to move your piece twice? You don't have to! Press and hold it to end your turn.", notes: [note([230, 50, 88, 36], YOURS, "hold it to end early", { v: "bottom" })] });
+      parts.push({ focus: [228, 50, 90, 88], mood: "grin", line: "Don't want to move your piece twice? You don't have to! Press and hold it to end your turn.", notes: [note([230, 50, 88, 36], YOURS, "hold it to end early", { v: "bottom" })] });
       return { ...parts[0], parts };
     }
     case "board":
@@ -296,7 +294,7 @@ function coachSays(t) {
       ] };
     case "lesson": {
       const p = t.lessonPic || {};
-      const times = Math.min(3, Math.max(1, p.times || 1)), cost = p.cost || 1, disc = p.type === "cabeza";
+      const times = Math.min(2, Math.max(1, p.times || 1)), cost = p.cost || 1, disc = p.type === "cabeza";
       const how = disc
         ? (times > 1 ? say("up to {n} steps, any way", { n: times }) : "one step, any way")
         : times > 1 ? say("up to {n} rolls", { n: times }) : cost > 1 ? "rolls just once" : "one roll";

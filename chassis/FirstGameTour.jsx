@@ -256,7 +256,7 @@ function cardText(t) {
           // (How far a turn takes it, not "one square at a time", user: "it
           // will cause a novice to assume it only moves one space per turn,
           // when in fact it can move two".)
-          say("It can step up to {n} squares a turn, in any direction, even diagonally.", { n: word(t.budget) }),
+          say("It can step up to {n} squares a turn, in any direction, even diagonally.", { n: word(2) }),
         ],
       };
     case "crush":
@@ -285,21 +285,18 @@ function cardText(t) {
           // words: "Each turn, select a piece to roll on its edge either
           // once or twice. Note: the Opa (large cube) only rolls on its
           // edge once due to its large size.")
-          t.budget === 2 && !t.split
-            ? "Each turn, select a piece to roll on its edge either once or twice."
-            : t.split
-            ? say(t.hasOpa ? "Each turn you get {n} actions, shared by up to {k} pieces. A roll or a step costs one; the Opa's roll costs two." : "Each turn you get {n} actions, shared by up to {k} pieces. A roll or a step costs one.", { n: word(t.budget), k: word(t.split) })
-            : say(t.hasOpa ? "Each turn you get {n} actions, all for one piece. A roll or a step costs one; the Opa's roll costs two." : "Each turn you get {n} actions, all for one piece. A roll or a step costs one.", { n: word(t.budget) }),
-          t.budget === 2 && !t.split && t.hasOpa ? { note: "the Opa (large cube) only rolls on its edge once due to its large size." } : null,
-          // (The Punto law cuts the opening turn by one: said where it's on.)
-          t.punto ? (t.youFirst ? "Your very first turn has one action fewer: this game plays the Punto law." : "Your opponent's very first turn has one action fewer: this game plays the Punto law.") : null,
+          // (The basic game's alone, its demonstration being no other; user:
+          // "There should be no introduction of anything other than what's
+          // in the basic game.")
+          "Each turn, select a piece to roll on its edge either once or twice.",
+          t.hasOpa ? { note: "the Opa (large cube) only rolls on its edge once due to its large size." } : null,
           t.dots || null,
           "When they're used up, your turn ends and your opponent moves.",
           // (Ending it sooner, Hold to end being always on, user: "As long
           // as it is clearly explained somewhere": a tap on the piece won't.)
           // (The hold alone, as the game is played, user: "you can press and
           // hold to end your turn ... there's no check mark".)
-          t.budget > 1 ? "To end it sooner, hold the piece you moved until its ring closes." : null,
+          "To end it sooner, hold the piece you moved until its ring closes.",
         ],
       };
     case "board":
@@ -330,7 +327,6 @@ function cardText(t) {
       }
       const rows = [["Moves", l.moves], ["A turn", l.turn]];
       if (l.aim) rows.push(["Aim", l.aim]);
-      (l.extra || []).forEach((x) => rows.push(["Also", x]));
       return { title: l.name, sub: l.what || null, rows, note: t.status || null };
     }
     case "foe": {

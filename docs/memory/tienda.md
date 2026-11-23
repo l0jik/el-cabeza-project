@@ -683,6 +683,52 @@ box art and an ad standee (assets/tienda/*.jpg).
     steps, each its line, half and notes, and Back to its last; the last
     card's thanks in pictures, the beam, Got it only then; the foldable at
     1.5x text through every step of every card.
+- **The demonstration is the basic game, and the tour teaches it alone**
+  (2026-11-23; user: "So Steve should only be giving instructions in the
+  tutorial about how to play the basic game. There should be no
+  introduction of anything other than what's in the basic game. So no 3
+  moves per piece or anything like that. And I've seen some of that
+  there, so we need to lock that down."; then "Go ahead, keep the menu
+  part as is."). Found: with the basic rules nothing in the tour went past
+  them; its words, pictures and Steve followed whatever laws were on (3
+  actions, a split turn, Punto, a law's extra moves in a piece's lesson),
+  and nothing held the demonstration to the basic rules but each place
+  starting from the page's own.
+  - Locked (ElCabeza3D, firstLook): while the store's demonstration waits
+    on Begin, no law, black hole or cut square, the 10 by 10 board and the
+    standard opening, put back if anything else came (isBasicGame); Begin
+    sets nothing out by hand (startsByHand: a Manual start kept from
+    another game is passed over, the button says Try a Demo Game).
+  - Stripped: the tour's facts are the basic game's, no law's. Steve
+    (TourCoach coachSays N = 2, no split; a lesson's times at most 2), the
+    pictures (Turn, Goal, Lesson), the words (the turn card: "Each turn,
+    select a piece to roll on its edge either once or twice." and the
+    Opa's note; no Punto line; a piece's lesson without the laws' Also
+    rows), the board's label (2 actions a turn); the tour object no longer
+    carries budget, split or punto. The variant lines' translations gone.
+  - The menu cards kept as they were (asked).
+  - tests/e2e-first-game-tour.mjs "the store's demonstration: the basic
+    game, locked": every law on, a 12 by 10 board and a Manual start kept
+    (__EC_LAWS__, __EC_BOARD__, el-cabeza:start-position), the store's
+    game basic before Begin and after, nothing set out, and on every card
+    and step to the first move, and a piece picked, no three, shared turn,
+    Punto, slide, pivot or shove. __EC_TEST_RULES__ (new): the laws, the
+    board, holes, cut squares, the Manual start.
+- **Where a piece can go, as the board shows it** (2026-11-23; user:
+  "Steve says to roll a block to a square that's lit. That is not
+  accurate. In the demo, there's a yellow highlighting around pieces, but
+  then when you can move a piece, you need to be more accurate with the
+  description as to what the move indicators are showing. It's not a lit
+  square. What other possibilities can we use here for his wording? And
+  it has to be concise, though."). The store's indicators: a yellow arrow
+  curving from the picked piece to each place it can land, that place
+  outlined in gold; a tap there (the ghost's plane, GHOST_SCALE) moves it.
+  The lesson picture's last panel drawn so (TourPictures Lesson: the piece
+  in its square, an arrow to the next, that one outlined, the hand on it;
+  a disc for the Cabeza, a block for the rest); Steve's line ("Now tap a
+  lit square!") to the user's pick of: "Now tap where an arrow points!",
+  "Tap an arrow's tip to move it!", "See the arrows? Tap where one ends!",
+  "Tap an outlined square to move there!".
 - **The store's signs in view again** (2026-11-22; user: "In Tienda /
   store, the maximum vertical zoom / ceiling seems to be lower than
   before.... There is wall signage that can no longer be seen. Is there a

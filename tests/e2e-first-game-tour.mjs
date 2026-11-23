@@ -1185,6 +1185,79 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   await ctx.close();
 }
 
+{
+  /* The store's demonstration is the basic game, and the tour teaches it
+     alone (user: "Steve should only be giving instructions in the
+     tutorial about how to play the basic game. There should be no
+     introduction of anything other than what's in the basic game. So no 3
+     moves per piece or anything like that ... we need to lock that
+     down"): with every law on, a 12 by 10 board and a Manual start kept,
+     the store's game waits on Begin as the basic game, Begin sets nothing
+     out by hand, and no card, picture or line of Steve's says three, a
+     shared turn, Punto, slides, pivots or shoves. */
+  console.log("\n[the store's demonstration: the basic game, locked]");
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
+  await ctx.addInitScript(() => {
+    window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none";
+    window.__EC_LAWS__ = { threeActions: true, splitMovement: true, splitThree: true, punto: true, slide: true, diagonalSlide: true, shoving: true, cantileverPivot: true };
+    window.__EC_BOARD__ = { rows: 12, cols: 10 };
+    // (A Manual start kept from another game: set after ?fresh forgets.)
+    if (!/fresh/.test(location.search)) try { localStorage.setItem("el-cabeza:start-position", "hand"); localStorage.setItem("el-cabeza:set-out-half", "1"); } catch (e) { /* none */ }
+  });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto(`${NOVA}?fresh`);
+  await page.waitForSelector('[data-testid="tienda-open-box"]', { timeout: 60000 });
+  await page.waitForTimeout(1500);
+  await page.locator('[data-testid="tienda-open-box"]').click();
+  await page.waitForTimeout(3500);
+  const rules = () => page.evaluate(() => window.__EC_TEST_RULES__ && window.__EC_TEST_RULES__());
+  const basic = (r) => !!r && Object.entries(r.laws).every(([k, v]) => !v || k === "shoveOnRolls" || k === "shoveOwn") && r.board.rows === 10 && r.board.cols === 10 && r.holes === 0 && r.missing === 0;
+  const standard = () => page.evaluate(() => (window.__EC_TEST_PIECES__ || []).filter((p) => p.owner === "light").map((p) => `${p.type}@${p.row},${p.col}`).sort().join(" "));
+  let r = await rules();
+  check("before Begin, with every law on, a 12 by 10 board and a Manual start kept: the basic game, the standard opening", basic(r) && r.byHand === true && (await standard()) === "cabeza@9,4 chato@8,3 flaco@8,6 opa@7,4 turrito@9,5", JSON.stringify({ r, pieces: await standard() }));
+  await openDockPanel(page);
+  await page.waitForTimeout(600);
+  check("...its button Try a Demo Game, not Place my pieces", /try a demo game/i.test(await page.locator('[data-testid="tienda-try-game"]').innerText()), await page.locator('[data-testid="tienda-try-game"]').innerText());
+  await page.locator('[data-testid="tienda-try-game"]').click({ force: true });
+  for (let i = 0; i < 40 && !(await page.evaluate(() => window.__EC_TEST_ARMED__ === true)); i++) await page.waitForTimeout(250);
+  await page.waitForTimeout(1200);
+  check("Begin: nothing set out by hand, the tour's first card", (await page.locator('[data-testid="set-out-banner"]').count()) === 0 && (await card(page).count()) === 1, String(await page.locator('[data-testid="set-out-banner"]').count()));
+  await page.locator('[data-testid="tour-choose-pictures"]').click();
+  await page.waitForTimeout(900);
+  // Every card, every step of Steve's: his line, his words on it, and the
+  // card's own words (kept for a screen reader) and the board's labels.
+  const BEYOND = /\b3\b|three|shared|punto|slid|pivot|shove|black hole/i;
+  const said = [], beyond = [];
+  const look = async () => {
+    const co = await coachOf(page), tr = await tourOf(page);
+    const words = await page.evaluate(() => [...document.querySelectorAll('[data-testid="tour-card"] [data-testid="tour-title"], [data-testid="tour-card"] [data-testid="tour-words"]')].map((e) => e.textContent).join(" "));
+    const text = [co && co.line, ...(co ? co.notes.map((n) => n.text) : []), words, ...((tr.marks && tr.marks.tags) || [])].filter(Boolean).join(" · ");
+    said.push(`${tr.step}${co && co.parts ? ` ${co.part + 1}/${co.parts}` : ""}: ${text.slice(0, 120)}`);
+    if (BEYOND.test(text)) beyond.push(`${tr.step}: ${text}`);
+    return co;
+  };
+  for (let i = 0; i < 24 && (await tourOf(page)).step !== "pieces"; i++) {
+    const co = await look();
+    await page.locator('[data-testid="tour-next"]').click();
+    await page.waitForTimeout(co && co.parts && co.part < co.parts - 1 ? 500 : 1500);
+  }
+  await page.waitForTimeout(1500);
+  await look();
+  const at = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-flaco"));
+  await page.touchscreen.tap(at.x, at.y);
+  await page.waitForTimeout(2600);
+  const lesson = await look();
+  const lessonWords = await page.locator('[data-testid="tour-card"] [data-testid="tour-words"]').textContent();
+  check(`...on every card and step to your first move (${said.length}), nothing beyond the basic game: no three, shared turn, Punto, slide, pivot or shove`, said.length >= 13 && beyond.length === 0, beyond.join(" | ") || said.join(" | "));
+  check("...the Flaco picked: rolls twice a turn, nothing more to it (no Also)", !!lesson && lesson.picture === "lesson" && /twice a turn/.test(lessonWords) && !/Also/.test(lessonWords), lessonWords);
+  r = await rules();
+  check("...and the game played is the basic game", basic(r), JSON.stringify(r));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(`\nfirst-game tour: ${checks} checks, ${fails} failed`);
 console.log(fails === 0 ? "FIRST GAME TOUR E2E PASSED" : `FIRST GAME TOUR E2E FAILED (${fails})`);

@@ -459,7 +459,7 @@ function Goal({ t, still, mine }) {
   const stops = [cols[2], cols[2], cols[4], cols[4], cols[0], cols[0], cols[2]];
   const times = "0;0.12;0.36;0.44;0.84;0.92;1";
   const p0 = path(cols[2]);
-  const N = Math.max(1, t.budget || 2), n = 2 * N + 1, s2 = Math.min(16, 84 / n);
+  const N = 2, n = 2 * N + 1, s2 = Math.min(16, 84 / n);
   const g2 = { x: 246 - (n * s2) / 2, y: 16, s: s2 };
   const lit = [];
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (r !== N || c !== N) lit.push([r, c, "mine", 0.26]);
@@ -537,8 +537,9 @@ function Blocks({ still, mine, foe }) {
 function Turn({ t, still, mine }) {
   const first = t.youFirst ? "mine" : "foe", second = t.youFirst ? "foe" : "mine";
   const who = (k) => (k === "mine" ? ["person"] : ["computer"]);
-  const N = Math.max(1, t.budget || 2);
-  const opa = !t.split && N === 2 && t.hasOpa;
+  // (The basic game's two actions, one piece a turn: its demonstration's.)
+  const N = 2;
+  const opa = t.hasOpa;
   const s = 17, gy = 126, q = s + 2;
   return (
     <>
@@ -569,7 +570,7 @@ function Turn({ t, still, mine }) {
           <Dots x={16 + (N + 1) * q + 50} y={gy - 2 * s - 32} n={2} r={4.5} gap={4} />
         </>
       )}
-      {N > 1 && (
+      {(
         <>
           <Split x={226} y0={60} y1={130} />
           {/* (Sooner: press and hold the piece till its ring closes; the
@@ -792,7 +793,7 @@ function Lesson({ t, still, mine }) {
   const dims = { turrito: [1, 1, 1], opa: [2, 2, 2], chato: [1, 2, 2], flaco: p.z > 1 ? [1, 1, 2] : [1, 2, 1] }[type] || [p.w || 1, p.h || 1, p.z || 1];
   const big = Math.max(...dims);
   const u = big > 1 ? 19 : 28;
-  const times = Math.min(3, Math.max(1, p.times || 1)), cost = p.cost || 1;
+  const times = Math.min(2, Math.max(1, p.times || 1)), cost = p.cost || 1;
   const col = disc ? 54 : 40, x0 = 172 - (times * col) / 2;
   return (
     <>
@@ -835,10 +836,17 @@ function Lesson({ t, still, mine }) {
           )
           : (
             <>
-              <Grid x={250} y={46} cols={2} rows={2} s={24} lit={[[0, 1, "mine", 0.34]]} />
-              <circle cx={262} cy={82} r={7} fill={mine} stroke={TONES.mine} strokeWidth={1.8} />
-              <Arrow pts={[[264, 74], [262, 60], [283, 58]]} tone="mine" w={2.4} head={7} />
-              <Hand x={286} y={58} s={30} still={still} />
+              {/* (Where it can go, as the board shows it: an arrow from the
+                  piece to the squares it would land on, outlined; tap
+                  there. Not a square lit, user: "It's not a lit square.") */}
+              <Grid x={250} y={46} cols={2} rows={2} s={24} />
+              {disc
+                ? <circle cx={262} cy={82} r={7} fill={mine} stroke={TONES.mine} strokeWidth={1.8} />
+                : <rect x={254.5} y={74.5} width={15} height={15} rx={2.5} fill={mine} stroke={TONES.mine} strokeWidth={1.8} />}
+              <rect x={276.5} y={48.5} width={19} height={19} rx={2.5} fill="none" stroke={HALO} strokeWidth={3.6} />
+              <rect x={276.5} y={48.5} width={19} height={19} rx={2.5} fill="none" stroke={TONES.mine} strokeWidth={1.6} />
+              <Arrow pts={[[264, 73], [262, 59], [280, 58]]} tone="mine" w={2.4} head={7} />
+              <Hand x={288} y={60} s={30} still={still} />
             </>
           )}
     </>

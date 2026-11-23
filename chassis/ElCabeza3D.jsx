@@ -3738,6 +3738,36 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
      own setup row hears it as firstLook (tienda.js: the cart), and so
      does the phone's bar. */
   const firstLook = awaitingBegin && !!tourOffer && !!aiPlayer && !online && !replay && !tourDone();
+  /* That game is the basic game, whatever was set before it (user: "Steve
+     should only be giving instructions in the tutorial about how to play
+     the basic game. There should be no introduction of anything other
+     than what's in the basic game. So no 3 moves per piece or anything
+     like that ... we need to lock that down"): while it waits on Begin,
+     no law, black hole or cut square, the 10 by 10 board and the standard
+     opening, put back should anything else have come with the page (a
+     replay's rules, a test's, a board left resized); and Begin sets
+     nothing out by hand (startsByHand), a Manual start kept from another
+     game or not. */
+  const startsByHand = startByHand && !firstLook;
+  const isBasicGame = () => {
+    const { rows, cols } = getBoardDimensions();
+    if (rows !== 10 || cols !== 10 || BLACK_HOLES.length || MISSING_SQUARES.length) return false;
+    if (Object.keys(VANILLA_LAWS).some((k) => !!ACTIVE_LAWS[k] !== !!VANILLA_LAWS[k])) return false;
+    const key = (list) => list.map((p) => [p.id, p.type, p.owner, p.row, p.col, p.w, p.h, p.z].join(":")).sort().join("|");
+    return key(pieces) === key(createInitialPieces());
+  };
+  useEffect(() => {
+    if (!firstLook || setOutRef.current || isBasicGame()) return;
+    setActiveLaws({ ...VANILLA_LAWS });
+    setActiveBlackHoles([]);
+    setBlackHoles([]);
+    setActiveMissingSquares([]);
+    setMissingSquares([]);
+    setCurrentVariants(null);
+    applyBoardResize(10, 10);
+    setPieces(createInitialPieces());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstLook, pieces]);
   const firstLock = firstLook ? { "data-first-lock": "" } : null;
   const firstLockIcon = firstLook ? { "data-first-lock": "icon" } : null;
   /* The corner menu (chassis/CornerMenu.jsx): while a game is being
@@ -4423,7 +4453,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
   const [setOutPending, setSetOutPending] = useState(false);
   function beginOrSetOut() {
     if (onlineRef.current && onlineRef.current.role === "guest") return; // (the host begins)
-    if (startByHand && awaitingBegin && !setOutRef.current) setSetOutPending(true);
+    if (startsByHand && awaitingBegin && !setOutRef.current) setSetOutPending(true);
     else triggerBeginGame();
   }
   useEffect(() => {
@@ -5366,7 +5396,8 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
   const tourFoe = tourMine === "dark" ? "light" : "dark";
   const tourYours = tourStep === "pieces" && currentPlayer === tourMine && !!selectedPiece && selectedPiece.owner === tourMine;
   // (The walkthrough says "your opponent", not the side's name, user.)
-  const tourLesson = tourYours ? pieceLesson(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name, turnBudget(), "your opponent") : null;
+  // (The basic game's lesson: its two actions, no law's extra moves.)
+  const tourLesson = tourYours ? pieceLesson(selectedPiece, {}, PIECE_META[selectedPiece.type].name, 2, "your opponent") : null;
   const tourLeft = turnBudget() - stepsUsed;
   let tourStatus = null;
   if (tourYours) {
@@ -5514,7 +5545,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     } else if (tourStep === "turn") {
       const sel = shell ? '[data-testid="shell-points"]' : '[data-testid="points-counter"]';
       t2.boxes.push({ key: "actions", sel, tone: "mine" });
-      tag("actions", { el: sel }, t("{n} actions a turn", { n: ACTIVE_LAWS.threeActions ? 3 : 2 }), "mine", "above", [ACTIVE_LAWS.threeActions ? "dots3" : "dots2"]);
+      tag("actions", { el: sel }, t("{n} actions a turn", { n: 2 }), "mine", "above", ["dots2"]);
     } else if (tourStep === "board") {
       t2.orbit = { tone: "mine", mouse: !isCoarsePointer() };
       tag("orbit", { orbit: true }, isCoarsePointer() ? "Drag to turn · pinch to zoom" : "Drag to turn · scroll to zoom", "mine", null, ["turn", "zoom"]);
@@ -6234,6 +6265,8 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       cabIntro: tourCabRef.current ? { ...tourCabRef.current } : null,
     });
     window.__EC_TEST_TO_MOVE__ = () => currentPlayer; // (whose turn it is: "dark" or "light")
+    // (The rules in play: the laws, the board, its holes and cut squares.)
+    window.__EC_TEST_RULES__ = () => ({ laws: { ...ACTIVE_LAWS }, board: getBoardDimensions(), holes: BLACK_HOLES.length, missing: MISSING_SQUARES.length, byHand: startByHand });
   }
   const cornerColumnUnderFloats = cornerStack && (endTurnFloat || undoMoveFloat);
   const cornerColumnCovered = cornerControlsCovered || cornerColumnUnderFloats;
@@ -12957,11 +12990,8 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             // (A world with music on a channel of its own, the store's ceiling
             // speakers: whether it's heard, and its switch, for the first card.)
             music: soundChannels && soundChannels.some((c) => c.key === "music") ? { on: !audioMuted && masterLevel > 0 && levelOf("music") > 0 && !tourHush, set: setTourMusic } : null,
-            budget: ACTIVE_LAWS.threeActions ? 3 : 2,
-            split: ACTIVE_LAWS.splitMovement ? maxPiecesPerTurn() : 0,
             hasOpa: pieces.some((p) => p.owner === tourMine && p.type === "opa"),
             dots: shell ? "The bar at the foot of the screen shows how many are left." : showPoints ? "The lights at the foot of the screen count how many are left." : null,
-            punto: !!ACTIVE_LAWS.punto,
             touch: isCoarsePointer(),
             waiting: currentPlayer !== tourMine,
             lesson: tourLesson,
@@ -14744,7 +14774,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
                     minWidth: theme.renderSetupExtras ? 0 : undefined,
                   }}
                 >
-                  {online && online.role === "guest" ? "Waiting for the host\u2026" : startByHand ? "Place my pieces" : beginLabel}
+                  {online && online.role === "guest" ? "Waiting for the host\u2026" : startsByHand ? "Place my pieces" : beginLabel}
                 </button>
               );
               const extras = theme.renderSetupExtras && theme.renderSetupExtras({ beginGameButton, ...setupExtras, firstLook });
@@ -15338,7 +15368,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             // (A new player's first look at the setup: all but its own
             // actions' See the pieces and Begin held back.)
             firstLook,
-            beginLabel: startByHand ? "Place my pieces" : beginLabel,
+            beginLabel: startsByHand ? "Place my pieces" : beginLabel,
             startByHand,
             onStartByHand: toggleStartByHand,
             ownHalf,
