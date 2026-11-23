@@ -1195,9 +1195,10 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       const t = three.current;
       if (!t.ghostGroup) return [];
       return t.ghostGroup.children.filter((o) => o.userData.kind === "ghostLine" && !o.userData.fadingOut).map((o) => {
-        let sprites = 0;
-        o.traverse((c) => { if (c.isSprite) sprites++; });
-        return { dir: o.userData.dir, sprites };
+        let sprites = 0, light = 0;
+        // (light: the brightest of its parts, as drawn now; a throb's.)
+        o.traverse((c) => { if (c.isSprite) sprites++; if (c.material && typeof c.material.opacity === "number") light = Math.max(light, c.material.opacity); });
+        return { dir: o.userData.dir, sprites, light: Math.round(light * 100) / 100 };
       });
     };
     // A piece's box on the screen (pieceScreenRect: the card and the note

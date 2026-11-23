@@ -1255,6 +1255,14 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   const lessonWords = await page.locator('[data-testid="tour-card"] [data-testid="tour-words"]').textContent();
   check(`...on every card and step to your first move (${said.length}), nothing beyond the basic game: no three, shared turn, Punto, slide, pivot or shove`, said.length >= 13 && beyond.length === 0, beyond.join(" | ") || said.join(" | "));
   check("...the Flaco picked: rolls twice a turn, nothing more to it (no Also)", !!lesson && lesson.picture === "lesson" && /twice a turn/.test(lessonWords) && !/Also/.test(lessonWords), lessonWords);
+  /* The outlined squares it can go to throb, standing out from the steady
+     yellow round the piece picked (user: "the fainter, much fainter
+     outlines indicating where the piece can roll to. So maybe those faint
+     outlines can kind of have like a throb"): their light, sampled across
+     a throb, rises and falls. */
+  const lights = [];
+  for (let i = 0; i < 8; i++) { lights.push(await page.evaluate(() => Math.max(0, ...window.__EC_TEST_MARKERS__().map((m) => m.light)))); await page.waitForTimeout(150); }
+  check(`...where it can go outlined, throbbing (its light ${Math.min(...lights)} to ${Math.max(...lights)})`, Math.max(...lights) - Math.min(...lights) > 0.3 && Math.max(...lights) > 0.8, JSON.stringify(lights));
   r = await rules();
   check("...and the game played is the basic game", basic(r), JSON.stringify(r));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));

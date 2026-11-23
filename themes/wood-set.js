@@ -350,7 +350,7 @@ export function createWoodSet({ env, quality, lights }) {
   function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
     const group = new THREE.Group();
     const mats = [], geos = [];
-    const frame = (ix, iz, w, color, lift) => {
+    const frame = (ix, iz, w, color, lift, own = mats) => {
       const pos = [], idx = [];
       const o = [[-ix, -iz], [ix, -iz], [ix, iz], [-ix, iz]], inn = [[-ix + w, -iz + w], [ix - w, -iz + w], [ix - w, iz - w], [-ix + w, iz - w]];
       for (let i = 0; i < 4; i++) {
@@ -362,8 +362,9 @@ export function createWoodSet({ env, quality, lights }) {
       geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
       geo.setIndex(idx);
       const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, side: THREE.DoubleSide, toneMapped: false });
-      mats.push(mat); geos.push(geo);
+      own.push(mat); geos.push(geo);
       group.add(new THREE.Mesh(geo, mat));
+      return mat;
     };
     const main = isCrush ? 0xb04a3a : 0xe2b54e;
     const w = isCrush ? 0.07 : 0.05;
@@ -373,14 +374,42 @@ export function createWoodSet({ env, quality, lights }) {
       frame(hx * 0.62, hz * 0.62, 0.06, 0x24150b, 0);
       frame(hx * 0.62 - 0.012, hz * 0.62 - 0.012, 0.036, main, 0.001);
     }
+    /* Over the gold, a wider band of it that throbs, coming and going about
+       once a second, all of a piece's squares together: where it can go
+       stands out from the steady yellow round the piece picked (user: "the
+       fainter, much fainter outlines indicating where the piece can roll
+       to. So maybe those faint outlines can kind of have like a throb").
+       Warm amber, to show on the light squares and the dark; full once the
+       marker's in, whatever its resting light, swelling a little as it
+       brightens (with reduced motion, its light alone). */
+    const glow = [];
+    const whole = group;
+    const pulse = new THREE.Group();
+    group.add(pulse);
+    const into = (fn) => { const before = whole.children.length; fn(); whole.children.slice(before).forEach((m) => { whole.remove(m); pulse.add(m); }); };
+    into(() => {
+      frame(hx * 0.92 + 0.035, hz * 0.92 + 0.035, 0.035, 0x24150b, 0.0015, glow); // its dark rim
+      frame(hx * 0.92 + 0.012, hz * 0.92 + 0.012, w * 3 + 0.04, isCrush ? 0xe8674c : 0xffc22e, 0.002, glow);
+    });
+    const still = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let shown = 0;
     group.position.set(cx, 0.03, cz);
     return {
       root: group,
-      setOpacity(v) { mats.forEach((m) => { m.opacity = v * 0.95; }); },
-      tick() {},
-      dispose() { geos.forEach((gg) => gg.dispose()); mats.forEach((m) => m.dispose()); },
+      setOpacity(v) { shown = v; mats.forEach((m) => { m.opacity = v * 0.95; }); },
+      tick(now) {
+        const p = ((((now || 0) % THROB_MS) + THROB_MS) % THROB_MS) / THROB_MS;
+        const s = 0.5 - 0.5 * Math.cos(2 * Math.PI * p);
+        const k = Math.min(1, shown / 0.35);
+        glow[0].opacity = k * 0.55 * s;
+        glow[1].opacity = k * 0.95 * s;
+        if (!still) pulse.scale.set(1 + 0.07 * s, 1, 1 + 0.07 * s);
+      },
+      dispose() { geos.forEach((gg) => gg.dispose()); mats.forEach((m) => m.dispose()); glow.forEach((m) => m.dispose()); },
     };
   }
+  // (A throb's length, ms.)
+  const THROB_MS = 1150;
 
   /* A missing square: the square cut clean out of the board. Looking in,
      the four walls show the board's plywood (its plies in stripes, the lit

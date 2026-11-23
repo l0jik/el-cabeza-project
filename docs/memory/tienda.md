@@ -735,6 +735,21 @@ box art and an ad standee (assets/tienda/*.jpg).
   marks, TourMarks; the outlines the game's own). es "¡Tocá una casilla
   con contorno para moverla ahí!", vi "Chạm vào một ô có viền để đi tới
   đó!".
+- **The squares a piece can go to throb** (2026-11-23; user, of "Tap an
+  outlined square to move there!": "But there's different outlines.
+  There's the yellow outline around the piece itself, the active piece,
+  and then there's the fainter, much fainter outlines indicating where the
+  piece can roll to. So maybe those faint outlines can kind of have like a
+  throb"). themes/wood-set.js buildMoveIndicator, the store's and the
+  den's alike (one wood set): over the thin gold frame, a wider warm amber
+  band with a dark rim, all of a piece's squares together, coming and
+  going every 1.15 s (THROB_MS, a sine), full once the marker's faded in
+  whatever its resting light, swelling 7% as it brightens; with reduced
+  motion its light alone. The picked piece's yellow ring stays steady and
+  round-cornered, the squares' square. The chassis already ticked each
+  marker every frame (indicator.tick(now)). __EC_TEST_MARKERS__ gives each
+  marker's light (its brightest part now); tests/e2e-first-game-tour.mjs
+  samples it across a throb (0.48 to 0.92 seen).
 - **The store's signs in view again** (2026-11-22; user: "In Tienda /
   store, the maximum vertical zoom / ceiling seems to be lower than
   before.... There is wall signage that can no longer be seen. Is there a
