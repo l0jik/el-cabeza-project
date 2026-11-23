@@ -1133,7 +1133,7 @@ export default {
   "you win!": "¡ganás!",
   "their block rolls onto your disc…": "su bloque se vuelca sobre tu disco…",
   "you lose.": "perdés.",
-  "Blocks only roll. Easy!": "Los bloques solo ruedan. ¡Fácil!",
+  "Blocks only roll on their edge. Easy!": "Los bloques solo se vuelcan sobre su arista. ¡Fácil!",
   "blocks roll over": "los bloques se vuelcan",
   "never corner to corner": "nunca en diagonal",
   "a disc can't crush": "un disco no aplasta",
@@ -1193,7 +1193,7 @@ export default {
   "Your menu, as a bar.": "Tu menú, como barra.",
   "the piece, back any time": "la pieza vuelve cuando quieras",
   // (The first card: the store's clerk offers to shut the ceiling speakers' music off.)
-  "Psst. I can turn that off. My manager's at lunch.": "Psst. Puedo apagar eso. Mi jefe salió a almorzar.",
+  "Don't like the music either? I can turn it off. My manager's at lunch.": "¿A vos tampoco te gusta la música? Puedo apagarla. Mi jefe salió a almorzar.",
   "Turn it off": "Apagala",
   "Ahh. Much better.": "Ahh. Mucho mejor.",
   "Music back on": "Que vuelva la música",

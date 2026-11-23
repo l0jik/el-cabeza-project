@@ -1141,7 +1141,7 @@ export default {
   "you win!": "bạn thắng!",
   "their block rolls onto your disc…": "khối đối thủ lăn lên đĩa của bạn…",
   "you lose.": "bạn thua.",
-  "Blocks only roll. Easy!": "Khối chỉ lăn thôi. Dễ mà!",
+  "Blocks only roll on their edge. Easy!": "Khối chỉ lăn qua cạnh thôi. Dễ mà!",
   "blocks roll over": "khối lăn qua cạnh",
   "never corner to corner": "không bao giờ đi chéo",
   "a disc can't crush": "đĩa không đè bẹp được",
@@ -1201,7 +1201,7 @@ export default {
   "Your menu, as a bar.": "Menu của bạn, dạng thanh.",
   "the piece, back any time": "quân cờ, quay lại lúc nào cũng được",
   // (The first card: the store's clerk offers to shut the ceiling speakers' music off.)
-  "Psst. I can turn that off. My manager's at lunch.": "Suỵt. Mình tắt được đấy. Quản lý của mình đi ăn trưa rồi.",
+  "Don't like the music either? I can turn it off. My manager's at lunch.": "Bạn cũng không thích nhạc này à? Mình tắt được đấy. Quản lý của mình đi ăn trưa rồi.",
   "Turn it off": "Tắt đi",
   "Ahh. Much better.": "À. Dễ chịu hơn hẳn.",
   "Music back on": "Bật lại nhạc",

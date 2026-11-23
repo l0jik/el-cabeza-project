@@ -200,7 +200,8 @@ export function coachFor(t) {
         note([166, 10, 106, 44], THEIRS, "their block rolls onto your disc…", { end: "you lose." }),
       ] };
     case "blocks":
-      return { mood: "grin", line: "Blocks only roll. Easy!", notes: [
+      // (User: "blocks only roll on their edge. Easy!")
+      return { mood: "grin", line: "Blocks only roll on their edge. Easy!", notes: [
         note([4, 8, 70, 48], YOURS, "blocks roll over"),
         note([110, 0, 76, 33], THEIRS, "never corner to corner", { v: "bottom" }),
         note([216, 8, 68, 48], THEIRS, "a disc can't crush"),

@@ -2892,15 +2892,31 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     saveChannelLevels(next);
     applyChannelLevels(audioRef.current, soundChannels, next, masterLevel, secs);
   }
-  /* The music off, from the tour's first card (the store's clerk: "Psst. I
-     can turn that off. My manager's at lunch."), faded out; or back
-     at the level it had. The sound menu's own Music, so kept as that is. */
-  const musicBackRef = useRef(1);
+  // Several channels at once (one state, one save, one fade).
+  function setChannelLevelsTo(levels, secs) {
+    const next = { ...channelLevels };
+    Object.keys(levels).forEach((k) => { next[k] = Math.max(0, Math.min(1, levels[k])); });
+    setChannelLevels(next);
+    saveChannelLevels(next);
+    applyChannelLevels(audioRef.current, soundChannels, next, masterLevel, secs);
+  }
+  /* The music off, from the tour's first card (the store's clerk: "Don't
+     like the music either? I can turn it off. My manager's at lunch."),
+     faded out, and the store's own sounds with it down to 9% (user: "when
+     if they choose to turn the music off, then the all other noises for
+     that scene need to be reduced to 9%"; the pieces as they were); or
+     both back at the levels they had. The sound menu's own channels, so
+     kept as they are. */
+  const TOUR_HUSH = 0.09;
+  const musicBackRef = useRef(null);
   function setTourMusic(on) {
+    const has = (k) => !!(soundChannels && soundChannels.some((c) => c.key === k));
     if (!on) {
-      if (levelOf("music") > 0) musicBackRef.current = levelOf("music");
-      setChannelLevel("music", 0, 1.6);
-    } else setChannelLevel("music", musicBackRef.current || 1, 1.6);
+      const was = { music: levelOf("music") > 0 ? levelOf("music") : 1 }, to = { music: 0 };
+      if (has("store")) { was.store = levelOf("store"); to.store = Math.min(levelOf("store"), TOUR_HUSH); }
+      musicBackRef.current = was;
+      setChannelLevelsTo(to, 1.6);
+    } else setChannelLevelsTo(musicBackRef.current || { music: 1 }, 1.6);
   }
   // On or off (the record player turning its channel back on).
   function toggleChannel(key) {

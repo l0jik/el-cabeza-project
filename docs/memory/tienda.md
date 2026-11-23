@@ -526,7 +526,8 @@ box art and an ad standee (assets/tienda/*.jpg).
   text shrinks a note in place (data-fit), never over what's drawn. No
   note in his corner (x under 44, y over 126). His lines: "Hi, I'm Steve!
   Let me show you how." / "Two ways to win!" / "Get your disc across!" /
-  "Mind your own disc!" / "Blocks only roll. Easy!" / "You go first!" /
+  "Mind your own disc!" / "Blocks only roll on their edge. Easy!" (user:
+  "add the part about on their edge") / "You go first!" /
   "Look from any side you like!" / "Your move! Tap a piece." / "Hang on,
   it's thinking!" / a piece's: "Now tap a lit square!" (boxed in, a
   wince: "Boxed in! Try another piece."; moved once: "Roll again, or end
@@ -558,33 +559,42 @@ box art and an ad standee (assets/tienda/*.jpg).
   lunch.", then "I wanted to say, I can turn that off. My managers at
   lunch, not just managers at lunch."; and "I want the images of Steve to
   be bigger too", "Make Steve the largest size of the options you
-  gave"). It was
+  gave"; then "It's not clear what he's saying. Like he's like, don't like
+  the music either? ... And I can turn it off. You know, my manager's at
+  lunch."; and "when if they choose to turn the music off, then the all
+  other noises for that scene need to be reduced to 9%"). It was
   already possible, hidden: the menu's speaker, Music (the ceiling
   speakers) to the left. Now the tour's first card, "How would you like
   to learn?", has Steve (TourCoach.jsx SteveSays, his face 76/320 of the
-  card's width, a "hmm") under the two tiles: "Psst. I can turn that
-  off. My manager's at lunch." and a red button in his bubble, Turn it
-  off (tour-music-off); tapped, the music fades out over 1.6 s
-  (ElCabeza3D setTourMusic: the sound menu's own Music channel, level 0,
-  saved in el-cabeza:sound-levels, so the menu shows it off and it stays
-  off after the tour; tienda-audio setChannelLevel takes a fade, secs),
+  card's width, a "hmm") under the two tiles: "Don't like the music
+  either? I can turn it off. My manager's at lunch." and a red button in
+  his bubble, Turn it off (tour-music-off); tapped, the music fades out
+  over 1.6 s and the store's own sounds (its air, lights, far-off
+  shoppers, its PA) with it down to 9% (TOUR_HUSH; the slider's 9%, heard
+  as its square), the pieces' as they were (ElCabeza3D setTourMusic,
+  setChannelLevelsTo: the sound menu's own channels, Music 0 and Store
+  sounds 0.09, saved in el-cabeza:sound-levels, so the menu shows them and
+  they stay so after the tour; tienda-audio setChannelLevel takes a fade,
+  secs),
   and he grins, "Ahh. Much better.", Music back on (tour-music-on, quiet)
-  bringing it back at the level it had; back on, he says (user: "And Steve
+  bringing both back at the levels they had; back on, he says (user: "And Steve
   should say, probably for the best, my manager actually likes the
   music.") "Probably for the best. My manager actually likes the music.",
   Turn it off again beside it (tour-music data-turned). The store's sounds (its PA, the
   far-off shoppers) and the pieces' stay on. Only where the world's sound
   has a music channel (tour.music) and it was heard as the card came up
   (musicOfferRef): with the music, or all sound, off already, no offer.
-  tour-music, data-music on/off. es "Psst. Puedo apagar eso. Mi jefe
-  salió a almorzar." / "Apagala"; vi "Suỵt. Mình tắt được đấy. Quản lý
-  của mình đi ăn trưa rồi." / "Tắt đi". And on every picture card, Steve
+  tour-music, data-music on/off. es "¿A vos tampoco te gusta la música?
+  Puedo apagarla. Mi jefe salió a almorzar." / "Apagala"; vi "Bạn cũng
+  không thích nhạc này à? Mình tắt được đấy. Quản lý của mình đi ăn trưa
+  rồi." / "Tắt đi". And on every picture card, Steve
   bigger (the largest of the sizes mocked up, the buttons beside him):
   76 of the picture's 320 units (110 px on a foldable's open screen, 82 on
   a phone), 13 over its edge, the card's buttons (tour-nav) beside him
   under his bubble (CoachPicture's nav), so the card is no taller; his
   corner for the notes now x under 66. tests/e2e-first-game-tour.mjs: the
-  offer, Turn it off (the music's gates 0, the store's and the pieces' 1,
+  offer, Turn it off (the music's gates 0, the store's at 9% (0.0081
+  heard), the pieces' 1,
   the level kept), Music back on; none with the music off already; coachOk
   with the bigger face and the buttons beside him.
 - **The store's signs in view again** (2026-11-22; user: "In Tienda /

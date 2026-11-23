@@ -516,9 +516,10 @@ export default function FirstGameTour({ tour, cardRef }) {
   /* (Was the store's music on when the first card came up? Then its clerk
      offers to shut it off there, and says so after; user, testers finding
      the ceiling speakers' music "annoying or distracting": "when the
-     tutorial first starts? Steve says something about it"; picked, in his
-     words, "I can turn that off. My managers at lunch": "Psst. I can turn
-     that off. My manager's at lunch.") */
+     tutorial first starts? Steve says something about it"; in the user's
+     words, "don't like the music either? ... And I can turn it off. You
+     know, my manager's at lunch": "Don't like the music either? I can turn
+     it off. My manager's at lunch.") */
   const musicOfferRef = useRef(null);
   // (Turned off on it once: back on, he has another word for it, user:
   // "probably for the best, my manager actually likes the music".)
@@ -661,7 +662,7 @@ export default function FirstGameTour({ tour, cardRef }) {
           {steveOffers && (
             <div data-testid="tour-music" data-music={tour.music.on ? "on" : "off"} data-turned={musicTurned ? "true" : "false"} style={{ marginTop: narrow ? 12 : 14 }}>
               {tour.music.on
-                ? <SteveSays mood="hmm" line={musicTurned ? "Probably for the best. My manager actually likes the music." : "Psst. I can turn that off. My manager's at lunch."} action={{ label: "Turn it off", testid: "tour-music-off", off: true, onClick: () => { setMusicTurned(true); tour.music.set(false); } }} />
+                ? <SteveSays mood="hmm" line={musicTurned ? "Probably for the best. My manager actually likes the music." : "Don't like the music either? I can turn it off. My manager's at lunch."} action={{ label: "Turn it off", testid: "tour-music-off", off: true, onClick: () => { setMusicTurned(true); tour.music.set(false); } }} />
                 : <SteveSays mood="grin" line="Ahh. Much better." action={{ label: "Music back on", testid: "tour-music-on", ghost: true, onClick: () => tour.music.set(true) }} />}
             </div>
           )}
