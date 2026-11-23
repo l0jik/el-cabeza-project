@@ -525,8 +525,10 @@ box art and an ad standee (assets/tienda/*.jpg).
   resize and the font's arrival, so a longer language or the phone's 1.5x
   text shrinks a note in place (data-fit), never over what's drawn. No
   note in his corner (x under 44, y over 126). His lines: "Hi, I'm Steve!
-  Let me show you how." / "Two ways to win!" / "Get your disc across!" /
-  "Mind your own disc!" / "Blocks only roll on their edge. Easy!" (user:
+  Let me show you how." / "There's two ways to win a game of El
+  Cabeza." / "One way: get your disc across in one piece." / "Keep an eye
+  on your disc. They'll try to squash it!" (2026-11-23, the user's words
+  made shorter, as asked) / "Blocks only roll on their edge. Easy!" (user:
   "add the part about on their edge") / "You go first!" /
   "Look from any side you like!" / "Your move! Tap a piece." / "Hang on,
   it's thinking!" / a piece's: "Now tap a lit square!" (boxed in, a

@@ -181,21 +181,27 @@ export function coachFor(t) {
         note([220, 52, 98, 44], THEIRS, "the computer's pieces", UNDER),
       ] };
     case "ways":
-      return { mood: "grin", line: "Two ways to win!", notes: [
+      // (User: "Steve needs to say, there's two ways to win a game of El Cabeza.")
+      return { mood: "grin", line: "There's two ways to win a game of El Cabeza.", notes: [
         note([106, 52, 52, 60], GOAL, "reach the far row", { v: "top" }),
         note([194, 4, 84, 48], YOURS, "or crush their disc"),
       ] };
     case "goal": {
       // (By the dots, after them: where they end, as many as a turn has.)
       const n = 2 * N + 1, s2 = Math.min(16, 84 / n), dw = N * 10 + (N - 1) * 5, x0 = 246 + dw / 2 + 6;
-      return { mood: "grin", line: "Get your disc across!", notes: [
+      // (User: "one way is to get your disk all the way across the board
+      // without getting crushed ... but maybe more concise".)
+      return { mood: "grin", line: "One way: get your disc across in one piece.", notes: [
         note([127, 46, 41, 50], GOAL, "far row wins!", { v: "top" }),
         note([246 + (n * s2) / 2 + 3, 20, 316 - (246 + (n * s2) / 2 + 3), 70], YOURS, "any way!", { align: "center" }),
         note([x0, 16 + n * s2 + 2, 318 - x0, 40], YOURS, N === 1 ? "one step a turn" : say("{n} steps a turn", { n: N })),
       ] };
     }
     case "crush":
-      return { mood: "hmm", line: "Mind your own disc!", notes: [
+      // (User: "keep an eye on your disk, because your opponent's going to be
+      // trying to crush it with one of their blocks ... make it shorter,
+      // more concise, and you know, how Steve would talk".)
+      return { mood: "hmm", line: "Keep an eye on your disc. They'll try to squash it!", notes: [
         note([6, 10, 104, 44], YOURS, "your block rolls onto their disc…", { end: "you win!" }),
         note([166, 10, 106, 44], THEIRS, "their block rolls onto your disc…", { end: "you lose." }),
       ] };

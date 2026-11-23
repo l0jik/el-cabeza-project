@@ -861,7 +861,7 @@ const coachOk = (s) => {
   if (!["grin", "hmm", "wince"].includes(s.mood)) return `his face: ${s.mood}`;
   if (s.band !== "Big Glutts shows you how") return `the band: ${s.band}`;
   // (Short; a card in steps explains more, user: "be a little bit more explanatory".)
-  if (!s.line || s.line.split(/\s+/).length > (s.parts ? 20 : 8)) return `his line: ${s.line}`;
+  if (!s.line || s.line.split(/\s+/).length > (s.parts ? 20 : 12)) return `his line: ${s.line}`;
   if (s.face.left > 2 || s.face.over < 4 || s.face.over > s.face.h / 2 || s.face.w < 60 || !s.bigger || !s.beside || !s.navBeside) return `his face, bubble and the buttons: ${JSON.stringify(s.face)} beside ${s.beside}, buttons ${s.navBeside}`;
   if ((!s.notes.length && !s.parts) || s.notes.length > 4) return `${s.notes.length} notes`;
   for (const n of s.notes) {
