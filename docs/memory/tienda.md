@@ -569,7 +569,10 @@ box art and an ad standee (assets/tienda/*.jpg).
   saved in el-cabeza:sound-levels, so the menu shows it off and it stays
   off after the tour; tienda-audio setChannelLevel takes a fade, secs),
   and he grins, "Ahh. Much better.", Music back on (tour-music-on, quiet)
-  bringing it back at the level it had. The store's sounds (its PA, the
+  bringing it back at the level it had; back on, he says (user: "And Steve
+  should say, probably for the best, my manager actually likes the
+  music.") "Probably for the best. My manager actually likes the music.",
+  Turn it off again beside it (tour-music data-turned). The store's sounds (its PA, the
   far-off shoppers) and the pieces' stay on. Only where the world's sound
   has a music channel (tour.music) and it was heard as the card came up
   (musicOfferRef): with the music, or all sound, off already, no offer.

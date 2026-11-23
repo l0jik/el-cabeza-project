@@ -1205,6 +1205,7 @@ export default {
   "Turn it off": "Tắt đi",
   "Ahh. Much better.": "À. Dễ chịu hơn hẳn.",
   "Music back on": "Bật lại nhạc",
+  "Probably for the best. My manager actually likes the music.": "Chắc vậy là tốt nhất. Quản lý của mình thật ra lại thích nhạc này.",
   "on": "bật",
 
   // Big Glutts: the store, the order form, the PA, the catalog

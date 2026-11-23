@@ -520,6 +520,9 @@ export default function FirstGameTour({ tour, cardRef }) {
      words, "I can turn that off. My managers at lunch": "Psst. I can turn
      that off. My manager's at lunch.") */
   const musicOfferRef = useRef(null);
+  // (Turned off on it once: back on, he has another word for it, user:
+  // "probably for the best, my manager actually likes the music".)
+  const [musicTurned, setMusicTurned] = useState(false);
   const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
   if (cameRef.current.step !== step) cameRef.current = { step, at: now(), mode: null, t0: 0 };
   if (cameRef.current.mode !== pics) { cameRef.current.mode = pics; cameRef.current.t0 = (now() - cameRef.current.at) / 1000; }
@@ -656,9 +659,9 @@ export default function FirstGameTour({ tour, cardRef }) {
             {tile("pictures", "At a glance: pictures only", <TourPicture t={{ ...tour, step: "welcome" }} still preview />, false)}
           </div>
           {steveOffers && (
-            <div data-testid="tour-music" data-music={tour.music.on ? "on" : "off"} style={{ marginTop: narrow ? 12 : 14 }}>
+            <div data-testid="tour-music" data-music={tour.music.on ? "on" : "off"} data-turned={musicTurned ? "true" : "false"} style={{ marginTop: narrow ? 12 : 14 }}>
               {tour.music.on
-                ? <SteveSays mood="hmm" line="Psst. I can turn that off. My manager's at lunch." action={{ label: "Turn it off", testid: "tour-music-off", off: true, onClick: () => tour.music.set(false) }} />
+                ? <SteveSays mood="hmm" line={musicTurned ? "Probably for the best. My manager actually likes the music." : "Psst. I can turn that off. My manager's at lunch."} action={{ label: "Turn it off", testid: "tour-music-off", off: true, onClick: () => { setMusicTurned(true); tour.music.set(false); } }} />
                 : <SteveSays mood="grin" line="Ahh. Much better." action={{ label: "Music back on", testid: "tour-music-on", ghost: true, onClick: () => tour.music.set(true) }} />}
             </div>
           )}

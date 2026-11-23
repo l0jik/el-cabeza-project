@@ -1197,6 +1197,7 @@ export default {
   "Turn it off": "Apagala",
   "Ahh. Much better.": "Ahh. Mucho mejor.",
   "Music back on": "Que vuelva la música",
+  "Probably for the best. My manager actually likes the music.": "Capaz que es lo mejor. A mi jefe, en realidad, le gusta la música.",
   "on": "prendido",
 
   // Big Glutts: the store, the order form, the PA, the catalog

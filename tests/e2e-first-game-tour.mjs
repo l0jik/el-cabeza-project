@@ -903,7 +903,9 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
      at lunch."; "I can turn that off. My managers at lunch"): Steve on
      the first card offers to turn it off; it fades
      out (the sound menu's own Music, kept: the store's sounds and the
-     pieces' still on), and he's glad; and back on, if wanted. */
+     pieces' still on), and he's glad; and back on, if wanted (user: "And
+     Steve should say, probably for the best, my manager actually likes
+     the music."). */
   const music = () => page.evaluate(() => {
     const m = document.querySelector('[data-testid="tour-music"]'), a = window.__TIENDA_AUDIO__ ? window.__TIENDA_AUDIO__() : null;
     let levels = null; try { levels = JSON.parse(localStorage.getItem("el-cabeza:sound-levels") || "null"); } catch (e) { /* none */ }
@@ -919,7 +921,7 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   await page.locator('[data-testid="tour-music-on"]').click();
   await page.waitForTimeout(2000);
   mu = await music();
-  check("Music back on: as it was, and the offer again", mu.on === "on" && mu.levels && mu.levels.music === 1 && mu.gates.music.every((g) => g === 1) && (await page.locator('[data-testid="tour-music-off"]').count()) === 1, JSON.stringify(mu));
+  check("Music back on: as it was; Steve: \"Probably for the best. My manager actually likes the music.\" and Turn it off again", mu.on === "on" && mu.levels && mu.levels.music === 1 && mu.gates.music.every((g) => g === 1) && /^Probably for the best\. My manager actually likes the music\.\s*Turn it off$/.test(mu.line) && (await page.locator('[data-testid="tour-music-off"]').count()) === 1, JSON.stringify(mu));
   await page.locator('[data-testid="tour-choose-pictures"]').click();
   await page.waitForTimeout(1200);
   tour = await tourOf(page);
