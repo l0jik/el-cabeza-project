@@ -524,8 +524,9 @@ box art and an ad standee (assets/tienda/*.jpg).
   more lines than it holds; a binary search), after every drawing, a
   resize and the font's arrival, so a longer language or the phone's 1.5x
   text shrinks a note in place (data-fit), never over what's drawn. No
-  note in his corner (x under 44, y over 126). His lines: "Hi, I'm Steve!
-  Let me show you how." / "There's two ways to win a game of El
+  note in his corner (x under 44, y over 126). His lines: "Hi, I'm Steve!"
+  over "Let me show you how to play the game." (two lines, the user's,
+  2026-11-23) / "There's two ways to win a game of El
   Cabeza." / "One way: get your disc across in one piece." / "Keep an eye
   on your disc. They'll try to squash it!" (2026-11-23, the user's words
   made shorter, as asked) / "Blocks only roll on their edge. Easy!" (user:
@@ -646,6 +647,42 @@ box art and an ad standee (assets/tienda/*.jpg).
   closes."), and the ring and label the board's marks put round the End
   turn button. The button itself and the rules cards' mention of it are
   as they were (asked).
+- **Steve's hello in two lines, the goal card in two steps, and his
+  thanks** (2026-11-23). The user: "Hi, I'm Steve!\nLet me show you how
+  to play the game." and "Also, when the tutorial is over, the last thing
+  that Steve should say is, and thank you for shopping at Big Glutts! and
+  he should have a huge grin on his face."; and, circling the goal card's
+  right half, "It's not clear that this graphic indicates that this is
+  the movement of the cabeza or disk. It's too generalized. People might
+  assume that this is how all pieces move. Let's tighten this up."
+  - A line may be lines (coachFor's `line` an array): each its own, a
+    block in his bubble (`data-line`), each looked up in the language's
+    table as it is. The welcome's two.
+  - A new face, `beam` (MOODS): eyes shut in happy arcs, cheeks up, the
+    widest open grin, teeth and tongue, its corners level.
+  - The tour's last card (TourCoach lastCard: the menu's foot card; with
+    no menu shown, the other side's card's Got it) has one step more
+    (coachFor wraps coachSays): the card's own line, then, beaming, "And
+    thank you for shopping at Big Glutts!", the card's notes kept, Got it
+    after it. FirstGameTour takes `parts` from any coached card now (it
+    was the cards before you play), its Next "tour-next" till the last
+    step. In pictures only: the words tour has no Steve after the first
+    card (offered to the user).
+  - The goal card in two steps, each its half lit (Focus): "One way: get
+    your disc across in one piece." (far row wins!); then "Only your disc
+    moves like this: one square any way, once or twice a turn." (one
+    action: "once a turn"; three or more: "up to {n} times a turn"), its
+    notes "only your disc" over the steps' squares (the grid starts 16
+    down, room for it), "any way!" and "2 steps a turn". Back from the
+    crush card comes to its second step. The disc in its middle beats as
+    the far row's disc does (TourPictures Goal, TopPiece beat): the same
+    disc.
+  - Focus's mask its own id (useId): two coached pictures on one page (a
+    mock-up's) each dim their own.
+  - es, vi. tests/e2e-first-game-tour.mjs: the two lines; the goal's two
+    steps, each its line, half and notes, and Back to its last; the last
+    card's thanks in pictures, the beam, Got it only then; the foldable at
+    1.5x text through every step of every card.
 - **The store's signs in view again** (2026-11-22; user: "In Tienda /
   store, the maximum vertical zoom / ceiling seems to be lower than
   before.... There is wall signage that can no longer be seen. Is there a

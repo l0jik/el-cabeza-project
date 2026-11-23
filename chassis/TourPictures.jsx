@@ -480,7 +480,10 @@ function Goal({ t, still, mine }) {
       <Split x={170} />
       <Grid {...g2} cols={n} rows={n} lit={lit} />
       {dirs.map(([ux, uy], i) => <Arrow key={i} pts={[[cx + ux * s2 * 0.45, cy + uy * s2 * 0.45], [cx + ux * s2 * (N - 0.12), cy + uy * s2 * (N - 0.12)]]} tone="mine" w={2} head={6.5} />)}
-      <TopPiece g={g2} r={N} c={N} disc fill={mine} tone="mine" still={still} />
+      {/* (Its ring beating as the far row's disc's does: the same disc,
+          yours; its steps alone, user: "People might assume that this is
+          how all pieces move.") */}
+      <TopPiece g={g2} r={N} c={N} disc fill={mine} tone="mine" still={still} beat />
       <Dots x={246 - dotsW(N) / 2 + 5} y={g2.y + n * s2 + 16} n={N} />
     </>
   );

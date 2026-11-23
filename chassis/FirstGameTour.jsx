@@ -691,11 +691,12 @@ export default function FirstGameTour({ tour, cardRef }) {
     const still = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const coach = !!(tour.copy && tour.copy.coach === "steve");
     /* (Coached, a card in steps: Next is Steve's next point till his last,
-       Back his one before; then they're the card's.) */
-    const parts = coach && card ? (coachFor(tour) || {}).parts : null;
+       Back his one before; then they're the card's. The tour's last card
+       too, his thanks its last step, Got it after it.) */
+    const parts = coach ? (coachFor(tour) || {}).parts : null;
     const part = parts && partOf.step === step ? Math.min(parts.length - 1, partOf.part) : 0;
     const stepTo = (p) => setPartOf({ step, part: p });
-    const fwd = parts && primary && part < parts.length - 1 ? { ...primary, onClick: () => stepTo(part + 1), label: "Next ›", icons: ["next"] } : primary;
+    const fwd = parts && primary && part < parts.length - 1 ? { ...primary, onClick: () => stepTo(part + 1), label: "Next ›", icons: ["next"], testid: "tour-next" } : primary;
     const bk = parts && part > 0 ? { label: "‹ Back", onClick: () => stepTo(part - 1), testid: "tour-back" } : back;
     // (Coached, the buttons go beside Steve, under his bubble.)
     const navRow = bk || fwd ? (

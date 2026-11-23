@@ -1117,7 +1117,8 @@ export default {
   // (The tour in pictures, coached: Steve B., the store's clerk, his line in a
   // bubble and his few words on the picture, chassis/TourCoach.jsx.)
   "Big Glutts shows you how": "Big Glutts te muestra cómo",
-  "Hi, I'm Steve! Let me show you how.": "¡Hola, soy Steve! Te muestro cómo se juega.",
+  "Hi, I'm Steve!": "¡Hola, soy Steve!",
+  "Let me show you how to play the game.": "Te muestro cómo se juega.",
   "your pieces": "tus piezas",
   "the computer's pieces": "las piezas de la computadora",
   "There's two ways to win a game of El Cabeza.": "Hay dos formas de ganar una partida de El Cabeza.",
@@ -1128,6 +1129,10 @@ export default {
   "any way!": "¡para todos lados!",
   "one step a turn": "un paso por turno",
   "{n} steps a turn": "{n} pasos por turno",
+  "Only your disc moves like this: one square any way, once a turn.": "Solo tu disco se mueve así: una casilla para cualquier lado, una vez por turno.",
+  "Only your disc moves like this: one square any way, once or twice a turn.": "Solo tu disco se mueve así: una casilla para cualquier lado, una o dos veces por turno.",
+  "Only your disc moves like this: one square any way, up to {n} times a turn.": "Solo tu disco se mueve así: una casilla para cualquier lado, hasta {n} veces por turno.",
+  "only your disc": "solo tu disco",
   "Keep an eye on your disc. They'll try to squash it!": "Ojo con tu disco. ¡Van a querer aplastarlo!",
   "your block rolls onto their disc…": "tu bloque se vuelca sobre su disco…",
   "you win!": "¡ganás!",
@@ -1196,6 +1201,7 @@ export default {
   "tap a piece to play": "tocá una pieza para jugar",
   "click a piece to play": "hacé clic en una pieza para jugar",
   "That's it! Your move. Good luck!": "¡Eso es todo! Te toca. ¡Suerte!",
+  "And thank you for shopping at Big Glutts!": "¡Y gracias por comprar en Big Glutts!",
   "Your menu, as a bar.": "Tu menú, como barra.",
   "the piece, back any time": "la pieza vuelve cuando quieras",
   // (The first card: the store's clerk offers to shut the ceiling speakers' music off.)

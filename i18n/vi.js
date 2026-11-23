@@ -1125,7 +1125,8 @@ export default {
   // (The tour in pictures, coached: Steve B., the store's clerk, his line in a
   // bubble and his few words on the picture, chassis/TourCoach.jsx.)
   "Big Glutts shows you how": "Big Glutts chỉ bạn cách chơi",
-  "Hi, I'm Steve! Let me show you how.": "Chào bạn, mình là Steve! Để mình chỉ bạn cách chơi.",
+  "Hi, I'm Steve!": "Chào bạn, mình là Steve!",
+  "Let me show you how to play the game.": "Để mình chỉ bạn cách chơi nhé.",
   "your pieces": "quân của bạn",
   "the computer's pieces": "quân của máy",
   "There's two ways to win a game of El Cabeza.": "Có hai cách để thắng một ván El Cabeza.",
@@ -1136,6 +1137,10 @@ export default {
   "any way!": "hướng nào cũng được!",
   "one step a turn": "một bước mỗi lượt",
   "{n} steps a turn": "{n} bước mỗi lượt",
+  "Only your disc moves like this: one square any way, once a turn.": "Chỉ đĩa của bạn đi kiểu này: một ô theo hướng bất kỳ, một lần mỗi lượt.",
+  "Only your disc moves like this: one square any way, once or twice a turn.": "Chỉ đĩa của bạn đi kiểu này: một ô theo hướng bất kỳ, một hoặc hai lần mỗi lượt.",
+  "Only your disc moves like this: one square any way, up to {n} times a turn.": "Chỉ đĩa của bạn đi kiểu này: một ô theo hướng bất kỳ, tối đa {n} lần mỗi lượt.",
+  "only your disc": "chỉ đĩa của bạn",
   "Keep an eye on your disc. They'll try to squash it!": "Để mắt tới đĩa của bạn. Họ sẽ tìm cách đè bẹp nó!",
   "your block rolls onto their disc…": "khối của bạn lăn lên đĩa đối thủ…",
   "you win!": "bạn thắng!",
@@ -1204,6 +1209,7 @@ export default {
   "tap a piece to play": "chạm vào một quân để chơi",
   "click a piece to play": "nhấp vào một quân để chơi",
   "That's it! Your move. Good luck!": "Vậy thôi! Đến lượt bạn. Chúc may mắn!",
+  "And thank you for shopping at Big Glutts!": "Và cảm ơn bạn đã mua sắm tại Big Glutts!",
   "Your menu, as a bar.": "Menu của bạn, dạng thanh.",
   "the piece, back any time": "quân cờ, quay lại lúc nào cũng được",
   // (The first card: the store's clerk offers to shut the ceiling speakers' music off.)

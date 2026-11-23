@@ -637,6 +637,17 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   for (let i = 0; i < 25 && !(await ringsOut()); i++) await page.waitForTimeout(150);
   await page.waitForTimeout(600);
   check("...or ☰ then Use the classic dock: the same, the tour going on", (await tourOf(page)).step === "foot" && !(await barShown()) && (await ringsOut()));
+  /* Steve's last word (user: "when the tutorial is over, the last thing
+     that Steve should say is, and thank you for shopping at Big Glutts!
+     and he should have a huge grin on his face"): in pictures, the last
+     card a step more, his thanks, beaming; Got it after it. */
+  await page.locator('[data-testid="tour-mode-pictures"]').click();
+  await page.waitForTimeout(700);
+  const bye0 = await coachOf(page), done0 = await page.locator('[data-testid="tour-done"]').count();
+  await page.locator('[data-testid="tour-next"]').click();
+  await page.waitForTimeout(500);
+  const bye1 = await coachOf(page), done1 = await page.locator('[data-testid="tour-done"]').count();
+  check("in pictures, the last card: Steve's good luck, Next; then his last word, a huge grin: And thank you for shopping at Big Glutts! Got it after it", !!bye0 && !!bye1 && (await tourOf(page)).step === "foot" && bye0.picture === "foot" && coachOk(bye0) === "" && bye0.part === 0 && bye0.parts === 2 && bye0.line === "That's it! Your move. Good luck!" && bye0.mood === "grin" && done0 === 0 && coachOk(bye1) === "" && bye1.part === 1 && bye1.line === "And thank you for shopping at Big Glutts!" && bye1.mood === "beam" && done1 === 1, JSON.stringify({ bye0, bye1, done0, done1, bad0: coachOk(bye0), bad1: coachOk(bye1) }));
   await page.locator('[data-testid="tour-done"]').click();
   await page.waitForTimeout(2600);
   cam = await camOf(page);
@@ -833,7 +844,8 @@ const seen = (page) => page.evaluate(() => {
    lower left), its words fitting it, whatever the size of the text. Bigger
    since (user: "I want the images of Steve to be bigger too"), the card's
    buttons beside him under his bubble. */
-const coachOf = (page) => page.evaluate(() => {
+// (Functions, so the sections before them have them too.)
+function coachOf(page) { return page.evaluate(() => {
   const c = document.querySelector('[data-testid="tour-card"] [data-testid="tour-coach"]');
   if (!c) return null;
   const pic = c.querySelector('[data-testid="tour-picture"]').getBoundingClientRect(), k = pic.width / 320;
@@ -846,8 +858,10 @@ const coachOf = (page) => page.evaluate(() => {
     return { text: w.textContent.trim(), x: (r.left - pic.left) / k, y: (r.top - pic.top) / k, w: r.width / k, h: r.height / k, fits: w.scrollWidth <= n.clientWidth + 1 && w.offsetHeight <= n.clientHeight + 1, fit: +n.dataset.fit };
   });
   const focus = c.querySelector('[data-testid="tour-coach-focus"]');
+  // (A line in lines, each its own: the welcome's.)
+  const lines = [...line.querySelectorAll("[data-line]")].map((e) => e.textContent.trim());
   return {
-    picture: c.dataset.picture, mood: face.dataset.mood, line: line.textContent.trim(), band: band ? band.textContent.trim() : null, notes,
+    picture: c.dataset.picture, mood: face.dataset.mood, line: lines.length ? lines.join(" ") : line.textContent.trim(), lines, band: band ? band.textContent.trim() : null, notes,
     part: c.dataset.part != null ? +c.dataset.part : null, parts: c.dataset.parts != null ? +c.dataset.parts : null, focus: focus ? focus.dataset.box : null,
     face: { left: Math.round(fr.left - pic.left), over: Math.round(pic.bottom - fr.top), w: Math.round(fr.width), h: Math.round(fr.height) },
     beside: lr.left >= fr.right - 2 && lr.top < fr.bottom && lr.top >= pic.bottom,
@@ -856,10 +870,10 @@ const coachOf = (page) => page.evaluate(() => {
     navBeside: !nav || nav.getBoundingClientRect().left >= fr.right - 1,
     bigger: fr.width / k >= 70,
   };
-});
-const coachOk = (s) => {
+}); }
+function coachOk(s) {
   if (!s) return "no coach";
-  if (!["grin", "hmm", "wince"].includes(s.mood)) return `his face: ${s.mood}`;
+  if (!["grin", "hmm", "wince", "beam"].includes(s.mood)) return `his face: ${s.mood}`;
   if (s.band !== "Big Glutts shows you how") return `the band: ${s.band}`;
   // (Short; a card in steps explains more, user: "be a little bit more explanatory".)
   if (!s.line || s.line.split(/\s+/).length > (s.parts ? 20 : 12)) return `his line: ${s.line}`;
@@ -876,7 +890,7 @@ const coachOk = (s) => {
     if (a.x < b.x + b.w - 0.5 && b.x < a.x + a.w - 0.5 && a.y < b.y + b.h - 0.5 && b.y < a.y + a.h - 0.5) return `notes over each other: ${a.text} / ${b.text}`;
   }
   return "";
-};
+}
 // Next, on to the next card (a coached card in steps: through them first).
 const nextCard = async (page, wait = 1500) => {
   const from = (await tourOf(page)).step;
@@ -996,6 +1010,8 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   check("Pictures only: the card a picture, moving, nothing else on it to read", (await card(page).getAttribute("data-mode")) === "pictures" && !!p && p.picture === "welcome" && p.moving > 0 && (await seen(page)) === "" && (await pressed("pictures")) === "true", JSON.stringify({ p, seen: await seen(page) }));
   let co = await coachOf(page);
   check("...the store's clerk coaching it: Big Glutts shows you how; Steve B. at the picture's corner, a line from him in a bubble beside it, a few words on the picture, each fitting its box", !!co && coachOk(co) === "" && co.picture === "welcome" && /Steve/.test(co.line) && co.notes.some((n) => n.text === "your pieces") && co.notes.some((n) => n.text === "the computer's pieces"), (co && coachOk(co)) || JSON.stringify(co));
+  // (User: "Hi, I'm Steve!\nLet me show you how to play the game.")
+  check("...his hello in two lines: Hi, I'm Steve! / Let me show you how to play the game.", !!co && co.lines.length === 2 && co.lines[0] === "Hi, I'm Steve!" && co.lines[1] === "Let me show you how to play the game.", JSON.stringify(co && co.lines));
   const title = page.locator('[data-testid="tour-title"]');
   check("...its words kept for a screen reader, out of sight", /Welcome to your first game/.test(await title.textContent()) && (await title.boundingBox()).width <= 1 && /the computer/.test(await page.locator('[data-testid="tour-words"]').textContent()));
   check("...kept on the device", (await page.evaluate(() => localStorage.getItem("el-cabeza:tour-pictures"))) === "on");
@@ -1004,7 +1020,7 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   check("...its buttons icons, named for a screen reader", (await page.locator('[data-testid="tour-next"]').getAttribute("aria-label")) === "Next" && (await page.locator('[data-testid="tour-skip"]').getAttribute("aria-label")) === "Skip the tour" && (await page.locator('[data-testid="tour-next"]').innerText()).trim() === "");
   check("...where you are in dots: the first of 8", (await dotsAt(page)) === "1/8");
   const steps = ["ways", "goal", "crush", "blocks", "turn", "board"], off = [], coached = [];
-  let turnWalk = [], turnBack = null;
+  let turnWalk = [], turnBack = null, goalWalk = null, goalBack = null;
   for (let i = 0; i < steps.length; i++) {
     await nextCard(page, 1800);
     const s = (await tourOf(page)).step, q = await picOf(page), w = await seen(page), d = await dotsAt(page);
@@ -1013,6 +1029,24 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
     co = await coachOf(page);
     if (!co || co.picture !== steps[i] || coachOk(co)) coached.push(`${steps[i]}: ${(co && coachOk(co)) || JSON.stringify(co)}`);
     if (steps[i] === "crush" && !(co && co.notes.some((n) => /your block rolls onto their disc… you win!/.test(n.text)) && co.notes.some((n) => /their block rolls onto your disc… you lose\./.test(n.text)))) coached.push(`crush: ${JSON.stringify(co && co.notes)}`);
+    // (The goal card in two steps: the far row; then the disc's steps.)
+    const brief = (c) => c && { part: c.part, parts: c.parts, line: c.line, focus: c.focus, notes: c.notes.map((n) => n.text), bad: coachOk(c) };
+    if (steps[i] === "goal") {
+      const g0 = brief(co);
+      await page.locator('[data-testid="tour-next"]').click();
+      await page.waitForTimeout(500);
+      goalWalk = { g0, g1: brief(await coachOf(page)), step: (await tourOf(page)).step };
+    }
+    // (Back from the card after: the goal card at its last step.)
+    if (steps[i] === "crush") {
+      await page.locator('[data-testid="tour-back"]').click();
+      await page.waitForTimeout(900);
+      const b = await coachOf(page);
+      goalBack = { step: (await tourOf(page)).step, picture: b && b.picture, part: b && b.part };
+      await page.locator('[data-testid="tour-next"]').click();
+      await page.waitForTimeout(1500);
+      goalBack.after = (await tourOf(page)).step;
+    }
     // (The turn card in Steve's steps: Next through them, one Back.)
     if (steps[i] === "turn") {
       for (let p = 0; p < 8; p++) {
@@ -1044,6 +1078,14 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   const tw = turnWalk;
   check("...the turn card in Steve's steps: whose turn, a block once or twice, the big one once, not twice if you don't want: each its line, its part lit, its note", tw.length === 4 && tw.every((w, i) => w.part === i && w.parts === 4 && !w.bad && !!w.focus && w.step === "turn") && new Set(tw.map((w) => w.focus)).size === 4 && /^You go first, then the computer\./.test(tw[0].line) && /^Pick a block\. Roll it once or twice\./.test(tw[1].line) && /^The big block is heavy: it rolls just once\./.test(tw[2].line) && /^Don't want to move your piece twice\? You don't have to! Press and hold it to end your turn\./.test(tw[3].line) && !tw.some((w) => w.tick) && tw[0].notes.length === 0 && tw[1].notes.includes("up to 2 rolls") && tw[2].notes.includes("the big one rolls once") && tw[3].notes.includes("hold it to end early"), JSON.stringify(tw));
   check("...Back: his point before, on the same card", !!turnBack && turnBack.step === "turn" && turnBack.part === 2, JSON.stringify(turnBack));
+  /* The goal card in two steps (user, of its right half: "It's not clear
+     that this graphic indicates that this is the movement of the cabeza or
+     disk. It's too generalized. People might assume that this is how all
+     pieces move. Let's tighten this up."): the far row, its half lit; then
+     the disc's steps, the other half lit, said to be the disc's alone. */
+  const gw = goalWalk;
+  check("...the goal card in Steve's two steps: the far row, its half lit; then only your disc moves like this, the other half lit, its words over it", !!gw && gw.step === "goal" && !gw.g0.bad && !gw.g1.bad && gw.g0.part === 0 && gw.g1.part === 1 && gw.g0.parts === 2 && gw.g1.parts === 2 && !!gw.g0.focus && !!gw.g1.focus && gw.g0.focus !== gw.g1.focus && gw.g0.line === "One way: get your disc across in one piece." && gw.g0.notes.join("|") === "far row wins!" && gw.g1.line === "Only your disc moves like this: one square any way, once or twice a turn." && ["only your disc", "any way!", "2 steps a turn"].every((w) => gw.g1.notes.includes(w)), JSON.stringify(gw));
+  check("...and Back from the card after: the goal card at its last step; Next, on again", !!goalBack && goalBack.step === "goal" && goalBack.picture === "goal" && goalBack.part === 1 && goalBack.after === "crush", JSON.stringify(goalBack));
   tg = await tagModes(page);
   check("...the board's label two icons (turn it, zoom)", tg.length === 1 && tg[0].key === "orbit" && tg[0].icons === 2 && tg[0].text === "", JSON.stringify(tg));
   check("...and Let's play a play button", (await page.locator('[data-testid="tour-next"]').getAttribute("aria-label")) === "Let's play");
@@ -1120,15 +1162,24 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   await page.waitForTimeout(3500);
   await begin(page, { choose: null });
   const steps = ["welcome", "ways", "goal", "crush", "blocks", "turn", "board"], off = [], fits = [];
+  let stepsSeen = 0;
   for (let i = 0; i < steps.length; i++) {
     if (i) await nextCard(page, 1500);
-    const co = await coachOf(page), b = await card(page).boundingBox();
-    const zoomed = await page.evaluate(() => { const l = document.querySelector('[data-testid="tour-coach-line"]'); const probe = document.createElement("div"); probe.style.cssText = "position:absolute;font-size:100px"; document.body.append(probe); const z = parseFloat(getComputedStyle(probe).fontSize) / 100; probe.remove(); return { z, line: l ? parseFloat(getComputedStyle(l).fontSize) : 0 }; });
-    if (!co || co.picture !== steps[i] || coachOk(co) || !b || b.y + b.height > 930 + 0.5) off.push(`${steps[i]}: ${(co && coachOk(co)) || JSON.stringify({ co, b })}`);
-    if (co) fits.push(...co.notes.map((n) => n.fit));
-    if (i === 0) check(`the text 1.5x as large (${zoomed.z}), Steve's line with it (${zoomed.line}px)`, zoomed.z > 1.4 && zoomed.line > 20, JSON.stringify(zoomed));
+    // (A card in steps: each of them.)
+    for (let q = 0; q < 6; q++) {
+      const co = await coachOf(page), b = await card(page).boundingBox();
+      const zoomed = await page.evaluate(() => { const l = document.querySelector('[data-testid="tour-coach-line"]'); const probe = document.createElement("div"); probe.style.cssText = "position:absolute;font-size:100px"; document.body.append(probe); const z = parseFloat(getComputedStyle(probe).fontSize) / 100; probe.remove(); return { z, line: l ? parseFloat(getComputedStyle(l).fontSize) : 0 }; });
+      const at = co && co.parts ? `${steps[i]} ${co.part + 1}/${co.parts}` : steps[i];
+      if (!co || co.picture !== steps[i] || coachOk(co) || !b || b.y + b.height > 930 + 0.5) off.push(`${at}: ${(co && coachOk(co)) || JSON.stringify({ co, b })}`);
+      if (co) fits.push(...co.notes.map((n) => n.fit));
+      stepsSeen++;
+      if (i === 0) check(`the text 1.5x as large (${zoomed.z}), Steve's line with it (${zoomed.line}px)`, zoomed.z > 1.4 && zoomed.line > 20, JSON.stringify(zoomed));
+      if (!co || co.part == null || co.part >= co.parts - 1) break;
+      await page.locator('[data-testid="tour-next"]').click();
+      await page.waitForTimeout(600);
+    }
   }
-  check("every card to the board: Steve's words in their boxes, the card on the screen whole", off.length === 0, off.join(" | "));
+  check(`every card to the board, each of Steve's steps (${stepsSeen}): his words in their boxes, the card on the screen whole`, off.length === 0 && stepsSeen === steps.length + 1 + 3, off.join(" | "));
   check("...made smaller only where they must be, and never below half", fits.length > 10 && fits.every((f) => f >= 0.5) && fits.some((f) => f === 1), JSON.stringify(fits));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();

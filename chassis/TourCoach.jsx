@@ -22,7 +22,7 @@
    what's drawn. Where a world's tour asks for him (its copy, coach
    "steve": the store's); the card's words stay for a screen reader as
    ever (FirstGameTour). */
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { t as say } from "./i18n.js";
 import { TourPicture, TONES, W, H, pictureOf } from "./TourPictures.jsx";
 import { fontsHref } from "./font-links.js";
@@ -62,7 +62,8 @@ function texture(cx, cy, rx, ry, n, seed, color, w, avoid) {
 }
 // His mop: lopsided, big curls, tufts every which way.
 const MOP = { cx: 102, cy: 79, rx: 70, ry: 56, n: 17, bump: 9.5, jit: 1.5, fringe: { y: 65, n: 6, drop: 13 }, tufts: [[132, 28, 26], [56, 42, -40], [162, 66, 70], [84, 22, -14], [40, 92, -100]] };
-// A grin; a "hmm" (a brow up); a wince (for a loss).
+// A grin; a "hmm" (a brow up); a wince (for a loss); and a beam, the huge
+// grin he says goodbye with (user: "he should have a huge grin on his face").
 const eye = (x, y) => `<ellipse cx="${x}" cy="${y}" rx="4.6" ry="5.6" fill="${INK}"/><circle cx="${x + 1.6}" cy="${y - 2}" r="1.7" fill="#fff"/>`;
 const MOODS = {
   grin: {
@@ -74,6 +75,14 @@ const MOODS = {
     eyes: `${eye(81, 104)}${eye(119, 99)}`,
     brows: `<path d="M71,92 q10,-4 20,-1" fill="none" stroke="${ST.hair2}" stroke-width="4" stroke-linecap="round"/><path d="M109,80 q10,-9 20,-2" fill="none" stroke="${ST.hair2}" stroke-width="4" stroke-linecap="round"/>`,
     mouth: `<path d="M84,136 q10,-5 18,0 q6,3 14,-3" fill="none" stroke="${INK}" stroke-width="3.2" stroke-linecap="round"/>`,
+  },
+  beam: {
+    eyes: `<path d="M72,105 q9,-11 18,0" fill="none" stroke="${INK}" stroke-width="3.6" stroke-linecap="round"/><path d="M110,101 q9,-11 18,0" fill="none" stroke="${INK}" stroke-width="3.6" stroke-linecap="round"/>`
+      + `<circle cx="72" cy="123" r="10" fill="#EE8E7A" opacity=".4"/><circle cx="130" cy="119" r="10" fill="#EE8E7A" opacity=".4"/>`,
+    brows: `<path d="M70,85 q10,-10 21,-4" fill="none" stroke="${ST.hair2}" stroke-width="4" stroke-linecap="round"/><path d="M108,80 q11,-9 21,-1" fill="none" stroke="${ST.hair2}" stroke-width="4" stroke-linecap="round"/>`,
+    mouth: `<path d="M72,120 q28,9 56,-1 q-3,24 -28,26 q-25,-1 -28,-25 z" fill="#7A2618" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>`
+      + `<path d="M74,121 q26,8 52,-1 l-1,7 q-25,8 -49,2 z" fill="#FFFDF6"/>`
+      + `<path d="M87,139 q13,-8 26,-1 q-6,5 -13,5 q-8,0 -13,-4 z" fill="#E06A5A"/>`,
   },
   wince: {
     eyes: `<path d="M75,101 l13,4 l-13,4" fill="none" stroke="${INK}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M125,97 l-13,4 l13,4" fill="none" stroke="${INK}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>`,
@@ -169,14 +178,31 @@ const UNDER = { align: "center", v: "top" };
 const FACE = 76, OVER = 13;
 const bubbleFont = (k) => Math.round(Math.min(20, Math.max(15, 13.6 * k)) * 10) / 10;
 
-// Steve's line, his face and the notes for the tour's moment `t` (the
-// picture's; null for none).
+/* The tour's last card: Got it ends it (the menu's last card; or, the
+   menu not shown, your turn again). */
+const lastCard = (t) => t.step === "foot" || (t.step === "foe" && !t.waiting && !t.menu);
+
+/* Steve's line, his face and the notes for the tour's moment `t` (the
+   picture's; null for none). A line in lines is an array, each its own.
+   On the tour's last card, one more step: his last word, beaming (user:
+   "when the tutorial is over, the last thing that Steve should say is,
+   and thank you for shopping at Big Glutts! and he should have a huge
+   grin on his face"). */
 export function coachFor(t) {
+  const c = coachSays(t);
+  if (!c || !lastCard(t)) return c;
+  const steps = c.parts || [{ focus: c.focus || null, mood: c.mood, line: c.line, notes: c.notes }];
+  const bye = { focus: null, mood: "beam", line: "And thank you for shopping at Big Glutts!", notes: c.notes };
+  return { ...steps[0], parts: [...steps, bye] };
+}
+
+function coachSays(t) {
   const N = Math.max(1, t.budget || 2);
   const tap = (touch, click) => (t.touch ? touch : click);
   switch (pictureOf(t)) {
     case "welcome":
-      return { mood: "grin", line: "Hi, I'm Steve! Let me show you how.", notes: [
+      // (User: "Hi, I'm Steve!\nLet me show you how to play the game.")
+      return { mood: "grin", line: ["Hi, I'm Steve!", "Let me show you how to play the game."], notes: [
         note([2, 50, 98, 40], YOURS, "your pieces", { align: "center", v: "bottom" }),
         note([220, 52, 98, 44], THEIRS, "the computer's pieces", UNDER),
       ] };
@@ -187,15 +213,30 @@ export function coachFor(t) {
         note([194, 4, 84, 48], YOURS, "or crush their disc"),
       ] };
     case "goal": {
-      // (By the dots, after them: where they end, as many as a turn has.)
+      /* In two steps, each its half lit: the far row; then how the disc
+         steps, said to be the disc's alone (user, of the right half: "It's
+         not clear that this graphic indicates that this is the movement of
+         the cabeza or disk. It's too generalized. People might assume that
+         this is how all pieces move. Let's tighten this up."). Over the
+         steps' squares, where the grid leaves room (it starts 16 down),
+         whose they are; right of them, any way; by the dots, after them,
+         as many as a turn has. */
       const n = 2 * N + 1, s2 = Math.min(16, 84 / n), dw = N * 10 + (N - 1) * 5, x0 = 246 + dw / 2 + 6;
-      // (User: "one way is to get your disk all the way across the board
-      // without getting crushed ... but maybe more concise".)
-      return { mood: "grin", line: "One way: get your disc across in one piece.", notes: [
-        note([127, 46, 41, 50], GOAL, "far row wins!", { v: "top" }),
-        note([246 + (n * s2) / 2 + 3, 20, 316 - (246 + (n * s2) / 2 + 3), 70], YOURS, "any way!", { align: "center" }),
-        note([x0, 16 + n * s2 + 2, 318 - x0, 40], YOURS, N === 1 ? "one step a turn" : say("{n} steps a turn", { n: N })),
-      ] };
+      const parts = [
+        // (User: "one way is to get your disk all the way across the board
+        // without getting crushed ... but maybe more concise".)
+        { focus: [4, 3, 162, 134], mood: "grin", line: "One way: get your disc across in one piece.", notes: [note([127, 46, 41, 50], GOAL, "far row wins!", { v: "top" })] },
+        {
+          focus: [174, 1, 144, 137], mood: "grin",
+          line: N === 1 ? "Only your disc moves like this: one square any way, once a turn." : N === 2 ? "Only your disc moves like this: one square any way, once or twice a turn." : say("Only your disc moves like this: one square any way, up to {n} times a turn.", { n: N }),
+          notes: [
+            note([178, 0, 136, 16], YOURS, "only your disc", { align: "center", v: "bottom" }),
+            note([246 + (n * s2) / 2 + 3, 20, 316 - (246 + (n * s2) / 2 + 3), 70], YOURS, "any way!", { align: "center" }),
+            note([x0, 16 + n * s2 + 2, 318 - x0, 40], YOURS, N === 1 ? "one step a turn" : say("{n} steps a turn", { n: N })),
+          ],
+        },
+      ];
+      return { ...parts[0], parts };
     }
     case "crush":
       // (User: "keep an eye on your disk, because your opponent's going to be
@@ -434,7 +475,7 @@ export function CoachPicture({ t, still, anim, nav = null, part = 0 }) {
         <SteveFace mood={coach.mood} size={face} style={{ marginTop: -Math.round(OVER * kk), marginLeft: -Math.round(5 * kk) }} />
         <div data-testid="tour-coach-side" style={{ flex: "1 1 auto", minWidth: 0, display: "flex", flexDirection: "column", gap: Math.round(8 * kk), paddingTop: 6 }}>
           <div data-testid="tour-coach-line" className="ec-coach-bubble" style={{ alignSelf: "flex-start", fontSize: bubbleFont(kk) }}>
-            {coach.line}
+            {Array.isArray(coach.line) ? coach.line.map((l, i) => <span key={i} data-line={i} style={{ display: "block" }}>{l}</span>) : coach.line}
             {parts && (
               <span className="ec-coach-pips" aria-hidden="true">
                 {parts.map((_, i) => <i key={i} className={i === at ? "on" : ""} />)}
@@ -455,15 +496,17 @@ export function CoachPicture({ t, still, anim, nav = null, part = 0 }) {
 function Focus({ box }) {
   const [x, y, w, h] = box;
   const geo = { x, y, width: w, height: h };
+  // (Its mask's own name: one per picture, should there be two.)
+  const id = `ec-coach-focus-${useId().replace(/[^\w-]/g, "")}`;
   return (
     <svg className="ec-coach-focus" data-testid="tour-coach-focus" data-box={box.join(",")} viewBox={`0 0 ${W} ${H}`} aria-hidden="true" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
       <defs>
-        <mask id="ec-coach-focus-mask" maskUnits="userSpaceOnUse" x="0" y="0" width={W} height={H}>
+        <mask id={id} maskUnits="userSpaceOnUse" x="0" y="0" width={W} height={H}>
           <rect x="0" y="0" width={W} height={H} fill="#fff" />
           <rect className="ec-coach-hole" {...geo} style={geo} rx="9" fill="#000" />
         </mask>
       </defs>
-      <rect x="0" y="0" width={W} height={H} rx="8" fill="rgba(18,12,6,0.64)" mask="url(#ec-coach-focus-mask)" />
+      <rect x="0" y="0" width={W} height={H} rx="8" fill="rgba(18,12,6,0.64)" mask={`url(#${id})`} />
       <rect className="ec-coach-edge" {...geo} style={geo} rx="9" fill="none" stroke={TONES.mine} strokeWidth="1.6" strokeOpacity="0.8" />
     </svg>
   );
@@ -502,10 +545,10 @@ export function SteveSays({ mood = "grin", line, action = null, testid = "tour-c
       <style>{COACH_CSS}</style>
       <SteveFace mood={mood} size={Math.round(FACE * k)} />
       <div data-testid="tour-coach-line" className="ec-coach-bubble ec-coach-mid" style={{ flex: "0 1 auto", fontSize: bubbleFont(k) }}>
-        {line}
+        {Array.isArray(line) ? line.map((l, i) => <span key={i} data-line={i} style={{ display: "block" }}>{l}</span>) : line}
         {action && (
           <>
-            <br />
+            {!Array.isArray(line) && <br />}
             <button type="button" data-testid={action.testid} className={`ec-coach-btn${action.ghost ? " ec-coach-ghost" : ""}`} onClick={action.onClick}>
               <MusicIcon off={!!action.off} />
               {action.label}
