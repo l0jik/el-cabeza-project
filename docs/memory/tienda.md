@@ -597,6 +597,29 @@ box art and an ad standee (assets/tienda/*.jpg).
   heard), the pieces' 1,
   the level kept), Music back on; none with the music off already; coachOk
   with the bigger face and the buttons beside him.
+- **The turn card in Steve's steps** (2026-11-23; user, with a photo of
+  the pictures' turn card: "This part seems a little busy and perhaps
+  convoluted. Maybe Steve needs to break it down, be a little bit more
+  explanatory, and take it in steps."). TourCoach.jsx coachFor("turn")
+  gives `parts`: each a line, a face, its notes and `focus`, the part of
+  the picture it's about. Next goes through them (FirstGameTour: the
+  card's Next is Steve's next point till his last, its Back his point
+  before; partOf keeps which, per card: the first coming from the card
+  before, the last coming back from the card after), then on to the next
+  card. The picture lit only where the point is (Focus: a mask cut round
+  it, the rest dimmed, a yellow edge, moving to the next part; still with
+  reduced motion), only that point's notes on it, and pips in his bubble
+  for where you are. The store's game (two actions, the Opa): "You go
+  first, then the computer." (the row of turns; no note) / "Pick a block.
+  Roll it once or twice." (up to 2 rolls) / "The big block is heavy: it
+  rolls just once." (the big one rolls once; a "hmm") / "Don't want to
+  move your piece twice? You don't have to! Hold it, or tap the check."
+  (user: "instead of done early? have him say, don't want to move your
+  piece twice? You don't have to!"; hold it to end early); with other laws,
+  the lines and parts to match (one action, three, shared, no Opa).
+  tour-coach data-part / data-parts, tour-coach-focus data-box. es and
+  vi. tests/e2e-first-game-tour.mjs: the four points, each its line, its
+  part lit and its note; Back on the card; nextCard() through them.
 - **The store's signs in view again** (2026-11-22; user: "In Tienda /
   store, the maximum vertical zoom / ceiling seems to be lower than
   before.... There is wall signage that can no longer be seen. Is there a

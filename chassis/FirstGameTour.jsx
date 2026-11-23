@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { t as say, tr, listOf, language } from "./i18n.js";
 import { TourPicture, TagIcons, TONES, ICON } from "./TourPictures.jsx";
-import { CoachPicture, SteveSays } from "./TourCoach.jsx";
+import { CoachPicture, SteveSays, coachFor } from "./TourCoach.jsx";
 
 /* A new player's first game, walked through (user, 2026-10-17: "They
    click begin a game, and then a little pop-up will say, "Welcome to your
@@ -524,6 +524,11 @@ export default function FirstGameTour({ tour, cardRef }) {
   // (Turned off on it once: back on, he has another word for it, user:
   // "probably for the best, my manager actually likes the music".)
   const [musicTurned, setMusicTurned] = useState(false);
+  /* (A coached card in steps, the one it's on: the first, come to from the
+     card before; the last, come back to from the card after. Kept with the
+     card it's for, and set again as the card changes.) */
+  const [partOf, setPartOf] = useState({ step, part: 0 });
+  if (partOf.step !== step) setPartOf({ step, part: TOUR_CARDS.indexOf(partOf.step) === TOUR_CARDS.indexOf(step) + 1 && TOUR_CARDS.indexOf(step) >= 0 ? 99 : 0 });
   const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
   if (cameRef.current.step !== step) cameRef.current = { step, at: now(), mode: null, t0: 0 };
   if (cameRef.current.mode !== pics) { cameRef.current.mode = pics; cameRef.current.t0 = (now() - cameRef.current.at) / 1000; }
@@ -683,11 +688,18 @@ export default function FirstGameTour({ tour, cardRef }) {
   if (pics) {
     const still = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const coach = !!(tour.copy && tour.copy.coach === "steve");
+    /* (Coached, a card in steps: Next is Steve's next point till his last,
+       Back his one before; then they're the card's.) */
+    const parts = coach && card ? (coachFor(tour) || {}).parts : null;
+    const part = parts && partOf.step === step ? Math.min(parts.length - 1, partOf.part) : 0;
+    const stepTo = (p) => setPartOf({ step, part: p });
+    const fwd = parts && primary && part < parts.length - 1 ? { ...primary, onClick: () => stepTo(part + 1), label: "Next ›", icons: ["next"] } : primary;
+    const bk = parts && part > 0 ? { label: "‹ Back", onClick: () => stepTo(part - 1), testid: "tour-back" } : back;
     // (Coached, the buttons go beside Steve, under his bubble.)
-    const navRow = back || primary ? (
+    const navRow = bk || fwd ? (
       <div data-testid="tour-nav" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: coach ? 0 : narrow ? 8 : 10 }}>
-        <span>{back && <IconButton b={{ ...back, aria: "Back a step" }} icons={["back"]} C={C} />}</span>
-        {primary && <IconButton b={{ ...primary, aria: plain(primary.label) }} icons={primary.icons} C={C} primary autoFocus={card || menuCard} />}
+        <span>{bk && <IconButton b={{ ...bk, aria: "Back a step" }} icons={["back"]} C={C} />}</span>
+        {fwd && <IconButton b={{ ...fwd, aria: plain(fwd.label) }} icons={fwd.icons} C={C} primary autoFocus={card || menuCard} />}
       </div>
     ) : null;
     const said = [
@@ -716,7 +728,7 @@ export default function FirstGameTour({ tour, cardRef }) {
           <h2 id="ec-tour-title" data-testid="tour-title" style={UNSEEN}>{text.title}</h2>
           <div id="ec-tour-words" data-testid="tour-words" style={UNSEEN}>{said.map((w, i) => <p key={i}>{w}</p>)}</div>
           {coach
-            ? <CoachPicture t={tour} still={still} anim={lit ? (i, n) => turnAnim("ecTourPic", i, n, t0) : null} nav={navRow} />
+            ? <CoachPicture t={tour} still={still} anim={lit ? (i, n) => turnAnim("ecTourPic", i, n, t0) : null} nav={navRow} part={part} />
             : <TourPicture t={tour} still={still} anim={lit ? (i, n) => turnAnim("ecTourPic", i, n, t0) : null} />}
           {!coach && navRow}
         </div>

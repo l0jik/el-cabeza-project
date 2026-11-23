@@ -207,11 +207,27 @@ export function coachFor(t) {
         note([216, 8, 68, 48], THEIRS, "a disc can't crush"),
       ] };
     case "turn": {
+      /* In steps (user, of this card: "This part seems a little busy and
+         perhaps convoluted. Maybe Steve needs to break it down, be a little
+         bit more explanatory, and take it in steps."): Next goes through
+         his points one at a time, each lighting its part of the picture
+         (focus), the rest dimmed: whose turn; a block rolled once or twice;
+         the big one, once; done early. */
       const opa = !t.split && N === 2 && t.hasOpa;
-      const notes = [note([4, 50, 82, 22], YOURS, t.split ? say("{n} moves a turn", { n: N }) : N === 1 ? "one roll a turn" : say("up to {n} rolls", { n: N }))];
-      if (opa) notes.push(note([156, 64, 66, 44], YOURS, "the big one rolls once"));
-      if (N > 1) notes.push(note([230, 50, 88, 36], YOURS, "hold it to end early", { v: "bottom" }));
-      return { mood: "grin", line: t.youFirst ? "You go first!" : "The computer goes first!", notes };
+      const left = 16 + (N + 1) * 19 + 8;
+      const parts = [
+        { focus: [6, 4, 308, 40], mood: "grin", line: t.youFirst ? "You go first, then the computer." : "The computer goes first, then you.", notes: [] },
+        {
+          focus: [2, 50, Math.max(left - 2, 86), 88], mood: "grin",
+          line: t.split ? say("Each turn, {n} moves, shared by your pieces.", { n: N }) : N === 1 ? "Pick a block and roll it once." : N === 2 ? "Pick a block. Roll it once or twice." : say("Pick a block. Roll it up to {n} times.", { n: N }),
+          notes: [note([4, 50, 82, 22], YOURS, t.split ? say("{n} moves a turn", { n: N }) : N === 1 ? "one roll a turn" : say("up to {n} rolls", { n: N }))],
+        },
+      ];
+      if (opa) parts.push({ focus: [90, 50, 134, 88], mood: "hmm", line: "The big block is heavy: it rolls just once.", notes: [note([156, 64, 66, 44], YOURS, "the big one rolls once")] });
+      // (User: "instead of done early? have him say, don't want to move your
+      // piece twice? You don't have to!")
+      if (N > 1) parts.push({ focus: [228, 50, 90, 88], mood: "grin", line: "Don't want to move your piece twice? You don't have to! Hold it, or tap the check.", notes: [note([230, 50, 88, 36], YOURS, "hold it to end early", { v: "bottom" })] });
+      return { ...parts[0], parts };
     }
     case "board":
       return { mood: "grin", line: "Look from any side you like!", notes: [
@@ -309,6 +325,11 @@ const COACH_CSS = `
 .ec-coach-btn:active { transform: translate(1px, 1px); }
 .ec-coach-btn:focus-visible { outline: 2px solid ${INK}; outline-offset: 3px; }
 .ec-coach-btn svg { flex: none; width: 16px; height: 16px; }
+.ec-coach-pips { display: flex; gap: 5px; margin: 5px 0 1px; }
+.ec-coach-pips i { width: 7px; height: 7px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid ${INK}; opacity: .55; }
+.ec-coach-pips i.on { background: ${INK}; opacity: 1; }
+.ec-coach-focus rect.ec-coach-hole, .ec-coach-focus rect.ec-coach-edge { transition: x .35s ease, y .35s ease, width .35s ease, height .35s ease; }
+@media (prefers-reduced-motion: reduce) { .ec-coach-focus rect.ec-coach-hole, .ec-coach-focus rect.ec-coach-edge { transition: none; } }
 `;
 const V = { top: "flex-start", middle: "center", bottom: "flex-end" };
 const TURN_AT = { left: "0 50%", center: "50% 50%", right: "100% 50%" };
@@ -337,8 +358,11 @@ function fitNote(box, k) {
    (`nav`) under it, beside him too, so his bigger face costs the card no
    height. Everything in proportion to the picture (k: its pixels to its
    units). */
-export function CoachPicture({ t, still, anim, nav = null }) {
-  const coach = coachFor(t);
+export function CoachPicture({ t, still, anim, nav = null, part = 0 }) {
+  const whole = coachFor(t);
+  // (A card in steps: the step's line, face, notes and the part it lights.)
+  const parts = whole && whole.parts, at = parts ? Math.max(0, Math.min(parts.length - 1, part)) : 0;
+  const coach = parts ? { ...whole, ...parts[at] } : whole;
   const boxRef = useRef(null);
   const [k, setK] = useState(0);
   useHandFont();
@@ -375,10 +399,11 @@ export function CoachPicture({ t, still, anim, nav = null }) {
   const kk = k || 1.4, pic = pictureOf(t);
   const face = Math.round(FACE * kk);
   return (
-    <div data-testid="tour-coach" data-picture={pic}>
+    <div data-testid="tour-coach" data-picture={pic} data-part={parts ? at : undefined} data-parts={parts ? parts.length : undefined}>
       <style>{COACH_CSS}</style>
       <div ref={boxRef} style={{ position: "relative" }}>
         <TourPicture t={t} still={still} anim={anim} />
+        {coach.focus && <Focus box={coach.focus} />}
         <div data-testid="tour-coach-notes" aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
           {coach.notes.map((n, i) => (
             <div
@@ -402,11 +427,37 @@ export function CoachPicture({ t, still, anim, nav = null }) {
         <div data-testid="tour-coach-side" style={{ flex: "1 1 auto", minWidth: 0, display: "flex", flexDirection: "column", gap: Math.round(8 * kk), paddingTop: 6 }}>
           <div data-testid="tour-coach-line" className="ec-coach-bubble" style={{ alignSelf: "flex-start", fontSize: bubbleFont(kk) }}>
             {coach.line}
+            {parts && (
+              <span className="ec-coach-pips" aria-hidden="true">
+                {parts.map((_, i) => <i key={i} className={i === at ? "on" : ""} />)}
+              </span>
+            )}
           </div>
           {nav}
         </div>
       </div>
     </div>
+  );
+}
+
+/* The part of the picture a step is about, lit; the rest dimmed (a mask
+   with the part cut out of it, a yellow edge round it; moving to the next
+   step's part). The geometry set both ways: as attributes, and as style
+   for the move where the browser animates it. */
+function Focus({ box }) {
+  const [x, y, w, h] = box;
+  const geo = { x, y, width: w, height: h };
+  return (
+    <svg className="ec-coach-focus" data-testid="tour-coach-focus" data-box={box.join(",")} viewBox={`0 0 ${W} ${H}`} aria-hidden="true" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+      <defs>
+        <mask id="ec-coach-focus-mask" maskUnits="userSpaceOnUse" x="0" y="0" width={W} height={H}>
+          <rect x="0" y="0" width={W} height={H} fill="#fff" />
+          <rect className="ec-coach-hole" {...geo} style={geo} rx="9" fill="#000" />
+        </mask>
+      </defs>
+      <rect x="0" y="0" width={W} height={H} rx="8" fill="rgba(18,12,6,0.64)" mask="url(#ec-coach-focus-mask)" />
+      <rect className="ec-coach-edge" {...geo} style={geo} rx="9" fill="none" stroke={TONES.mine} strokeWidth="1.6" strokeOpacity="0.8" />
+    </svg>
   );
 }
 
