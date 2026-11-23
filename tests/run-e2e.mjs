@@ -146,7 +146,7 @@ const SECS = {
   "e2e-touch-in-game": 640, "e2e-noir-streets": 52, "e2e-noir-sound": 90, "e2e-dock-call": 332, "e2e-hall-sound": 115, "e2e-luna-floors": 19, "e2e-luna-rover": 12,
   "e2e-app": 173, "e2e-press": 57, "e2e-ghost-finger": 53, "e2e-den-phone": 158, "e2e-corner-menu": 706, "e2e-idle-fade": 70, "e2e-ciudad": 126, "e2e-ciudad-sound": 137,
   "e2e-hold-to-end": 124, "e2e-ciudad-cabezas": 59, "e2e-slide-sounds": 201, "e2e-set-out": 858, "e2e-closeups": 160, "e2e-saves": 74, "e2e-online": 187,
-  "e2e-nova-city": 100, "e2e-hole-sets": 35, "e2e-first-game-tour": 460, "e2e-first-look": 63, "e2e-store-pan": 80, "e2e-tv-pull": 114,
+  "e2e-nova-city": 100, "e2e-hole-sets": 35, "e2e-first-game-tour": 540, "e2e-first-look": 63, "e2e-store-pan": 80, "e2e-tv-pull": 114,
   "e2e-realities-over-sphere": 40, "e2e-device-fit": 134, "e2e-title": 165, "e2e-language": 47, "e2e-menu-lab": 259, "e2e-rings": 104,
   "e2e-menu-tips worlds": 456, "e2e-menu-tips more": 164, "e2e-leave": 111, "e2e-glass-layers": 17, "e2e-see-lens": 44, "e2e-store-records": 4,
   "e2e-cromo": 36, "e2e-you-win": 45, "e2e-arrow-lab": 75, "e2e-hidden-marker": 56, "e2e-floor-seams": 13, "e2e-undo-move": 51, "e2e-singularity-stall": 16,

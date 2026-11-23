@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { t as say, tr, listOf, language } from "./i18n.js";
 import { TourPicture, TagIcons, TONES, ICON } from "./TourPictures.jsx";
+import { CoachPicture } from "./TourCoach.jsx";
 
 /* A new player's first game, walked through (user, 2026-10-17: "They
    click begin a game, and then a little pop-up will say, "Welcome to your
@@ -653,9 +654,13 @@ export default function FirstGameTour({ tour, cardRef }) {
     );
   }
   /* In pictures: the dots, the switch, the picture, and buttons with
-     icons; the words kept for a screen reader, out of sight. */
+     icons; the words kept for a screen reader, out of sight. (Where a
+     world has someone to coach them, TourCoach.jsx: the store's Steve B.
+     in the picture's corner, a line from him in a bubble and his few words
+     on it; the world's band over the card, "Big Glutts shows you how".) */
   if (pics) {
     const still = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const coach = !!(tour.copy && tour.copy.coach === "steve");
     const said = [
       text.sub,
       ...(text.body || []).filter(Boolean).map((p) => (typeof p === "string" ? p : p.note)),
@@ -666,7 +671,12 @@ export default function FirstGameTour({ tour, cardRef }) {
     return (
       <>
         <style>{css}</style>
-        <div key={`${step}-pictures`} {...cardProps} aria-describedby="ec-tour-words" style={{ ...cardStyle, padding: narrow ? "8px 10px 10px" : "10px 12px 12px" }}>
+        <div key={`${step}-pictures`} {...cardProps} aria-describedby="ec-tour-words" data-coach={coach ? tour.copy.coach : undefined} style={{ ...cardStyle, padding: narrow ? "8px 10px 10px" : "10px 12px 12px" }}>
+          {coach && tour.copy.coachBand && (
+            <div data-testid="tour-band" style={{ fontFamily: mono, fontSize: TYPE.band, letterSpacing: "0.16em", textTransform: "uppercase", color: C.slate, marginBottom: 6 }}>
+              {tour.copy.coachBand}
+            </div>
+          )}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: narrow ? 7 : 8 }}>
             <TourDots step={step} C={C} />
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -676,7 +686,9 @@ export default function FirstGameTour({ tour, cardRef }) {
           </div>
           <h2 id="ec-tour-title" data-testid="tour-title" style={UNSEEN}>{text.title}</h2>
           <div id="ec-tour-words" data-testid="tour-words" style={UNSEEN}>{said.map((w, i) => <p key={i}>{w}</p>)}</div>
-          <TourPicture t={tour} still={still} anim={lit ? (i, n) => turnAnim("ecTourPic", i, n, t0) : null} />
+          {coach
+            ? <CoachPicture t={tour} still={still} anim={lit ? (i, n) => turnAnim("ecTourPic", i, n, t0) : null} />
+            : <TourPicture t={tour} still={still} anim={lit ? (i, n) => turnAnim("ecTourPic", i, n, t0) : null} />}
           {(back || primary) && (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: narrow ? 8 : 10 }}>
               <span>{back && <IconButton b={{ ...back, aria: "Back a step" }} icons={["back"]} C={C} />}</span>

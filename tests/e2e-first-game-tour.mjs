@@ -807,17 +807,65 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
    nothing to read but the two ways' numbers, where you are in dots, the
    buttons icons (named for a screen reader, the card's words kept for it
    out of sight), and the board's labels icons too; words again, as ever.
-   From a link, ?tour=pictures; with reduced motion, every picture still. */
+   From a link, ?tour=pictures; with reduced motion, every picture still.
+   (In the store, the clerk coaches them: his few words, coachOf below,
+   apart.) */
 const seen = (page) => page.evaluate(() => {
   const c = document.querySelector('[data-testid="tour-card"]');
   if (!c) return null;
   const out = [], w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT);
   for (let n = w.nextNode(); n; n = w.nextNode()) {
     const t = n.textContent.trim();
-    if (t && !n.parentElement.closest('[data-testid="tour-words"], [data-testid="tour-title"]')) out.push(t);
+    if (t && !n.parentElement.closest('[data-testid="tour-words"], [data-testid="tour-title"], [data-testid="tour-coach"], [data-testid="tour-band"]')) out.push(t);
   }
   return out.join(" ");
 });
+/* Steve B. coaching the pictures (chassis/TourCoach.jsx; user, 2026-11-23:
+   "there should be a really brief encapsulation as to what you're seeing
+   for each of the pictures. Make it look like Big Lots is showing you how
+   to do this"; "a zoom in portrait of like just the clerk, Steve B. ...
+   sort of like coaching along"; picked "1 · In the corner: one coaching
+   line in a bubble."): the circular's band over the card; his face at
+   the picture's lower left, over its edge; a line from him in a bubble
+   beside it; and a few words on the picture by what they're about, each
+   in its box (on the picture, clear of the others and of his corner, the
+   lower left), its words fitting it, whatever the size of the text. */
+const coachOf = (page) => page.evaluate(() => {
+  const c = document.querySelector('[data-testid="tour-card"] [data-testid="tour-coach"]');
+  if (!c) return null;
+  const pic = c.querySelector('[data-testid="tour-picture"]').getBoundingClientRect(), k = pic.width / 320;
+  const face = c.querySelector('[data-testid="tour-coach-face"]'), fr = face.getBoundingClientRect();
+  const line = c.querySelector('[data-testid="tour-coach-line"]'), lr = line.getBoundingClientRect();
+  const band = document.querySelector('[data-testid="tour-card"] [data-testid="tour-band"]');
+  const notes = [...c.querySelectorAll("[data-note]")].map((n) => {
+    const r = n.getBoundingClientRect(), w = n.firstElementChild;
+    return { text: w.textContent.trim(), x: (r.left - pic.left) / k, y: (r.top - pic.top) / k, w: r.width / k, h: r.height / k, fits: w.scrollWidth <= n.clientWidth + 1 && w.offsetHeight <= n.clientHeight + 1, fit: +n.dataset.fit };
+  });
+  return {
+    picture: c.dataset.picture, mood: face.dataset.mood, line: line.textContent.trim(), band: band ? band.textContent.trim() : null, notes,
+    face: { left: Math.round(fr.left - pic.left), over: Math.round(pic.bottom - fr.top), w: Math.round(fr.width), h: Math.round(fr.height) },
+    beside: lr.left >= fr.right - 2 && lr.top < fr.bottom && lr.top >= pic.bottom,
+  };
+});
+const coachOk = (s) => {
+  if (!s) return "no coach";
+  if (!["grin", "hmm", "wince"].includes(s.mood)) return `his face: ${s.mood}`;
+  if (s.band !== "Big Glutts shows you how") return `the band: ${s.band}`;
+  if (!s.line || s.line.split(/\s+/).length > 8) return `his line: ${s.line}`;
+  if (s.face.left > 2 || s.face.over < 4 || s.face.over > s.face.h / 2 || s.face.w < 40 || !s.beside) return `his face and bubble: ${JSON.stringify(s.face)} beside ${s.beside}`;
+  if (!s.notes.length || s.notes.length > 4) return `${s.notes.length} notes`;
+  for (const n of s.notes) {
+    if (!n.text || n.text.split(/\s+/).length > 8) return `a note's words: ${n.text}`;
+    if (n.x < -0.5 || n.y < -0.5 || n.x + n.w > 320.5 || n.y + n.h > 140.5) return `off the picture: ${n.text}`;
+    if (n.x < 44 && n.y + n.h > 126.5) return `in his corner: ${n.text}`;
+    if (!n.fits) return `runs out of its box: ${n.text}`;
+  }
+  for (let i = 0; i < s.notes.length; i++) for (let j = i + 1; j < s.notes.length; j++) {
+    const a = s.notes[i], b = s.notes[j];
+    if (a.x < b.x + b.w - 0.5 && b.x < a.x + a.w - 0.5 && a.y < b.y + b.h - 0.5 && b.y < a.y + a.h - 0.5) return `notes over each other: ${a.text} / ${b.text}`;
+  }
+  return "";
+};
 const picOf = (page) => page.evaluate(() => { const p = document.querySelector('[data-testid="tour-card"] [data-testid="tour-picture"]'); return p ? { picture: p.dataset.picture, moving: p.querySelectorAll("animate, animateTransform, animateMotion").length } : null; });
 const tagModes = (page) => page.evaluate(() => [...document.querySelectorAll('[data-testid="tour-marks"] [data-tag]')].map((e) => ({ key: e.dataset.tag, mode: e.dataset.tagMode, text: e.textContent.trim(), icons: e.querySelectorAll("svg").length })));
 const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector('[data-testid="tour-dots"]'); return d ? `${d.dataset.n}/${d.dataset.of}` : null; });
@@ -875,7 +923,9 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   await page.locator('[data-testid="tour-mode-pictures"]').click();
   await page.waitForTimeout(700);
   let p = await picOf(page);
-  check("Pictures only: the card a picture, moving, nothing on it to read", (await card(page).getAttribute("data-mode")) === "pictures" && !!p && p.picture === "welcome" && p.moving > 0 && (await seen(page)) === "" && (await pressed("pictures")) === "true", JSON.stringify({ p, seen: await seen(page) }));
+  check("Pictures only: the card a picture, moving, nothing else on it to read", (await card(page).getAttribute("data-mode")) === "pictures" && !!p && p.picture === "welcome" && p.moving > 0 && (await seen(page)) === "" && (await pressed("pictures")) === "true", JSON.stringify({ p, seen: await seen(page) }));
+  let co = await coachOf(page);
+  check("...the store's clerk coaching it: Big Glutts shows you how; Steve B. at the picture's corner, a line from him in a bubble beside it, a few words on the picture, each fitting its box", !!co && coachOk(co) === "" && co.picture === "welcome" && /Steve/.test(co.line) && co.notes.some((n) => n.text === "your pieces") && co.notes.some((n) => n.text === "the computer's pieces"), (co && coachOk(co)) || JSON.stringify(co));
   const title = page.locator('[data-testid="tour-title"]');
   check("...its words kept for a screen reader, out of sight", /Welcome to your first game/.test(await title.textContent()) && (await title.boundingBox()).width <= 1 && /the computer/.test(await page.locator('[data-testid="tour-words"]').textContent()));
   check("...kept on the device", (await page.evaluate(() => localStorage.getItem("el-cabeza:tour-pictures"))) === "on");
@@ -883,15 +933,19 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   check("...the board's labels icons: you, the computer", tg.length === 2 && tg.every((g) => g.mode === "pictures" && g.text === "" && g.icons === 1), JSON.stringify(tg));
   check("...its buttons icons, named for a screen reader", (await page.locator('[data-testid="tour-next"]').getAttribute("aria-label")) === "Next" && (await page.locator('[data-testid="tour-skip"]').getAttribute("aria-label")) === "Skip the tour" && (await page.locator('[data-testid="tour-next"]').innerText()).trim() === "");
   check("...where you are in dots: the first of 8", (await dotsAt(page)) === "1/8");
-  const steps = ["ways", "goal", "crush", "blocks", "turn", "board"], off = [];
+  const steps = ["ways", "goal", "crush", "blocks", "turn", "board"], off = [], coached = [];
   for (let i = 0; i < steps.length; i++) {
     await page.locator('[data-testid="tour-next"]').click();
     await page.waitForTimeout(1800);
     const s = (await tourOf(page)).step, q = await picOf(page), w = await seen(page), d = await dotsAt(page);
-    // (Nothing to read but the two ways' numbers, as the board's labels.)
+    // (Nothing else to read: Steve's words apart.)
     if (s !== steps[i] || !q || q.picture !== steps[i] || !/^[\d\s]*$/.test(w) || d !== `${i + 2}/8`) off.push(JSON.stringify({ s, q, w, d }));
+    co = await coachOf(page);
+    if (!co || co.picture !== steps[i] || coachOk(co)) coached.push(`${steps[i]}: ${(co && coachOk(co)) || JSON.stringify(co)}`);
+    if (steps[i] === "crush" && !(co && co.notes.some((n) => /your block rolls onto their disc… you win!/.test(n.text)) && co.notes.some((n) => /their block rolls onto your disc… you lose\./.test(n.text)))) coached.push(`crush: ${JSON.stringify(co && co.notes)}`);
   }
-  check("...each card on to the board's a picture of its own, nothing to read, the dots along", off.length === 0, off.join(" | "));
+  check("...each card on to the board's a picture of its own, nothing else to read, the dots along", off.length === 0, off.join(" | "));
+  check("...and on each, Steve: his line, and his few words by what they're about (the crush: yours onto theirs, you win; theirs onto yours, you lose)", coached.length === 0, coached.join(" | "));
   tg = await tagModes(page);
   check("...the board's label two icons (turn it, zoom)", tg.length === 1 && tg[0].key === "orbit" && tg[0].icons === 2 && tg[0].text === "", JSON.stringify(tg));
   check("...and Let's play a play button", (await page.locator('[data-testid="tour-next"]').getAttribute("aria-label")) === "Let's play");
@@ -900,11 +954,15 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   p = await picOf(page);
   tg = await tagModes(page);
   check("your move: its picture; your pieces' labels a hand, the boxed-in ones' a lock", (await tourOf(page)).step === "pieces" && !!p && p.picture === "pieces" && tg.length === 5 && tg.every((g) => g.icons === 1 && g.text === "") && (await seen(page)) === "" && (await dotsAt(page)) === "8/8", JSON.stringify({ p, tg }));
+  co = await coachOf(page);
+  check("...Steve: your move, tap a piece", !!co && coachOk(co) === "" && co.picture === "pieces" && co.line === "Your move! Tap a piece.", (co && coachOk(co)) || JSON.stringify(co));
   const at = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-opa"));
   await page.touchscreen.tap(at.x, at.y);
   await page.waitForTimeout(2800);
   p = await picOf(page);
   check("the Opa tapped: a picture of it, its roll and what it takes, the arrows' squares to tap", !!p && p.picture === "lesson" && (await seen(page)) === "", JSON.stringify(p));
+  co = await coachOf(page);
+  check("...Steve: its name, it rolls just once; now tap a lit square", !!co && coachOk(co) === "" && co.picture === "lesson" && co.notes.some((n) => /Opa/.test(n.text)) && co.notes.some((n) => n.text === "rolls just once") && co.line === "Now tap a lit square!", (co && coachOk(co)) || JSON.stringify(co));
   await page.locator('[data-testid="tour-mode-words"]').click();
   await page.waitForTimeout(700);
   tg = await tagModes(page);
@@ -928,13 +986,52 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   await begin(page, { choose: null });
   let p = await picOf(page);
   check("Try a Demo Game: the link said how, so no question: the welcome card in pictures, held still", (await card(page).getAttribute("data-mode")) === "pictures" && !!p && p.picture === "welcome" && p.moving === 0, JSON.stringify(p));
+  let co = await coachOf(page);
+  check("...Steve coaching it on a laptop's card too", !!co && coachOk(co) === "", (co && coachOk(co)) || JSON.stringify(co));
   for (let i = 0; i < 6; i++) { await page.locator('[data-testid="tour-next"]').click(); await page.waitForTimeout(250); }
   await page.waitForTimeout(600);
   p = await picOf(page);
   check("...the board card: its picture, held still too", (await tourOf(page)).step === "board" && !!p && p.picture === "board" && p.moving === 0, JSON.stringify(p));
+  co = await coachOf(page);
+  check("...Steve's words for a mouse: drag to turn, right-drag to move, scroll to zoom", !!co && coachOk(co) === "" && ["drag to turn", "right-drag to move", "scroll to zoom"].every((w) => co.notes.some((n) => n.text === w)), (co && coachOk(co)) || JSON.stringify(co && co.notes));
   await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
   check("Escape skips it, kept as done", (await card(page).count()) === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+{
+  /* A foldable's open screen with the phone's text large (the user's:
+     ~898 x 930, the system's font large, the app's text 1.5x): Steve's
+     words as large as fit their boxes, never out of them, and every card
+     on the screen whole. */
+  console.log("\n[foldable, large text: Steve's words fit]");
+  const ctx = await browser.newContext({ viewport: { width: 898, height: 930 }, isMobile: true, hasTouch: true });
+  await ctx.addInitScript(() => {
+    window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none";
+    document.addEventListener("DOMContentLoaded", () => { const st = document.createElement("style"); st.textContent = "html{-webkit-text-size-adjust:150%}"; document.head.append(st); });
+  });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto(`${NOVA}?fresh&tour=pictures`);
+  await page.waitForSelector('[data-testid="tienda-open-box"]', { timeout: 60000 });
+  await page.waitForTimeout(1500);
+  await page.locator('[data-testid="tienda-open-box"]').click();
+  await page.waitForTimeout(3500);
+  await begin(page, { choose: null });
+  const steps = ["welcome", "ways", "goal", "crush", "blocks", "turn", "board"], off = [], fits = [];
+  for (let i = 0; i < steps.length; i++) {
+    if (i) { await page.locator('[data-testid="tour-next"]').click(); await page.waitForTimeout(1500); }
+    const co = await coachOf(page), b = await card(page).boundingBox();
+    const zoomed = await page.evaluate(() => { const l = document.querySelector('[data-testid="tour-coach-line"]'); const probe = document.createElement("div"); probe.style.cssText = "position:absolute;font-size:100px"; document.body.append(probe); const z = parseFloat(getComputedStyle(probe).fontSize) / 100; probe.remove(); return { z, line: l ? parseFloat(getComputedStyle(l).fontSize) : 0 }; });
+    if (!co || co.picture !== steps[i] || coachOk(co) || !b || b.y + b.height > 930 + 0.5) off.push(`${steps[i]}: ${(co && coachOk(co)) || JSON.stringify({ co, b })}`);
+    if (co) fits.push(...co.notes.map((n) => n.fit));
+    if (i === 0) check(`the text 1.5x as large (${zoomed.z}), Steve's line with it (${zoomed.line}px)`, zoomed.z > 1.4 && zoomed.line > 20, JSON.stringify(zoomed));
+  }
+  check("every card to the board: Steve's words in their boxes, the card on the screen whole", off.length === 0, off.join(" | "));
+  check("...made smaller only where they must be, and never below half", fits.length > 10 && fits.every((f) => f >= 0.5) && fits.some((f) => f === 1), JSON.stringify(fits));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

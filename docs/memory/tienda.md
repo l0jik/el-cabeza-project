@@ -454,9 +454,10 @@ box art and an ad standee (assets/tienda/*.jpg).
   from the chassis (tag(..., icon)), TourPictures' TagIcons when the
   pictures are on (data-tag-mode). pieceLesson gives cost and times too.
   tests/e2e-first-game-tour.mjs (142 checks): the switch, each card a
-  picture with nothing to read but the two ways' numbers, the dots, the
-  buttons, the labels, a lesson, words again; ?fresh&tour=pictures on a
-  desktop, held still with reduced motion.
+  picture with nothing to read but the two ways' numbers (and, since
+  2026-11-23, Steve's few words: below), the dots, the buttons, the
+  labels, a lesson, words again; ?fresh&tour=pictures on a desktop, held
+  still with reduced motion.
 - **The walkthrough's words bigger** (2026-11-22; user: "On the
   tutorial, the words need to be bigger on the screen"): FirstGameTour.jsx
   TYPE, about a fifth up (the body 13/14 px to 16/17, a phone's and a
@@ -490,6 +491,63 @@ box art and an ad standee (assets/tienda/*.jpg).
   told; the question's own checks on a phone and a desktop), and the
   tests that meet the tour's first card (e2e-first-look, e2e-story,
   e2e-fullscreen, e2e-store-nudge).
+- **Steve B. coaches the pictures** (2026-11-23; user: "The new picture
+  instructions are good, but there should be a really brief
+  encapsulation as to what you're seeing for each of the pictures. Make
+  it look like Big Lots is showing you how to do this. ... We're looking
+  for concise because this is not the step-by-step full instructions";
+  of five styles mocked up, D, the clerk's marker: "maybe the words need
+  to be closer to the pictures. There's too much arrow action happening
+  here. Maybe there could be like a, you know, a zoom in portrait of like
+  just the clerk, Steve B. His glasses can be, you know, kind of askew";
+  then "more friendly and more disheveled", drawn, "C, Shaggy, but
+  slightly messier, period. And his glasses do need be askew. Perhaps the
+  left lens a little too high, the right lens a little too low"; and of
+  three layouts, "1 · In the corner: one coaching line in a bubble.").
+  chassis/TourCoach.jsx, when the tour's copy says coach "steve" (tienda.js
+  FIRST_GAME_TOUR; its coachBand "Big Glutts shows you how" across the
+  pictures card's head, as the words' band is; card data-coach).
+  CoachPicture wraps TourPicture:
+  his face (SteveFace: steveSvg(mood), the mock-up's drawing made once a
+  mood from seeded curves: the lopsided mop, its tufts and a loose curl,
+  the specs tipped about the bridge, the pencil, the mustard shirt, a
+  collar point up, the crooked name tag; grin, hmm, wince) at the
+  picture's lower left, 48 of its 320 units across, 12 over its edge;
+  his line beside it in a cream bubble, its tail to him (Patrick Hand,
+  15 to 20 px with the picture, wrapping; the phone's text size on top);
+  and on the picture his notes (coachFor(t), per picture, pictureOf(t)):
+  each a box [x, y, w, h] in the picture's units in its free space, by
+  what it names, its words in his marker (Patrick Hand 13 units, tilted
+  3 degrees, a dark halo), yours yellow, theirs red, the goal green, the
+  menu's plain, set at the box's top, middle or bottom. fitNote: the
+  largest size up to the drawn one that fits the box (no word wider, no
+  more lines than it holds; a binary search), after every drawing, a
+  resize and the font's arrival, so a longer language or the phone's 1.5x
+  text shrinks a note in place (data-fit), never over what's drawn. No
+  note in his corner (x under 44, y over 126). His lines: "Hi, I'm Steve!
+  Let me show you how." / "Two ways to win!" / "Get your disc across!" /
+  "Mind your own disc!" / "Blocks only roll. Easy!" / "You go first!" /
+  "Look from any side you like!" / "Your move! Tap a piece." / "Hang on,
+  it's thinking!" / a piece's: "Now tap a lit square!" (boxed in, a
+  wince: "Boxed in! Try another piece."; moved once: "Roll again, or end
+  your turn.") / the other side's / the menu's three and the bar's. The
+  notes as the user's example ("your small block crushes your opponent's
+  disc, you win ... their cube rolls onto your disk, you lose"): the
+  crush's "your block rolls onto their disc… you win!" and "their block
+  rolls onto your disc… you lose."; the others a few words each ("reach
+  the far row", "never corner to corner", "pinch to zoom", the piece's
+  name and "rolls just once", ...). The card's words stay for a screen
+  reader as ever (the notes aria-hidden, his line read); es and vi for
+  all. The font: fontsHref("family=Patrick+Hand"), the den's (the app
+  has it). testids tour-coach (data-picture), tour-coach-face
+  (data-mood), tour-coach-line, tour-coach-notes, [data-note] (data-box,
+  data-fit). tests/e2e-first-game-tour.mjs: coachOf/coachOk on each card
+  (the band, his face over the corner, the bubble beside it, one to four
+  notes of eight words at most, on the picture, clear of each other and
+  his corner, fitting), the crush's two, your move's, the Opa's; a
+  laptop's (a mouse's words); a foldable's open screen, 898 x 930, the
+  text 1.5x: every card's notes fit, none below half size, the card whole
+  on the screen.
 - **The store's signs in view again** (2026-11-22; user: "In Tienda /
   store, the maximum vertical zoom / ceiling seems to be lower than
   before.... There is wall signage that can no longer be seen. Is there a

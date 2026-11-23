@@ -749,8 +749,12 @@ export const defaultOpponent = { aiPlayer: "dark", aiDifficulty: "easy", humanSt
    Glutts' own page, nor back at the store after the story). Its words:
    the welcome, the year under it as on the box, the band over each card;
    and its card at the top keeps below the cart, should one be in it
-   (tienda-shopping.js). */
-const FIRST_GAME_TOUR = { title: "Welcome to your first game of El Cabeza.", fine: "\u00a9 1975", band: "In-store demonstration", clear: ".td-shop" };
+   (tienda-shopping.js). In pictures, the clerk coaches (chassis/
+   TourCoach.jsx; user: "Make it look like Big Lots is showing you how to
+   do this"; picked "1 · In the corner: one coaching line in a bubble."):
+   Steve B. at the picture's corner, a line from him, his few words on the
+   picture, and the circular's band over it, Big Glutts shows you how. */
+const FIRST_GAME_TOUR = { title: "Welcome to your first game of El Cabeza.", fine: "\u00a9 1975", band: "In-store demonstration", clear: ".td-shop", coach: "steve", coachBand: "Big Glutts shows you how" };
 export function firstGameTour(x) {
   const story = x && x.story;
   if (!story || story.mode !== "store") return null;
