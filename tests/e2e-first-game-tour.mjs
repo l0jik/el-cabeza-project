@@ -934,12 +934,15 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   await page.locator('[data-testid="tour-music-off"]').click();
   await page.waitForTimeout(2000);
   mu = await music();
-  check("Turn it off: the music off and the store's own sounds down to 9%, kept as the sound menu's (the pieces' as they were)", mu.on === "off" && mu.levels && mu.levels.music === 0 && Math.abs(mu.levels.store - 0.09) < 0.001 && !!mu.gates && mu.gates.music.every((g) => g === 0) && mu.gates.store.every((g) => Math.abs(g - 0.0081) < 0.002) && mu.gates.pieces.every((g) => g === 1), JSON.stringify(mu));
+  // (For this scene only: the sound menu's saved levels untouched, user, of
+  // the clerk's scene on a later visit: "There's no sound. Did you
+  // accidentally turn the sound off for this scene as well?".)
+  check("Turn it off: the music off and the store's own sounds down to 9% for this visit, the sound menu's levels untouched (the pieces' as they were)", mu.on === "off" && !(mu.levels && ("music" in mu.levels || "store" in mu.levels)) && !!mu.gates && mu.gates.music.every((g) => g === 0) && mu.gates.store.every((g) => Math.abs(g - 0.0081) < 0.002) && mu.gates.pieces.every((g) => g === 1), JSON.stringify(mu));
   check("...and Steve glad of it: \"Ahh. Much better.\", Music back on", /^Ahh\. Much better\.\s*Music back on$/.test(mu.line) && mu.mood === "grin" && (await page.locator('[data-testid="tour-music-on"]').count()) === 1, JSON.stringify(mu));
   await page.locator('[data-testid="tour-music-on"]').click();
   await page.waitForTimeout(2000);
   mu = await music();
-  check("Music back on: as it was; Steve: \"Probably for the best. My manager actually likes the music.\" and Turn it off again", mu.on === "on" && mu.levels && mu.levels.music === 1 && mu.levels.store === 1 && mu.gates.music.every((g) => g === 1) && mu.gates.store.every((g) => g === 1) && /^Probably for the best\. My manager actually likes the music\.\s*Turn it off$/.test(mu.line) && (await page.locator('[data-testid="tour-music-off"]').count()) === 1, JSON.stringify(mu));
+  check("Music back on: as it was; Steve: \"Probably for the best. My manager actually likes the music.\" and Turn it off again", mu.on === "on" && !(mu.levels && ("music" in mu.levels || "store" in mu.levels)) && mu.gates.music.every((g) => g === 1) && mu.gates.store.every((g) => g === 1) && /^Probably for the best\. My manager actually likes the music\.\s*Turn it off$/.test(mu.line) && (await page.locator('[data-testid="tour-music-off"]').count()) === 1, JSON.stringify(mu));
   await page.locator('[data-testid="tour-choose-pictures"]').click();
   await page.waitForTimeout(1200);
   tour = await tourOf(page);

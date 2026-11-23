@@ -46,6 +46,9 @@ for (const phone of [false, true]) {
         // card until it's answered, and the dock won't open.)
         localStorage.setItem("el-cabeza:commercial-aired", "1");
         localStorage.setItem("el-cabeza:special-order-noted", "1");
+        // (What an earlier build's tour left saved: the store's music at 0 and
+        // its sounds at 9%, which silenced this scene; given back now.)
+        localStorage.setItem("el-cabeza:sound-levels", JSON.stringify({ music: 0, store: 0.09 }));
       }
     } catch (e) { /* none */ }
   });
@@ -77,6 +80,16 @@ for (const phone of [false, true]) {
   if (shots) await page.screenshot({ path: `${shots}/${phone ? "phone" : "desk"}-store.png` });
   // The clerk comes over on his own.
   check("the Games counter scene opens by itself", await poll(() => has(page, "tienda-clerk"), 10000));
+  /* Its sound (user: "There's no sound. Did you accidentally turn the sound
+     off for this scene as well?"): the tour's old quiet, saved by an earlier
+     build (the music at 0, the store's sounds at 9%), given back; the music's
+     and the store's paths at full. */
+  const snd = await page.evaluate(() => {
+    let levels = null; try { levels = JSON.parse(localStorage.getItem("el-cabeza:sound-levels") || "null"); } catch (e) { /* none */ }
+    const a = window.__TIENDA_AUDIO__ ? window.__TIENDA_AUDIO__() : null;
+    return { levels, gates: a && a.gateLevels };
+  });
+  check("...with its sound: the tour's old quiet (music 0, store sounds 9%) given back, the music's and the store's paths at full", !(snd.levels && (snd.levels.music === 0 || snd.levels.store === 0.09)) && (!snd.gates || (snd.gates.music.every((g) => g === 1) && snd.gates.store.every((g) => g === 1))), JSON.stringify(snd));
   await page.waitForTimeout(500);
   const fsOnTop = await page.evaluate(() => {
     const b = document.querySelector("[data-fullscreen-toggle]");

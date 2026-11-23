@@ -253,7 +253,21 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
   // Each channel's level on the sound menu's slider (0..1; 0 is off), heard
   // as its square so the slider moves about evenly in loudness.
   const channelLevel = { music: 1, store: 1, pieces: 1 };
-  const chGain = (ch) => (channelOff[ch] ? 0 : channelLevel[ch] * channelLevel[ch]);
+  /* The tour's quiet (the clerk turning the ceiling speakers off on the
+     tour's first card): the music off and the store's own sounds down to
+     9%, for this visit only (this engine's; the next visit's is a new one),
+     the sound menu's levels untouched (user, of the clerk's scene after it:
+     "There's no sound. Did you accidentally turn the sound off for this
+     scene as well?"). */
+  let tourHush = false;
+  const HUSH_STORE = 0.09;
+  const chGain = (ch) => {
+    if (channelOff[ch]) return 0;
+    let v = channelLevel[ch];
+    if (tourHush && ch === "music") v = 0;
+    if (tourHush && ch === "store") v = Math.min(v, HUSH_STORE);
+    return v * v;
+  };
   const gates = { music: [], store: [], pieces: [] };
   // (For the tests: the level each gate is set to. A gate with nothing
   // passing through it just then isn't worked by the browser, so its live
@@ -946,8 +960,12 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
       channelOff[ch] = !!m;
       if (ctx) regate(ch, 0.15);
     },
-    // The sound menu's slider for a channel: 0 (off) .. 1; `secs`, a fade
-    // (the clerk shutting the music off on the tour's first card).
+    // The tour's quiet, on or off (faded over `secs`).
+    setTourHush(on, secs = 1.6) {
+      tourHush = !!on;
+      if (ctx) { regate("music", secs); regate("store", secs); }
+    },
+    // The sound menu's slider for a channel: 0 (off) .. 1; `secs`, a fade.
     setChannelLevel(ch, v, secs = 0.08) {
       if (!(ch in channelOff)) return;
       channelLevel[ch] = Math.max(0, Math.min(1, v));

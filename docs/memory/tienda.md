@@ -572,12 +572,17 @@ box art and an ad standee (assets/tienda/*.jpg).
   either? I can turn it off. My manager's at lunch." and a red button in
   his bubble, Turn it off (tour-music-off); tapped, the music fades out
   over 1.6 s and the store's own sounds (its air, lights, far-off
-  shoppers, its PA) with it down to 9% (TOUR_HUSH; the slider's 9%, heard
-  as its square), the pieces' as they were (ElCabeza3D setTourMusic,
-  setChannelLevelsTo: the sound menu's own channels, Music 0 and Store
-  sounds 0.09, saved in el-cabeza:sound-levels, so the menu shows them and
-  they stay so after the tour; tienda-audio setChannelLevel takes a fade,
-  secs),
+  shoppers, its PA) with it down to 9% (the store sounds' level held at
+  0.09 at most, heard as its square), the pieces' as they were, for that
+  visit only: the store's engine holds it (tienda-audio setTourHush; a new
+  engine each visit, ElCabeza3D remounted with the world), the sound
+  menu's saved levels untouched (ElCabeza3D setTourMusic, tourHush; a
+  level chosen in the sound menu ends it). (First it was the sound
+  menu's own levels, saved, and silenced the store's later scenes; user,
+  of the clerk's: "There's no sound. Did you accidentally turn the sound
+  off for this scene as well?". loadChannelLevels gives back a saved
+  music 0 with store 0.09 once, el-cabeza:tour-hush-undone;
+  tests/e2e-clerk.mjs seeds it and hears the scene at full.)
   and he grins, "Ahh. Much better.", Music back on (tour-music-on, quiet)
   bringing both back at the levels they had; back on, he says (user: "And Steve
   should say, probably for the best, my manager actually likes the

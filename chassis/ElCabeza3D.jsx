@@ -277,10 +277,25 @@ function loadChannelsOff() {
    all (all the way left is the old mute). */
 const SOUND_LEVELS_KEY = "el-cabeza:sound-levels";
 const SOUND_MASTER_KEY = "el-cabeza:sound-master";
+/* (The tour's quiet was once kept as the sound menu's own levels, the
+   store's music at 0 and its sounds at 9%, and so silenced the store's later
+   scenes, the clerk's among them; user: "There's no sound. Did you
+   accidentally turn the sound off for this scene as well?". Those two given
+   back where they're found together, once; the quiet's the store visit's
+   alone now, tienda-audio setTourHush.) */
+const TOUR_HUSH_UNDONE_KEY = "el-cabeza:tour-hush-undone";
 function loadChannelLevels() {
   try {
     const saved = JSON.parse(localStorage.getItem(SOUND_LEVELS_KEY) || "null");
-    if (saved && typeof saved === "object") return saved;
+    if (saved && typeof saved === "object") {
+      if (saved.music === 0 && saved.store === 0.09 && !localStorage.getItem(TOUR_HUSH_UNDONE_KEY)) {
+        delete saved.music;
+        delete saved.store;
+        localStorage.setItem(SOUND_LEVELS_KEY, JSON.stringify(saved));
+        localStorage.setItem(TOUR_HUSH_UNDONE_KEY, "1");
+      }
+      return saved;
+    }
     const off = loadChannelsOff(), out = {};
     Object.keys(off).forEach((k) => { if (off[k]) out[k] = 0; });
     return out;
@@ -2890,14 +2905,8 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     const next = { ...channelLevels, [key]: Math.max(0, Math.min(1, v)) };
     setChannelLevels(next);
     saveChannelLevels(next);
-    applyChannelLevels(audioRef.current, soundChannels, next, masterLevel, secs);
-  }
-  // Several channels at once (one state, one save, one fade).
-  function setChannelLevelsTo(levels, secs) {
-    const next = { ...channelLevels };
-    Object.keys(levels).forEach((k) => { next[k] = Math.max(0, Math.min(1, levels[k])); });
-    setChannelLevels(next);
-    saveChannelLevels(next);
+    // (A level chosen in the sound menu ends the tour's quiet.)
+    if (tourHush) setTourMusic(true, 0.3);
     applyChannelLevels(audioRef.current, soundChannels, next, masterLevel, secs);
   }
   /* The music off, from the tour's first card (the store's clerk: "Don't
@@ -2905,18 +2914,16 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
      faded out, and the store's own sounds with it down to 9% (user: "when
      if they choose to turn the music off, then the all other noises for
      that scene need to be reduced to 9%"; the pieces as they were); or
-     both back at the levels they had. The sound menu's own channels, so
-     kept as they are. */
-  const TOUR_HUSH = 0.09;
-  const musicBackRef = useRef(null);
-  function setTourMusic(on) {
-    const has = (k) => !!(soundChannels && soundChannels.some((c) => c.key === k));
-    if (!on) {
-      const was = { music: levelOf("music") > 0 ? levelOf("music") : 1 }, to = { music: 0 };
-      if (has("store")) { was.store = levelOf("store"); to.store = Math.min(levelOf("store"), TOUR_HUSH); }
-      musicBackRef.current = was;
-      setChannelLevelsTo(to, 1.6);
-    } else setChannelLevelsTo(musicBackRef.current || { music: 1 }, 1.6);
+     both back. For that scene only: the store's engine holds it (a new one
+     each visit, this component remounted with the world), the sound
+     menu's saved levels untouched (user, of the clerk's scene on a later
+     visit, silent: "Did you accidentally turn the sound off for this scene
+     as well?"). */
+  const [tourHush, setTourHush] = useState(false);
+  function setTourMusic(on, secs = 1.6) {
+    setTourHush(!on);
+    const a = audioRef.current;
+    if (a && a.setTourHush) a.setTourHush(!on, secs);
   }
   // On or off (the record player turning its channel back on).
   function toggleChannel(key) {
@@ -12949,7 +12956,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             youFirst: currentPlayer === tourMine,
             // (A world with music on a channel of its own, the store's ceiling
             // speakers: whether it's heard, and its switch, for the first card.)
-            music: soundChannels && soundChannels.some((c) => c.key === "music") ? { on: !audioMuted && masterLevel > 0 && levelOf("music") > 0, set: setTourMusic } : null,
+            music: soundChannels && soundChannels.some((c) => c.key === "music") ? { on: !audioMuted && masterLevel > 0 && levelOf("music") > 0 && !tourHush, set: setTourMusic } : null,
             budget: ACTIVE_LAWS.threeActions ? 3 : 2,
             split: ACTIVE_LAWS.splitMovement ? maxPiecesPerTurn() : 0,
             hasOpa: pieces.some((p) => p.owner === tourMine && p.type === "opa"),
