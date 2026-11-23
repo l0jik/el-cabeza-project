@@ -725,10 +725,16 @@ box art and an ad standee (assets/tienda/*.jpg).
   outlined in gold; a tap there (the ghost's plane, GHOST_SCALE) moves it.
   The lesson picture's last panel drawn so (TourPictures Lesson: the piece
   in its square, an arrow to the next, that one outlined, the hand on it;
-  a disc for the Cabeza, a block for the rest); Steve's line ("Now tap a
-  lit square!") to the user's pick of: "Now tap where an arrow points!",
-  "Tap an arrow's tip to move it!", "See the arrows? Tap where one ends!",
-  "Tap an outlined square to move there!".
+  a disc for the Cabeza, a block for the rest). Steve's line ("Now tap a
+  lit square!"), of four offered (an arrow's point, its tip, where one
+  ends, an outlined square): the user, "Get rid of the arrows and go with
+  D." then "No, wait, don't get rid of the arrows because they're only
+  going to be there just for the tutorial, but definitely go with D.":
+  "Tap an outlined square to move there!" ("Click..." with a mouse), as
+  the board marks it once the tour's arrows are gone (they're the tour's
+  marks, TourMarks; the outlines the game's own). es "¡Tocá una casilla
+  con contorno para moverla ahí!", vi "Chạm vào một ô có viền để đi tới
+  đó!".
 - **The store's signs in view again** (2026-11-22; user: "In Tienda /
   store, the maximum vertical zoom / ceiling seems to be lower than
   before.... There is wall signage that can no longer be seen. Is there a

@@ -1102,7 +1102,10 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   p = await picOf(page);
   check("the Opa tapped: a picture of it, its roll and what it takes, the arrows' squares to tap", !!p && p.picture === "lesson" && (await seen(page)) === "", JSON.stringify(p));
   co = await coachOf(page);
-  check("...Steve: its name, it rolls just once; now tap a lit square", !!co && coachOk(co) === "" && co.picture === "lesson" && co.notes.some((n) => /Opa/.test(n.text)) && co.notes.some((n) => n.text === "rolls just once") && co.line === "Now tap a lit square!", (co && coachOk(co)) || JSON.stringify(co));
+  // (Where it can go as the board marks it, its squares outlined; user, of
+  // "Now tap a lit square!": "It's not a lit square"; picked "Tap an
+  // outlined square to move there!".)
+  check("...Steve: its name, it rolls just once; tap an outlined square to move there", !!co && coachOk(co) === "" && co.picture === "lesson" && co.notes.some((n) => /Opa/.test(n.text)) && co.notes.some((n) => n.text === "rolls just once") && co.line === "Tap an outlined square to move there!", (co && coachOk(co)) || JSON.stringify(co));
   await page.locator('[data-testid="tour-mode-words"]').click();
   await page.waitForTimeout(700);
   tg = await tagModes(page);

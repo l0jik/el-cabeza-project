@@ -302,7 +302,12 @@ function coachSays(t) {
       if (t.lesson && t.lesson.name) notes.unshift(note([4, 4, 104, 26], YOURS, t.lesson.name, { align: "center", v: "top", size: 14 }));
       if (p.can === false) return { mood: "wince", line: "Boxed in! Try another piece.", notes };
       if (p.locked && p.left > 0) return { mood: "grin", line: disc ? "Step again, or hold it to end your turn." : "Roll again, or hold it to end your turn.", notes };
-      return { mood: "grin", line: tap("Now tap a lit square!", "Now click a lit square!"), notes };
+      // (Where it can go, as the board marks it once the tour's arrows are
+      // gone: its squares outlined; user, of the options: "definitely go
+      // with D", "Tap an outlined square to move there!"; the arrows kept,
+      // the tour's alone: "don't get rid of the arrows because they're
+      // only going to be there just for the tutorial".)
+      return { mood: "grin", line: tap("Tap an outlined square to move there!", "Click an outlined square to move there!"), notes };
     }
     case "foe": {
       if (t.waiting) return { mood: "hmm", line: "Its turn. Watch the board!", notes: [note([212, 36, 104, 40], THEIRS, "the computer's move")] };
