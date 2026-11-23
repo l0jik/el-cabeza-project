@@ -1201,8 +1201,8 @@ export default {
   "Your menu, as a bar.": "Menu của bạn, dạng thanh.",
   "the piece, back any time": "quân cờ, quay lại lúc nào cũng được",
   // (The first card: the store's clerk offers to shut the ceiling speakers' music off.)
-  "Psst. I can shut that music off. My manager's at lunch.": "Suỵt. Mình tắt nhạc được đấy. Quản lý đi ăn trưa rồi.",
-  "Shut it off": "Tắt đi",
+  "Psst. I can turn that off. My manager's at lunch.": "Suỵt. Mình tắt được đấy. Quản lý của mình đi ăn trưa rồi.",
+  "Turn it off": "Tắt đi",
   "Ahh. Much better.": "À. Dễ chịu hơn hẳn.",
   "Music back on": "Bật lại nhạc",
   "on": "bật",

@@ -900,7 +900,8 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   /* The store's music (user: testers find "the music that's playing over
      the store loudspeakers is annoying or distracting"; "when the tutorial
      first starts? Steve says something about it"; picked "D. My managers
-     at lunch."): Steve on the first card offers to shut it off; it fades
+     at lunch."; "I can turn that off. My managers at lunch"): Steve on
+     the first card offers to turn it off; it fades
      out (the sound menu's own Music, kept: the store's sounds and the
      pieces' still on), and he's glad; and back on, if wanted. */
   const music = () => page.evaluate(() => {
@@ -909,11 +910,11 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
     return { on: m && m.dataset.music, line: m && m.querySelector('[data-testid="tour-coach-line"]').textContent.trim(), mood: m && m.querySelector('[data-testid="tour-coach-face"]').dataset.mood, face: m && Math.round(m.querySelector('[data-testid="tour-coach-face"]').getBoundingClientRect().width), levels, gates: a && a.gateLevels };
   });
   let mu = await music();
-  check("...Steve on it: \"Psst. I can shut that music off. My manager's at lunch.\" and Shut it off", mu.on === "on" && /^Psst\. I can shut that music off\. My manager's at lunch\.\s*Shut it off$/.test(mu.line) && mu.face >= 70 && (await page.locator('[data-testid="tour-music-off"]').count()) === 1, JSON.stringify(mu));
+  check("...Steve on it: \"Psst. I can turn that off. My manager's at lunch.\" and Turn it off", mu.on === "on" && /^Psst\. I can turn that off\. My manager's at lunch\.\s*Turn it off$/.test(mu.line) && mu.face >= 70 && (await page.locator('[data-testid="tour-music-off"]').count()) === 1, JSON.stringify(mu));
   await page.locator('[data-testid="tour-music-off"]').click();
   await page.waitForTimeout(2000);
   mu = await music();
-  check("Shut it off: the music off, kept as the sound menu's Music (the store's sounds and the pieces' still on)", mu.on === "off" && mu.levels && mu.levels.music === 0 && !!mu.gates && mu.gates.music.every((g) => g === 0) && mu.gates.store.every((g) => g === 1) && mu.gates.pieces.every((g) => g === 1), JSON.stringify(mu));
+  check("Turn it off: the music off, kept as the sound menu's Music (the store's sounds and the pieces' still on)", mu.on === "off" && mu.levels && mu.levels.music === 0 && !!mu.gates && mu.gates.music.every((g) => g === 0) && mu.gates.store.every((g) => g === 1) && mu.gates.pieces.every((g) => g === 1), JSON.stringify(mu));
   check("...and Steve glad of it: \"Ahh. Much better.\", Music back on", /^Ahh\. Much better\.\s*Music back on$/.test(mu.line) && mu.mood === "grin" && (await page.locator('[data-testid="tour-music-on"]').count()) === 1, JSON.stringify(mu));
   await page.locator('[data-testid="tour-music-on"]').click();
   await page.waitForTimeout(2000);

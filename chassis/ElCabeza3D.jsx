@@ -2893,7 +2893,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     applyChannelLevels(audioRef.current, soundChannels, next, masterLevel, secs);
   }
   /* The music off, from the tour's first card (the store's clerk: "Psst. I
-     can shut that music off. My manager's at lunch."), faded out; or back
+     can turn that off. My manager's at lunch."), faded out; or back
      at the level it had. The sound menu's own Music, so kept as that is. */
   const musicBackRef = useRef(1);
   function setTourMusic(on) {

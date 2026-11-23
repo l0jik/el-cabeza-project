@@ -1193,8 +1193,8 @@ export default {
   "Your menu, as a bar.": "Tu menú, como barra.",
   "the piece, back any time": "la pieza vuelve cuando quieras",
   // (The first card: the store's clerk offers to shut the ceiling speakers' music off.)
-  "Psst. I can shut that music off. My manager's at lunch.": "Psst. Puedo apagar esa música. Mi jefe salió a almorzar.",
-  "Shut it off": "Apagala",
+  "Psst. I can turn that off. My manager's at lunch.": "Psst. Puedo apagar eso. Mi jefe salió a almorzar.",
+  "Turn it off": "Apagala",
   "Ahh. Much better.": "Ahh. Mucho mejor.",
   "Music back on": "Que vuelva la música",
   "on": "prendido",

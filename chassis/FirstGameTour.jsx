@@ -516,8 +516,9 @@ export default function FirstGameTour({ tour, cardRef }) {
   /* (Was the store's music on when the first card came up? Then its clerk
      offers to shut it off there, and says so after; user, testers finding
      the ceiling speakers' music "annoying or distracting": "when the
-     tutorial first starts? Steve says something about it"; picked "Psst. I
-     can shut that music off. My manager's at lunch.") */
+     tutorial first starts? Steve says something about it"; picked, in his
+     words, "I can turn that off. My managers at lunch": "Psst. I can turn
+     that off. My manager's at lunch.") */
   const musicOfferRef = useRef(null);
   const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
   if (cameRef.current.step !== step) cameRef.current = { step, at: now(), mode: null, t0: 0 };
@@ -657,7 +658,7 @@ export default function FirstGameTour({ tour, cardRef }) {
           {steveOffers && (
             <div data-testid="tour-music" data-music={tour.music.on ? "on" : "off"} style={{ marginTop: narrow ? 12 : 14 }}>
               {tour.music.on
-                ? <SteveSays mood="hmm" line="Psst. I can shut that music off. My manager's at lunch." action={{ label: "Shut it off", testid: "tour-music-off", off: true, onClick: () => tour.music.set(false) }} />
+                ? <SteveSays mood="hmm" line="Psst. I can turn that off. My manager's at lunch." action={{ label: "Turn it off", testid: "tour-music-off", off: true, onClick: () => tour.music.set(false) }} />
                 : <SteveSays mood="grin" line="Ahh. Much better." action={{ label: "Music back on", testid: "tour-music-on", ghost: true, onClick: () => tour.music.set(true) }} />}
             </div>
           )}

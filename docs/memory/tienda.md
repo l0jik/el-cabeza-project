@@ -555,13 +555,16 @@ box art and an ad standee (assets/tienda/*.jpg).
   option of turning it off during the tutorial."; of the options, "How
   about when the tutorial first starts? Steve says something about it ...
   It has to be ... concise"; of five lines mocked up, "D. My managers at
-  lunch."; and "I want the images of Steve to be bigger too"). It was
+  lunch.", then "I wanted to say, I can turn that off. My managers at
+  lunch, not just managers at lunch."; and "I want the images of Steve to
+  be bigger too", "Make Steve the largest size of the options you
+  gave"). It was
   already possible, hidden: the menu's speaker, Music (the ceiling
   speakers) to the left. Now the tour's first card, "How would you like
   to learn?", has Steve (TourCoach.jsx SteveSays, his face 76/320 of the
-  card's width, a "hmm") under the two tiles: "Psst. I can shut that
-  music off. My manager's at lunch." and a red button in his bubble,
-  Shut it off (tour-music-off); tapped, the music fades out over 1.6 s
+  card's width, a "hmm") under the two tiles: "Psst. I can turn that
+  off. My manager's at lunch." and a red button in his bubble, Turn it
+  off (tour-music-off); tapped, the music fades out over 1.6 s
   (ElCabeza3D setTourMusic: the sound menu's own Music channel, level 0,
   saved in el-cabeza:sound-levels, so the menu shows it off and it stays
   off after the tour; tienda-audio setChannelLevel takes a fade, secs),
@@ -570,15 +573,15 @@ box art and an ad standee (assets/tienda/*.jpg).
   far-off shoppers) and the pieces' stay on. Only where the world's sound
   has a music channel (tour.music) and it was heard as the card came up
   (musicOfferRef): with the music, or all sound, off already, no offer.
-  tour-music, data-music on/off. es "Psst. Puedo apagar esa música. Mi
-  jefe salió a almorzar." / "Apagala"; vi "Suỵt. Mình tắt nhạc được đấy.
-  Quản lý đi ăn trưa rồi." / "Tắt đi". And on every picture card, Steve
-  bigger (of two sizes mocked up, the bigger with the buttons beside him):
+  tour-music, data-music on/off. es "Psst. Puedo apagar eso. Mi jefe
+  salió a almorzar." / "Apagala"; vi "Suỵt. Mình tắt được đấy. Quản lý
+  của mình đi ăn trưa rồi." / "Tắt đi". And on every picture card, Steve
+  bigger (the largest of the sizes mocked up, the buttons beside him):
   76 of the picture's 320 units (110 px on a foldable's open screen, 82 on
   a phone), 13 over its edge, the card's buttons (tour-nav) beside him
   under his bubble (CoachPicture's nav), so the card is no taller; his
   corner for the notes now x under 66. tests/e2e-first-game-tour.mjs: the
-  offer, Shut it off (the music's gates 0, the store's and the pieces' 1,
+  offer, Turn it off (the music's gates 0, the store's and the pieces' 1,
   the level kept), Music back on; none with the music off already; coachOk
   with the bigger face and the buttons beside him.
 - **The store's signs in view again** (2026-11-22; user: "In Tienda /
