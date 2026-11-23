@@ -201,10 +201,13 @@ const CSS = `
    any size of words: user, the app on a phone with its large font, the
    line broke before its last word, "of…" alone under it; and kept clear
    of the choice under it, showSay. Its room in ch, which grows with the
-   phone's size of words, as em doesn't.) */
+   phone's size of words, as em doesn't. A size smaller than it was, 30 px
+   at most, as the trip's thoughts are: user, "This text here is oh for
+   the love of should be dropped down one size, and all other similar
+   thought bubbles or speech bubbles accordingly".) */
 .den-hall-say { position: fixed; left: 7%; bottom: 30%; z-index: 1350; width: max-content; max-width: min(78vw, 24ch); text-wrap: balance; padding: 14px 20px 15px; background: #fffdf6;
   color: #1d1610; border: 3px solid #1d1610; border-radius: 22px; box-shadow: 4px 5px 0 rgba(0,0,0,0.35); pointer-events: none;
-  font: 400 clamp(24px, min(6.4vw, 7.5vh), 36px)/1.12 'Patrick Hand', 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', cursive;
+  font: 400 clamp(20px, min(5.4vw, 6.3vh), 30px)/1.12 'Patrick Hand', 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', cursive;
   opacity: 0; transform: scale(0.6) rotate(-2deg); transform-origin: 12% 110%; transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.2, 1.6, 0.4, 1); }
 .den-hall-say::after { content: ""; position: absolute; left: 28px; bottom: -22px; width: 26px; height: 24px; background: #fffdf6;
   border-left: 3px solid #1d1610; border-bottom: 3px solid #1d1610; transform: skewX(-28deg) rotate(-12deg); border-bottom-left-radius: 6px; }

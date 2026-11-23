@@ -33,7 +33,8 @@
      slip says what's said, line by line, the caller's and yours. The
      record, if one's on, is paused through the call.
    - The end: the caller hangs up (a click in your ear), you put the
-     receiver down (a clunk and the bells' little tinkle).
+     receiver down (its two ends knocking onto the cradle, the hook switch
+     under it: no tone, user).
 
    Test hooks (window.__EC_TEST_HOOKS__): __DEN_CALL__() reads the state;
    __DEN_CALL_NOW__() skips the waits. */
@@ -236,22 +237,30 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     });
     ringNodes = [];
   }
-  // A thud of the receiver (up or down), in the room; down, the bells
-  // tinkle as it lands in the cradle.
-  function clunk(t, down) {
+  /* The receiver, in the room: lifted, a soft thud; set down on the
+     cradle (user: "It makes a beep like a modern phone turning off. That
+     should be removed. It should just be the sound of a hand receiver
+     being set down on a phone set": a pair of pure tones here, meant for
+     the bells' tinkle, rang like a phone switching off), the handset's
+     near end knocking onto its prong, the far end a beat after, the hook
+     switch pressed down under it and the set's body taking the weight.
+     Noise through broad filters only: a knock, never a tone. */
+  function knock(at, type, freq, q, peak, decay) {
     const o = output();
     if (!o) return;
     const { ctx } = o;
     const s = ctx.createBufferSource(); s.buffer = o.noise;
-    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = down ? 700 : 520;
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(down ? 0.32 : 0.22, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
-    s.connect(lp).connect(g).connect(o.ring); s.start(t); s.stop(t + 0.16);
-    if (!down) return;
-    [[1070, 0.018], [1290, 0.012]].forEach(([f, peak], i) => {
-      const osc = ctx.createOscillator(); osc.frequency.value = f;
-      const e = ctx.createGain(); e.gain.setValueAtTime(0.0001, t + 0.02 + i * 0.03); e.gain.exponentialRampToValueAtTime(peak, t + 0.025 + i * 0.03); e.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
-      osc.connect(e).connect(o.ring); osc.start(t + 0.02); osc.stop(t + 0.65);
-    });
+    const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(peak, at + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, at + decay);
+    s.connect(f).connect(g).connect(o.ring);
+    s.start(at, Math.random() * 1.5); s.stop(at + decay + 0.02);
+  }
+  function clunk(t, down) {
+    if (!down) { knock(t, "lowpass", 520, 0.7, 0.22, 0.13); return; }
+    knock(t, "lowpass", 170, 0.7, 0.3, 0.12); // (the set's body)
+    knock(t, "bandpass", 480, 2.2, 0.42, 0.07); // (the near end on its prong)
+    knock(t + 0.075, "bandpass", 690, 2.4, 0.32, 0.06); // (the far end)
+    knock(t + 0.085, "highpass", 2600, 0.7, 0.07, 0.014); // (the hook switch)
   }
 
   /* The caller's voice: the user's recording of indistinct chatter, cut

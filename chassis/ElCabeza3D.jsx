@@ -45,6 +45,7 @@ import MobileShell, { SIDE_MAX_H as SHELL_SIDE_MAX_H } from "./MobileShell.jsx";
 import VolumeFader from "./VolumeFader.jsx";
 import NowPlaying from "./NowPlaying.jsx";
 import CornerMenu from "./CornerMenu.jsx";
+import { useIdleFade, IDLE_UI_CSS } from "./idle-fade.js";
 import { gameRules } from "./corner-menu.js";
 import { RealityGate, storyOver, rulesOpen, gateStage, GATE_EVENT, openRealityGate, lookParts } from "../themes/reality-gate.js";
 import { modelViews, FUTURIS_SHOWCASE } from "../themes/piece-showcase.js";
@@ -3726,6 +3727,12 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
   // its own (Futuris's SINGULARITY sphere), so they stay usable there.
   const cornerControlsZ = (setupExtras && setupExtras.cornerControlsZ) || 12;
   const noGame = !!(setupExtras && setupExtras.noGame);
+  /* Still for four seconds in a game, the controls and read-outs over the
+     board fade out, and a touch brings them back (user: "This allows
+     careful scrutiny or study of the current game state without
+     distraction"; chassis/idle-fade.js). Not before Begin, in a replay,
+     through the walkthrough, or through Futuris's Singularity. */
+  useIdleFade(isPlaying && !awaitingBegin && !replaying && !tourStep && !noGame && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle"));
   /* The dock panel's corner switches sit in the strip its bottom padding
      keeps for them. When the panel is taller than it may be (a small
      phone) it scrolls, and absolutely placed children stay where the
@@ -12737,6 +12744,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
           able to click the unmaximize button ... just remove it during
           that scene"; toggleFullscreen holds its shortcuts meanwhile). */}
       <style>{`${PLAY_UI_ASIDE}
+${IDLE_UI_CSS}
 html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-recall"]) {
   opacity: 0 !important; pointer-events: none !important; transition: opacity 0.4s ease !important;
 }

@@ -964,3 +964,22 @@ its words' width, in balanced lines, its room 24ch (which grows with the
 words, as em doesn't); kept clear of the choice under it (the card made
 unseen a moment and measured as the bubble comes up, so it doesn't move
 when the card does); on a screen too short for both, as high as fits.
+
+## The call's hang-up, and the bubbles a size smaller (2026-11-23)
+
+- The receiver set down (user: "When the Phone is hung up in the den
+  after talking to big gluts. It makes a beep like a modern phone turning
+  off. That should be removed. It should just be the sound of a hand
+  receiver being set down on a phone set"). den-call.js clunk(down): the
+  handset's near end knocking onto its prong, the far end a beat after
+  (75 ms), the hook switch under it and the set's body: noise through
+  broad filters, no tone. The pair of sines (1070 and 1290 Hz) that stood
+  for the bells' tinkle is gone: half a second of them rang like a phone
+  switching off.
+- The hall's bubble and the trip's thoughts a size smaller (user: "This
+  text here is oh for the love of should be dropped down one size, and
+  all other similar thought bubbles or speech bubbles accordingly"): the
+  Patrick Hand bubbles, 30 px at most (from 36), clamp(20px, 5.4vw, 30px)
+  (den-hall.js .den-hall-say, with its 6.3vh; den-trip.js .say). The
+  thoughts on the story's cards (den-cards.js: the den's "Finally…", the
+  store's lights) are cards, not bubbles, and kept their size.

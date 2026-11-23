@@ -86,6 +86,17 @@
   its dispose) and be added to STORY_SCENES. The hall's own list
   (den-hall.js) and standard.js's corner rules hide the corner's buttons
   for their scenes; PLAY_UI is only the game's own things.
+- **…and in IDLE_UI, to fade when the board's left still** (2026-11-23,
+  chassis/idle-fade.js). Four seconds without a press, a move, a wheel or
+  a key in a game, html.ec-idle fades IDLE_UI out and lets presses
+  through; the next one brings it back. A new control that should go with
+  the rest goes in IDLE_UI; a new sheet, menu or question that's read
+  while it's up goes in KEEP_UP (checked as shown: most sheets are always
+  in the page, faded out); a new scene in its SCENES as in STORY_SCENES.
+  A test's browser (navigator.webdriver) has it only with
+  window.__EC_IDLE_MS__: a test that waits four seconds and then presses
+  a corner would otherwise find it faded and let through
+  (tests/e2e-idle-fade.mjs asks for it).
 - **The way into the Singularity is two sounds: the code and its
   recordings** (2026-11-09, 03c-singularity-transition.md). On a light
   machine (a phone, a Chromebook, two cores or fewer, 4 GB or less) the

@@ -505,3 +505,24 @@ immediately.
   by touch; a drag back with nothing in the way still undoes);
   tests/e2e-shoving.mjs section 5 (the diagonal X now stays with its note
   until the next click).
+
+## The board alone after a moment's stillness (2026-11-23)
+
+User: "During gameplay, if the board is not touched for 4 seconds, all
+hover-over menus, navpads, or displays disappear. They fade out quickly.
+If the board is touched again to rotate it or anything, they will come
+back as per normal. This allows careful scrutiny or study of the current
+game state without distraction."
+
+chassis/idle-fade.js, from ElCabeza3D (useIdleFade: in play, after Begin,
+not a replay, the walkthrough or the Singularity). Four seconds with
+nothing pressed, moved, scrolled or typed: html.ec-idle, and IDLE_UI (the
+corners, the points, the turn's line and its Undo, the corner menu's tab,
+the world's title, the piece in the corner, the music, the phone's bar,
+the Lab's read-out, the City's clock) fades out in 0.35 s and lets presses
+through to the board. The next press anywhere brings it all back and does
+what it would have (a drag turns the view). Held up while a menu, sheet,
+question, the check alert, the tour or the result is showing (KEEP_UP),
+and through a story scene (which hides the controls its own way); then it
+looks again four seconds on. A mouse moving counts as a touch.
+tests/e2e-idle-fade.mjs.

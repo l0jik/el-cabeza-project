@@ -49,6 +49,8 @@ const E2E = [
   ["e2e-den-phone.mjs"],
   // The corner menu: the game's rules at the top left, every world's look.
   ["e2e-corner-menu.mjs"],
+  // Still for four seconds in a game, the controls fade; a touch brings them back.
+  ["e2e-idle-fade.mjs"],
   // Ciudad: the city at the hour picked, its lots and cranes, its streets.
   ["e2e-ciudad.mjs"], ["e2e-ciudad-sound.mjs"], ["e2e-gameplay.mjs", "ciudad"],
   // Hold to end a turn early (a tap on the moved piece only says so); the City's Cabezas to try.
@@ -142,7 +144,7 @@ const SECS = {
   "e2e-outline": 70, "audio-bell": 34, "e2e-now-playing": 206, "e2e-split-three": 60, "e2e-check-alert": 167,
   "e2e-gate": 311, "e2e-ending": 108, "e2e-hall-after-game": 133, "e2e-summon": 306, "e2e-den-spot": 78, "e2e-den-return": 50, "e2e-drag-latch": 115, "e2e-journey": 120, "e2e-tv-lure": 89, "e2e-clerk": 73,
   "e2e-touch-in-game": 640, "e2e-noir-streets": 52, "e2e-noir-sound": 90, "e2e-dock-call": 332, "e2e-hall-sound": 115, "e2e-luna-floors": 19, "e2e-luna-rover": 12,
-  "e2e-app": 173, "e2e-press": 57, "e2e-ghost-finger": 53, "e2e-den-phone": 158, "e2e-corner-menu": 706, "e2e-ciudad": 126, "e2e-ciudad-sound": 137,
+  "e2e-app": 173, "e2e-press": 57, "e2e-ghost-finger": 53, "e2e-den-phone": 158, "e2e-corner-menu": 706, "e2e-idle-fade": 70, "e2e-ciudad": 126, "e2e-ciudad-sound": 137,
   "e2e-hold-to-end": 124, "e2e-ciudad-cabezas": 59, "e2e-slide-sounds": 201, "e2e-set-out": 858, "e2e-closeups": 160, "e2e-saves": 74, "e2e-online": 187,
   "e2e-nova-city": 100, "e2e-hole-sets": 35, "e2e-first-game-tour": 460, "e2e-first-look": 63, "e2e-store-pan": 80, "e2e-tv-pull": 114,
   "e2e-realities-over-sphere": 40, "e2e-device-fit": 134, "e2e-title": 165, "e2e-language": 47, "e2e-menu-lab": 259, "e2e-rings": 104,
