@@ -946,12 +946,13 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
       channelOff[ch] = !!m;
       if (ctx) regate(ch, 0.15);
     },
-    // The sound menu's slider for a channel: 0 (off) .. 1.
-    setChannelLevel(ch, v) {
+    // The sound menu's slider for a channel: 0 (off) .. 1; `secs`, a fade
+    // (the clerk shutting the music off on the tour's first card).
+    setChannelLevel(ch, v, secs = 0.08) {
       if (!(ch in channelOff)) return;
       channelLevel[ch] = Math.max(0, Math.min(1, v));
       channelOff[ch] = channelLevel[ch] <= 0;
-      if (ctx) regate(ch, 0.08);
+      if (ctx) regate(ch, secs > 0 ? secs : 0.08);
     },
     setTension(v) {
       tension = v;

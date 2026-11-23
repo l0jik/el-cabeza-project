@@ -1200,6 +1200,11 @@ export default {
   "That's it! Your move. Good luck!": "Vậy thôi! Đến lượt bạn. Chúc may mắn!",
   "Your menu, as a bar.": "Menu của bạn, dạng thanh.",
   "the piece, back any time": "quân cờ, quay lại lúc nào cũng được",
+  // (The first card: the store's clerk offers to shut the ceiling speakers' music off.)
+  "Psst. I can shut that music off. My manager's at lunch.": "Suỵt. Mình tắt nhạc được đấy. Quản lý đi ăn trưa rồi.",
+  "Shut it off": "Tắt đi",
+  "Ahh. Much better.": "À. Dễ chịu hơn hẳn.",
+  "Music back on": "Bật lại nhạc",
   "on": "bật",
 
   // Big Glutts: the store, the order form, the PA, the catalog

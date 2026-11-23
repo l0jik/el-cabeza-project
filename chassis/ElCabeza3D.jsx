@@ -300,13 +300,14 @@ function saveMasterLevel(v) {
 }
 // Hands the levels to a theme's sound (setChannelLevel; an older engine
 // with only setChannelMuted gets on or off).
-function applyChannelLevels(audio, channels, levels, master) {
+function applyChannelLevels(audio, channels, levels, master, secs) {
   if (!audio || !channels) return;
   channels.forEach((c) => {
     // (A channel may start lower than full until it's moved: its .level,
-    // e.g. Parrish Watermark's soundtrack, kept low under the game.)
+    // e.g. Parrish Watermark's soundtrack, kept low under the game. `secs`:
+    // a fade, where the world's sound takes one, the store's.)
     const v = (levels[c.key] == null ? (c.level != null ? c.level : 1) : levels[c.key]) * master;
-    if (audio.setChannelLevel) audio.setChannelLevel(c.key, v);
+    if (audio.setChannelLevel) audio.setChannelLevel(c.key, v, secs);
     else if (audio.setChannelMuted) audio.setChannelMuted(c.key, v <= 0);
   });
 }
@@ -2885,11 +2886,21 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       if (!music && a && a.skipNowPlaying) a.skipNowPlaying(dir);
     },
   };
-  function setChannelLevel(key, v) {
+  function setChannelLevel(key, v, secs) {
     const next = { ...channelLevels, [key]: Math.max(0, Math.min(1, v)) };
     setChannelLevels(next);
     saveChannelLevels(next);
-    applyChannelLevels(audioRef.current, soundChannels, next, masterLevel);
+    applyChannelLevels(audioRef.current, soundChannels, next, masterLevel, secs);
+  }
+  /* The music off, from the tour's first card (the store's clerk: "Psst. I
+     can shut that music off. My manager's at lunch."), faded out; or back
+     at the level it had. The sound menu's own Music, so kept as that is. */
+  const musicBackRef = useRef(1);
+  function setTourMusic(on) {
+    if (!on) {
+      if (levelOf("music") > 0) musicBackRef.current = levelOf("music");
+      setChannelLevel("music", 0, 1.6);
+    } else setChannelLevel("music", musicBackRef.current || 1, 1.6);
   }
   // On or off (the record player turning its channel back on).
   function toggleChannel(key) {
@@ -12923,6 +12934,9 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             foeSwatch: SIDE_NAMES.swatch ? SIDE_NAMES.swatch[tourFoe] : null,
             lessonPic: tourLesson ? { type: selectedPiece.type, w: selectedPiece.w, h: selectedPiece.h, z: selectedPiece.z, cost: tourLesson.cost, times: tourLesson.times, can: turnLocked || shadowEntries.length > 0, locked: turnLocked, left: tourLeft } : null,
             youFirst: currentPlayer === tourMine,
+            // (A world with music on a channel of its own, the store's ceiling
+            // speakers: whether it's heard, and its switch, for the first card.)
+            music: soundChannels && soundChannels.some((c) => c.key === "music") ? { on: !audioMuted && masterLevel > 0 && levelOf("music") > 0, set: setTourMusic } : null,
             budget: ACTIVE_LAWS.threeActions ? 3 : 2,
             split: ACTIVE_LAWS.splitMovement ? maxPiecesPerTurn() : 0,
             hasOpa: pieces.some((p) => p.owner === tourMine && p.type === "opa"),

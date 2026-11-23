@@ -829,7 +829,9 @@ const seen = (page) => page.evaluate(() => {
    the picture's lower left, over its edge; a line from him in a bubble
    beside it; and a few words on the picture by what they're about, each
    in its box (on the picture, clear of the others and of his corner, the
-   lower left), its words fitting it, whatever the size of the text. */
+   lower left), its words fitting it, whatever the size of the text. Bigger
+   since (user: "I want the images of Steve to be bigger too"), the card's
+   buttons beside him under his bubble. */
 const coachOf = (page) => page.evaluate(() => {
   const c = document.querySelector('[data-testid="tour-card"] [data-testid="tour-coach"]');
   if (!c) return null;
@@ -837,6 +839,7 @@ const coachOf = (page) => page.evaluate(() => {
   const face = c.querySelector('[data-testid="tour-coach-face"]'), fr = face.getBoundingClientRect();
   const line = c.querySelector('[data-testid="tour-coach-line"]'), lr = line.getBoundingClientRect();
   const band = document.querySelector('[data-testid="tour-card"] [data-testid="tour-band"]');
+  const nav = document.querySelector('[data-testid="tour-card"] [data-testid="tour-nav"]');
   const notes = [...c.querySelectorAll("[data-note]")].map((n) => {
     const r = n.getBoundingClientRect(), w = n.firstElementChild;
     return { text: w.textContent.trim(), x: (r.left - pic.left) / k, y: (r.top - pic.top) / k, w: r.width / k, h: r.height / k, fits: w.scrollWidth <= n.clientWidth + 1 && w.offsetHeight <= n.clientHeight + 1, fit: +n.dataset.fit };
@@ -845,6 +848,10 @@ const coachOf = (page) => page.evaluate(() => {
     picture: c.dataset.picture, mood: face.dataset.mood, line: line.textContent.trim(), band: band ? band.textContent.trim() : null, notes,
     face: { left: Math.round(fr.left - pic.left), over: Math.round(pic.bottom - fr.top), w: Math.round(fr.width), h: Math.round(fr.height) },
     beside: lr.left >= fr.right - 2 && lr.top < fr.bottom && lr.top >= pic.bottom,
+    // (In his column, right of him, under his bubble: lower than his face
+    // when a long line takes two, at a phone's large text.)
+    navBeside: !nav || nav.getBoundingClientRect().left >= fr.right - 1,
+    bigger: fr.width / k >= 70,
   };
 });
 const coachOk = (s) => {
@@ -852,12 +859,12 @@ const coachOk = (s) => {
   if (!["grin", "hmm", "wince"].includes(s.mood)) return `his face: ${s.mood}`;
   if (s.band !== "Big Glutts shows you how") return `the band: ${s.band}`;
   if (!s.line || s.line.split(/\s+/).length > 8) return `his line: ${s.line}`;
-  if (s.face.left > 2 || s.face.over < 4 || s.face.over > s.face.h / 2 || s.face.w < 40 || !s.beside) return `his face and bubble: ${JSON.stringify(s.face)} beside ${s.beside}`;
+  if (s.face.left > 2 || s.face.over < 4 || s.face.over > s.face.h / 2 || s.face.w < 60 || !s.bigger || !s.beside || !s.navBeside) return `his face, bubble and the buttons: ${JSON.stringify(s.face)} beside ${s.beside}, buttons ${s.navBeside}`;
   if (!s.notes.length || s.notes.length > 4) return `${s.notes.length} notes`;
   for (const n of s.notes) {
     if (!n.text || n.text.split(/\s+/).length > 8) return `a note's words: ${n.text}`;
     if (n.x < -0.5 || n.y < -0.5 || n.x + n.w > 320.5 || n.y + n.h > 140.5) return `off the picture: ${n.text}`;
-    if (n.x < 44 && n.y + n.h > 126.5) return `in his corner: ${n.text}`;
+    if (n.x < 66 && n.y + n.h > 126.5) return `in his corner: ${n.text}`;
     if (!n.fits) return `runs out of its box: ${n.text}`;
   }
   for (let i = 0; i < s.notes.length; i++) for (let j = i + 1; j < s.notes.length; j++) {
@@ -890,10 +897,49 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   check("...Skip the tour on it; no Next, no Back", (await page.locator('[data-testid="tour-skip"]').count()) === 1 && (await page.locator('[data-testid="tour-next"]').count()) === 0 && (await page.locator('[data-testid="tour-back"]').count()) === 0);
   await page.waitForTimeout(1500);
   check("...nothing on the board while it's up, and nothing moved", (await page.evaluate(() => window.__EC_TEST_TO_MOVE__())) === "light" && (await rings(page)).length === 0);
+  /* The store's music (user: testers find "the music that's playing over
+     the store loudspeakers is annoying or distracting"; "when the tutorial
+     first starts? Steve says something about it"; picked "D. My managers
+     at lunch."): Steve on the first card offers to shut it off; it fades
+     out (the sound menu's own Music, kept: the store's sounds and the
+     pieces' still on), and he's glad; and back on, if wanted. */
+  const music = () => page.evaluate(() => {
+    const m = document.querySelector('[data-testid="tour-music"]'), a = window.__TIENDA_AUDIO__ ? window.__TIENDA_AUDIO__() : null;
+    let levels = null; try { levels = JSON.parse(localStorage.getItem("el-cabeza:sound-levels") || "null"); } catch (e) { /* none */ }
+    return { on: m && m.dataset.music, line: m && m.querySelector('[data-testid="tour-coach-line"]').textContent.trim(), mood: m && m.querySelector('[data-testid="tour-coach-face"]').dataset.mood, face: m && Math.round(m.querySelector('[data-testid="tour-coach-face"]').getBoundingClientRect().width), levels, gates: a && a.gateLevels };
+  });
+  let mu = await music();
+  check("...Steve on it: \"Psst. I can shut that music off. My manager's at lunch.\" and Shut it off", mu.on === "on" && /^Psst\. I can shut that music off\. My manager's at lunch\.\s*Shut it off$/.test(mu.line) && mu.face >= 70 && (await page.locator('[data-testid="tour-music-off"]').count()) === 1, JSON.stringify(mu));
+  await page.locator('[data-testid="tour-music-off"]').click();
+  await page.waitForTimeout(2000);
+  mu = await music();
+  check("Shut it off: the music off, kept as the sound menu's Music (the store's sounds and the pieces' still on)", mu.on === "off" && mu.levels && mu.levels.music === 0 && !!mu.gates && mu.gates.music.every((g) => g === 0) && mu.gates.store.every((g) => g === 1) && mu.gates.pieces.every((g) => g === 1), JSON.stringify(mu));
+  check("...and Steve glad of it: \"Ahh. Much better.\", Music back on", /^Ahh\. Much better\.\s*Music back on$/.test(mu.line) && mu.mood === "grin" && (await page.locator('[data-testid="tour-music-on"]').count()) === 1, JSON.stringify(mu));
+  await page.locator('[data-testid="tour-music-on"]').click();
+  await page.waitForTimeout(2000);
+  mu = await music();
+  check("Music back on: as it was, and the offer again", mu.on === "on" && mu.levels && mu.levels.music === 1 && mu.gates.music.every((g) => g === 1) && (await page.locator('[data-testid="tour-music-off"]').count()) === 1, JSON.stringify(mu));
   await page.locator('[data-testid="tour-choose-pictures"]').click();
   await page.waitForTimeout(1200);
   tour = await tourOf(page);
   check("At a glance: the welcome card, in pictures, and so it's kept", tour.step === "welcome" && (await card(page).getAttribute("data-mode")) === "pictures" && (await page.evaluate(() => localStorage.getItem("el-cabeza:tour-pictures"))) === "on");
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+{
+  console.log("\n[desktop: the store's music already off: no offer]");
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; try { localStorage.setItem("el-cabeza:sound-levels", JSON.stringify({ music: 0 })); } catch (e) { /* none */ } });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto(NOVA);
+  await page.waitForSelector('[data-testid="tienda-open-box"]', { timeout: 60000 });
+  await page.waitForTimeout(1500);
+  await page.locator('[data-testid="tienda-open-box"]').click();
+  await page.waitForTimeout(3500);
+  await begin(page, { choose: null });
+  check("the first card, with the music off already: Steve offers nothing", (await tourOf(page)).step === "choose" && (await page.locator('[data-testid="tour-music"]').count()) === 0, String(await page.locator('[data-testid="tour-music"]').count()));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

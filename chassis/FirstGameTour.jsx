@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { t as say, tr, listOf, language } from "./i18n.js";
 import { TourPicture, TagIcons, TONES, ICON } from "./TourPictures.jsx";
-import { CoachPicture } from "./TourCoach.jsx";
+import { CoachPicture, SteveSays } from "./TourCoach.jsx";
 
 /* A new player's first game, walked through (user, 2026-10-17: "They
    click begin a game, and then a little pop-up will say, "Welcome to your
@@ -513,6 +513,12 @@ export default function FirstGameTour({ tour, cardRef }) {
      now shown were drawn: the menu's lines light in time with its rings
      on the board, begun as the card came up, also after a switch.) */
   const cameRef = useRef({ step: null, at: 0, mode: null, t0: 0 });
+  /* (Was the store's music on when the first card came up? Then its clerk
+     offers to shut it off there, and says so after; user, testers finding
+     the ceiling speakers' music "annoying or distracting": "when the
+     tutorial first starts? Steve says something about it"; picked "Psst. I
+     can shut that music off. My manager's at lunch.") */
+  const musicOfferRef = useRef(null);
   const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
   if (cameRef.current.step !== step) cameRef.current = { step, at: now(), mode: null, t0: 0 };
   if (cameRef.current.mode !== pics) { cameRef.current.mode = pics; cameRef.current.t0 = (now() - cameRef.current.at) / 1000; }
@@ -616,6 +622,10 @@ export default function FirstGameTour({ tour, cardRef }) {
      learn, the two tiles, and Skip; the same in words or pictures. */
   if (choose) {
     const still = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // (The store's clerk and its ceiling speakers: only while the music was
+    // on as the card came up.)
+    if (musicOfferRef.current === null && tour.music) musicOfferRef.current = !!tour.music.on;
+    const steveOffers = !!(tour.copy && tour.copy.coach === "steve" && tour.music && musicOfferRef.current);
     const pick = (which) => () => { setTourPictures(which === "pictures"); tour.next(); };
     const tile = (which, label, art, first) => (
       <button
@@ -644,6 +654,13 @@ export default function FirstGameTour({ tour, cardRef }) {
             {tile("words", "Full step-by-step instructions", <WordsPreview C={C} />, true)}
             {tile("pictures", "At a glance: pictures only", <TourPicture t={{ ...tour, step: "welcome" }} still preview />, false)}
           </div>
+          {steveOffers && (
+            <div data-testid="tour-music" data-music={tour.music.on ? "on" : "off"} style={{ marginTop: narrow ? 12 : 14 }}>
+              {tour.music.on
+                ? <SteveSays mood="hmm" line="Psst. I can shut that music off. My manager's at lunch." action={{ label: "Shut it off", testid: "tour-music-off", off: true, onClick: () => tour.music.set(false) }} />
+                : <SteveSays mood="grin" line="Ahh. Much better." action={{ label: "Music back on", testid: "tour-music-on", ghost: true, onClick: () => tour.music.set(true) }} />}
+            </div>
+          )}
           <div style={{ marginTop: narrow ? 8 : 10 }}>
             <button type="button" data-testid={link.testid} onClick={link.onClick} style={{ background: "none", border: "none", padding: "6px 0", cursor: "pointer", color: C.slate, fontFamily: sans, fontSize: TYPE.link, textDecoration: "underline", textUnderlineOffset: 3 }}>
               {link.label}
@@ -661,6 +678,13 @@ export default function FirstGameTour({ tour, cardRef }) {
   if (pics) {
     const still = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const coach = !!(tour.copy && tour.copy.coach === "steve");
+    // (Coached, the buttons go beside Steve, under his bubble.)
+    const navRow = back || primary ? (
+      <div data-testid="tour-nav" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: coach ? 0 : narrow ? 8 : 10 }}>
+        <span>{back && <IconButton b={{ ...back, aria: "Back a step" }} icons={["back"]} C={C} />}</span>
+        {primary && <IconButton b={{ ...primary, aria: plain(primary.label) }} icons={primary.icons} C={C} primary autoFocus={card || menuCard} />}
+      </div>
+    ) : null;
     const said = [
       text.sub,
       ...(text.body || []).filter(Boolean).map((p) => (typeof p === "string" ? p : p.note)),
@@ -687,14 +711,9 @@ export default function FirstGameTour({ tour, cardRef }) {
           <h2 id="ec-tour-title" data-testid="tour-title" style={UNSEEN}>{text.title}</h2>
           <div id="ec-tour-words" data-testid="tour-words" style={UNSEEN}>{said.map((w, i) => <p key={i}>{w}</p>)}</div>
           {coach
-            ? <CoachPicture t={tour} still={still} anim={lit ? (i, n) => turnAnim("ecTourPic", i, n, t0) : null} />
+            ? <CoachPicture t={tour} still={still} anim={lit ? (i, n) => turnAnim("ecTourPic", i, n, t0) : null} nav={navRow} />
             : <TourPicture t={tour} still={still} anim={lit ? (i, n) => turnAnim("ecTourPic", i, n, t0) : null} />}
-          {(back || primary) && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: narrow ? 8 : 10 }}>
-              <span>{back && <IconButton b={{ ...back, aria: "Back a step" }} icons={["back"]} C={C} />}</span>
-              {primary && <IconButton b={{ ...primary, aria: plain(primary.label) }} icons={primary.icons} C={C} primary autoFocus={card || menuCard} />}
-            </div>
-          )}
+          {!coach && navRow}
         </div>
       </>
     );

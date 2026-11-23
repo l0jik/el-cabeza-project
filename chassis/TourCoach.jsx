@@ -161,8 +161,13 @@ export function SteveFace({ mood = "grin", size = 64, style = null }) {
 const YOURS = "mine", THEIRS = "foe", GOAL = "goal", PLAIN = "dim";
 const note = (box, tone, text, o = null) => ({ box, tone, text, ...o });
 const UNDER = { align: "center", v: "top" };
-/* (His corner, the picture's lower left, x under 44 and y over 126, is
-   his face's: no note goes there.) */
+/* His face (user: "I want the images of Steve to be bigger too"; of two
+   sizes mocked up, the bigger, the buttons beside him): 76 of the
+   picture's 320 units across, 13 of them over its lower edge. (His corner,
+   the picture's lower left, x under 66 and y over 126, is his face's: no
+   note goes there.) */
+const FACE = 76, OVER = 13;
+const bubbleFont = (k) => Math.round(Math.min(20, Math.max(15, 13.6 * k)) * 10) / 10;
 
 // Steve's line, his face and the notes for the tour's moment `t` (the
 // picture's; null for none).
@@ -293,6 +298,16 @@ const COACH_CSS = `
   padding: 4px 12px 5px; font-family: 'Patrick Hand', 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', cursive; font-weight: 400; line-height: 1.1; text-wrap: balance; box-shadow: 2px 2px 0 rgba(46,33,24,.5); }
 .ec-coach-bubble::before { content: ""; position: absolute; left: -11px; top: 9px; border: 7px solid transparent; border-right: 10px solid ${INK}; border-left: 0; }
 .ec-coach-bubble::after { content: ""; position: absolute; left: -7px; top: 11px; border: 5px solid transparent; border-right: 7px solid ${CREAM}; border-left: 0; }
+.ec-coach-bubble.ec-coach-mid { padding: 7px 13px 9px; }
+.ec-coach-bubble.ec-coach-mid::before { top: calc(50% - 8px); }
+.ec-coach-bubble.ec-coach-mid::after { top: calc(50% - 6px); }
+.ec-coach-btn { display: inline-flex; align-items: center; gap: 7px; margin-top: 7px; padding: 6px 12px 6px 9px; cursor: pointer;
+  font: 800 12.5px/1.05 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif; letter-spacing: .14em; text-transform: uppercase; text-align: left;
+  background: #A8321F; color: #F6EEDA; border: 2px solid ${INK}; border-radius: 2px; box-shadow: 3px 3px 0 ${INK}; }
+.ec-coach-btn.ec-coach-ghost { background: transparent; color: ${INK}; border-color: rgba(46,33,24,.55); box-shadow: none; }
+.ec-coach-btn:active { transform: translate(1px, 1px); }
+.ec-coach-btn:focus-visible { outline: 2px solid ${INK}; outline-offset: 3px; }
+.ec-coach-btn svg { flex: none; width: 16px; height: 16px; }
 `;
 const V = { top: "flex-start", middle: "center", bottom: "flex-end" };
 const TURN_AT = { left: "0 50%", center: "50% 50%", right: "100% 50%" };
@@ -317,9 +332,11 @@ function fitNote(box, k) {
 }
 
 /* The picture with Steve: the notes over it, his face leaning in at its
-   lower left, his line in a bubble beside him. Everything in proportion
-   to the picture (k: its pixels to its units). */
-export function CoachPicture({ t, still, anim }) {
+   lower left, his line in a bubble beside him and the card's buttons
+   (`nav`) under it, beside him too, so his bigger face costs the card no
+   height. Everything in proportion to the picture (k: its pixels to its
+   units). */
+export function CoachPicture({ t, still, anim, nav = null }) {
   const coach = coachFor(t);
   const boxRef = useRef(null);
   const [k, setK] = useState(0);
@@ -355,7 +372,7 @@ export function CoachPicture({ t, still, anim }) {
   }, []);
   if (!coach) return <TourPicture t={t} still={still} anim={anim} />;
   const kk = k || 1.4, pic = pictureOf(t);
-  const face = Math.round(48 * kk);
+  const face = Math.round(FACE * kk);
   return (
     <div data-testid="tour-coach" data-picture={pic}>
       <style>{COACH_CSS}</style>
@@ -379,11 +396,62 @@ export function CoachPicture({ t, still, anim }) {
           ))}
         </div>
       </div>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: Math.round(7 * kk) }}>
-        <SteveFace mood={coach.mood} size={face} style={{ marginTop: -Math.round(12 * kk), marginLeft: -Math.round(5 * kk) }} />
-        <div data-testid="tour-coach-line" className="ec-coach-bubble" style={{ marginTop: 4, fontSize: Math.round(Math.min(20, Math.max(15, 13.6 * kk)) * 10) / 10 }}>
-          {coach.line}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: Math.round(8 * kk) }}>
+        <SteveFace mood={coach.mood} size={face} style={{ marginTop: -Math.round(OVER * kk), marginLeft: -Math.round(5 * kk) }} />
+        <div data-testid="tour-coach-side" style={{ flex: "1 1 auto", minWidth: 0, display: "flex", flexDirection: "column", gap: Math.round(8 * kk), paddingTop: 6 }}>
+          <div data-testid="tour-coach-line" className="ec-coach-bubble" style={{ alignSelf: "flex-start", fontSize: bubbleFont(kk) }}>
+            {coach.line}
+          </div>
+          {nav}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// A note, a slash through it for off.
+const MusicIcon = ({ off }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M9 18V5l11-2v13" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="17" cy="16" r="3" />
+    {off && <path d="M3 3l18 18" />}
+  </svg>
+);
+
+/* Steve on a card with no picture (the tour's first card): his face, a
+   line, and a button in his bubble ({ label, onClick, testid, off, ghost }:
+   the store's red, or quiet). Sized as on the pictures' cards, by the
+   card's width. */
+export function SteveSays({ mood = "grin", line, action = null, testid = "tour-coach-say" }) {
+  const ref = useRef(null);
+  const [w, setW] = useState(0);
+  useHandFont();
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const measure = () => setW(el.clientWidth);
+    measure();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    if (ro) ro.observe(el);
+    return () => { if (ro) ro.disconnect(); };
+  }, []);
+  const k = (w || 448) / W;
+  return (
+    <div ref={ref} data-testid={testid} data-mood={mood} style={{ display: "flex", alignItems: "center", gap: Math.round(10 * k) }}>
+      <style>{COACH_CSS}</style>
+      <SteveFace mood={mood} size={Math.round(FACE * k)} />
+      <div data-testid="tour-coach-line" className="ec-coach-bubble ec-coach-mid" style={{ flex: "0 1 auto", fontSize: bubbleFont(k) }}>
+        {line}
+        {action && (
+          <>
+            <br />
+            <button type="button" data-testid={action.testid} className={`ec-coach-btn${action.ghost ? " ec-coach-ghost" : ""}`} onClick={action.onClick}>
+              <MusicIcon off={!!action.off} />
+              {action.label}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

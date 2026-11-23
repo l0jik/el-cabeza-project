@@ -1192,6 +1192,11 @@ export default {
   "That's it! Your move. Good luck!": "¡Eso es todo! Te toca. ¡Suerte!",
   "Your menu, as a bar.": "Tu menú, como barra.",
   "the piece, back any time": "la pieza vuelve cuando quieras",
+  // (The first card: the store's clerk offers to shut the ceiling speakers' music off.)
+  "Psst. I can shut that music off. My manager's at lunch.": "Psst. Puedo apagar esa música. Mi jefe salió a almorzar.",
+  "Shut it off": "Apagala",
+  "Ahh. Much better.": "Ahh. Mucho mejor.",
+  "Music back on": "Que vuelva la música",
   "on": "prendido",
 
   // Big Glutts: the store, the order form, the PA, the catalog
