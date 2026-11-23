@@ -297,7 +297,9 @@ function cardText(t) {
           "When they're used up, your turn ends and your opponent moves.",
           // (Ending it sooner, Hold to end being always on, user: "As long
           // as it is clearly explained somewhere": a tap on the piece won't.)
-          t.budget > 1 ? "To end it sooner, hold the piece you moved until its ring closes, or press End turn." : null,
+          // (The hold alone, as the game is played, user: "you can press and
+          // hold to end your turn ... there's no check mark".)
+          t.budget > 1 ? "To end it sooner, hold the piece you moved until its ring closes." : null,
         ],
       };
     case "board":

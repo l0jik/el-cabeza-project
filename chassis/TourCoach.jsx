@@ -231,8 +231,10 @@ export function coachFor(t) {
       ];
       if (opa) parts.push({ focus: [90, 50, 134, 88], mood: "hmm", line: "The big block is heavy: it rolls just once.", notes: [note([156, 64, 66, 44], YOURS, "the big one rolls once")] });
       // (User: "instead of done early? have him say, don't want to move your
-      // piece twice? You don't have to!")
-      if (N > 1) parts.push({ focus: [228, 50, 90, 88], mood: "grin", line: "Don't want to move your piece twice? You don't have to! Hold it, or tap the check.", notes: [note([230, 50, 88, 36], YOURS, "hold it to end early", { v: "bottom" })] });
+      // piece twice? You don't have to!"; and only the hold, as the game is
+      // played: "you can press and hold to end your turn ... there's no check
+      // mark".)
+      if (N > 1) parts.push({ focus: [228, 50, 90, 88], mood: "grin", line: "Don't want to move your piece twice? You don't have to! Press and hold it to end your turn.", notes: [note([230, 50, 88, 36], YOURS, "hold it to end early", { v: "bottom" })] });
       return { ...parts[0], parts };
     }
     case "board":
@@ -260,7 +262,7 @@ export function coachFor(t) {
       const notes = [note([114, 106, 116, 30], YOURS, how, UNDER)];
       if (t.lesson && t.lesson.name) notes.unshift(note([4, 4, 104, 26], YOURS, t.lesson.name, { align: "center", v: "top", size: 14 }));
       if (p.can === false) return { mood: "wince", line: "Boxed in! Try another piece.", notes };
-      if (p.locked && p.left > 0) return { mood: "grin", line: disc ? "Step again, or end your turn." : "Roll again, or end your turn.", notes };
+      if (p.locked && p.left > 0) return { mood: "grin", line: disc ? "Step again, or hold it to end your turn." : "Roll again, or hold it to end your turn.", notes };
       return { mood: "grin", line: tap("Now tap a lit square!", "Now click a lit square!"), notes };
     }
     case "foe": {

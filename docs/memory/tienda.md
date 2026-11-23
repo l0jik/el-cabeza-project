@@ -615,13 +615,32 @@ box art and an ad standee (assets/tienda/*.jpg).
   first, then the computer." (the row of turns; no note) / "Pick a block.
   Roll it once or twice." (up to 2 rolls) / "The big block is heavy: it
   rolls just once." (the big one rolls once; a "hmm") / "Don't want to
-  move your piece twice? You don't have to! Hold it, or tap the check."
-  (user: "instead of done early? have him say, don't want to move your
-  piece twice? You don't have to!"; hold it to end early); with other laws,
+  move your piece twice? You don't have to! Press and hold it to end your
+  turn." (user: "instead of done early? have him say, don't want to move
+  your piece twice? You don't have to!"; hold it to end early); with other laws,
   the lines and parts to match (one action, three, shared, no Opa).
   tour-coach data-part / data-parts, tour-coach-focus data-box. es and
   vi. tests/e2e-first-game-tour.mjs: the four points, each its line, its
   part lit and its note; Back on the card; nextCard() through them.
+- **The tour teaches the hold, not End turn** (2026-11-23; user: "What's
+  this tap to check crap? Don't teach them something that's not going to
+  be used in the actual game. ... when you're playing the real game, you
+  can press and hold to end your turn or not move the piece a second
+  time, but there's no checkbox, there's no check mark. Why are you
+  including that in the tutorial?"). The green tick was the floating End
+  turn button's (ElCabeza3D endTurnFloat: shown with the points, after a
+  move with more to do, only till the player has once ended a turn by
+  holding, holdKnown; the user's long since had). Out of the tour, in
+  words and pictures alike: the turn card's picture and a moved piece's
+  (TourPictures Turn, Lesson: the hold ring alone, the EndTurn drawing
+  gone), Steve ("Don't want to move your piece twice? You don't have to!
+  Press and hold it to end your turn."; a moved piece, "Roll again, or
+  hold it to end your turn."), the words' turn card ("To end it sooner,
+  hold the piece you moved until its ring closes."), the status after a
+  move ("One action left: move it again, or hold the piece until its ring
+  closes."), and the ring and label the board's marks put round the End
+  turn button. The button itself and the rules cards' mention of it are
+  as they were (asked).
 - **The store's signs in view again** (2026-11-22; user: "In Tienda /
   store, the maximum vertical zoom / ceiling seems to be lower than
   before.... There is wall signage that can no longer be seen. Is there a

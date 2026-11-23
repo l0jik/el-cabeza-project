@@ -569,27 +569,20 @@ function Turn({ t, still, mine }) {
       {N > 1 && (
         <>
           <Split x={226} y0={60} y1={130} />
-          {/* (Sooner: hold the piece till its ring closes, or End turn.) */}
-          <SideBlock x={238} y={gy - 4} w={s} h={s} fill={mine} />
-          <circle cx={246.5} cy={gy - 4 - s / 2} r={16} fill="none" stroke="rgba(255,247,230,0.2)" strokeWidth={3.4} />
-          <circle cx={246.5} cy={gy - 4 - s / 2} r={16} fill="none" stroke={TONES.mine} strokeWidth={3.4} strokeLinecap="round" strokeDasharray={`${r1(2 * Math.PI * 16)}`} strokeDashoffset={r1(2 * Math.PI * 16 * 0.3)} transform={`rotate(-90 246.5 ${gy - 4 - s / 2})`}>
+          {/* (Sooner: press and hold the piece till its ring closes; the
+              hold alone, as the game is played, user: "Don't teach them
+              something that's not going to be used in the actual game".) */}
+          <SideBlock x={264} y={gy - 4} w={s} h={s} fill={mine} />
+          <circle cx={272.5} cy={gy - 4 - s / 2} r={16} fill="none" stroke="rgba(255,247,230,0.2)" strokeWidth={3.4} />
+          <circle cx={272.5} cy={gy - 4 - s / 2} r={16} fill="none" stroke={TONES.mine} strokeWidth={3.4} strokeLinecap="round" strokeDasharray={`${r1(2 * Math.PI * 16)}`} strokeDashoffset={r1(2 * Math.PI * 16 * 0.3)} transform={`rotate(-90 272.5 ${gy - 4 - s / 2})`}>
             {!still && <animate attributeName="stroke-dashoffset" values={`${r1(2 * Math.PI * 16)};0;0`} keyTimes="0;0.75;1" dur="2.4s" repeatCount="indefinite" />}
           </circle>
-          <Hand x={248} y={gy - 2 - s / 2} s={26} still={still} tap={false} />
-          <EndTurn x={278} y={gy - 38} />
+          <Hand x={274} y={gy - 2 - s / 2} s={26} still={still} tap={false} />
         </>
       )}
     </>
   );
 }
-// The End turn button, as the board shows it: its green tick.
-const EndTurn = ({ x, y }) => (
-  <g transform={`translate(${x} ${y})`}>
-    <rect x={0} y={0} width={32} height={26} rx={6} fill="rgba(20,14,8,0.85)" stroke="rgba(255,247,230,0.45)" strokeWidth={1.3} />
-    <Ico k="yes" x={6} y={3} s={20} c="#3FAE5A" w={3.2} />
-  </g>
-);
-
 // An arrow's head alone, at `at`, pointing on from `from`.
 function Head({ at, from, tone = "mine", size = 9 }) {
   let ux = at[0] - from[0], uy = at[1] - from[1];
@@ -826,16 +819,15 @@ function Lesson({ t, still, mine }) {
         : p.locked && p.left > 0
           ? (
             <>
-              {/* (Again; End turn; or hold it till its ring closes.) */}
-              <MiniRoll x={244} y={40} fill={mine} />
-              <EndTurn x={278} y={22} />
+              {/* (Again; or press and hold it till its ring closes.) */}
+              <MiniRoll x={261} y={40} fill={mine} />
               <line x1={242} y1={56} x2={312} y2={56} stroke="rgba(255,247,230,0.12)" strokeWidth={1.2} />
-              <SideBlock x={262} y={118} w={16} h={16} fill={mine} />
-              <circle cx={270} cy={110} r={15} fill="none" stroke="rgba(255,247,230,0.2)" strokeWidth={3} />
-              <circle cx={270} cy={110} r={15} fill="none" stroke={TONES.mine} strokeWidth={3} strokeLinecap="round" strokeDasharray={`${r1(2 * Math.PI * 15)}`} strokeDashoffset={r1(2 * Math.PI * 15 * 0.3)} transform="rotate(-90 270 110)">
+              <SideBlock x={268} y={118} w={16} h={16} fill={mine} />
+              <circle cx={276} cy={110} r={15} fill="none" stroke="rgba(255,247,230,0.2)" strokeWidth={3} />
+              <circle cx={276} cy={110} r={15} fill="none" stroke={TONES.mine} strokeWidth={3} strokeLinecap="round" strokeDasharray={`${r1(2 * Math.PI * 15)}`} strokeDashoffset={r1(2 * Math.PI * 15 * 0.3)} transform="rotate(-90 276 110)">
                 {!still && <animate attributeName="stroke-dashoffset" values={`${r1(2 * Math.PI * 15)};0;0`} keyTimes="0;0.75;1" dur="2.4s" repeatCount="indefinite" />}
               </circle>
-              <Hand x={272} y={111} s={24} still={still} tap={false} />
+              <Hand x={278} y={111} s={24} still={still} tap={false} />
             </>
           )
           : (

@@ -5364,7 +5364,9 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
   let tourStatus = null;
   if (tourYours) {
     // (How to end it then: the button and the hold, always both.)
-    if (turnLocked) tourStatus = tourLeft > 0 ? (tourLeft === 1 ? t("One action left: move it again, or press End turn, or hold the piece until its ring closes.") : t("{n} actions left: move it again, or press End turn, or hold the piece until its ring closes.", { n: tourLeft })) : null;
+    // (The hold alone, as the game is played; user: "Don't teach them
+    // something that's not going to be used in the actual game".)
+    if (turnLocked) tourStatus = tourLeft > 0 ? (tourLeft === 1 ? t("One action left: move it again, or hold the piece until its ring closes.") : t("{n} actions left: move it again, or hold the piece until its ring closes.", { n: tourLeft })) : null;
     else tourStatus = shadowEntries.length ? (isCoarsePointer() ? t("The arrows show every square it can reach: tap one to move it there.") : t("The arrows show every square it can reach: click one to move it there.")) : "It can't move from where it is just now: try another piece.";
   }
   /* What it lights up as it speaks (user: "Highlight the pieces as
@@ -5513,11 +5515,6 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       if (tourYours) {
         ring(selectedPiece, "mine");
         shadowEntries.forEach(([dir, m]) => { if (m.candidate) t2.arrows.push({ key: `move-${dir}`, from: { piece: selectedPiece.id }, to: { box: { ...at(selectedPiece), row: m.candidate.row, col: m.candidate.col, w: m.candidate.w, h: m.candidate.h, z: m.candidate.z } }, tone: "mine", bend: 0.2 }); });
-        if (turnLocked && tourLeft > 0) {
-          const sel = shell ? '[data-testid="shell-end-turn"]' : '[data-testid="stop-here-float"]';
-          t2.boxes.push({ key: "end", sel, tone: "mine" });
-          tag("end", { el: sel }, "Or end your turn here", "mine", "above", ["tap"]);
-        }
       } else if (!selectedId) {
         mineP.forEach((p) => {
           const go = !!tourCanGo && tourCanGo.has(p.id);

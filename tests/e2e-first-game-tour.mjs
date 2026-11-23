@@ -360,7 +360,9 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   check("Next: you move first, a piece rolled once or twice a turn, the Opa once (the user's words)", /You move first\./.test(t) && /Each turn, select a piece to roll on its edge either once or twice\./.test(t) && /Note: the Opa \(large cube\) only rolls on its edge once due to its large size\./.test(t) && /The lights at the foot of the screen count how many are left\./.test(t) && !/actions, all for one piece/.test(t), t);
   // (Hold to end, always on: said here, user: "As long as it is clearly
   // explained somewhere".)
-  check("...and how to end a turn sooner: hold the piece you moved, or End turn", /To end it sooner, hold the piece you moved until its ring closes, or press End turn\./.test(t), t);
+  // (The hold alone, as the game is played, user: "Don't teach them
+  // something that's not going to be used in the actual game".)
+  check("...and how to end a turn sooner: hold the piece you moved (no End turn taught)", /To end it sooner, hold the piece you moved until its ring closes\./.test(t) && !/End turn/.test(t), t);
   check("...the Note in italics", await page.evaluate(() => { const i = document.querySelector('[data-testid="tour-note-line"] i'); return !!i && i.textContent === "Note" && getComputedStyle(i).fontStyle === "italic"; }));
   const counter = await boxOf(page, '[data-testid="points-counter"]');
   const ring = await ringRect(page, "actions");
@@ -433,7 +435,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   t = await cardText(page);
   check("your Cabeza tapped: one square any way, step twice a turn, your opponent's back row", /Your Cabeza/.test(t) && /One square any way, corners too/.test(t) && /step twice a turn/.test(t) && /your opponent's back row/.test(t), t);
 
-  // The Flaco: a roll by tapping its square, then End turn pointed out.
+  // The Flaco: a roll by tapping its square; then the hold taught, not End turn.
   at = await posOf("light-flaco");
   await tap(at.x, at.y);
   await page.waitForTimeout(2800);
@@ -447,11 +449,10 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const rolled = (await page.evaluate(() => window.__EC_TEST_PIECES__)).find((p) => p.id === "light-flaco");
   check("a tap on its marked square rolls it there", rolled.col === flaco.col + 1 && rolled.row === flaco.row, JSON.stringify(rolled));
   t = await cardText(page);
-  const endBtn = await boxOf(page, '[data-testid="stop-here-float"]');
   const endRing = await ringRect(page, "end");
   const endTag = await tagBox(page, "end");
-  check("...one action left: the card says move it again, press End turn, or hold the piece", /One action left: move it again, or press End turn, or hold the piece until its ring closes\./.test(t), t);
-  check("...End turn ringed and labelled", !!endBtn && !!endRing && endRing.w > endBtn.w && !!endTag && /or end your turn here/i.test(endTag.text) && endTag.y + endTag.h <= endBtn.y, JSON.stringify({ endBtn, endRing, endTag }));
+  check("...one action left: the card says move it again, or hold the piece (no End turn)", /One action left: move it again, or hold the piece until its ring closes\./.test(t) && !/End turn/.test(t), t);
+  check("...and nothing on the screen points to an End turn button", !endRing && !endTag, JSON.stringify({ endRing, endTag }));
   check("...and arrows for its next roll", (await tourOf(page)).marks.arrows.length >= 1);
   await page.locator('[data-testid="stop-here-float"]').click();
   await page.waitForTimeout(600);
@@ -1013,7 +1014,10 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
     if (steps[i] === "turn") {
       for (let p = 0; p < 8; p++) {
         const c = await coachOf(page);
-        turnWalk.push({ part: c.part, parts: c.parts, line: c.line, focus: c.focus, notes: c.notes.map((n) => n.text), bad: coachOk(c), step: (await tourOf(page)).step });
+        // (tick: the End turn button's green tick drawn in the picture; the
+        // game's played with the hold, user: "there's no check mark".)
+        const tick = await page.evaluate(() => { const p = document.querySelector('[data-testid="tour-card"] [data-testid="tour-picture"]'); return !!p && /3FAE5A/i.test(p.innerHTML); });
+        turnWalk.push({ part: c.part, parts: c.parts, line: c.line, focus: c.focus, notes: c.notes.map((n) => n.text), bad: coachOk(c), step: (await tourOf(page)).step, tick });
         if (c.part == null || c.part >= c.parts - 1) break;
         await page.locator('[data-testid="tour-next"]').click();
         await page.waitForTimeout(500);
@@ -1035,7 +1039,7 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
      whose turn; a block rolled once or twice; the big one, once; done
      early; Back, his point before; then Next, the card after. */
   const tw = turnWalk;
-  check("...the turn card in Steve's steps: whose turn, a block once or twice, the big one once, not twice if you don't want: each its line, its part lit, its note", tw.length === 4 && tw.every((w, i) => w.part === i && w.parts === 4 && !w.bad && !!w.focus && w.step === "turn") && new Set(tw.map((w) => w.focus)).size === 4 && /^You go first, then the computer\./.test(tw[0].line) && /^Pick a block\. Roll it once or twice\./.test(tw[1].line) && /^The big block is heavy: it rolls just once\./.test(tw[2].line) && /^Don't want to move your piece twice\? You don't have to! Hold it, or tap the check\./.test(tw[3].line) && tw[0].notes.length === 0 && tw[1].notes.includes("up to 2 rolls") && tw[2].notes.includes("the big one rolls once") && tw[3].notes.includes("hold it to end early"), JSON.stringify(tw));
+  check("...the turn card in Steve's steps: whose turn, a block once or twice, the big one once, not twice if you don't want: each its line, its part lit, its note", tw.length === 4 && tw.every((w, i) => w.part === i && w.parts === 4 && !w.bad && !!w.focus && w.step === "turn") && new Set(tw.map((w) => w.focus)).size === 4 && /^You go first, then the computer\./.test(tw[0].line) && /^Pick a block\. Roll it once or twice\./.test(tw[1].line) && /^The big block is heavy: it rolls just once\./.test(tw[2].line) && /^Don't want to move your piece twice\? You don't have to! Press and hold it to end your turn\./.test(tw[3].line) && !tw.some((w) => w.tick) && tw[0].notes.length === 0 && tw[1].notes.includes("up to 2 rolls") && tw[2].notes.includes("the big one rolls once") && tw[3].notes.includes("hold it to end early"), JSON.stringify(tw));
   check("...Back: his point before, on the same card", !!turnBack && turnBack.step === "turn" && turnBack.part === 2, JSON.stringify(turnBack));
   tg = await tagModes(page);
   check("...the board's label two icons (turn it, zoom)", tg.length === 1 && tg[0].key === "orbit" && tg[0].icons === 2 && tg[0].text === "", JSON.stringify(tg));
