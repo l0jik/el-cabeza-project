@@ -138,7 +138,13 @@ console.log("Noir, on a desktop: one wedge to the next, the keys, a click; then 
   const a1 = await labelAt(page, k1), a2 = await labelAt(page, k2);
   await page.mouse.move(a1.x, a1.y, { steps: 3 });
   await poll(async () => { const x = await tipNow(page, k1); return x && x.on && x.key === k1 ? x : null; });
-  await page.mouse.move(a2.x, a2.y, { steps: 4 });
+  // (Straight on in one move, the leaving and the entering in the same
+  // event, as a quick hand's reaches a busy page. In four steps, on CI's
+  // software renderer (a frame a step, ~4 a second) the way between the
+  // wedges outlasted menu-fan.js's TIP_WARM (500 ms): rightly a fresh
+  // rest then, its tip 380 ms on, and the check, reading at once, found
+  // none. CI 45463391842: "start" still on it, hidden.)
+  await page.mouse.move(a2.x, a2.y);
   const next = await tipNow(page, k2);
   check(`from ${k1} straight on to ${k2}: ${k2}'s tooltip at once`, !!next && next.on && next.key === k2, JSON.stringify(next));
   await page.mouse.move(640, 40);

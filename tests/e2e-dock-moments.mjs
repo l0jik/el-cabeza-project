@@ -41,10 +41,23 @@ for (const [name, opening, w] of PAGES) {
   check("setup: no end game or new game yet", !(await has(page, "end-game")) && !(await has(page, "new-game")));
   await page.locator("button", { hasText: /Begin Game|Try a Demo Game/ }).first().click();
   const corner = await waitForDockCorner(page, { timeoutMs: 10000 });
-  await reopenDockPanelFromCorner(page, corner);
+  const reopened = await reopenDockPanelFromCorner(page, corner);
   await page.waitForTimeout(400);
   check(`in play: End game, in its words ("${w.endGame}")`, (await has(page, "end-game")) && (await txt(page, "end-game")).toLowerCase().startsWith(w.endGame.toLowerCase()), await txt(page, "end-game").catch(() => ""));
   check("in play: the views in one row, no New Game, no caption", (await has(page, "view-player")) && (await has(page, "view-top")) && !(await has(page, "new-game")) && !(await has(page, "dock-caption")));
+  /* End game under the pointer, not only on the page (it's there with the
+     panel shut too). CI 45463391842: these read it, then its click found
+     the board on top of it for 30 s and the run stopped there; not seen
+     again here (every world, the CPU slowed 4x and 12x). Said at once,
+     with what's on top, should it come again. */
+  const top = await page.evaluate(() => {
+    const e = document.querySelector('[data-testid="end-game"]'), p = document.querySelector('[data-testid="dock-panel"]');
+    if (!e) return { onTop: false, end: false };
+    const r = e.getBoundingClientRect(), at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { onTop: !!at && (at === e || e.contains(at)), at: at ? at.getAttribute("data-testid") || at.tagName : null, open: p ? p.dataset.open : null, opacity: p ? +(+getComputedStyle(p).opacity).toFixed(2) : null, rings: !!document.querySelector('[data-testid="dock-menu"]') };
+  });
+  check("in play: the panel back from the corner, End game on top", reopened && top.onTop, JSON.stringify({ reopened, ...top }));
+  if (!top.onTop) { await page.close(); continue; }
   await page.locator('[data-testid="end-game"]').click();
   await page.waitForTimeout(700);
   check(`after: the one big button, in its words ("${w.newGame}")`, (await has(page, "new-game")) && (await txt(page, "new-game")).toLowerCase() === w.newGame.toLowerCase(), await txt(page, "new-game").catch(() => ""));
