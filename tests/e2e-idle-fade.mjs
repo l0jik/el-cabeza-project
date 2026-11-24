@@ -39,7 +39,7 @@ for (const world of [
   console.log(`[${world.page}, ${world.touch ? "touch" : "mouse"}]`);
   const ctx = await browser.newContext({ viewport: world.view, ...(world.touch ? { isMobile: true, hasTouch: true } : {}) });
   await ctx.addInitScript((den) => {
-    window.__EC_TEST_HOOKS__ = true; window.__EC_IDLE_MS__ = 4000; window.__TIENDA_MUSIC_ONLY__ = "none";
+    window.__EC_TEST_HOOKS__ = true; window.__EC_IDLE_MS__ = 4000; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NO_TOUR__ = true;
     try {
       localStorage.setItem("el-cabeza:singularity-seen", "1");
       localStorage.setItem("el-cabeza:first-game-tour", "done");

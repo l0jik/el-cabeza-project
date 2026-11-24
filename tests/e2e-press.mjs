@@ -41,7 +41,7 @@ for (const world of ["futuris", "ciudad", "lab.html?theme=destijl"]) {
   const page = await browser.newPage({ viewport: { width: 1000, height: 900 } });
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.setItem("el-cabeza:first-game-tour", "done"); } catch (e) { /* none */ } });
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_NO_TOUR__ = true; try { localStorage.setItem("el-cabeza:first-game-tour", "done"); } catch (e) { /* none */ } });
   await page.goto(`file:///home/user/el-cabeza-project/dist/el-cabeza-${world.includes(".html") ? world : `${world}.html`}`);
   await page.waitForTimeout(2500);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);

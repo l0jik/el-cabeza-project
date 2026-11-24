@@ -89,7 +89,7 @@ const seams = (page) => page.evaluate(() => {
 async function visit(label, seed, ready) {
   const ctx = await browser.newContext({ viewport: { width: 1100, height: 760 } });
   await ctx.addInitScript((seed) => {
-    window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none";
+    window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NO_TOUR__ = true;
     try {
       localStorage.setItem("el-cabeza:first-game-tour", "done");
       if (seed) localStorage.setItem("el-cabeza:story", JSON.stringify(seed));

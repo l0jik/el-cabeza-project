@@ -50,7 +50,7 @@ async function store({ toured = true, lang = null } = {}) {
   await ctx.addInitScript(({ toured }) => {
     window.__EC_TEST_HOOKS__ = true;
     window.__TIENDA_MUSIC_ONLY__ = "none";
-    try { if (toured) localStorage.setItem("el-cabeza:first-game-tour", "done"); } catch (e) { /* none */ }
+    try { if (toured) { window.__EC_TEST_NO_TOUR__ = true; localStorage.setItem("el-cabeza:first-game-tour", "done"); } } catch (e) { /* none */ }
   }, { toured });
   const page = await ctx.newPage();
   const errs = [];

@@ -1112,6 +1112,9 @@ export default {
   // (The tour in pictures, coached: Steve B., the store's clerk, his line in a
   // bubble and his few words on the picture, chassis/TourCoach.jsx.)
   "Big Glutts shows you how": "Big Glutts te muestra cómo",
+  "Skip the tour": "Saltear el recorrido",
+  "Keep it, end the tour": "Dejarlo así, terminar el recorrido",
+  "End the tour": "Terminar el recorrido",
   "Hi, I'm Steve!": "¡Hola, soy Steve!",
   "Let me show you how to play the game.": "Te muestro cómo se juega.",
   "your pieces": "tus piezas",

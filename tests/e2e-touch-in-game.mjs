@@ -69,6 +69,8 @@ for (const [name, url, seed, opts = {}] of WORLDS) {
   await ctx.addInitScript((seed) => {
     window.__EC_TEST_HOOKS__ = true;
     window.__TIENDA_MUSIC_ONLY__ = "none";
+    // (Been through the tour: kept out of the way of the game being tested.)
+    if (seed["el-cabeza:first-game-tour"] === "done") window.__EC_TEST_NO_TOUR__ = true;
     try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.clear(); for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, v); } } catch (e) { /* none */ }
   }, seed);
   const page = await ctx.newPage();

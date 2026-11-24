@@ -107,7 +107,7 @@ console.log("\nshopping: the PA, the cart, closing time (user: nothing about ord
   // (The first game's walkthrough done: the PA waits for it to be put away.)
   await ctx.addInitScript(() => {
     window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NUDGE_MS__ = 600000; window.__EC_TEST_PA_MS__ = 7000; window.__EC_TEST_CLOSING_MS__ = 12000; window.__EC_TEST_CLOSING_MIN_MS__ = 2000; // (closing time 12 s after the in-stock words, which go at 10.7 s: in the same place, so a slow tap on them could land on it instead)
-    try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("el-cabeza:first-game-tour", "done"); } } catch (e) { /* none */ }
+    window.__EC_TEST_NO_TOUR__ = true; try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("el-cabeza:first-game-tour", "done"); } } catch (e) { /* none */ }
   });
   const page = await ctx.newPage();
   const errs = [];
@@ -161,7 +161,7 @@ console.log("\nthe PA's cards: swiped away after 3 s, not before");
     // got there. Reproduced with the CPU slowed 6x: the checks before it
     // took the card to 8.7 s up, and sending the swipe took 2.4 s more.)
     window.__EC_TEST_PA_UP_MS__ = 60000;
-    try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("el-cabeza:first-game-tour", "done"); } } catch (e) { /* none */ }
+    window.__EC_TEST_NO_TOUR__ = true; try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("el-cabeza:first-game-tour", "done"); } } catch (e) { /* none */ }
     // When each card came up, and whether it was fading out when it went.
     window.__PA_AT__ = {}; window.__PA_GONE__ = {};
     new MutationObserver((ms) => ms.forEach((m) => {
@@ -232,7 +232,7 @@ async function lastMinutes() {
   await ctx.addInitScript((minute) => {
     window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NUDGE_MS__ = 600000;
     window.__EC_TEST_PA_MS__ = 3000; window.__EC_TEST_CLOSING_MS__ = 4000; window.__EC_TEST_CLOSING_MIN_MS__ = 2000; window.__EC_TEST_CLOSING_MINUTE_MS__ = minute;
-    try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("el-cabeza:first-game-tour", "done"); } } catch (e) { /* none */ }
+    window.__EC_TEST_NO_TOUR__ = true; try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("el-cabeza:first-game-tour", "done"); } } catch (e) { /* none */ }
     // What the PA says, in order, and when each first came.
     window.__PA_SAID__ = [];
     window.__PA_AT__ = {};
@@ -424,6 +424,14 @@ console.log("\nthree moves after the walkthrough: asked to take it to the regist
   await page.waitForTimeout(2000);
   await openDockPanel(page);
   await q(page, "tienda-try-game").click({ force: true });
+  // (The walkthrough again, as every demo game has it; gone through once
+  // now, so it can be skipped. User: "Whenever you click play a demo
+  // game, it should always have the tutorial ... If you ever subsequently
+  // go through the tutorial ... there should be a way to skip the
+  // tutorial.")
+  check("...the walkthrough again, Skip the tour on it this time", !!(await poll(() => has(page, "tour-skip"), 15000)));
+  await q(page, "tour-skip").click();
+  await poll(async () => !(await has(page, "tour-card")), 5000);
   check("...a new game", !!(await poll(() => page.evaluate(() => window.__EC_TEST_ARMED__ === true && (window.__EC_TEST_LOG__ || []).length === 0), 15000)));
   check("...two more moves: not yet", (await playTurn(page)) && (await playTurn(page)) && !(await has(page, "tienda-closing-notice")) && (await shop()).moves === 5, JSON.stringify(await shop()));
   check("...the third: back", (await playTurn(page)) && !!(await poll(() => has(page, "tienda-closing-notice"), 10000)));

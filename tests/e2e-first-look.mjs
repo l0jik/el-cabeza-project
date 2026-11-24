@@ -43,7 +43,7 @@ async function open({ phone = false, bar = false, toured = false } = {}) {
     window.__TIENDA_MUSIC_ONLY__ = "none";
     try {
       if (bar) localStorage.setItem("el-cabeza:nova-layout", "bar");
-      if (toured) localStorage.setItem("el-cabeza:first-game-tour", "done");
+      if (toured) { window.__EC_TEST_NO_TOUR__ = true; localStorage.setItem("el-cabeza:first-game-tour", "done"); }
     } catch (e) { /* none */ }
   }, { bar, toured });
   const page = await ctx.newPage();

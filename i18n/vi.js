@@ -1119,6 +1119,9 @@ export default {
   "Back to the tour": "Quay lại hướng dẫn",
   // (The tour in pictures, coached: Steve B., the store's clerk, his line in a
   // bubble and his few words on the picture, chassis/TourCoach.jsx.)
+  "Skip the tour": "Bỏ qua hướng dẫn",
+  "Keep it, end the tour": "Giữ nguyên, kết thúc hướng dẫn",
+  "End the tour": "Kết thúc hướng dẫn",
   "Big Glutts shows you how": "Big Glutts chỉ bạn cách chơi",
   "Hi, I'm Steve!": "Chào bạn, mình là Steve!",
   "Let me show you how to play the game.": "Để mình chỉ bạn cách chơi nhé.",

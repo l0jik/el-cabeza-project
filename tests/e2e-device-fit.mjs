@@ -22,7 +22,7 @@ const check = (name, ok, detail = "") => { checks++; if (!ok) fails++; console.l
 async function world(name, key) {
   console.log(`\n[${name}]`);
   const ctx = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
-  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_FIT__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; try { localStorage.setItem("el-cabeza:first-game-tour", "done"); } catch (e) {} });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_FIT__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NO_TOUR__ = true; try { localStorage.setItem("el-cabeza:first-game-tour", "done"); } catch (e) {} });
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));

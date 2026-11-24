@@ -776,6 +776,36 @@ box art and an ad standee (assets/tienda/*.jpg).
   __EC_TEST_END_TOUR__ (tests: e2e-first-look, e2e-story). The labels'
   translations gone. Restart story brings it back (above), so a story
   played again walks through again.
+- **The walkthrough on every demo game; skippable after the first time**
+  (2026-11-24; user: "Whenever you click play a demo game, it should
+  always have the tutorial. However, any subsequent, so only the very
+  first time you go through the tutorial, you should not be able to skip
+  it. If you ever subsequently go through the tutorial after hitting play
+  a demo game, there should be a way to skip the tutorial."). Supersedes
+  the two entries below it (no skipping at all; Restart story forgetting
+  it).
+  - Try a Demo Game starts it every time (ElCabeza3D triggerBeginGame no
+    longer asks tourDone). TOUR_KEY now means gone through once (Got it
+    at its end; a skip after that marks it again).
+  - The first time (TOUR_KEY unset): nothing skips it or ends it early,
+    Escape included; the first look (the menu locked but See the pieces
+    and Try a Demo Game) only then (firstLook = tourPending &&
+    !tourDone()).
+  - After (tour.skippable): Skip the tour on the first card and the cards
+    before play (in pictures, the X), Escape there; End the tour on the
+    cards once playing; Keep it, end the tour on the bar's card.
+  - Every game it walks through (tourPending) is the basic game, the lock
+    as before, and starts standard (no Manual set-out).
+  - Restart story keeps TOUR_KEY (not the first time); ?fresh forgets it
+    (a new player). forgetTourDone gone.
+  - Tests about the store's game, not its tour, keep it away with
+    window.__EC_TEST_NO_TOUR__ (with __EC_TEST_HOOKS__; set where they
+    seed TOUR_KEY done: device-fit, first-look, floor-seams, idle-fade,
+    menu-lab, menu-tips, press, rings, store-nudge, touch-in-game).
+    e2e-first-game-tour: a second demo game has Skip the tour, End the
+    tour once playing; after Restart story, the X in pictures and Escape
+    skip it; the first time none of them. e2e-store-nudge skips the
+    second walkthrough; e2e-journey: a restart keeps it gone through.
 - **The store's signs in view again** (2026-11-22; user: "In Tienda /
   store, the maximum vertical zoom / ceiling seems to be lower than
   before.... There is wall signage that can no longer be seen. Is there a

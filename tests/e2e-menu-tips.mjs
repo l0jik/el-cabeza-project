@@ -90,7 +90,7 @@ const tipsOk = (seen) => Object.entries(seen).filter(([, x]) => !x || !x.main ||
 
 async function world({ page: name, query = "", opening = null }) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; try { localStorage.setItem("el-cabeza:first-game-tour", "done"); localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ } });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NO_TOUR__ = true; try { localStorage.setItem("el-cabeza:first-game-tour", "done"); localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ } });
   const page = await ctx.newPage();
   page.setDefaultTimeout(30000);
   const errs = [];
@@ -218,7 +218,7 @@ async function hold(page, cdp, at, ms) {
 const lift = (cdp) => cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
 async function store(lang = null) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
-  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; try { localStorage.setItem("el-cabeza:first-game-tour", "done"); } catch (e) { /* none */ } });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NO_TOUR__ = true; try { localStorage.setItem("el-cabeza:first-game-tour", "done"); } catch (e) { /* none */ } });
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));

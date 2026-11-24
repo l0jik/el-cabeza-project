@@ -2,7 +2,6 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import ReactDOM from "react-dom/client";
 import { languageReady, useLanguage, t } from "../chassis/i18n.js";
 import ElCabeza3D from "../chassis/ElCabeza3D.jsx";
-import { forgetTourDone } from "../chassis/FirstGameTour.jsx";
 import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js";
 import * as standardTheme from "../themes/standard.js";
 import * as futurisTheme from "../themes/futuris.js";
@@ -63,8 +62,6 @@ const FRESH = (() => {
     forgetStoryEnd();
     forgetSingularity();
     forgetRealitiesVisit();
-    // (The store's demonstration walked through again.)
-    forgetTourDone();
     url.searchParams.delete("restart");
     window.history.replaceState(null, "", url.pathname + url.search + url.hash);
   } catch (e) { /* no URL or storage: nothing to clear */ }
@@ -858,9 +855,6 @@ function UnifiedApp() {
     // (And the switcher's way back: the store's the story's again, no
     // Standard / Cabeza Nova card over its box.)
     forgetRealitiesVisit();
-    // (And the store's demonstration walked through again, user: "The
-    // tutorial now seems to be missing on a fresh playthrough".)
-    forgetTourDone();
     startCut({ kind: "fade", caption: "Once more, from the top\u2026 shelf.", to: "tienda", fresh: true, linger: 750 });
   };
   // The realities menu's Restart story (it has already asked).

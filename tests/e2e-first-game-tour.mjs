@@ -40,10 +40,12 @@
    it away (the piece's card again), Open it opens it; Got it, the menu put
    away, the camera back, kept as done: Try a Demo Game again brings no tour. On
    a desktop: the card at the left, a mouse's words and a mouse's way round
-   for the board; no skipping it or ending it early (no Skip the tour, End
-   the tour or Escape; user: "Just completely remove the skip the tutorial
-   button."); the menu's cards in a mouse's words, the card beside the
-   open menu. Zoomed in closer than the tour's look at a
+   for the board; the first time through, no skipping it or ending it
+   early (no Skip the tour, End the tour or Escape); every demo game has it,
+   and once it's been gone through it can be skipped (user: "only the very
+   first time you go through the tutorial, you should not be able to skip
+   it"); the menu's cards in a mouse's words, the card beside the open
+   menu. Zoomed in closer than the tour's look at a
    piece, a piece picked: as close still (in, never out). With reduced
    motion, the arrow's head steps from end to end of the row (no glide),
    and the menu card's lines and the rings round its buttons still take
@@ -657,14 +659,25 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   check("...its marks off the board, and the camera back where it was", (await rings(page)).length === 0 && !!saved && Math.abs(cam.phi - saved.phi) < 0.02 && Math.abs(cam.radius - saved.radius) < 0.5, JSON.stringify({ saved, cam }));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
 
-  // Another game: no tour.
+  /* Another demo game: the tour again, every time (user: "Whenever you
+     click play a demo game, it should always have the tutorial"); gone
+     through once now, so it can be skipped ("If you ever subsequently go
+     through the tutorial after hitting play a demo game, there should be
+     a way to skip the tutorial"): on the cards before play Skip the tour,
+     and once playing, End the tour. */
   await page.evaluate(() => window.__EC_TEST_NEW_GAME__ && window.__EC_TEST_NEW_GAME__());
   await page.waitForTimeout(2000);
   if (await page.evaluate(() => window.__EC_TEST_ARMED__ === true)) {
     check("(a new game set up)", false, "still armed");
   } else {
     await begin(page);
-    check("a game after it: no tour", (await card(page).count()) === 0 && (await tourOf(page)).step === null);
+    check("a demo game after it: the tour again, and this time Skip the tour on it", (await card(page).count()) === 1 && (await tourOf(page)).step === "welcome" && (await page.locator('[data-testid="tour-skip"]').count()) === 1, String((await tourOf(page)).step));
+    for (let i = 0; i < 8 && (await tourOf(page)).step !== "pieces"; i++) { await page.locator('[data-testid="tour-next"]').click(); await page.waitForTimeout(900); }
+    await page.waitForTimeout(1500);
+    check("...your move in it: End the tour on its card", (await tourOf(page)).step === "pieces" && (await page.locator('[data-testid="tour-end"]').count()) === 1, String((await tourOf(page)).step));
+    await page.locator('[data-testid="tour-end"]').click();
+    await page.waitForTimeout(800);
+    check("...End the tour: over, the game going on", (await card(page).count()) === 0 && (await tourOf(page)).step === null);
   }
   await ctx.close();
 }
@@ -797,7 +810,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await ctx.close();
 }
 {
-  console.log("\n[desktop: Escape does nothing; Restart story brings it back]");
+  console.log("\n[desktop: Escape does nothing the first time; after Restart story, skippable]");
   const { ctx, page } = await open(false);
   await begin(page);
   check("Try a Demo Game: the welcome card", (await tourOf(page)).step === "welcome");
@@ -824,18 +837,26 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await page.evaluate(() => window.__EC_TEST_END_TOUR__());
   await page.waitForTimeout(500);
   check("(ended by the tests' hook, kept as done)", (await card(page).count()) === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
-  /* The story over from the top brings it back (user: "The tutorial now
-     seems to be missing on a fresh playthrough": Restart story kept it
-     done). Another page's Restart story (?restart=story), as the
-     switcher's own: the store again, Try a Demo Game, the tour. */
+  /* The story over from the top (user: "The tutorial now seems to be
+     missing on a fresh playthrough"): Try a Demo Game has the tour as
+     always, and, gone through before, it can be skipped (user: "only the
+     very first time you go through the tutorial, you should not be able
+     to skip it"). Another page's Restart story (?restart=story), as the
+     switcher's own; in pictures, its X; Escape skips it too now. */
   await page.goto(`${NOVA}?restart=story`);
   await page.waitForSelector('[data-testid="tienda-open-box"]', { timeout: 60000 });
-  check("Restart story: the tour no longer kept as done", (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === null);
+  check("Restart story: still kept as gone through", (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
   await page.waitForTimeout(1500);
   await page.locator('[data-testid="tienda-open-box"]').click();
   await page.waitForTimeout(3500);
   await begin(page, { choose: null });
-  check("...and Try a Demo Game: the tour again, its first card", (await card(page).count()) === 1 && ["choose", "welcome"].includes((await tourOf(page)).step), String((await tourOf(page)).step));
+  check("...and Try a Demo Game: the tour again, its first card, Skip the tour on it", (await card(page).count()) === 1 && (await tourOf(page)).step === "choose" && (await page.locator('[data-testid="tour-skip"]').count()) === 1, String((await tourOf(page)).step));
+  await page.locator('[data-testid="tour-choose-pictures"]').click();
+  await page.waitForTimeout(900);
+  check("...in pictures, its X", (await tourOf(page)).step === "welcome" && (await page.locator('[data-testid="tour-skip"]').getAttribute("aria-label")) === "Skip the tour");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(600);
+  check("...and Escape skips it this time", (await card(page).count()) === 0 && (await tourOf(page)).step === null);
   await ctx.close();
 }
 

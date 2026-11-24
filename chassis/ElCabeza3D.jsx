@@ -3708,11 +3708,19 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
      need to create a first-time player walkthrough tutorial"): offered by
      a world (theme.firstGameTour: its words, or a function of the setup
      extras giving them or nothing; the store's, before the game's
-     bought), for a new player's first game against the computer, once
-     (TOUR_KEY). tourStep: null; a card over the board, "welcome", "turn"
-     or "board" (the computer waits while one's up); "pieces", your first
-     turn, each piece you pick told and framed; "foe", the turn after. */
-  const tourOffer = theme.firstGameTour ? (typeof theme.firstGameTour === "function" ? theme.firstGameTour(setupExtras || {}) : theme.firstGameTour) : null;
+     bought), every game against the computer it's offered for (user:
+     "Whenever you click play a demo game, it should always have the
+     tutorial"); TOUR_KEY says it's been gone through once, after which it
+     can be skipped (user: "only the very first time you go through the
+     tutorial, you should not be able to skip it. If you ever subsequently
+     go through the tutorial after hitting play a demo game, there should
+     be a way to skip the tutorial"). tourStep: null; a card over the
+     board, "welcome", "turn" or "board" (the computer waits while one's
+     up); "pieces", your first turn, each piece you pick told and framed;
+     "foe", the turn after. (Tests about the store's game, not its tour,
+     keep it away: __EC_TEST_NO_TOUR__.) */
+  const noTourForTests = typeof window !== "undefined" && !!window.__EC_TEST_HOOKS__ && !!window.__EC_TEST_NO_TOUR__;
+  const tourOffer = theme.firstGameTour && !noTourForTests ? (typeof theme.firstGameTour === "function" ? theme.firstGameTour(setupExtras || {}) : theme.firstGameTour) : null;
   const tourOfferRef = useRef(null);
   tourOfferRef.current = tourOffer;
   const [tourStep, setTourStep] = useState(null);
@@ -3738,7 +3746,10 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
      that game's begun and the walkthrough's over or skipped. A world's
      own setup row hears it as firstLook (tienda.js: the cart), and so
      does the phone's bar. */
-  const firstLook = awaitingBegin && !!tourOffer && !!aiPlayer && !online && !replay && !tourDone();
+  // (A game the tour will walk through, waiting on Begin; the first look
+  // only till the tour's been gone through once.)
+  const tourPending = awaitingBegin && !!tourOffer && !!aiPlayer && !online && !replay;
+  const firstLook = tourPending && !tourDone();
   /* That game is the basic game, whatever was set before it (user: "Steve
      should only be giving instructions in the tutorial about how to play
      the basic game. There should be no introduction of anything other
@@ -3748,8 +3759,9 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
      opening, put back should anything else have come with the page (a
      replay's rules, a test's, a board left resized); and Begin sets
      nothing out by hand (startsByHand), a Manual start kept from another
-     game or not. */
-  const startsByHand = startByHand && !firstLook;
+     game or not. Every game the tour walks through (tourPending), the
+     first and the ones after. */
+  const startsByHand = startByHand && !tourPending;
   const isBasicGame = () => {
     const { rows, cols } = getBoardDimensions();
     if (rows !== 10 || cols !== 10 || BLACK_HOLES.length || MISSING_SQUARES.length) return false;
@@ -3758,7 +3770,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     return key(pieces) === key(createInitialPieces());
   };
   useEffect(() => {
-    if (!firstLook || setOutRef.current || isBasicGame()) return;
+    if (!tourPending || setOutRef.current || isBasicGame()) return;
     setActiveLaws({ ...VANILLA_LAWS });
     setActiveBlackHoles([]);
     setBlackHoles([]);
@@ -3768,7 +3780,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     applyBoardResize(10, 10);
     setPieces(createInitialPieces());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firstLook, pieces]);
+  }, [tourPending, pieces]);
   const firstLock = firstLook ? { "data-first-lock": "" } : null;
   const firstLockIcon = firstLook ? { "data-first-lock": "icon" } : null;
   /* The corner menu (chassis/CornerMenu.jsx): while a game is being
@@ -4280,7 +4292,7 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     setGameArmed(true);
     // A new player's first game against the computer, where the world
     // offers it: walked through (tourStep).
-    if (tourOfferRef.current && !tourDone() && aiPlayer && !onlineRef.current && !replaying && !log.length) {
+    if (tourOfferRef.current && aiPlayer && !onlineRef.current && !replaying && !log.length) {
       tourSawMineRef.current = false;
       tourFoeBeforeRef.current = null;
       tourCamRef.current = null;
@@ -13041,6 +13053,9 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
             // (Over with the menu open: it's put away too. Over from the
             // bar's card: the bar kept, as if chosen.)
             finish: () => { if (tourStep === TOUR_BAR && layoutSwitch) layoutSwitch("bar"); if (ringsRef.current) ringsRef.current.close(); if (dockView === "panel") setDockView("corner"); endTour(); },
+            // (Skippable once it's been gone through: the first time, no.)
+            skippable: tourDone(),
+            skip: () => { if (tourStep === TOUR_BAR && layoutSwitch) layoutSwitch("bar"); if (ringsRef.current) ringsRef.current.close(); if (dockView === "panel") setDockView("corner"); endTour(); },
           }}
         />
       )}
