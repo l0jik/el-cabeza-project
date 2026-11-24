@@ -28,6 +28,8 @@ import React from "react";
 import { createElement } from "../chassis/i18n-jsx/jsx-runtime.js";
 import * as THREE from "three";
 import { quality } from "./tienda-quality.js";
+import { SLAB_X, SLAB_Z, SLAB_THICKNESS } from "../engine/constants.js";
+import { FLOOR as STORE_FLOOR } from "./tienda-store.js";
 import { createWoodSet, paintWood as setPaintWood, WOODS as SET_WOODS, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from "./wood-set.js";
 import { createAudio as createStoreAudio } from "./tienda-audio.js";
 
@@ -140,7 +142,18 @@ export const ownsPixelRatio = true;
 // (lift: two fingers drawn down raise the view up the walls to the signs,
 // as a mouse's right-drag does; the chassis's two-finger pull. User: "There
 // is wall signage that can no longer be seen".)
-export const freeCamera = { zoomMin: 4.5, zoomMax: 82, reach: 60, yMin: -14, yMax: 30, lift: true, dollhouse: { radius: 82, phi: 0.6 } };
+// (solids: the display table under the board, tienda-store.js buildTable,
+// the slab and 15 across, 5 deep, its top just under the board's, down
+// to the floor: the camera stops short of it, of the board and of the
+// pieces, and over it the view never sinks below its top. User: "you
+// can't zoom in through the board, through the pieces. That's ridiculous
+// ... Maybe we need to just be like right up on top of a piece, but not
+// beyond"; chose "Stop at whatever's in front" and "Keep the view above
+// the tabletop". The chassis's applyCamera solidOut.)
+export const freeCamera = {
+  zoomMin: 4.5, zoomMax: 82, reach: 60, yMin: -14, yMax: 30, lift: true, dollhouse: { radius: 82, phi: 0.6 },
+  solids: () => [{ x: [-(SLAB_X + 15) / 2, (SLAB_X + 15) / 2], y: [STORE_FLOOR, -SLAB_THICKNESS], z: [-(SLAB_Z + 5) / 2, (SLAB_Z + 5) / 2] }],
+};
 /* The view tilts lower here than the board's worlds (1.25 rad, about 72
    degrees from straight down, held there for Futuris's see-through
    pieces, which show a dark band at grazing angles): to about 79, the

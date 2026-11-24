@@ -526,3 +526,48 @@ question, the check alert, the tour or the result is showing (KEEP_UP),
 and through a story scene (which hides the controls its own way); then it
 looks again four seconds on. A mouse moving counts as a touch.
 tests/e2e-idle-fade.mjs.
+
+## Solid to the camera: the store's and the den's pieces, board and table (2026-11-24)
+
+User, with a video of the store's tour (a pinch in: into the light pieces,
+through the board, under the table to the store's floor): "The zoom in is
+too extreme here ... you can't zoom in through the board, through the
+pieces. That's ridiculous ... I like being able to zoom in a lot, but this
+is too much. Maybe we need to just be like right up on top of a piece, but
+not beyond." Of four ways offered: "A + C for zoom, den too".
+
+The cause: a room to look round (theme.freeCamera) lets a pinch come to
+zoomMin 4.5 (the board worlds 9) and the two-finger lift (`lift`) move the
+view's target down to yMin (the store -14, the den -8), so the pinch's
+fingers drifting up the screen sank the view under the board and the
+camera, 4.5 off it, went in after it.
+
+- A, stop at whatever's in front: theme.freeCamera.solids() (the table
+  under the board, in the board's frame: tienda.js the display table,
+  standard.js the den's coffee table, each down to its floor) with the
+  board's slab and each piece as drawn (boxes in the board's frame from
+  their visible meshes, decals and soft shadows left out; only within
+  SOLID_NEAR 18 of the target). applyCamera's solidOut: along the view's
+  line from the target out, the camera kept outside every box grown by
+  SOLID_CLEAR 1.4 (the near plane is a unit ahead of it, and cut what was
+  nearer); out at once, back in eased (a fifth of the way a frame) as the
+  view turns away. Render only: the goal's radius is left as asked, and
+  solidLimitRef (the pushed distance) is where a pinch or the wheel starts
+  (zoomBase), so zooming back out answers at once.
+- C, the view above the tabletop: a hand's move of the view (panBy: the
+  two-finger pull and lift, a mouse's right-drag) never brings it below
+  the board's top over the board, the table's over the rest of it
+  (tableFloorAt); a view the world set lower may be raised by a hand, not
+  sunk further; off the table as low as yMin still (the store's low
+  shelves, the den's pit). Not in the frame's clamp, for every view: it
+  was first, and it moved the store's opening shot (from 66 off it looks
+  at a point 2.87 inside the table, tienda-fx OPENING_VIEW), so the slow
+  pan, which turns from that framing, never started (e2e-store-pan).
+- Measured (scratch zoom-check.mjs, a 412 phone): right over a piece at
+  radius 2 looking down, the camera held 3.2 off (1.4 above the piece);
+  a view set 14 under the board, the camera still above it; low in an
+  aisle or the pit, left be; 40 random close views over the board in
+  each, the camera nowhere in a piece, 1.59 at nearest, never under 2.35
+  above the board. Every other world as it was (no solids).
+  tests/e2e-zoom-pan.mjs 8: the pinch of the video (fingers spreading as
+  they drift up) and those views, in the store and the den.

@@ -176,6 +176,20 @@ function mastheadClamp(floorPx, vw, ceilingPx, scale) {
   return `clamp(${floorPx * s}px, ${vw * s}vw, ${ceilingPx * s}px)`;
 }
 
+/* How low the view may be brought by a hand at `target` (world) with the
+   board turned by -theta, in a room with a table under the board
+   (freeCamera.solids, in the board's frame): the board's top over the
+   board, the table's over the rest of it; -Infinity off them, or with no
+   table. (panBy: user, "Keep the view above the tabletop".) */
+function tableFloorAt(fc, target, theta) {
+  if (!fc || typeof fc.solids !== "function") return -Infinity;
+  const c = Math.cos(theta), sn = Math.sin(theta);
+  const lx = target.x * c + target.z * sn, lz = -target.x * sn + target.z * c;
+  let floor = Math.abs(lx) <= SLAB_X / 2 && Math.abs(lz) <= SLAB_Z / 2 ? 0 : -Infinity;
+  for (const b of fc.solids()) if (lx >= b.x[0] && lx <= b.x[1] && lz >= b.z[0] && lz <= b.z[1]) floor = Math.max(floor, b.y[1]);
+  return floor;
+}
+
 /* The middle of what's drawn of a model, its invisible hit shapes left
    out: its parts as they'll stand in the group they're about to join
    (none has a parent yet, so each one's own matrix is that). The dock
@@ -3004,7 +3018,12 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
      a pinch or the wheel starts from there, so zooming out past a wall
      and back in doesn't have to wind back a distance you never saw. */
   const roomLimitRef = useRef(Infinity);
-  const zoomBase = () => Math.min(cam.current.radius, roomLimitRef.current);
+  /* And how near what's solid lets it come (theme.freeCamera.solids:
+     applyCamera's solidOut), 0 where nothing's in the way: a pinch or the
+     wheel starts from there too, so zooming back out from a piece the
+     camera's stopped at answers at once. */
+  const solidLimitRef = useRef(0);
+  const zoomBase = () => Math.max(Math.min(cam.current.radius, roomLimitRef.current), solidLimitRef.current);
   const [isFullscreen, setIsFullscreen] = useState(() => !!document.fullscreenElement);
   useEffect(() => {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -7092,6 +7111,71 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       return Math.max(0.5, Math.min(radius, roomExit(theta, phi, target)));
     }
     three.current.cameraDistance = cameraDistance;
+    /* What's solid to the camera in a room to look round (the store, the
+       den: theme.freeCamera.solids, the table under the board, in the
+       board's frame; user, of the store: "you can't zoom in through the
+       board, through the pieces. That's ridiculous ... I like being able
+       to zoom in a lot, but this is too much. Maybe we need to just be
+       like right up on top of a piece, but not beyond"; chose "Stop at
+       whatever's in front", in the den too): the pieces, the board's slab
+       and the table. Coming in along the view's line the camera stops
+       SOLID_CLEAR off the first it meets (the near plane, a unit ahead,
+       cut what was nearer), and comes back in as the view turns away.
+       The pieces only looked at near them (SOLID_NEAR). */
+    const SOLID_CLEAR = 1.4, SOLID_NEAR = 18;
+    const solidInv = new THREE.Matrix4(), solidM = new THREE.Matrix4(), solidPart = new THREE.Box3(), solidBox = new THREE.Box3();
+    function solidBoxes(withPieces) {
+      const list = [[-SLAB_X / 2, SLAB_X / 2, -SLAB_THICKNESS, 0, -SLAB_Z / 2, SLAB_Z / 2]];
+      theme.freeCamera.solids().forEach((b) => list.push([b.x[0], b.x[1], b.y[0], b.y[1], b.z[0], b.z[1]]));
+      if (!withPieces) return list;
+      // (Each piece as it stands on the board, in the board's frame: what's
+      // drawn of it, its decals and soft shadows left out.)
+      solidInv.copy(boardGroup.matrixWorld).invert();
+      for (const o of pieceGroup.children) {
+        if (!o.visible || o.userData.pieceId == null) continue;
+        solidBox.makeEmpty();
+        o.traverseVisible((m) => {
+          if (!m.geometry) return;
+          const mats = Array.isArray(m.material) ? m.material : [m.material];
+          if (!mats.some((x) => x && x.visible !== false && x.colorWrite !== false && !(x.transparent && x.depthWrite === false))) return;
+          if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+          if (m.geometry.boundingBox.isEmpty()) return;
+          solidM.multiplyMatrices(solidInv, m.matrixWorld);
+          solidBox.union(solidPart.copy(m.geometry.boundingBox).applyMatrix4(solidM));
+        });
+        if (!solidBox.isEmpty()) list.push([solidBox.min.x, solidBox.max.x, solidBox.min.y, solidBox.max.y, solidBox.min.z, solidBox.max.z]);
+      }
+      return list;
+    }
+    // How far out along the view's line the camera must be, at least `r`,
+    // to stand clear of all of it (the board turned by -theta: as roomExit).
+    function solidOut(theta, phi, target, r) {
+      const c = Math.cos(theta), sn = Math.sin(theta);
+      const a = [target.x * c + target.z * sn, target.y, -target.x * sn + target.z * c];
+      const u = [Math.sin(phi) * sn, Math.cos(phi), Math.sin(phi) * c];
+      const boxes = solidBoxes(r < SOLID_NEAR);
+      let out = r;
+      for (let pass = 0; pass < 8; pass++) {
+        let moved = false;
+        for (const b of boxes) {
+          let t0 = -Infinity, t1 = Infinity;
+          for (let i = 0; i < 3 && t0 < t1; i++) {
+            const lo = b[2 * i] - SOLID_CLEAR, hi = b[2 * i + 1] + SOLID_CLEAR;
+            if (Math.abs(u[i]) < 1e-9) { if (a[i] < lo || a[i] > hi) t0 = Infinity; continue; }
+            const p = (lo - a[i]) / u[i], q = (hi - a[i]) / u[i];
+            t0 = Math.max(t0, Math.min(p, q));
+            t1 = Math.min(t1, Math.max(p, q));
+          }
+          if (t0 < t1 && out > t0 && out < t1) { out = t1; moved = true; }
+        }
+        if (!moved) break;
+      }
+      return out;
+    }
+    // (Tests: what's solid to the camera, boxes in the board's frame.)
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_SOLIDS__ = () => (theme.freeCamera && typeof theme.freeCamera.solids === "function" ? solidBoxes(true) : []);
+    // (Pushed out at once; let back in over a few frames, not in a jump.)
+    let solidLast = 0;
     function applyCamera() {
       const { phi, radius, target, theta } = cam.current.view;
       const room = theme.freeCamera && theme.freeCamera.room;
@@ -7121,6 +7205,18 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
         const dh = theme.freeCamera && theme.freeCamera.dollhouse;
         const near = dh ? 0.75 * dh.radius : Infinity;
         if (cam.current.dollhouse && cam.current.radius < near && radius < near) cam.current.dollhouse = false;
+      }
+      if (theme.freeCamera && typeof theme.freeCamera.solids === "function" && !cam.current.dollhouse) {
+        const out = solidOut(theta, phi, target, r);
+        const held = out > r + 1e-6 ? out : 0;
+        // (Out at once; back in eased, should something have just let go.)
+        if (held >= solidLast || !solidLast) solidLast = held;
+        else solidLast = Math.max(r, solidLast + (held - solidLast) * 0.2);
+        if (solidLast <= r + 1e-3) solidLast = 0;
+        if (solidLast) r = solidLast;
+        solidLimitRef.current = solidLast;
+      } else {
+        solidLimitRef.current = 0;
       }
       camera.position.set(target.x, target.y + r * Math.cos(phi), target.z + r * Math.sin(phi));
       camera.lookAt(target);
@@ -9827,9 +9923,16 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
       const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
 
-      cam.current.target
-        .addScaledVector(right, -dxPx * scale)
-        .addScaledVector(up, dyPx * scale);
+      const tg = cam.current.target, y0 = tg.y, f0 = tableFloorAt(theme.freeCamera, tg, cam.current.theta);
+      tg.addScaledVector(right, -dxPx * scale).addScaledVector(up, dyPx * scale);
+      /* Over the table a hand never sinks the view below it (user, of the
+         store: the zoom went "through the board, through the pieces";
+         chose "Keep the view above the tabletop", in the den too): held at
+         its top. A view set lower by the world itself (the store's opening
+         shot looks from far off at a point inside the table) may be raised
+         by a hand, not sunk further. Off the table, as low as ever. */
+      const f = tableFloorAt(theme.freeCamera, tg, cam.current.theta);
+      if (tg.y < f) tg.y = f0 > -Infinity && y0 < f0 ? Math.max(tg.y, y0) : f;
     }
 
     function onDown(ev) {

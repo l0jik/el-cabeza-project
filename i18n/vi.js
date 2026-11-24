@@ -1147,7 +1147,7 @@ export default {
   "a disc can't crush": "đĩa không đè bẹp được",
   "up to {n} rolls": "tối đa {n} lần lăn",
   "the big one rolls once": "khối lớn chỉ lăn một lần",
-  "hold it to end early": "giữ nó để kết thúc sớm",
+  "hold to skip your 2nd roll": "giữ để bỏ lần lăn thứ 2",
   "You go first, then the computer.": "Bạn đi trước, rồi tới máy.",
   "The computer goes first, then you.": "Máy đi trước, rồi tới bạn.",
   "Pick a block. Roll it once or twice.": "Chọn một khối. Lăn nó một hoặc hai lần.",

@@ -300,6 +300,128 @@ console.log("\nA computer's wheel and touchpad pinch, as a phone's pinch");
   await lctx.close();
 }
 
+/* 8. The store and the den: nothing solid zoomed into (user, a video of
+   the store's tour, a pinch in: into the light pieces, through the board,
+   under the table to the floor: "you can't zoom in through the board,
+   through the pieces. That's ridiculous ... Maybe we need to just be like
+   right up on top of a piece, but not beyond"; chose "Stop at whatever's
+   in front" and "Keep the view above the tabletop", "den too"). The
+   pinch of the video (fingers spreading as they drift up the screen,
+   which sank the view): the camera never in a piece nor under the
+   board's top, the view kept on it (a hand can't sink it below the
+   board). Right over a piece: stopped 1.4 off it. A view set inside the
+   table: the camera out of it. Off the table: as low as ever. */
+const camCheck = (page) => page.evaluate(() => {
+  const t = window.__EC_TEST_THREE__(), c = window.__EC_TEST_CAM__(), V = t.camera.position.constructor;
+  t.boardGroup.updateMatrixWorld(true);
+  const p = t.boardGroup.worldToLocal(t.camera.position.clone()), inv = t.boardGroup.matrixWorld.clone().invert();
+  let inPiece = null, nearest = Infinity;
+  for (const o of t.pieceGroup.children) {
+    if (!o.visible || o.userData.pieceId == null) continue;
+    const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+    o.traverseVisible((m) => {
+      if (!m.geometry) return;
+      const mats = Array.isArray(m.material) ? m.material : [m.material];
+      if (!mats.some((x) => x && x.visible !== false && x.colorWrite !== false && !(x.transparent && x.depthWrite === false))) return;
+      if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+      const bb = m.geometry.boundingBox, M = inv.clone().multiply(m.matrixWorld);
+      for (const x of [bb.min.x, bb.max.x]) for (const y of [bb.min.y, bb.max.y]) for (const z of [bb.min.z, bb.max.z]) {
+        const q = new V(x, y, z).applyMatrix4(M);
+        mn[0] = Math.min(mn[0], q.x); mn[1] = Math.min(mn[1], q.y); mn[2] = Math.min(mn[2], q.z); mx[0] = Math.max(mx[0], q.x); mx[1] = Math.max(mx[1], q.y); mx[2] = Math.max(mx[2], q.z);
+      }
+    });
+    if (mn[0] === Infinity) continue;
+    const d = Math.hypot(Math.max(mn[0] - p.x, 0, p.x - mx[0]), Math.max(mn[1] - p.y, 0, p.y - mx[1]), Math.max(mn[2] - p.z, 0, p.z - mx[2]));
+    if (d === 0) inPiece = o.userData.pieceId;
+    nearest = Math.min(nearest, d);
+  }
+  // (In anything solid: the chassis's own boxes, the board, the table and the pieces.)
+  const inSolid = (window.__EC_TEST_SOLIDS__ ? window.__EC_TEST_SOLIDS__() : []).some((b) => p.x > b[0] && p.x < b[1] && p.y > b[2] && p.y < b[3] && p.z > b[4] && p.z < b[5]);
+  return { inPiece, inSolid, nearest: +nearest.toFixed(2), camY: +p.y.toFixed(2), targetY: +c.target[1].toFixed(2), dist: +t.camera.position.distanceTo(new V(...c.view.target)).toFixed(2) };
+});
+// A light piece's middle, in the world, on the board.
+const pieceMid = (page) => page.evaluate(() => {
+  const t = window.__EC_TEST_THREE__(), V = t.camera.position.constructor, p = window.__EC_TEST_PIECES__.find((q) => q.owner === "light" && q.type === "opa") || window.__EC_TEST_PIECES__.find((q) => q.owner === "light");
+  const s = new V(); let n = 0;
+  t.pieceGroup.children.filter((o) => o.userData.pieceId === p.id).forEach((o) => { const w = new V(); o.getWorldPosition(w); s.add(w); n++; });
+  return [s.x / n, 0, s.z / n];
+});
+async function solidsHold(page, name) {
+  const mid = await pieceMid(page);
+  await page.evaluate((m) => window.__EC_TEST_CAM__({ target: m, radius: 2, phi: 0.15, dollhouse: false, snap: true }), mid);
+  await page.waitForTimeout(1500);
+  const over = await camCheck(page);
+  check(`${name}: right over a piece, asked 2 off: stopped clear of it (${over.dist} off the view's aim, ${over.nearest} from the piece)`, !over.inPiece && !over.inSolid && over.nearest >= 1.3 && over.dist > 2.5, JSON.stringify(over));
+  await page.evaluate((m) => window.__EC_TEST_CAM__({ target: [m[0], -14, m[2]], radius: 4.5, phi: 1.0, dollhouse: false, snap: true }), mid);
+  await page.waitForTimeout(1500);
+  const sunk = await camCheck(page);
+  // (Set there, not brought by a hand, which can't, as the pinch above:
+  // the camera still out of the table, the board and the pieces, stopped
+  // where its line leaves them: over the den's broad table, out of the
+  // store's display table's side.)
+  check(`${name}: a view set 14 under the board, inside the table: the camera out of it, in nothing solid (${sunk.dist} off, at ${sunk.camY})`, !sunk.inSolid && !sunk.inPiece && sunk.dist > 4.6, JSON.stringify(sunk));
+  await page.evaluate(() => window.__EC_TEST_CAM__({ target: [42, -7, 0], radius: 8, phi: 1.0, dollhouse: false, snap: true }));
+  await page.waitForTimeout(1500);
+  const off = await camCheck(page);
+  check(`${name}: off the table, as low as ever (the view at ${off.targetY})`, off.targetY === -7, JSON.stringify(off));
+}
+{
+  console.log("\n[the store and the den: the camera stops at the pieces, the board and the table]");
+  const sctx = await browser.newContext({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  await sctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NUDGE_MS__ = 600000; window.__EC_TEST_PA_MS__ = 600000; });
+  const sp = await sctx.newPage();
+  const serrs = [];
+  sp.on("pageerror", (e) => serrs.push(e.message));
+  await sp.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-tienda.html");
+  await sp.waitForSelector('[data-testid="tienda-open-box"]', { timeout: 60000 });
+  await sp.waitForTimeout(1500);
+  await sp.locator('[data-testid="tienda-open-box"]').click();
+  await sp.waitForTimeout(3500);
+  await openDockPanel(sp);
+  await sp.waitForTimeout(600);
+  await sp.locator('button:text-matches("Begin Game|Try a Demo Game")').first().click({ force: true });
+  await poll(() => sp.evaluate(() => window.__EC_TEST_ARMED__ === true), 15000);
+  await sp.waitForTimeout(2500);
+  if (await sp.evaluate(() => !!window.__EC_TEST_END_TOUR__)) await sp.evaluate(() => window.__EC_TEST_END_TOUR__());
+  await sp.waitForTimeout(800);
+  const scdp = await sctx.newCDPSession(sp);
+  // The video's pinch: fingers spreading over the board as they drift up.
+  const mid = await pieceMid(sp);
+  await sp.evaluate((m) => window.__EC_TEST_CAM__({ theta: 0.4, phi: 1.15, radius: 14, target: m, dollhouse: false, snap: true }), mid);
+  await sp.waitForTimeout(800);
+  const looks = [];
+  await scdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: two(176, 600, 236, 600) });
+  await sp.waitForTimeout(30);
+  for (let i = 1; i <= 24; i++) {
+    const w = 30 + i * 7, y = 600 - i * 14;
+    await scdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: two(206 - w, y, 206 + w, y) });
+    await sp.waitForTimeout(60);
+    if (i % 3 === 0) looks.push(await camCheck(sp));
+  }
+  await scdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await sp.waitForTimeout(1500);
+  looks.push(await camCheck(sp));
+  const worst = looks.reduce((a, b) => (b.camY < a.camY ? b : a));
+  check(`the pinch of the video (spreading, drifting up): never in a piece nor under the board (lowest ${worst.camY}, nearest a piece ${Math.min(...looks.map((l) => l.nearest))}), the view on the board (${looks[looks.length - 1].targetY})`, looks.every((l) => !l.inPiece && !l.inSolid && l.camY > 1 && l.targetY >= -0.001), JSON.stringify(looks));
+  await solidsHold(sp, "the store");
+  check(`no page errors (${serrs.length})`, serrs.length === 0, serrs.slice(0, 3).join(" | "));
+  await sctx.close();
+  const dctx = await browser.newContext({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  await dctx.addInitScript(() => {
+    window.__EC_TEST_HOOKS__ = true;
+    try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true })); } } catch (e) { /* none */ }
+  });
+  const dp = await dctx.newPage();
+  const derrs = [];
+  dp.on("pageerror", (e) => derrs.push(e.message));
+  await dp.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html");
+  await poll(() => dp.evaluate(() => !!window.__DEN_TV__), 30000);
+  await dp.waitForTimeout(2500);
+  await solidsHold(dp, "the den");
+  check(`no page errors (${derrs.length})`, derrs.length === 0, derrs.slice(0, 3).join(" | "));
+  await dctx.close();
+}
+
 await browser.close();
 console.log(failures ? `\n${failures} failure(s)` : "\nall passed");
 process.exit(failures ? 1 : 0);

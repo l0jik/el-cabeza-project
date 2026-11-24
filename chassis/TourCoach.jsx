@@ -289,8 +289,9 @@ function coachSays(t) {
       // (User: "instead of done early? have him say, don't want to move your
       // piece twice? You don't have to!"; and only the hold, as the game is
       // played: "you can press and hold to end your turn ... there's no check
-      // mark".)
-      parts.push({ focus: [228, 50, 90, 88], mood: "grin", line: "Don't want to move your piece twice? You don't have to! Press and hold it to end your turn.", notes: [note([230, 50, 88, 36], YOURS, "hold it to end early", { v: "bottom" })] });
+      // mark". Its note, of ten offered, user: "4 for the wording": "hold to
+      // skip your 2nd roll", once "hold it to end early".)
+      parts.push({ focus: [228, 50, 90, 88], mood: "grin", line: "Don't want to move your piece twice? You don't have to! Press and hold it to end your turn.", notes: [note([230, 50, 88, 36], YOURS, "hold to skip your 2nd roll", { v: "bottom" })] });
       return { ...parts[0], parts };
     }
     case "board":

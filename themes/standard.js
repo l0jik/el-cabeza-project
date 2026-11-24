@@ -21,6 +21,7 @@ import { createWoodSet, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from 
 import { createAudio as createDenAudio } from "./den-audio.js";
 import { createDenEffects } from "./den-fx.js";
 import { RX as ROOM_RX, RZ as ROOM_RZ, CEIL as ROOM_CEIL, PIT_FLOOR as ROOM_PIT_FLOOR } from "./den-room.js";
+import { SLAB_MAX, SLAB_THICKNESS } from "../engine/constants.js";
 
 /* ------------------------------------------------------------ the room's colours */
 
@@ -99,6 +100,14 @@ export const freeCamera = {
   // Clear of what stands against the walls (the shelves, the console,
   // the fireplace) and under the ceiling's beams (3 deep).
   room: { x: [-ROOM_RX + 9, ROOM_RX - 9], y: [ROOM_PIT_FLOOR + 1.5, ROOM_CEIL - 4.2], z: [-ROOM_RZ + 9, ROOM_RZ - 9] },
+  // The coffee table under the board (den-room.js buildCoffeeTable: the
+  // slab and 16 square, its top just under the board's, down to the
+  // pit's floor): solid to the camera, as the board and its pieces, and
+  // the view kept above it, as in the store (tienda.js; user: "den too").
+  solids: () => {
+    const h = (SLAB_MAX + 16) / 2;
+    return [{ x: [-h, h], y: [ROOM_PIT_FLOOR, -SLAB_THICKNESS], z: [-h, h] }];
+  },
 };
 
 // The den's recordings that ask for a credit, on the About card (as

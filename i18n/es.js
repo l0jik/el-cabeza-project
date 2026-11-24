@@ -1139,7 +1139,7 @@ export default {
   "a disc can't crush": "un disco no aplasta",
   "up to {n} rolls": "hasta {n} vuelcos",
   "the big one rolls once": "el grande se vuelca una vez",
-  "hold it to end early": "mantenelo para terminar antes",
+  "hold to skip your 2nd roll": "mantenelo para saltear tu 2.º vuelco",
   "You go first, then the computer.": "Empezás vos, después la computadora.",
   "The computer goes first, then you.": "Empieza la computadora, después vos.",
   "Pick a block. Roll it once or twice.": "Elegí un bloque. Volcalo una o dos veces.",
