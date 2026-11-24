@@ -237,16 +237,22 @@ const aimCheck = (label, samples) => {
   await page.evaluate(() => {
     const t3 = window.__DEN_THREE__;
     let glass = null; t3.scene.traverse((o) => { if (o.userData && o.userData.tv === "screen") glass = o; });
+    // The papers and records flying into the set (den-tug.js) end their
+    // flights at the glass's middle, by design in front of it: left out of
+    // the look, which asks whether the room (the sofa's back) is in the
+    // way. (CI 45454185764: 20 of 21, the 21st 0.4 s before the rush with
+    // the floor's sleeve on its way in, right over the glass's middle; the
+    // same last look missed in CI 45446014070.)
+    const papers = []; t3.scene.traverse((o) => { if (o.name && o.name.startsWith("den-tug-")) papers.push(o); });
     glass.geometry.computeBoundingBox();
-    const V = glass.position.constructor, log = (window.__GLASS_SEEN__ = { first: null, seen: [] });
+    const V = glass.position.constructor, log = (window.__GLASS_SEEN__ = { first: null, seen: [], papers: papers.length });
     let n = 0;
     const tick = () => {
       const d = window.__DEN_TV__ && window.__DEN_TV__();
       if (!d || d.pull) return;
       // (The build-up: up to the rush, where the way in begins and the
       // camera closes on the glass, by design into it; held there while
-      // the next place loads, a look at it could find the glass clipped.
-      // CI 45446014070: 19 of 20, the 20th in the rush.)
+      // the next place loads, it goes on closing in.)
       if (d.tug && !d.tug.seating && d.tug.s < d.tug.rush) {
         if (!log.first) { const c = window.__EC_TEST_CAM__(); log.first = { target: c.view.target, dollhouse: c.dollhouse }; }
         if (n++ % 5 === 0) {
@@ -255,8 +261,11 @@ const aimCheck = (label, samples) => {
           if (p.z < 1 && Math.abs(p.x) < 1 && Math.abs(p.y) < 1) {
             const el = t3.renderer.domElement, gl = t3.renderer.getContext(), px = Math.round(((p.x + 1) / 2) * el.width), py = Math.round(((p.y + 1) / 2) * el.height);
             const read = () => { const a = new Uint8Array(4); gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, a); return a; };
+            const was = papers.map((m) => m.visible);
+            papers.forEach((m) => { m.visible = false; });
             t3.renderer.render(t3.scene, t3.camera); const a = read();
             glass.visible = false; t3.renderer.render(t3.scene, t3.camera); const b2 = read(); glass.visible = true;
+            papers.forEach((m, i) => { m.visible = was[i]; });
             drawn = Math.max(Math.abs(a[0] - b2[0]), Math.abs(a[1] - b2[1]), Math.abs(a[2] - b2[2])) > 6;
           }
           log.seen.push(drawn);
@@ -272,7 +281,7 @@ const aimCheck = (label, samples) => {
   const g = await page.evaluate(() => window.__GLASS_SEEN__);
   const at = g.first && g.first.target;
   check(`...at the first tug, the camera at the coffee table (looking at ${at ? at.map((v) => v.toFixed(1)).join(", ") : "?"}), out of the Room view`, !!at && Math.hypot(at[0], at[2]) < 1.5 && !g.first.dollhouse, JSON.stringify(g.first));
-  check(`...the set's glass seen all through the build-up (${g.seen.filter(Boolean).length} of ${g.seen.length} looks)`, g.seen.length >= 8 && g.seen.every(Boolean), JSON.stringify(g.seen));
+  check(`...the set's glass seen all through the build-up (${g.seen.filter(Boolean).length} of ${g.seen.length} looks; the ${g.papers} papers flying into it left out)`, g.papers >= 5 && g.seen.length >= 8 && g.seen.every(Boolean), JSON.stringify(g.seen));
   check("...and into the set", !!(await poll(async () => { const t = await tv(); return t && t.pull && t.phase === "dive"; }, 8000, 50)));
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
