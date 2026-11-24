@@ -393,6 +393,19 @@ export const styleSheet = `
     box-shadow: 0 3px 8px rgba(20,12,6,0.35);
   }
   [data-testid="points-counter"] > span:first-of-type { opacity: 0.8 !important; }
+  /* On a phone the side's "(light)" sits small under its name (the
+     chassis's counter keeps the tag's width so), and it hung below the
+     tag (user: "Text wrap is causing text to fall outside of button"):
+     the tag deeper there to hold it, the note over it lifted clear. In
+     lh, the line's own height: it grows with the phone's large-text
+     setting, as em doesn't (1.5x: em stayed 11 px, lh 13 to 19). */
+  /* (And it starts where the name does: centred under "ASH", wider than
+     it, it pressed on the tag's edge at large text.) */
+  @media (max-width: 600px) {
+    [data-testid="points-counter"] { padding-bottom: calc(0.8lh + 6px); }
+    [data-testid="points-counter"] [data-testid="points-side"] .ec-pts-hint { left: 0; transform: none; }
+    body:has([data-testid="points-counter"]) [data-testid="unused-points-note"] { bottom: calc(41px + 1.8lh) !important; }
+  }
   /* (Its points are the chassis's embers, in the store's own light:
      points-glow.js.) */
   /* The corner controls sit over wood, floor or the dark under the

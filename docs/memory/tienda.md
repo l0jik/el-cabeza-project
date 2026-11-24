@@ -1138,3 +1138,42 @@ takes the phone's font size (docs/memory/android-app.md).
   type a little smaller (to fit across, and all twelve lines over the
   register); its height the printed lines' as drawn (a fixed 18.75 px a
   line cut the last ones off).
+
+
+## Steve's words on a phone, and the counter's side word (2026-11-24)
+
+- **Steve's bubble larger on a slab phone** (user, a screenshot of the
+  welcome card with his bubble circled: "Without affecting overall
+  layout, the text needs to be larger when you're on a single screen slab
+  phone because it's kind of small and older people might not be able to
+  see it very well."). chassis/TourCoach.jsx bubbleFont(k, scale): as
+  before 13.6 px a unit of the card's width (k), 15 to 20 px, and on a
+  narrower card no smaller on the screen than min(19, 11.2 + 6.4k): 17 px
+  at 360 wide (k 0.91), 18 at 412 (k 1.06), 19 at a desktop's card (k 1.4,
+  where 13.6k gives the same). Measured card by card in pictures before
+  choosing: at 412, 18 px gives a few cards a line more (the welcome's
+  second sentence was already within 15 px of its bubble's width), but the
+  tallest card, the hold one at three lines, stays three: the card's
+  tallest 9 px taller; at 360, 18 px gave the hold card a fourth line
+  (+30 px), 17 px none (+6). `scale` is the phone's own large-text
+  setting as found on the bubble (its size on the screen over the one it
+  was given, textScale; CoachPicture's fit pass and SteveSays' measure),
+  counted toward that size: at 1.5x the bubble stays 22.5 px; added on
+  top it was 27 px and the first card 515 px tall. The card's arrangement
+  is as it was.
+- **The counter's side word inside its tag** (user, the store on a slab
+  phone, "(LIGHT)" circled under the counter: "Text wrap is causing text
+  to fall outside of button."). The chassis's counter puts the side's
+  word ("(light)", "(dark)") small under the name at 600 px and narrower,
+  positioned out of the flow so the counter keeps its width clear of the
+  corner piece; the store's tally tag had no room for it, nor the wood
+  set's cream pill (themes/standard.js: the den, Standard). Both, there:
+  padding-bottom calc(0.8lh + 6px), the word from the name's left edge
+  (centred under "ASH", wider than it, it pressed the tag's left edge at
+  large text), and the unused-actions note at calc(41px + 1.8lh) to
+  clear the deeper tag. lh because, under the phone's large-text setting
+  (as tests emulate it, -webkit-text-size-adjust 150%), em and rem stay
+  as they were while lh, ex, cap and ch grow with the letters. Measured
+  at 412 wide, normal and 1.5x: the word 3 to 5 px inside, the note 5 to
+  8 px clear. tests/e2e-tienda.mjs checks it in the store's game on its
+  390-wide phone; the cream pill was measured, not tested.

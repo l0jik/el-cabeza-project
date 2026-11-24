@@ -329,6 +329,18 @@ for (const size of [SIZES[2], SIZES[7]]) {
   const pts = page.locator('[data-testid="points-counter"]');
   check("the points tag shows one point left", (await pts.count()) === 1 && (await pts.getAttribute("data-left")) === "1");
   check("...on screen", inView(await pts.boundingBox(), size));
+  /* On a phone the side's word ("(light)") sits small under the name, and
+     hung below the tag (user: "Text wrap is causing text to fall outside
+     of button"): under the name, starting where it does, inside the tag. */
+  if (size.w <= 600) {
+    const hint = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="points-counter"]'), h = el && el.querySelector(".ec-pts-hint"), n = el && el.querySelector('[data-testid="points-side"]');
+      if (!h || !n) return null;
+      const a = el.getBoundingClientRect(), b = h.getBoundingClientRect(), c = n.getBoundingClientRect();
+      return { tag: [a.left, a.top, a.right, a.bottom].map(Math.round), hint: [b.left, b.top, b.right, b.bottom].map(Math.round), under: b.top >= c.bottom - 1, aligned: Math.abs(b.left - c.left) < 1.5, inside: b.left >= a.left + 2 && b.right <= a.right - 2 && b.top >= a.top && b.bottom <= a.bottom - 1 };
+    });
+    check("...the side's word under the name, starting where it does, inside the tag", !!hint && hint.under && hint.aligned && hint.inside, JSON.stringify(hint));
+  }
   await shot("6-points");
   await page.evaluate(() => window.__EC_TEST_MOVE__("light-cabeza", "N"));
   await page.waitForTimeout(5000);

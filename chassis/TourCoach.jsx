@@ -176,7 +176,24 @@ const UNDER = { align: "center", v: "top" };
    the picture's lower left, x under 66 and y over 126, is his face's: no
    note goes there.) */
 const FACE = 76, OVER = 13;
-const bubbleFont = (k) => Math.round(Math.min(20, Math.max(15, 13.6 * k)) * 10) / 10;
+/* His words in his bubble: in proportion to the card (k, its pixels to the
+   picture's units), 15 to 20 px; on a phone's narrower card no smaller on
+   the screen than 17 px at 360 wide, 18 at 412, up to 19 (user: "Without
+   affecting overall layout, the text needs to be larger when you're on a
+   single screen slab phone because it's kind of small and older people
+   might not be able to see it very well": they had been 15 there, against
+   the desktop's and the open foldable's 19; the longest line, on the hold
+   card, still three lines at 412). `scale`: how much larger the phone's
+   own text setting makes them already (textScale), counted toward that,
+   so the two never stack (1.5x, they were 22.5 px already). */
+const bubbleFont = (k, scale = 1) => Math.round(Math.min(20, Math.max(15, 13.6 * k, Math.min(19, 11.2 + 6.4 * k) / Math.max(1, scale || 1))) * 10) / 10;
+// (What the phone's text setting makes of an element's size: its size on
+// the screen over the one it was given; 1 where nothing's set.)
+function textScale(el) {
+  if (!el || typeof getComputedStyle === "undefined") return 1;
+  const given = parseFloat(el.style.fontSize), shown = parseFloat(getComputedStyle(el).fontSize);
+  return given > 0 && shown > 0 ? Math.round((shown / given) * 100) / 100 : 1;
+}
 
 /* The tour's last card: Got it ends it (the menu's last card; or, the
    menu not shown, your turn again). */
@@ -415,8 +432,9 @@ export function CoachPicture({ t, still, anim, nav = null, part = 0 }) {
   // (A card in steps: the step's line, face, notes and the part it lights.)
   const parts = whole && whole.parts, at = parts ? Math.max(0, Math.min(parts.length - 1, part)) : 0;
   const coach = parts ? { ...whole, ...parts[at] } : whole;
-  const boxRef = useRef(null);
+  const boxRef = useRef(null), lineRef = useRef(null);
   const [k, setK] = useState(0);
+  const [scale, setScale] = useState(1);
   useHandFont();
   const fitRef = useRef(null);
   fitRef.current = () => {
@@ -424,6 +442,8 @@ export function CoachPicture({ t, still, anim, nav = null, part = 0 }) {
     if (!el || !el.clientWidth) return;
     const kk = el.clientWidth / W;
     if (Math.abs(kk - k) > 0.002) setK(kk);
+    const sc = textScale(lineRef.current);
+    if (Math.abs(sc - scale) > 0.02) setScale(sc);
     el.querySelectorAll("[data-note]").forEach((b) => fitNote(b, kk));
   };
   // (After each drawing, as it comes; and when the card's width changes or
@@ -477,7 +497,7 @@ export function CoachPicture({ t, still, anim, nav = null, part = 0 }) {
       <div style={{ display: "flex", alignItems: "flex-start", gap: Math.round(8 * kk) }}>
         <SteveFace mood={coach.mood} size={face} style={{ marginTop: -Math.round(OVER * kk), marginLeft: -Math.round(5 * kk) }} />
         <div data-testid="tour-coach-side" style={{ flex: "1 1 auto", minWidth: 0, display: "flex", flexDirection: "column", gap: Math.round(8 * kk), paddingTop: 6 }}>
-          <div data-testid="tour-coach-line" className="ec-coach-bubble" style={{ alignSelf: "flex-start", fontSize: bubbleFont(kk) }}>
+          <div ref={lineRef} data-testid="tour-coach-line" className="ec-coach-bubble" style={{ alignSelf: "flex-start", fontSize: bubbleFont(kk, scale) }}>
             {Array.isArray(coach.line) ? coach.line.map((l, i) => <span key={i} data-line={i} style={{ display: "block" }}>{l}</span>) : coach.line}
             {parts && (
               <span className="ec-coach-pips" aria-hidden="true">
@@ -530,13 +550,14 @@ const MusicIcon = ({ off }) => (
    the store's red, or quiet). Sized as on the pictures' cards, by the
    card's width. */
 export function SteveSays({ mood = "grin", line, action = null, testid = "tour-coach-say" }) {
-  const ref = useRef(null);
+  const ref = useRef(null), lineRef = useRef(null);
   const [w, setW] = useState(0);
+  const [scale, setScale] = useState(1);
   useHandFont();
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
-    const measure = () => setW(el.clientWidth);
+    const measure = () => { setW(el.clientWidth); setScale(textScale(lineRef.current)); };
     measure();
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
     if (ro) ro.observe(el);
@@ -547,7 +568,7 @@ export function SteveSays({ mood = "grin", line, action = null, testid = "tour-c
     <div ref={ref} data-testid={testid} data-mood={mood} style={{ display: "flex", alignItems: "center", gap: Math.round(10 * k) }}>
       <style>{COACH_CSS}</style>
       <SteveFace mood={mood} size={Math.round(FACE * k)} />
-      <div data-testid="tour-coach-line" className="ec-coach-bubble ec-coach-mid" style={{ flex: "0 1 auto", fontSize: bubbleFont(k) }}>
+      <div ref={lineRef} data-testid="tour-coach-line" className="ec-coach-bubble ec-coach-mid" style={{ flex: "0 1 auto", fontSize: bubbleFont(k, scale) }}>
         {Array.isArray(line) ? line.map((l, i) => <span key={i} data-line={i} style={{ display: "block" }}>{l}</span>) : line}
         {action && (
           <>

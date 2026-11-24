@@ -418,6 +418,16 @@ export const styleSheet = `
   [data-testid="unused-points-note"] {
     color: ${DEN.chocolate} !important; background: rgba(243,231,205,0.94); padding: 6px 12px; border-radius: 999px;
   }
+  /* On a phone the side's "(dark)" sits small under its name, and it hung
+     below the pill (the store's tag had it too; user: "Text wrap is
+     causing text to fall outside of button"): the pill deeper there to
+     hold it, the note over it lifted clear; in lh, which grows with the
+     phone's large-text setting (tienda.js). */
+  @media (max-width: 600px) {
+    [data-testid="points-counter"] { padding-bottom: calc(0.8lh + 6px); }
+    [data-testid="points-counter"] [data-testid="points-side"] .ec-pts-hint { left: 0; transform: none; }
+    body:has([data-testid="points-counter"]) [data-testid="unused-points-note"] { bottom: calc(41px + 1.8lh) !important; }
+  }
   /* The rules: the booklet that came in the box. */
   [data-testid="info-overlay"] > div {
     background: #F4E9CF !important;

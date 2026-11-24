@@ -1061,6 +1061,11 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   check("...the store's clerk coaching it: Big Glutts shows you how; Steve B. at the picture's corner, a line from him in a bubble beside it, a few words on the picture, each fitting its box", !!co && coachOk(co) === "" && co.picture === "welcome" && /Steve/.test(co.line) && co.notes.some((n) => n.text === "your pieces") && co.notes.some((n) => n.text === "the computer's pieces"), (co && coachOk(co)) || JSON.stringify(co));
   // (User: "Hi, I'm Steve!\nLet me show you how to play the game.")
   check("...his hello in two lines: Hi, I'm Steve! / Let me show you how to play the game.", !!co && co.lines.length === 2 && co.lines[0] === "Hi, I'm Steve!" && co.lines[1] === "Let me show you how to play the game.", JSON.stringify(co && co.lines));
+  // (User: "Without affecting overall layout, the text needs to be larger
+  // when you're on a single screen slab phone because it's kind of small
+  // and older people might not be able to see it very well": 15 px there.)
+  const lineFs = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('[data-testid="tour-card"] [data-testid="tour-coach-line"]')).fontSize));
+  check(`...his words larger on a phone (${lineFs}px, 15 before)`, lineFs >= 17.5 && lineFs <= 19.5, String(lineFs));
   const title = page.locator('[data-testid="tour-title"]');
   check("...its words kept for a screen reader, out of sight", /Welcome to your first game/.test(await title.textContent()) && (await title.boundingBox()).width <= 1 && /the computer/.test(await page.locator('[data-testid="tour-words"]').textContent()));
   check("...kept on the device", (await page.evaluate(() => localStorage.getItem("el-cabeza:tour-pictures"))) === "on");
@@ -1233,6 +1238,33 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   }
   check(`every card to the board, each of Steve's steps (${stepsSeen}): his words in their boxes, the card on the screen whole`, off.length === 0 && stepsSeen === steps.length + 1 + 3, off.join(" | "));
   check("...made smaller only where they must be, and never below half", fits.length > 10 && fits.every((f) => f >= 0.5) && fits.some((f) => f === 1), JSON.stringify(fits));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+{
+  /* A slab phone with the phone's text large: Steve's words 1.5x already
+     (15 -> 22.5 px), not made larger again on top of it (TourCoach.jsx
+     bubbleFont: the phone's setting counts toward the larger size phones
+     get; added to it, 27 px, the first card stood 515 px tall). */
+  console.log("\n[phone, large text: Steve's words not enlarged twice]");
+  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
+  await ctx.addInitScript(() => {
+    window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none";
+    document.addEventListener("DOMContentLoaded", () => { const st = document.createElement("style"); st.textContent = "html{-webkit-text-size-adjust:150%}"; document.head.append(st); });
+  });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto(`${NOVA}?fresh&tour=pictures`);
+  await page.waitForSelector('[data-testid="tienda-open-box"]', { timeout: 60000 });
+  await page.waitForTimeout(1500);
+  await page.locator('[data-testid="tienda-open-box"]').click();
+  await page.waitForTimeout(3500);
+  await begin(page, { choose: null });
+  await page.waitForTimeout(600);
+  const big = await page.evaluate(() => { const l = document.querySelector('[data-testid="tour-card"] [data-testid="tour-coach-line"]'); return l ? parseFloat(getComputedStyle(l).fontSize) : 0; });
+  check(`Steve's line at the phone's own large size (${big}px), not larger again`, big >= 21.5 && big <= 23.5, String(big));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
