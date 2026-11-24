@@ -763,6 +763,19 @@ box art and an ad standee (assets/tienda/*.jpg).
   or pictures again as it always does. tests/e2e-journey.mjs (both ways,
   the flag gone), tests/e2e-first-game-tour.mjs (Escape, then
   ?restart=story: Try a Demo Game, the tour again).
+- **No skipping the walkthrough** (2026-11-24; user: "Reference the side
+  chat about the skipping the tutorial button. Just get rid of it
+  altogether. Just completely remove the skip the tutorial button."; the
+  side chat itself not reachable from here). Gone from FirstGameTour:
+  Skip the tour (the first card's link, the cards' link in words, the X
+  in pictures), Escape (which skipped it from the cards before play),
+  End the tour (the in-game cards' link and X: the same way out under
+  another name) and the bar card's Keep it, end the tour (its Back to the
+  tour stays). It ends only with its last card's Got it. The chassis's
+  tour.skip gone; tests that are after the game, not the tour, end it by
+  __EC_TEST_END_TOUR__ (tests: e2e-first-look, e2e-story). The labels'
+  translations gone. Restart story brings it back (above), so a story
+  played again walks through again.
 - **The store's signs in view again** (2026-11-22; user: "In Tienda /
   store, the maximum vertical zoom / ceiling seems to be lower than
   before.... There is wall signage that can no longer be seen. Is there a

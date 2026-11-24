@@ -6266,6 +6266,9 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
       cabIntro: tourCabRef.current ? { ...tourCabRef.current } : null,
     });
     window.__EC_TEST_TO_MOVE__ = () => currentPlayer; // (whose turn it is: "dark" or "light")
+    // (The tour has no skip, user: "completely remove the skip the tutorial
+    // button": a test that's about the game, not the tour, ends it here.)
+    window.__EC_TEST_END_TOUR__ = () => { if (ringsRef.current) ringsRef.current.close(); if (dockView === "panel") setDockView("corner"); endTour(); };
     // (The rules in play: the laws, the board, its holes and cut squares.)
     window.__EC_TEST_RULES__ = () => ({ laws: { ...ACTIVE_LAWS }, board: getBoardDimensions(), holes: BLACK_HOLES.length, missing: MISSING_SQUARES.length, byHand: startByHand });
   }
@@ -13037,7 +13040,6 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
                       : null,
             // (Over with the menu open: it's put away too. Over from the
             // bar's card: the bar kept, as if chosen.)
-            skip: () => { if (tourStep === TOUR_BAR && layoutSwitch) layoutSwitch("bar"); if (ringsRef.current) ringsRef.current.close(); if (dockView === "panel") setDockView("corner"); endTour(); },
             finish: () => { if (tourStep === TOUR_BAR && layoutSwitch) layoutSwitch("bar"); if (ringsRef.current) ringsRef.current.close(); if (dockView === "panel") setDockView("corner"); endTour(); },
           }}
         />

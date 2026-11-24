@@ -53,11 +53,11 @@ import { CoachPicture, SteveSays, coachFor } from "./TourCoach.jsx";
    the new menu tutorial, it got rid of the tutorial ... there should be a
    way back, or just to have it show it temporarily while you're doing the
    tutorial"): Back to the tour, or the bar's own Use the classic dock,
-   brings the menu and its card back; Keep it ends the tour with the bar
-   kept. Any card can skip it; from the second on
+   brings the menu and its card back. Nothing skips it or ends it early (user: "completely
+   remove the skip the tutorial button"); from the second card on
    a quiet Back steps back a card (from your first turn too, until a piece
    has moved: tour.back, the chassis's). Kept as done on the
-   device (TOUR_KEY), so it comes once; ?fresh forgets it. A world offers
+   device (TOUR_KEY), so it comes once; ?fresh and Restart story forget it. A world offers
    it with theme.firstGameTour (the store, before the game's bought:
    tienda.js). */
 
@@ -541,13 +541,10 @@ export default function FirstGameTour({ tour, cardRef }) {
   const card = TOUR_CARDS.includes(step);
   const choose = step === TOUR_CHOOSE;
   const menuCard = TOUR_MENU.includes(step) || step === TOUR_BAR;
-  // A card before you play: Escape skips the tour, as its link does.
-  useEffect(() => {
-    if (!card && !choose) return undefined;
-    const onKey = (e) => { if (e.key === "Escape") tour.skip(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [card, choose, tour.skip]);
+  /* (No skipping it, nor ending it early: no Skip the tour, no End the
+     tour, no Escape; it ends with its last card's Got it. User: "Just get
+     rid of it altogether. Just completely remove the skip the tutorial
+     button.") */
   /* The card keeps below what a world fixes at the top over it where the
      two would meet: the corner menu's tab, and whatever the world names
      (copy.clear: the store's cart). */
@@ -585,11 +582,6 @@ export default function FirstGameTour({ tour, cardRef }) {
     : menuCard
       ? step === "foot" ? { label: "Got it", onClick: tour.finish, testid: "tour-done", icons: ["done"] } : { label: step === "menu" ? "Open it ›" : "Next ›", onClick: tour.next, testid: "tour-next", icons: ["next"] }
       : step === "foe" && !tour.waiting ? (tour.menu ? { label: "Next ›", onClick: tour.next, testid: "tour-next", icons: ["next"] } : { label: "Got it", onClick: tour.finish, testid: "tour-done", icons: ["done"] }) : null;
-  const link = card || choose
-    ? { label: "Skip the tour", onClick: tour.skip, testid: "tour-skip" }
-    // (Over from the bar's card: the bar kept.)
-    : step === TOUR_BAR ? { label: "Keep it, end the tour", onClick: tour.finish, testid: "tour-bar-keep" }
-      : { label: "End the tour", onClick: tour.finish, testid: "tour-end" };
   // A quiet step back, beside Next (the chassis says when there's one).
   const back = tour.back ? { label: "‹ Back", onClick: tour.back, testid: "tour-back" } : null;
   const lit = text.lit ? (text.rows || text.icons).length : 0;
@@ -676,11 +668,6 @@ export default function FirstGameTour({ tour, cardRef }) {
                 : <SteveSays mood="grin" line="Ahh. Much better." action={{ label: "Music back on", testid: "tour-music-on", ghost: true, onClick: () => tour.music.set(true) }} />}
             </div>
           )}
-          <div style={{ marginTop: narrow ? 8 : 10 }}>
-            <button type="button" data-testid={link.testid} onClick={link.onClick} style={{ background: "none", border: "none", padding: "6px 0", cursor: "pointer", color: C.slate, fontFamily: sans, fontSize: TYPE.link, textDecoration: "underline", textUnderlineOffset: 3 }}>
-              {link.label}
-            </button>
-          </div>
         </div>
       </>
     );
@@ -728,7 +715,6 @@ export default function FirstGameTour({ tour, cardRef }) {
             <TourDots step={step} C={C} />
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <ModeSwitch pics C={C} />
-              <IconButton b={{ ...link, aria: link.label }} icons={["close"]} C={C} quiet />
             </div>
           </div>
           <h2 id="ec-tour-title" data-testid="tour-title" style={UNSEEN}>{text.title}</h2>
@@ -793,12 +779,8 @@ export default function FirstGameTour({ tour, cardRef }) {
             {text.note}
           </div>
         )}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: primary || back ? "space-between" : "flex-end", gap: 12, marginTop: narrow ? 6 : 10 }}>
-          <button type="button" data-testid={link.testid} onClick={link.onClick} style={{ background: "none", border: "none", padding: "6px 0", cursor: "pointer", color: C.slate, fontFamily: sans, fontSize: TYPE.link, textDecoration: "underline", textUnderlineOffset: 3 }}>
-            {link.label}
-          </button>
-          {(back || primary) && (
-            <div style={{ display: "flex", alignItems: "center", gap: narrow ? 6 : 10 }}>
+        {(back || primary) && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: narrow ? 6 : 10, marginTop: narrow ? 6 : 10 }}>
               {back && (
                 <button type="button" data-testid={back.testid} onClick={back.onClick} aria-label="Back a step" style={{ background: "none", border: "none", padding: "8px 6px", cursor: "pointer", color: C.slate, fontFamily: mono, fontSize: TYPE.back, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>
                   {back.label}
@@ -816,9 +798,8 @@ export default function FirstGameTour({ tour, cardRef }) {
                   {primary.label}
                 </button>
               )}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </>
   );

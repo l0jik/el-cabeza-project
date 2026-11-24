@@ -151,14 +151,17 @@ console.log("\nphone: a new player's first look at the store's menu");
   await q(page, "tienda-catalog-close").tap();
   await poll(async () => !(await has(page, "tienda-catalog")), 8000);
 
-  // Try a Demo Game: the walkthrough, skipped; then the game ended.
+  // Try a Demo Game: the walkthrough, ended by the tests' hook; then the game ended.
   check("the menu opens again", await openDockPanel(page));
   await page.waitForTimeout(600);
   await q(page, "tienda-try-game").tap();
   check("Try a Demo Game: the walkthrough's first card, how you'd like to learn", await poll(async () => (await has(page, "tour-card")) && /How would you like to learn\?/.test(await q(page, "tour-card").innerText()), 12000));
-  await q(page, "tour-skip").tap();
+  // (No skipping it, user: "Just completely remove the skip the tutorial
+  // button.": the tests' hook ends it, for the game after.)
+  check("...nothing on it to skip it with", (await page.locator('[data-testid="tour-skip"], [data-testid="tour-end"]').count()) === 0);
+  await page.evaluate(() => window.__EC_TEST_END_TOUR__());
   await poll(async () => !(await has(page, "tour-card")), 5000);
-  check("...skipped, kept as done", (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
+  check("...ended (the tests' hook), kept as done", (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
   check("...and the menu in play isn't the first look", !(await page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.firstLook)));
   const corner = await waitForDockCorner(page);
   check("the dock reopens mid-game", !!corner && (await reopenDockPanelFromCorner(page, corner)));

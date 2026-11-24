@@ -40,9 +40,10 @@
    it away (the piece's card again), Open it opens it; Got it, the menu put
    away, the camera back, kept as done: Try a Demo Game again brings no tour. On
    a desktop: the card at the left, a mouse's words and a mouse's way round
-   for the board; Skip the tour ends it, kept as done, and the game goes on
-   as ever; the menu's cards in a mouse's words, the card beside the open
-   menu; Escape skips it too. Zoomed in closer than the tour's look at a
+   for the board; no skipping it or ending it early (no Skip the tour, End
+   the tour or Escape; user: "Just completely remove the skip the tutorial
+   button."); the menu's cards in a mouse's words, the card beside the
+   open menu. Zoomed in closer than the tour's look at a
    piece, a piece picked: as close still (in, never out). With reduced
    motion, the arrow's head steps from end to end of the row (no glide),
    and the menu card's lines and the rings round its buttons still take
@@ -670,7 +671,7 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
 
 /* -------------------------------------------------------------- desktop */
 {
-  console.log("\n[desktop: skipped]");
+  console.log("\n[desktop: no skipping it]");
   const { ctx, page, errs } = await open(false);
   await begin(page);
   await page.waitForTimeout(1500);
@@ -683,9 +684,18 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const tour = await tourOf(page);
   check("a mouse's words for the board: drag, right-drag, scroll", /Scroll to zoom/.test(t) && /right-drag to move it up, down, or sideways/.test(t) && !/pinch|finger/i.test(t), t);
   check("...and the arrows round it a mouse's way", !!tour.marks.orbit && tour.marks.orbit.mouse === true, JSON.stringify(tour.marks.orbit));
-  await page.locator('[data-testid="tour-skip"]').click();
+  /* No skipping it (user: "Reference the side chat about the skipping the
+     tutorial button. Just get rid of it altogether. Just completely remove
+     the skip the tutorial button."): no Skip the tour, End the tour or its
+     X on any card, and Escape does nothing. (Ended here by the tests' own
+     hook, for the game after it.) */
+  check("no Skip the tour, End the tour or X on the card", (await page.locator('[data-testid="tour-skip"], [data-testid="tour-end"], [data-testid="tour-bar-keep"]').count()) === 0);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(600);
+  check("...and Escape does nothing: the card still up, not kept as done", (await card(page).count()) === 1 && (await tourOf(page)).step === "board" && (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === null);
+  await page.evaluate(() => window.__EC_TEST_END_TOUR__());
   await page.waitForTimeout(800);
-  check("Skip the tour: gone, marks and all, and kept as done", (await card(page).count()) === 0 && (await page.locator('[data-testid="tour-marks"]').count()) === 0 && (await rings(page)).length === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
+  check("(ended by the tests' hook: gone, marks and all, kept as done)", (await card(page).count()) === 0 && (await page.locator('[data-testid="tour-marks"]').count()) === 0 && (await rings(page)).length === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
   // The game as ever: a piece clicked has its own small card.
   await page.waitForTimeout(2000);
   const at = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-opa"));
@@ -778,14 +788,16 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   const lb = await boxOf(page, '[data-testid="dock-menu"] [data-mf-row="bar"]');
   await page.mouse.click(lb.x + lb.w / 2, lb.y + lb.h / 2);
   for (let i = 0; i < 25 && (await tourOf(page)).step !== "bar"; i++) await page.waitForTimeout(150);
-  check("...its Control bar: the bar's card", (await tourOf(page)).step === "bar" && (await page.locator('[data-testid="tour-bar-keep"]').count()) === 1);
-  await go("tour-bar-keep", 900);
-  check("...Keep it, end the tour: over, the bar kept as the layout", (await tourOf(page)).step === null && (await card(page).count()) === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:nova-layout"))) === "bar" && (await page.locator('[data-testid="shell-bar"]').count()) === 1);
+  // (Its way on is back to the tour; nothing on it ends the tour.)
+  check("...its Control bar: the bar's card, Back to the tour on it, nothing to end the tour with", (await tourOf(page)).step === "bar" && (await page.locator('[data-testid="tour-bar-back"]').count()) === 1 && (await page.locator('[data-testid="tour-skip"], [data-testid="tour-end"], [data-testid="tour-bar-keep"]').count()) === 0);
+  await go("tour-bar-back", 900);
+  for (let i = 0; i < 25 && (await tourOf(page)).step !== "panel"; i++) await page.waitForTimeout(150);
+  check("...Back to the tour: the menu's card again", (await tourOf(page)).step === "panel" && (await card(page).count()) === 1);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
 {
-  console.log("\n[desktop: Escape]");
+  console.log("\n[desktop: Escape does nothing; Restart story brings it back]");
   const { ctx, page } = await open(false);
   await begin(page);
   check("Try a Demo Game: the welcome card", (await tourOf(page)).step === "welcome");
@@ -808,7 +820,10 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   check(`reduced motion: the arrow's head steps along the row, end to end, no glide (${places.length} places: ${places.join(", ")}; it reaches ${spread(calm).toFixed(2)} of the row)`, (await tourOf(page)).step === "goal" && calm.length >= 20 && calm[0].fromCab < 0.3 && places.length <= 4 && spread(calm) > 0.8, JSON.stringify(places));
   await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
-  check("Escape skips it, kept as done", (await card(page).count()) === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
+  check("Escape does nothing: the card still up", (await card(page).count()) === 1 && (await tourOf(page)).step === "goal");
+  await page.evaluate(() => window.__EC_TEST_END_TOUR__());
+  await page.waitForTimeout(500);
+  check("(ended by the tests' hook, kept as done)", (await card(page).count()) === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
   /* The story over from the top brings it back (user: "The tutorial now
      seems to be missing on a fresh playthrough": Restart story kept it
      done). Another page's Restart story (?restart=story), as the
@@ -920,8 +935,9 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
    user to initially select either full instructions or brief
    instructions"; picked: "full step-by-step instructions / at a glance
    pictures only"): how would you like to learn, two tiles each with a
-   small picture of what it gives; the computer waits; Escape skips it;
-   each tile on into the tour that way, and kept. */
+   small picture of what it gives; the computer waits; nothing skips it,
+   Escape included (user: "Just completely remove the skip the tutorial
+   button."); each tile on into the tour that way, and kept. */
 {
   console.log("\n[phone: the first card, how you'd like to learn]");
   const { ctx, page, errs } = await open(true);
@@ -934,7 +950,7 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   check("...each with a picture of what it gives: a card of words, the welcome card's picture", (await page.locator('[data-testid="tour-choose-words"] [data-testid="tour-choice-words"]').count()) === 1 && (await page.locator('[data-testid="tour-choose-pictures"] [data-testid="tour-choice-pictures"]').count()) === 1);
   const tw = await boxOf(page, '[data-testid="tour-choose-words"]'), tp = await boxOf(page, '[data-testid="tour-choose-pictures"]');
   check("...side by side, the same size", !!tw && !!tp && Math.abs(tw.y - tp.y) < 2 && Math.abs(tw.w - tp.w) < 2 && tp.x >= tw.x + tw.w, JSON.stringify({ tw, tp }));
-  check("...Skip the tour on it; no Next, no Back", (await page.locator('[data-testid="tour-skip"]').count()) === 1 && (await page.locator('[data-testid="tour-next"]').count()) === 0 && (await page.locator('[data-testid="tour-back"]').count()) === 0);
+  check("...nothing to skip it with; no Next, no Back", (await page.locator('[data-testid="tour-skip"], [data-testid="tour-end"], [data-testid="tour-bar-keep"]').count()) === 0 && (await page.locator('[data-testid="tour-next"]').count()) === 0 && (await page.locator('[data-testid="tour-back"]').count()) === 0);
   await page.waitForTimeout(1500);
   check("...nothing on the board while it's up, and nothing moved", (await page.evaluate(() => window.__EC_TEST_TO_MOVE__())) === "light" && (await rings(page)).length === 0);
   /* The store's music (user: testers find "the music that's playing over
@@ -994,7 +1010,7 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   await ctx.close();
 }
 {
-  console.log("\n[desktop: the first card, full step by step; Escape]");
+  console.log("\n[desktop: the first card, full step by step; Escape does nothing]");
   const { ctx, page, errs } = await open(false);
   await begin(page, { choose: null });
   check("the first card, at the left", (await tourOf(page)).step === "choose" && ((await card(page).boundingBox()) || { x: 99 }).x < 40);
@@ -1007,7 +1023,7 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   await begin(two.page, { choose: null });
   await two.page.keyboard.press("Escape");
   await two.page.waitForTimeout(600);
-  check("Escape on the first card skips the tour, kept as done", (await card(two.page).count()) === 0 && (await two.page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
+  check("Escape on the first card: nothing, the card still up, not kept as done", (await card(two.page).count()) === 1 && (await tourOf(two.page)).step === "choose" && (await two.page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === null);
   await two.ctx.close();
 }
 {
@@ -1029,7 +1045,7 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   check("...kept on the device", (await page.evaluate(() => localStorage.getItem("el-cabeza:tour-pictures"))) === "on");
   let tg = await tagModes(page);
   check("...the board's labels icons: you, the computer", tg.length === 2 && tg.every((g) => g.mode === "pictures" && g.text === "" && g.icons === 1), JSON.stringify(tg));
-  check("...its buttons icons, named for a screen reader", (await page.locator('[data-testid="tour-next"]').getAttribute("aria-label")) === "Next" && (await page.locator('[data-testid="tour-skip"]').getAttribute("aria-label")) === "Skip the tour" && (await page.locator('[data-testid="tour-next"]').innerText()).trim() === "");
+  check("...its buttons icons, named for a screen reader", (await page.locator('[data-testid="tour-next"]').getAttribute("aria-label")) === "Next" && (await page.locator('[data-testid="tour-skip"]').count()) === 0 && (await page.locator('[data-testid="tour-next"]').innerText()).trim() === "");
   check("...where you are in dots: the first of 8", (await dotsAt(page)) === "1/8");
   const steps = ["ways", "goal", "crush", "blocks", "turn", "board"], off = [], coached = [];
   let turnWalk = [], turnBack = null, goalWalk = null, goalBack = null;
@@ -1151,7 +1167,7 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   check("...Steve's words for a mouse: drag to turn, right-drag to move, scroll to zoom", !!co && coachOk(co) === "" && ["drag to turn", "right-drag to move", "scroll to zoom"].every((w) => co.notes.some((n) => n.text === w)), (co && coachOk(co)) || JSON.stringify(co && co.notes));
   await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
-  check("Escape skips it, kept as done", (await card(page).count()) === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
+  check("Escape does nothing here either: the card still up", (await card(page).count()) === 1 && (await tourOf(page)).step === "board");
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
