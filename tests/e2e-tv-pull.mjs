@@ -243,7 +243,11 @@ const aimCheck = (label, samples) => {
     const tick = () => {
       const d = window.__DEN_TV__ && window.__DEN_TV__();
       if (!d || d.pull) return;
-      if (d.tug && !d.tug.seating) {
+      // (The build-up: up to the rush, where the way in begins and the
+      // camera closes on the glass, by design into it; held there while
+      // the next place loads, a look at it could find the glass clipped.
+      // CI 45446014070: 19 of 20, the 20th in the rush.)
+      if (d.tug && !d.tug.seating && d.tug.s < d.tug.rush) {
         if (!log.first) { const c = window.__EC_TEST_CAM__(); log.first = { target: c.view.target, dollhouse: c.dollhouse }; }
         if (n++ % 5 === 0) {
           const b = glass.geometry.boundingBox, p = new V((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, b.max.z).applyMatrix4(glass.matrixWorld).project(t3.camera);

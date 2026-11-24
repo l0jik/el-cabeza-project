@@ -1933,7 +1933,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         pullIn: blastAt && !tvPullIn && !lureDone ? Math.round((pullSoon || pullBase + (lureFix ? PULL_FIXED : PULL_LATE)) - performance.now()) : null,
         // (The build-up: how far in (ms), the camera's tug and shake now,
         // what's still in the room, and how far the camera is from the glass.)
-        tug: tug ? (tug.seatFrom != null ? { seating: true, s: 0, lurch: 0, shake: 0, debris: debris ? debris.state() : [] } : { s: Math.round(performance.now() - tug.t0), ...tugAt(performance.now() - tug.t0), debris: debris ? debris.state() : [] }) : null,
+        tug: tug ? (tug.seatFrom != null ? { seating: true, s: 0, lurch: 0, shake: 0, debris: debris ? debris.state() : [] } : { s: Math.round(performance.now() - tug.t0), rush: TUG.rush, ...tugAt(performance.now() - tug.t0), debris: debris ? debris.state() : [] }) : null,
         glassDist: glassDist() });
       // Test-only: hold the pull off (the tests of the set's own way in), or have it now.
       window.__DEN_PULL_HOLD__ = (on) => { pullHeld = on !== false; };
