@@ -809,6 +809,18 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
   check("Escape skips it, kept as done", (await card(page).count()) === 0 && (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === "done");
+  /* The story over from the top brings it back (user: "The tutorial now
+     seems to be missing on a fresh playthrough": Restart story kept it
+     done). Another page's Restart story (?restart=story), as the
+     switcher's own: the store again, Try a Demo Game, the tour. */
+  await page.goto(`${NOVA}?restart=story`);
+  await page.waitForSelector('[data-testid="tienda-open-box"]', { timeout: 60000 });
+  check("Restart story: the tour no longer kept as done", (await page.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === null);
+  await page.waitForTimeout(1500);
+  await page.locator('[data-testid="tienda-open-box"]').click();
+  await page.waitForTimeout(3500);
+  await begin(page, { choose: null });
+  check("...and Try a Demo Game: the tour again, its first card", (await card(page).count()) === 1 && ["choose", "welcome"].includes((await tourOf(page)).step), String((await tourOf(page)).step));
   await ctx.close();
 }
 

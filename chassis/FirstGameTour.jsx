@@ -68,6 +68,13 @@ export function tourDone() {
 export function markTourDone() {
   try { window.localStorage.setItem(TOUR_KEY, "done"); } catch (e) { /* storage unavailable */ }
 }
+/* The story over from the top brings it back: the store's demonstration
+   walked through again (user: "The tutorial now seems to be missing on a
+   fresh playthrough": Restart story, the app's only way to start over,
+   had kept it done). */
+export function forgetTourDone() {
+  try { window.localStorage.removeItem(TOUR_KEY); } catch (e) { /* storage unavailable */ }
+}
 
 /* The tour in pictures, no reading (user, 2026-11-22: "Create a version
    of the instructions that has no reading, just shows pictures";

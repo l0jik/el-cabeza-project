@@ -750,6 +750,19 @@ box art and an ad standee (assets/tienda/*.jpg).
   marker every frame (indicator.tick(now)). __EC_TEST_MARKERS__ gives each
   marker's light (its brightest part now); tests/e2e-first-game-tour.mjs
   samples it across a throb (0.48 to 0.92 seen).
+- **Restart story brings the walkthrough back** (2026-11-24; user: "The
+  tutorial now seems to be missing on a fresh playthrough."). A fresh
+  start (?fresh) showed it as ever (checked as a player, no test hooks:
+  the box, the ring menu's Try a Demo Game, "How would you like to
+  learn?"); but the tour is kept as done on the device (TOUR_KEY) once
+  finished or skipped, and Restart story, the app's only way to start
+  over (the realities menu's, and another page's ?restart=story), forgot
+  the story and not that, so the store's demonstration went unexplained.
+  Now both forget it too (FirstGameTour forgetTourDone, apps/unified.jsx
+  restartStory and the ?restart=story start); the first card asks words
+  or pictures again as it always does. tests/e2e-journey.mjs (both ways,
+  the flag gone), tests/e2e-first-game-tour.mjs (Escape, then
+  ?restart=story: Try a Demo Game, the tour again).
 - **The store's signs in view again** (2026-11-22; user: "In Tienda /
   store, the maximum vertical zoom / ceiling seems to be lower than
   before.... There is wall signage that can no longer be seen. Is there a

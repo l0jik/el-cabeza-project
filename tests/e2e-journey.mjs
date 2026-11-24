@@ -163,6 +163,8 @@ async function page(url, init) {
   console.log("\nRestart the story after the theme switcher: the store's own, nothing over it");
   const { p, ctx, errs } = await page("el-cabeza-nova.html?switcher");
   await p.evaluate(() => sessionStorage.setItem("el-cabeza:realities-visit", "1"));
+  // (The store's walkthrough done before: a restart brings it back.)
+  await p.evaluate(() => localStorage.setItem("el-cabeza:first-game-tour", "done"));
   check("the switcher's up over the den", !!(await poll(() => has(p, "realities-restart"), 15000)));
   await q(p, "realities-restart").click();
   await q(p, "realities-restart").click();
@@ -170,11 +172,15 @@ async function page(url, init) {
   await p.waitForTimeout(1500);
   check("...no Standard / Cabeza Nova card over it", !(await has(p, "reality-gate")));
   check("...the switcher's mark forgotten", (await p.evaluate(() => sessionStorage.getItem("el-cabeza:realities-visit"))) === null);
+  // (User: "The tutorial now seems to be missing on a fresh playthrough".)
+  check("...and the store's walkthrough no longer kept as done: it comes again", (await p.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === null);
+  await p.evaluate(() => localStorage.setItem("el-cabeza:first-game-tour", "done"));
   await p.evaluate(() => sessionStorage.setItem("el-cabeza:realities-visit", "1"));
   await p.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html?restart=story");
   check("another page's Restart story (?restart=story): the store, the lid on the box", !!(await poll(() => has(p, "tienda-lid"), 20000)));
   await p.waitForTimeout(1500);
   check("...no card over it either", !(await has(p, "reality-gate")));
+  check("...the walkthrough to come again there too", (await p.evaluate(() => localStorage.getItem("el-cabeza:first-game-tour"))) === null);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
