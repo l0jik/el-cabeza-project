@@ -1177,3 +1177,15 @@ takes the phone's font size (docs/memory/android-app.md).
   at 412 wide, normal and 1.5x: the word 3 to 5 px inside, the note 5 to
   8 px clear. tests/e2e-tienda.mjs checks it in the store's game on its
   390-wide phone; the cream pill was measured, not tested.
+- **Steve's badge a quarter bigger** (2026-11-25; user: "Increase the size
+  of the Steve avatar badges."). chassis/TourCoach.jsx FACE 76 to 95 of
+  the picture's 320 units (CoachPicture and SteveSays both): 102 px on a
+  412 phone (was 81), 133 on a desktop's card (was 106). Still OVER 13
+  over the picture's lower edge, so the face grows down and along it: it
+  covers none of the pictures' notes (the nearest end at 126, his corner
+  starts at 127; the corner rule now x under 90) and only more of the
+  bottom strip it already sat on (the turn card's ground line). The bubble
+  beside him a little narrower: on a 412 phone the first card and "Pick a
+  block" take a line more, the tallest card (the hold one, three lines)
+  as it was; on a 360 phone the hold card goes to four (+19 px); the
+  large-text foldable's tallest card 543 px of its 930.

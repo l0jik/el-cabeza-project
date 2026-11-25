@@ -916,7 +916,8 @@ function coachOf(page) { return page.evaluate(() => {
     // (In his column, right of him, under his bubble: lower than his face
     // when a long line takes two, at a phone's large text.)
     navBeside: !nav || nav.getBoundingClientRect().left >= fr.right - 1,
-    bigger: fr.width / k >= 70,
+    // (User: "Increase the size of the Steve avatar badges": 95 of the picture's 320, was 76.)
+    bigger: fr.width / k >= 90,
   };
 }); }
 function coachOk(s) {
@@ -930,7 +931,7 @@ function coachOk(s) {
   for (const n of s.notes) {
     if (!n.text || n.text.split(/\s+/).length > 8) return `a note's words: ${n.text}`;
     if (n.x < -0.5 || n.y < -0.5 || n.x + n.w > 320.5 || n.y + n.h > 140.5) return `off the picture: ${n.text}`;
-    if (n.x < 66 && n.y + n.h > 126.5) return `in his corner: ${n.text}`;
+    if (n.x < 90 && n.y + n.h > 126.5) return `in his corner: ${n.text}`;
     if (!n.fits) return `runs out of its box: ${n.text}`;
   }
   for (let i = 0; i < s.notes.length; i++) for (let j = i + 1; j < s.notes.length; j++) {

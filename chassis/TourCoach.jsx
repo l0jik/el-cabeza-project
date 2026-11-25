@@ -171,11 +171,13 @@ const YOURS = "mine", THEIRS = "foe", GOAL = "goal", PLAIN = "dim";
 const note = (box, tone, text, o = null) => ({ box, tone, text, ...o });
 const UNDER = { align: "center", v: "top" };
 /* His face (user: "I want the images of Steve to be bigger too"; of two
-   sizes mocked up, the bigger, the buttons beside him): 76 of the
-   picture's 320 units across, 13 of them over its lower edge. (His corner,
-   the picture's lower left, x under 66 and y over 126, is his face's: no
-   note goes there.) */
-const FACE = 76, OVER = 13;
+   sizes mocked up, the bigger, the buttons beside him; then "Increase the
+   size of the Steve avatar badges": 76 to 95, a quarter more): 95 of the
+   picture's 320 units across, 13 of them over its lower edge as before,
+   so he grows down and along it, over no more of the picture's notes. (His
+   corner, the picture's lower left, x under 90 and y over 126, is his
+   face's: no note goes there.) */
+const FACE = 95, OVER = 13;
 /* His words in his bubble: in proportion to the card (k, its pixels to the
    picture's units), 15 to 20 px; on a phone's narrower card no smaller on
    the screen than 17 px at 360 wide, 18 at 412, up to 19 (user: "Without
