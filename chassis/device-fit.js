@@ -38,13 +38,36 @@
        map, then the pixel ratio, each after 8 s of room.
    Under the browser tests (__EC_TEST_HOOKS__) only the pixel ratio moves,
    as before, and nothing is remembered: their software renderer is slow
-   on every frame. A test that wants the rest sets __EC_TEST_FIT__. */
+   on every frame. A test that wants the rest sets __EC_TEST_FIT__.
+
+   An even 30 before less of the picture (user, the store's opening pan on
+   a TCL NXTPAPER 11: "kind of jerky ... What can we do on such devices to
+   increase the smoothness of the animation, yet ensuring that we get the
+   maximum resolution and movement? We don't want to hamstring it"). The
+   order above gave up the pixel ratio first, to its floor (0.85 at the
+   low tier), before the steady 30; and frames between 42
+   and 56 a second were let be, though on a 60 Hz screen those land on one
+   refresh and then two, the stutter a slow pan shows most. Now, where a
+   world may be held to 30 (every one but a painted one): frames that
+   don't keep up with the refreshes (a quarter of them or more taking a
+   second one, or most of them slow) are held to an even 30 first, the
+   pixel ratio and the shadow map kept. Only if 30 can't be held either
+   (most frames taking a third refresh) does the shadow map halve, then
+   the pixel ratio step down. Back up the other way round: the pixel ratio
+   first, then the shadow map, while 30 holds, and the 30 off last, when
+   every refresh comes on time. A step back up that has to be taken back
+   within 12 s isn't tried again that visit. Remembered under a new key
+   (el-cabeza:fit2): what the old order settled on is forgotten. */
 import { quality } from "../themes/tienda-quality.js";
 
 export { quality };
 
-const STORE = "el-cabeza:fit";
+const STORE = "el-cabeza:fit2", OLD_STORE = "el-cabeza:fit";
 const SLOW = 1000 / 42, FAST = 1000 / 56, CRAWL = 1000 / 24;
+// (Uneven: frames that take a second refresh, a quarter of them or more.
+// Held to 30, missing it: most frames taking a third; keeping it: nine in
+// ten on their slot.)
+const UNEVEN = 1000 / 50, PACED_SLOW = 1000 / 27, PACED_OK = 1000 / 29;
 // (A painting's longest wait: over two refreshes, a step down; a far bigger
 // step past five; under about one and a third, room to step back up.)
 const P_SLOW = 1000 / 28, P_FAST = 1000 / 45, P_CRAWL = 1000 / 12;
@@ -82,6 +105,11 @@ export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
      second. */
   const paintings = !!opts.paintings;
   let paintedNow = false, cycleOpen = false, cycleMax = 0;
+  // (An even 30 before less of the picture, where it may be held to 30;
+  // a step back up taken back within 12 s marks how far up this visit
+  // goes: lastUp, the step; the ceilings it leaves.)
+  const smoothFirst = opts.pace !== false && !paintings;
+  let lastUp = null, prCeil = Infinity, shadowCeil = Infinity, paceKept = false;
 
   function changed() {
     if (opts.onChange) opts.onChange({ pixelRatio: pr, shadowMap: shadow, paced });
@@ -122,8 +150,10 @@ export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
     changed();
   }
 
-  // Where it left off last time on this device.
+  // Where it left off last time on this device (what the old order settled
+  // on, forgotten: el-cabeza:fit).
   if (full) {
+    try { window.localStorage.removeItem(OLD_STORE); } catch (e) { /* private mode */ }
     const was = readAll()[name];
     if (was) {
       if (was.pr > 0) setPixelRatio(was.pr);
@@ -151,6 +181,36 @@ export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
     if (paced) { setPaced(false); return; }
     if (shadow < fullShadow && setShadow(shadow * 2)) return;
     if (pr < topRatio() - 0.01) setPixelRatio(pr + stepUp);
+  }
+
+  /* An even 30 first (smoothFirst): held to 30, all of the picture kept;
+     slow only while something moves, the shadow map before it (that's
+     what those frames draw again); held and still missing 30, the shadow
+     map, then the pixel ratio. A step down within 12 s of a step up takes
+     it back and marks it as too far for this visit. */
+  function relieveSmooth(median, motionOnly, far = median > CRAWL) {
+    const now = performance.now();
+    const undo = lastUp && now - lastUp.at < 12000 ? lastUp : null;
+    lastUp = null;
+    lastRelief = now;
+    if (undo) {
+      if (undo.kind === "pr") { prCeil = undo.from; setPixelRatio(undo.from); return; }
+      if (undo.kind === "shadow") { shadowCeil = undo.from; if (setShadow(undo.from)) return; }
+      if (undo.kind === "pace") { paceKept = true; setPaced(true); return; }
+    }
+    if (full && motionOnly && shadow > minShadow && setShadow(shadow / 2)) return;
+    if (full && !paced) { setPaced(true); return; }
+    if (full && shadow > minShadow && setShadow(shadow / 2)) return;
+    if (pr > floor + 0.01) setPixelRatio(pr - (far ? stepDown * 1.5 : stepDown));
+  }
+  // ...and back up: the pixel ratio first, then the shadow map, while 30
+  // holds; the 30 off last, when every refresh comes on time (onTime).
+  function easeSmooth(now, onTime) {
+    if (now - lastEase < 8000 || now - lastRelief < 15000) return;
+    const top = Math.min(topRatio(), prCeil);
+    if (pr < top - 0.01) { lastEase = now; lastUp = { at: now, kind: "pr", from: pr }; setPixelRatio(Math.min(top, pr + stepUp)); return; }
+    if (full && shadow < Math.min(fullShadow, shadowCeil)) { lastEase = now; const from = shadow; if (setShadow(shadow * 2)) lastUp = { at: now, kind: "shadow", from }; return; }
+    if (paced && onTime && !paceKept) { lastEase = now; lastUp = { at: now, kind: "pace" }; setPaced(false); }
   }
 
   return {
@@ -200,7 +260,7 @@ export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
       }
       // A frame over a quarter of a second is a hitch, not counted; five
       // in a row is a device that slow (under 4 a second): a step down.
-      if (dt > 250) { if (full && ++crawling >= 5) { crawling = 0; relieve(dt, false); } return; }
+      if (dt > 250) { if (full && ++crawling >= 5) { crawling = 0; (smoothFirst ? relieveSmooth : relieve)(dt, false); } return; }
       crawling = 0;
       if (!frames.length) firstAt = now;
       frames.push(dt);
@@ -213,9 +273,27 @@ export function createGovernor(renderer, getSize, q = quality(), opts = {}) {
       // (The moving frames of the last 10 s.)
       while (busy.length && now - busy[0][0] > 10000) busy.shift();
       const moving = busy.length >= 12 ? sorted(busy.map((b) => b[1])) : null;
+      // (Every refresh, drawn or skipped, on time while held to 30: room for 60.)
+      const onTime = raw.length >= 90 && at(sorted(raw), 0.9) < 1000 / 55;
+      if (smoothFirst) {
+        if (paced) {
+          // Held to 30 and still missing it (most frames a third refresh):
+          // less to draw; keeping it, a step back up.
+          // (A bigger step only far under 30: under 15 a second.)
+          if (median > PACED_SLOW) relieveSmooth(median, false, median > 1000 / 15);
+          else if (moving && at(moving, 0.5) > PACED_SLOW) relieveSmooth(at(moving, 0.5), true, false);
+          else if (p90 < PACED_OK || onTime) easeSmooth(now, onTime);
+          return;
+        }
+        // Slow, or uneven: a quarter of the frames or more taking a second refresh.
+        if (median > SLOW || (full && at(all, 0.75) > UNEVEN)) relieveSmooth(median, false);
+        else if (moving && at(moving, 0.5) > SLOW) relieveSmooth(at(moving, 0.5), true);
+        else if (p90 < FAST && (!moving || at(moving, 0.9) < FAST)) easeSmooth(now, false);
+        return;
+      }
       if (paced) {
         // Held to 30: every refresh (drawn or skipped) on time means there's room for 60.
-        if (raw.length >= 90) { const r = sorted(raw); if (at(r, 0.9) < 1000 / 55) ease(now); }
+        if (onTime) ease(now);
         return;
       }
       if (median > SLOW) relieve(median, false);

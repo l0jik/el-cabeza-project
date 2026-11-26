@@ -82,6 +82,57 @@
     times) and tests/e2e-device-fit.mjs. The ?fps readout says "held to
     30" when it is.
 
+- **An even 30 before less of the picture (2026-11-26; user, the
+  store's opening pan on a TCL NXTPAPER 11 tablet: "kind of jerky ... What
+  can we do on such devices to increase the smoothness of the animation,
+  yet ensuring that we get the maximum resolution and movement? We don't
+  want to hamstring it")**:
+  - The tablet's GPU (Mali-G57 MC2, Helio G99) is on tienda-quality.js's
+    weak list: the low tier, pixel ratio up to 1.25 (its screen likely
+    1.5: 2000×1200 at 11 inches).
+  - Measured here (1333×800 at 1.5, the low tier, the CPU slowed 4x;
+    scratch pan-perf.mjs, pan-trace.mjs): the pan draws the shadows again
+    every frame (the board group turns under the world-fixed key light:
+    shadow-watch.js sees every caster move), 170 draw calls a frame (40
+    of them the shadow pass), 44.5k triangles, 23 programs and 40
+    textures with none compiled or uploaded during the pan, the page's
+    own scripts about 7 ms a frame at 4x (some 3-4 ms on the tablet), GC
+    small. So the tablet's frames are the GPU's, which can't be measured
+    here.
+  - The order gave up the picture first: below 42 a second (median) the
+    pixel ratio stepped down to the tier's floor (0.85: about 57% of
+    a 1.5 screen's own across, remembered for the next visit) before the frames
+    were held to 30; and 42 to 56 a second was let be (neither SLOW nor
+    FAST), though on a 60 Hz screen those frames land on one refresh and
+    then two: the median on time, a quarter or more late, the stutter a
+    3°/s pan shows most.
+  - Now (createGovernor, every world but a painted one, `smoothFirst`):
+    frames that don't keep up (median over 1000/42, or the 75th
+    percentile over 1000/50: a quarter of them taking a second refresh)
+    are held to an even 30 first, the pixel ratio and the shadow map
+    kept; held and still missing it (median over 1000/27: most frames a
+    third refresh), the shadow map halves, then the pixel ratio steps
+    down (0.2; 0.3 only under 15 a second), as far as 30 holds. Slow only
+    while something moves: the shadow map first, as before. Back up the
+    other way round, the pixel ratio first, then the shadow map, while 30
+    holds (90% of frames within 1000/29), the 30 off last when every
+    refresh comes on time; a step up taken back within 12 s is undone and
+    marked as this visit's ceiling. Remembered under el-cabeza:fit2; the
+    old key is removed (what the old order settled on, a pixel ratio
+    lowered first, isn't kept). Parrish (paintings, pace: false) keeps the
+    old order. Under the browser tests without __EC_TEST_FIT__ only the
+    pixel ratio moves, as before. tests/device-fit.smoke.mjs (frames of
+    30 ms: held, all kept; uneven 14/14/20 ms: held; 50 ms by the pixels:
+    held, shadows 512, the pixel ratio 1.35 where 30 holds, the step back
+    up to 1.5 taken back once; room again: the pixel ratio, the shadow
+    map, the 30 last; the old key forgotten), tests/e2e-device-fit.mjs
+    (all three steps on the software renderer, which can't hold 30 at all).
+  - Not done, offered: fewer draw calls (the store's static furniture
+    merged by material), the shadows redrawn during the pan only when a
+    shadow would move a texel or more (at 30 a second the pan turns about
+    that much a frame: little saved), the low tier's cap raised to the
+    screen's own and the governor left to find where 30 holds.
+
 - **Parrish's painting on weak laptops (2026-10-29; user: "Both Parrish
   boards graphically run very slowly on low resource / power laptops.
   Can they be optimized on such devices?")**:

@@ -6,8 +6,11 @@
    world governed by the chassis (Futuris) and one that makes its own
    (the store) each come down to the pixel ratio's floor, the shadow map
    halved to 512 and the frames held to 30 a second (the ?fps readout
-   says so); where they settled is kept in localStorage and a reload
-   starts there. Parrish's painting, judged by its paintings, comes down
+   says so): held to 30 first, then the shadow map, then the pixel ratio
+   (user: "increase the smoothness ... yet ensuring that we get the
+   maximum resolution and movement"), all three here, where not even 30
+   holds; where they settled is kept in localStorage (el-cabeza:fit2) and
+   a reload starts there. Parrish's painting, judged by its paintings, comes down
    to its own floor. The move markers' shaders are compiled before the
    first piece is picked.
 
@@ -36,7 +39,7 @@ async function world(name, key) {
   const readout = () => page.evaluate(() => (document.querySelector('[data-testid="fps-readout"]') || {}).textContent || "");
   const shadow = () => page.evaluate(() => { const t = window.__EC_TEST_THREE__ && window.__EC_TEST_THREE__(); const k = t && t.lights && t.lights.key; return k ? k.shadow.mapSize.x : null; });
   let text = "";
-  for (let i = 0; i < 60; i++) { await page.waitForTimeout(1000); text = await readout(); if (/held to 30/.test(text) && (await shadow()) === 512) break; }
+  for (let i = 0; i < 60; i++) { await page.waitForTimeout(1000); text = await readout(); if (/×0\.85\s+low\s+held to 30/.test(text) && (await shadow()) === 512) break; }
   check("slow on every frame: down to the floor (×0.85 at the low tier), the shadow map 512, held to 30", /×0\.85\s+low\s+held to 30/.test(text) && /shadows 512/.test(text) && (await shadow()) === 512, text.replace(/\n/g, " | "));
   // (The readout's count is of the second before it, which the first
   // "held to 30" shares with frames before the hold: two seconds more.)
@@ -45,7 +48,7 @@ async function world(name, key) {
   const fps = Number((/^(\d+) fps/.exec(now) || [])[1]);
   check("...no more than 30 frames a second", /held to 30/.test(now) && fps > 0 && fps <= 31, now.replace(/\n/g, " | "));
   await page.waitForTimeout(1300);
-  const kept = await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:fit") || "{}"));
+  const kept = await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:fit2") || "{}"));
   check("...kept for the next visit, by tier and world", kept[`low|${key}`] && kept[`low|${key}`].pr === 0.85 && kept[`low|${key}`].shadow === 512 && kept[`low|${key}`].paced === true, JSON.stringify(kept));
   // (Its own speed again: what's read now is only what was kept.)
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
@@ -86,7 +89,7 @@ await world("tienda", "tienda");
   await page.waitForTimeout(4000);
   const now = await state();
   check("...still painting", !!now && now.painted > was, `${was} -> ${now && now.painted}`);
-  const kept = await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:fit") || "{}"));
+  const kept = await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:fit2") || "{}"));
   check("...kept for the next visit", kept["high|parrish"] && kept["high|parrish"].pr <= 0.601 && kept["high|parrish"].shadow === 512 && !kept["high|parrish"].paced, JSON.stringify(kept));
   await page.reload();
   let again = null;

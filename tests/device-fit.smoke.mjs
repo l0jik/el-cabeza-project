@@ -1,11 +1,18 @@
 /* The frame-rate governor (chassis/device-fit.js) on made-up frame times
    (user: "We need to see how we can make the animations run more smoothly
-   for low capability machines"): slow everywhere, it lowers the pixel
-   ratio to its floor, then halves the shadow map, then holds the frames
-   to 30 a second; slow only while something moves, it halves the shadow
-   map first; with room again it gives them back one at a time, slowly;
-   it remembers where it settled for the next visit, by tier and world;
-   under the browser tests it only moves the pixel ratio unless asked.
+   for low capability machines"; then, of the store's pan on a weak
+   tablet: "increase the smoothness of the animation, yet ensuring that we
+   get the maximum resolution and movement"): frames that can't keep up
+   with the refreshes, slow or only uneven, are held to an even 30 a
+   second first, the pixel ratio and the shadow map kept; only if 30 can't
+   be held either does it halve the shadow map, then lower the pixel
+   ratio, as far as 30 holds; slow only while something moves, it halves
+   the shadow map first; with room again it gives them back the other way
+   round, the pixel ratio first and the 30 last, slowly, and a step back
+   up that can't hold 30 is taken back and not tried again; it remembers
+   where it settled for the next visit, by tier and world (el-cabeza:fit2,
+   the old order's el-cabeza:fit forgotten); under the browser tests it
+   only moves the pixel ratio unless asked.
    A painted world (Parrish's: a new painting 8 times a second, the frames
    between held, drawing nothing) is judged by its paintings, wherever
    their cost lands (user: "Both Parrish boards graphically run very
@@ -37,32 +44,37 @@ function rig(opts = {}) {
 }
 /* ms of play: a refresh every `refresh` ms; a frame drawn costs `cost`
    (the next refresh comes when it's done); busy(t): something moving. */
-function play(r, ms, { cost = 16.7, refresh = 16.7, busy = () => false, busyCost = null } = {}) {
+/* (cost may be a function: of the pixel ratio and the frame's count. A
+   refresh is a 60 Hz screen's, 16.67 ms: two of 16.7 ran 0.07 ms past a
+   held frame's 33.3, and 30 s of them drew two frames more.) */
+let frameNo = 0;
+function play(r, ms, { cost = 16.7, refresh = 1000 / 60, busy = () => false, busyCost = null } = {}) {
   const end = clock + ms;
   while (clock < end) {
     const now = clock;
     if (r.gov.skip(now)) { clock += refresh; runTimers(); continue; }
     const b = busy(now);
     r.gov.govern(now, b);
-    const c = b && busyCost != null ? busyCost : cost;
+    const base = typeof cost === "function" ? cost(r.renderer.pr, frameNo++) : cost;
+    const c = b && busyCost != null ? busyCost : base;
     clock += Math.max(refresh, Math.ceil(c / refresh) * refresh);
     runTimers();
   }
 }
 
-console.log("[slow everywhere: 30 ms a frame]");
+const KEY = "el-cabeza:fit2";
+console.log("[frames of 30 ms: each under two refreshes]");
 {
   clock = 1000; store.clear();
   const r = rig();
   check("starts at the tier's cap", r.renderer.pr === 1.75);
   play(r, 2500, { cost: 30 });
-  check("within a few seconds the pixel ratio is lower", r.renderer.pr < 1.75, String(r.renderer.pr));
-  play(r, 12000, { cost: 30 });
-  const s = r.gov.state();
-  check("...down to its floor, the shadow map halved twice (to 512), and held to 30", r.renderer.pr === 1 && s.shadowMap === 512 && r.light.shadow.mapSize.x === 512 && s.paced, JSON.stringify(s));
+  check("within a few seconds held to an even 30, the pixel ratio and the shadow map kept", r.gov.state().paced && r.renderer.pr === 1.75 && r.gov.state().shadowMap === 2048, JSON.stringify(r.gov.state()));
+  play(r, 30000, { cost: 30 });
+  check("...and kept so (30 holds there)", r.gov.state().paced && r.renderer.pr === 1.75 && r.gov.state().shadowMap === 2048, JSON.stringify(r.gov.state()));
   // Held to 30: a frame every other refresh.
   let drawn = 0, skipped = 0;
-  for (let i = 0; i < 60; i++) { if (r.gov.skip(clock)) skipped++; else drawn++; clock += 16.7; }
+  for (let i = 0; i < 60; i++) { if (r.gov.skip(clock)) skipped++; else drawn++; clock += 1000 / 60; }
   check("...a frame drawn every other refresh", Math.abs(drawn - 30) <= 1 && Math.abs(skipped - 30) <= 1, `${drawn} drawn, ${skipped} skipped`);
   // Frames coming every 30 ms of themselves (a slow renderer, the browser
   // tests' own): still no more than 30 a second.
@@ -71,28 +83,77 @@ console.log("[slow everywhere: 30 ms a frame]");
   check("...and frames every 30 ms of themselves: no more than 30 a second (not all 100 in 3 s)", slowDrawn <= 91 && slowDrawn >= 85, `${slowDrawn} drawn in 3 s`);
   runTimers();
   clock += 4000; runTimers();
-  const saved = JSON.parse(store.get("el-cabeza:fit") || "{}")["mid|test"];
-  check("...and remembered for the next visit", saved && saved.pr === 1 && saved.shadow === 512 && saved.paced === true, JSON.stringify(saved));
+  const saved = JSON.parse(store.get(KEY) || "{}")["mid|test"];
+  check("...and remembered for the next visit", saved && saved.pr === 1.75 && saved.shadow === 2048 && saved.paced === true, JSON.stringify(saved));
   const again = rig();
-  check("the next visit starts where it settled", again.renderer.pr === 1 && again.gov.state().paced && again.gov.state().shadowMap === 512, JSON.stringify(again.gov.state()));
+  check("the next visit starts where it settled", again.renderer.pr === 1.75 && again.gov.state().paced && again.gov.state().shadowMap === 2048, JSON.stringify(again.gov.state()));
+}
+
+console.log("[uneven: one frame in three taking a second refresh]");
+{
+  clock = 40000; store.clear();
+  // 14, 14, 20 ms: 16.7, 16.7, 33.4 between frames, 45 a second, the
+  // median on time (as the old order let be: neither slow nor fast).
+  const r = rig();
+  play(r, 4000, { cost: (pr, n) => (n % 3 === 2 ? 20 : 14) });
+  check("held to an even 30, the pixel ratio and the shadow map kept", r.gov.state().paced && r.renderer.pr === 1.75 && r.gov.state().shadowMap === 2048, JSON.stringify(r.gov.state()));
+}
+
+/* Frames that can't hold 30 either: 50 ms at the cap, by the pixels (the
+   square of the ratio): 30 holds at a pixel ratio of 1.43 or under. */
+const heavy = (pr) => 50 * (pr / 1.75) ** 2;
+console.log("[frames of 50 ms: 30 can't be held at the cap]");
+{
+  clock = 60000; store.clear();
+  const changes = [];
+  const r = rig({ onChange: (s) => changes.push({ ...s }) });
+  play(r, 2500, { cost: heavy });
+  check("held to 30 first", r.gov.state().paced && r.renderer.pr === 1.75, JSON.stringify(r.gov.state()));
+  play(r, 20000, { cost: heavy });
+  const s = r.gov.state();
+  check(`...then the shadow map halved to 512, then the pixel ratio down only as far as 30 holds (${r.renderer.pr.toFixed(2)}: ${heavy(r.renderer.pr).toFixed(1)} ms)`, s.paced && s.shadowMap === 512 && heavy(r.renderer.pr) <= 33.3 && r.renderer.pr >= 1.3, JSON.stringify({ ...s, pr: r.renderer.pr }));
+  const firstPaced = changes.findIndex((c) => c.paced), firstShadow = changes.findIndex((c) => c.shadowMap < 2048), firstPr = changes.findIndex((c) => c.pixelRatio < 1.75);
+  check("...in that order: the 30, the shadow map, the pixel ratio", firstPaced >= 0 && firstPaced < firstShadow && firstShadow < firstPr, JSON.stringify(changes));
+  const at = r.renderer.pr;
+  runTimers();
+  clock += 4000; runTimers();
+  const again = rig();
+  check("the next visit starts where it settled", Math.abs(again.renderer.pr - at) < 0.01 && again.gov.state().paced && again.gov.state().shadowMap === 512, JSON.stringify(again.gov.state()));
   // The first frame puts the remembered shadow size on the light.
   again.gov.govern(clock, false);
   check("...the shadow map made that size at its first frame", again.light.shadow.mapSize.x === 512, String(again.light.shadow.mapSize.x));
+  // A step back up, from 1.35 to 1.5 (37 ms): can't hold 30 there, taken
+  // back, and not tried again this visit. (Here only the pixels cost: the
+  // shadow map's way back up holds.)
+  const n = changes.length;
+  play(r, 90000, { cost: heavy });
+  const ups = changes.slice(n).filter((c) => c.pixelRatio > at + 0.01).length;
+  check(`...a step back up that can't hold 30 taken back, and not tried again (${ups} tried; at ${r.renderer.pr.toFixed(2)})`, ups === 1 && Math.abs(r.renderer.pr - at) < 0.01 && r.gov.state().paced, JSON.stringify(changes.slice(n)));
 }
 
 console.log("[room again: 10 ms a frame]");
 {
-  clock = 100000; store.clear();
-  const r = rig();
-  play(r, 15000, { cost: 30 });
-  check("(slow first: held to 30)", r.gov.state().paced);
+  clock = 300000 - 120000; store.clear();
+  const changes = [];
+  const r = rig({ onChange: (s) => changes.push({ ...s }) });
+  play(r, 22500, { cost: heavy });
+  check("(slow first: held to 30, the shadow map 512, the pixel ratio lower)", r.gov.state().paced && r.gov.state().shadowMap === 512 && r.renderer.pr < 1.5, JSON.stringify(r.gov.state()));
+  const n = changes.length;
   play(r, 2000, { cost: 10 });
-  check("no change at once (it waits)", r.gov.state().paced);
-  play(r, 20000, { cost: 10 });
-  check("the 30 a second comes off first", !r.gov.state().paced, JSON.stringify(r.gov.state()));
-  play(r, 60000, { cost: 10 });
-  const s = r.gov.state();
-  check("...then the shadow map, then the pixel ratio, back to the cap", s.shadowMap === 2048 && r.renderer.pr > 1.74, JSON.stringify(s));
+  check("no change at once (it waits)", changes.length === n);
+  play(r, 90000, { cost: 10 });
+  const s = r.gov.state(), up = changes.slice(n);
+  const lastPr = up.map((c) => c.pixelRatio > 1.74).lastIndexOf(false), firstShadowUp = up.findIndex((c) => c.shadowMap > 512), off = up.findIndex((c) => !c.paced);
+  check("back the other way: the pixel ratio first, then the shadow map, the 30 off last", off >= 0 && lastPr < firstShadowUp && firstShadowUp < off, JSON.stringify(up));
+  check("...all of it back: the cap, 2048, not held", !s.paced && s.shadowMap === 2048 && r.renderer.pr > 1.74, JSON.stringify(s));
+}
+
+console.log("[what the old order settled on]");
+{
+  clock = 320000; store.clear();
+  store.set("el-cabeza:fit", JSON.stringify({ "mid|test": { pr: 1, shadow: 512, paced: true } }));
+  const r = rig();
+  check("forgotten: it starts at the cap, not held to 30, the old key gone", r.renderer.pr === 1.75 && !r.gov.state().paced && r.gov.state().shadowMap === 2048 && !store.has("el-cabeza:fit"), JSON.stringify({ ...r.gov.state(), old: store.get("el-cabeza:fit") }));
 }
 
 console.log("[slow only while something moves]");
@@ -158,7 +219,7 @@ console.log("[a painted world: held to 30 on an earlier visit]");
 {
   clock = 440000; store.clear();
   // (As the old judging could leave it: held to 30, the pixel ratio at 1.)
-  store.set("el-cabeza:fit", JSON.stringify({ "mid|test": { pr: 1, shadow: 2048, paced: true } }));
+  store.set(KEY, JSON.stringify({ "mid|test": { pr: 1, shadow: 2048, paced: true } }));
   const r = rig(PAINTED);
   check("not held to 30 where it no longer may be", !r.gov.state().paced, JSON.stringify(r.gov.state()));
   playPaint(r, 8000);
@@ -181,7 +242,7 @@ console.log("[the browser tests]");
   const r = rig();
   play(r, 20000, { cost: 120 });
   const s = r.gov.state();
-  check("only the pixel ratio moves, nothing's remembered", r.renderer.pr === 1 && s.shadowMap === 2048 && !s.paced && !store.has("el-cabeza:fit"), JSON.stringify(s));
+  check("only the pixel ratio moves, nothing's remembered", r.renderer.pr === 1 && s.shadowMap === 2048 && !s.paced && !store.has(KEY), JSON.stringify(s));
   window.__EC_TEST_FIT__ = true;
   const r2 = rig();
   play(r2, 20000, { cost: 120 });
