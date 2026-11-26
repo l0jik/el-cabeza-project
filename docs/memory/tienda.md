@@ -1189,3 +1189,24 @@ takes the phone's font size (docs/memory/android-app.md).
   block" take a line more, the tallest card (the hold one, three lines)
   as it was; on a 360 phone the hold card goes to four (+19 px); the
   large-text foldable's tallest card 543 px of its 930.
+
+## A piece picked in the tour: in the middle, in on it (2026-11-26)
+
+- **The picked piece no longer framed at the right edge** (user: "Steve
+  says your move, tap a piece. So I tap the piece and then the camera
+  zooms to where the board is and the selected piece is almost off the
+  screen to the right. I'm not sure why it did that. It needs to
+  actually", the message ending there). Two causes. The camera kept a
+  nearer distance (in, never out) but aimed from its own further one, so
+  the piece slid away from the card by the ratio: on a desktop zoomed in,
+  0.93 of the way across. And the card went to the left on any screen
+  900 wide or more: a foldable open just over 900 with large text had the
+  board's room a strip down the right edge, the Chato framed 0.77 across
+  with the board cut off. Now the camera aims from where it ends
+  (chassis/ElCabeza3D.jsx frameTourPiece, fitFootInRegion's hi0), the card
+  is at the left only on a landscape screen (FirstGameTour.jsx side), and
+  a pick always comes in a little: a fifth to a half of the way from the
+  whole board in the card's room (the user's first ask: "it'll zoom in on
+  the OPA"; on a desktop and the large-text foldable it hadn't at all).
+  Details in 05-camera-input.md.
+

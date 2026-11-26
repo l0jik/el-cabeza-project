@@ -179,6 +179,29 @@ since radius/phi can change independently afterward):
   (about 18 then, against 28 on a phone): zoomed in closer than that, a
   pick pulled the camera out to it. Now the radius is the nearer of the
   two. tests/e2e-first-game-tour.mjs (desktop, back a step).
+- **The tour's look at a picked piece: aimed from where it ends, in the
+  middle, and always in a little** (user, the tour in pictures: "So I tap
+  the piece and then the camera zooms to where the board is and the
+  selected piece is almost off the screen to the right"). In, never out
+  kept the nearer distance but took the target fitFootInRegion found for
+  its own, further one; with the room off the screen's middle (beside the
+  card at the left of a wide screen, or under it on a phone) what it framed
+  slid off the room's middle by the ratio of the two, away from the card:
+  to the right edge on a desktop zoomed in (0.93 across), down on a phone.
+  fitFootInRegion now takes the furthest it may go (hi0) as well as the
+  nearest (lo0), aims from the distance it ends at, and says whether all
+  of the stretch is in the room there (`inside`); held too near for the
+  piece and its moves, frameTourPiece puts the piece alone in the middle.
+  Its zoom is from the whole board as it fills the room the card leaves
+  (fitted the same way, from the lesson's pitch): a fifth of the way in at
+  least, half at most. The old floor, 0.62 of the radius before the tour,
+  was further out than the board's own view on a desktop and on a
+  large-text foldable, so a pick there didn't come in at all. And the
+  tour's card goes to the left only on a landscape screen (FirstGameTour.jsx
+  side: 900 wide and a fifth wider than tall): just over 900 on a foldable
+  (912 x 930), the room beside the card was a strip down the right edge
+  and the piece framed in it. tests/e2e-first-game-tour.mjs (desktop, back
+  a step; a foldable just over 900, large text).
 - **The see-through lens looks at the board, not the view (user, a phone
   screenshot of the City, a dithered hole in the blocks behind the
   board: "The peering lens for when you're at a low angle is showing up

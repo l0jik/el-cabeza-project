@@ -46,7 +46,10 @@
    first time you go through the tutorial, you should not be able to skip
    it"); the menu's cards in a mouse's words, the card beside the open
    menu. Zoomed in closer than the tour's look at a
-   piece, a piece picked: as close still (in, never out). With reduced
+   piece, a piece picked: as close still (in, never out), and in the
+   middle of the room beside the card, not off to the right. A foldable
+   open just over 900 across with large text: the card at the top as on
+   a phone, a piece picked the camera in on it, in the middle. With reduced
    motion, the arrow's head steps from end to end of the row (no glide),
    and the menu card's lines and the rings round its buttons still take
    their turns. First, the question: how would you like to learn (full
@@ -759,6 +762,13 @@ const next = async (page) => { await page.locator('[data-testid="tour-next"]').c
   await page.waitForTimeout(2000);
   const picked = await page.evaluate(() => window.__EC_TEST_CAM__().radius);
   check(`zoomed in to ${near}, a piece picked: as close still (${picked.toFixed(1)}), not pulled out`, picked <= near + 0.01, String(picked));
+  // ...and aimed from there: the piece in the middle of the room beside the
+  // card (user, a piece picked: "the selected piece is almost off the
+  // screen to the right": aimed from the tour's own distance and left
+  // nearer, it slid away from the card by as much more as it was nearer).
+  const opaNow = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-opa"));
+  const room = await card(page).boundingBox().then((b) => ({ l: b.x + b.width + 12, r: 1280 - 12 }));
+  check(`...and in the middle of the room beside the card (${Math.round(opaNow.x)} px across, its middle ${Math.round((room.l + room.r) / 2)}), not off to the right`, Math.abs(opaNow.x - (room.l + room.r) / 2) <= 0.15 * (room.r - room.l) && opaNow.y > 0 && opaNow.y < 800, JSON.stringify({ opaNow, room }));
   const f0 = await page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === "light-flaco")));
   await page.evaluate(() => window.__EC_TEST_MOVE__("light-flaco", "N"));
   for (let i = 0; i < 40 && (await page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === "light-flaco")))) === f0; i++) await page.waitForTimeout(250);
@@ -1239,6 +1249,44 @@ const dotsAt = (page) => page.evaluate(() => { const d = document.querySelector(
   }
   check(`every card to the board, each of Steve's steps (${stepsSeen}): his words in their boxes, the card on the screen whole`, off.length === 0 && stepsSeen === steps.length + 1 + 3, off.join(" | "));
   check("...made smaller only where they must be, and never below half", fits.length > 10 && fits.every((f) => f >= 0.5) && fits.some((f) => f === 1), JSON.stringify(fits));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+{
+  /* A foldable open, just over 900 across, the phone's text large (user,
+     a piece picked: "the camera zooms to where the board is and the
+     selected piece is almost off the screen to the right"): the card at
+     the top as on a phone, not at the left (the room beside it there a
+     strip down the right edge, the piece framed in it); a piece picked,
+     the camera in on it, the piece in the middle. */
+  console.log("\n[foldable just over 900, large text: a piece picked, in the middle]");
+  const W = 912, H = 930;
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, isMobile: true, hasTouch: true });
+  await ctx.addInitScript(() => {
+    window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none";
+    document.addEventListener("DOMContentLoaded", () => { const st = document.createElement("style"); st.textContent = "html{-webkit-text-size-adjust:150%}"; document.head.append(st); });
+  });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto(`${NOVA}?fresh&tour=pictures`);
+  await page.waitForSelector('[data-testid="tienda-open-box"]', { timeout: 60000 });
+  await page.waitForTimeout(1500);
+  await page.locator('[data-testid="tienda-open-box"]').click();
+  await page.waitForTimeout(3500);
+  await begin(page, { choose: null });
+  const top = await card(page).boundingBox();
+  check(`the card at the top in the middle, as on a phone (its middle ${Math.round(top.x + top.width / 2)} of ${W})`, Math.abs(top.x + top.width / 2 - W / 2) < 2 && top.y < 40, JSON.stringify(top));
+  for (let i = 0; i < 12 && (await tourOf(page)).step !== "pieces"; i++) await nextCard(page, 900);
+  await page.waitForTimeout(2400);
+  const before = await camOf(page);
+  const at = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-chato"));
+  await page.touchscreen.tap(at.x, at.y);
+  await page.waitForTimeout(2800);
+  const cam = await camOf(page), now = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-chato")), cb = await card(page).boundingBox();
+  check(`the Chato picked: the camera in on it (${before.radius.toFixed(1)} to ${cam.radius.toFixed(1)})`, (await tourOf(page)).step === "pieces" && cam.radius < 0.9 * before.radius, JSON.stringify({ before, cam }));
+  check(`...the piece in the middle (${Math.round(now.x)} px across of ${W}), under the card`, Math.abs(now.x - W / 2) < W / 6 && now.y > cb.y + cb.height && now.y < H - 60, JSON.stringify({ now, card: cb }));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

@@ -575,8 +575,13 @@ export default function FirstGameTour({ tour, cardRef }) {
   }, [step, cardRef, clear]);
   const narrow = typeof window !== "undefined" && window.innerWidth < 520;
   // On a wide screen the card keeps to the left, so the board has the
-  // room beside it (the tour's camera frames it there).
-  const side = typeof window !== "undefined" && window.innerWidth >= 900;
+  // room beside it (the tour's camera frames it there). Wide is a fifth
+  // wider than tall at least: a screen about as tall as it's wide (a
+  // foldable open, about 900 across) has it at the top as a phone does, the
+  // board under it in the middle. At the left there, the room beside it
+  // was a strip down the right edge, and a piece picked was framed in it
+  // (user: "the selected piece is almost off the screen to the right").
+  const side = typeof window !== "undefined" && window.innerWidth >= 900 && window.innerWidth >= 1.2 * window.innerHeight;
   const text = cardText(tour);
   if (!text) return null;
   const index = TOUR_CARDS.indexOf(step);

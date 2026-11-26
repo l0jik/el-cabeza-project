@@ -5874,9 +5874,9 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
   }
   /* The lesson's camera (user: "it'll kind of zoom in on it a little
      bit"): the piece and every square it can move to now, with board round
-     them, as close as they fill three fifths of the room the card leaves,
-     from a little lower than straight down so the piece reads as itself;
-     the heading kept. */
+     them, in the middle of the room the card leaves, as close as they fill
+     three fifths of it, from a little lower than straight down so the
+     piece reads as itself; the heading kept. */
   function frameTourPiece(piece) {
     const t = three.current;
     const size = t.getMountSize && t.getMountSize();
@@ -5902,14 +5902,34 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     const z0 = r0 * SQUARE_SIZE - OFF_Z, z1 = r1 * SQUARE_SIZE - OFF_Z;
     const foot = [[x0, z0], [x1, z0], [x0, z1], [x1, z1]];
     const phi = Math.min(theme.maxPitch ?? 1.25, TOUR_PHI);
-    // (A little closer, not right down on it: no nearer than about three
-    // fifths of the way the camera stood before the tour.)
-    const best = fitFootInRegion(c.theta, phi, foot, high, tourRegion(size), 0.6, Math.max(zoomMin, 0.62 * tourCamRef.current.radius));
-    // In, never out: zoomed in closer than that already, it stays as close
-    // (user, of a laptop, a piece picked in the store's tour: "it zooms way
-    // out from the screen. It needs to be zoomed in": the floor above, a
-    // desktop's view starting further back, pulled it out to 18).
-    c.phi = phi; c.radius = Math.min(best.r, Math.max(zoomMin, c.radius)); c.target.copy(best.target); c.dollhouse = false;
+    const reg = tourRegion(size);
+    // In on it, always, a little (user: "it'll kind of zoom in on it a
+    // little bit ... if they click on the OPA, it'll zoom in on the OPA"):
+    // from the whole board as it fills the room the card leaves, seen from
+    // here, a fifth of the way in at least, half at most (not right down on
+    // it). It was no nearer than 0.62 of where the camera stood before the
+    // tour, further out than the board's own view on a desktop or a
+    // foldable with large text: no nearer at all there.
+    const bx0 = -OFF_X, bx1 = BOARD_COLS * SQUARE_SIZE - OFF_X, bz0 = -OFF_Z, bz1 = BOARD_ROWS * SQUARE_SIZE - OFF_Z;
+    const tallest = Math.max(PIECE_SCALE, ...pieces.map((p) => (p.z || 1) * PIECE_SCALE));
+    const whole = fitFootInRegion(c.theta, phi, [[bx0, bz0], [bx1, bz0], [bx0, bz1], [bx1, bz1]], tallest, reg, 0.97, zoomMin).r;
+    // In, never out: zoomed in closer already, it stays as close (user, of
+    // a laptop, a piece picked in the store's tour: "it zooms way out from
+    // the screen. It needs to be zoomed in").
+    const near = Math.max(zoomMin, 0.5 * whole), far = Math.min(Math.max(near, 0.8 * whole), Math.max(zoomMin, c.radius));
+    // Aimed from the distance it ends at (user, a piece picked: "the camera
+    // zooms to where the board is and the selected piece is almost off the
+    // screen to the right"). Aimed from the tour's own distance and left
+    // nearer, what it framed slid off the room's middle, the further the
+    // nearer it was, away from the card: from the left of a wide screen,
+    // to its right edge. Too near for the piece and its moves to fit the
+    // room, the piece itself in the middle of it.
+    let best = fitFootInRegion(c.theta, phi, foot, high, reg, 0.6, Math.min(near, far), far);
+    if (!best.inside) {
+      const own = [[piece.col, piece.row], [piece.col + piece.w, piece.row], [piece.col, piece.row + piece.h], [piece.col + piece.w, piece.row + piece.h]];
+      best = fitFootInRegion(c.theta, phi, own.map(([cc, rr]) => [cc * SQUARE_SIZE - OFF_X, rr * SQUARE_SIZE - OFF_Z]), (piece.z || 1) * PIECE_SCALE, reg, 0.6, best.r, best.r);
+    }
+    c.phi = phi; c.radius = best.r; c.target.copy(best.target); c.dollhouse = false;
     glideRef.current = {};
   }
   /* The other side's move, watched (user: "The camera should slowly pan in
@@ -11140,10 +11160,12 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
      its corners, board x-z; high: how tall what's on it stands) as close
      as it fills `fill` of the region `reg` of the screen (px, the
      canvas's own) and stays inside it, seen from heading theta and pitch
-     phi, and no closer than lo0; its middle at the region's middle, as
-     far as the pan's own limit lets it. { r, target }. Show me
-     (frameCheckShow) and the first game's lessons (frameTourPiece). */
-  function fitFootInRegion(theta, phi, foot, high, reg, fill, lo0) {
+     phi, no closer than lo0 and no further than hi0; its middle at the
+     region's middle from the distance it ends at, as far as the pan's own
+     limit lets it. { r, target, inside: all of it in the region there }.
+     Show me (frameCheckShow) and the first game's lessons
+     (frameTourPiece). */
+  function fitFootInRegion(theta, phi, foot, high, reg, fill, lo0, hi0 = Infinity) {
     const t = three.current;
     const size = t.getMountSize();
     const n = foot.length;
@@ -11203,13 +11225,17 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
     // As close as it fills `fill` of the room (and stays inside it), and
     // not so close the board round it is lost.
     const FILL = fill;
-    let lo = lo0, hi = zoomMaxFor(), best = null;
+    const inRoom = (b) => b.l >= reg.l && b.r <= reg.r && b.t >= reg.t && b.b <= reg.b;
+    const at = (r) => { const target = centred(r); return { r, target, inside: inRoom(boxAt(r, target)) }; };
+    let lo = lo0, hi = Math.min(zoomMaxFor(), hi0), best = null;
+    // (Held nearer than the nearest it'd come: there, aimed from there.)
+    if (lo >= hi) return at(hi);
     for (let i = 0; i < 16; i++) {
       const r = (lo + hi) / 2, target = centred(r), b = boxAt(r, target);
-      const ok = b.r - b.l <= FILL * (reg.r - reg.l) && b.b - b.t <= FILL * (reg.b - reg.t) && b.l >= reg.l && b.r <= reg.r && b.t >= reg.t && b.b <= reg.b;
-      if (ok) { hi = r; best = { r, target }; } else lo = r;
+      const ok = b.r - b.l <= FILL * (reg.r - reg.l) && b.b - b.t <= FILL * (reg.b - reg.t) && inRoom(b);
+      if (ok) { hi = r; best = { r, target, inside: true }; } else lo = r;
     }
-    if (!best) best = { r: hi, target: centred(hi) };
+    if (!best) best = at(hi);
     return best;
   }
 
