@@ -42,6 +42,12 @@ export const POSES = {
   zeta: { w: 3, h: 1, z: 3, vox: "0,0,0;0,0,1;1,0,1;2,0,1;2,0,2" },
   hombro: { w: 2, h: 2, z: 2, vox: "0,0,0;1,0,0;0,1,0;0,0,1" },
   cruce: { w: 3, h: 2, z: 1, vox: "0,0,0;1,0,0;2,0,0;1,1,0" },
+  // (As the user's photos had them: the Bota flat, the Zurdo a bar on the
+  // board with one on its left end held out toward you, the Diestro a
+  // column with a bar at its foot.)
+  bota: { w: 3, h: 2, z: 1, vox: "0,0,0;1,0,0;2,0,0;0,1,0" },
+  zurdo: { w: 2, h: 2, z: 2, vox: "0,0,0;1,0,0;0,0,1;0,1,1" },
+  diestro: { w: 2, h: 2, z: 2, vox: "0,0,0;0,0,1;1,0,0;1,1,0" },
 };
 
 // The angle the still is taken from; the viewer opens at the same one,

@@ -641,3 +641,80 @@ pressed) moves none. tests/e2e-press.mjs (Futuris, the City, the Lab's De
 Stijl): a Cabeza slides elsewhere and both Arcos are where they're drawn
 every frame (it failed on the old code, 0.093 off in each world, and
 reads 0.0000 now); then one rolls away and the other lets go.
+
+## The Zurdo, the Diestro and the Bota (2026-11-27)
+
+User, with a photo of wooden pieces, two circled: "Let's do a global
+implementation of the addition of these two piece types. Ask me any
+questions before you begin, if you need guidance or clarity." Then, a
+third circled: "Actually, let's implement this one as well. Basically an L
+shape. Like an elbow, but with one additional block on one end."
+
+- **The two**: four cubes each on a path that turns through all three
+  directions (the Soma cube's two screws), each the other in a mirror: no
+  turn makes one the other (tests/shapes.smoke.mjs checks all 24 turns).
+  Named by the user's pick, the **Zurdo** (left-handed) and the **Diestro**
+  (right-handed): along the path, the third step against the cross of the
+  first two (in the world's X, Y, Z: vox x, level, row) is -1 for every way
+  the Zurdo stands, +1 for the Diestro. As the photo had them: the Zurdo a
+  bar of two on the board with a bar of two on its left end held out toward
+  you (`ZURDO_VOX` "0,0,0;1,0,0;0,0,1;0,1,1"), the Diestro a column of two
+  with a bar at its foot beside it pointing at you (`DIESTRO_VOX`
+  "0,0,0;0,0,1;1,0,0;1,1,0"). Each stands 12 ways, all in a 2×2×2 box: 4
+  on three cubes, 4 on two, 4 balanced on one.
+- **The Bota** (the user's name for the L: "boot"): a row of three and a
+  fourth beside one end (`BOTA_VOX` "0,0,0;1,0,0;2,0,0;0,1,0"). 24 ways: 8
+  flat, 4 on its edge, 4 upright on its foot, 8 balanced on one cube (the
+  foot held out at the top, or a bar held up on the foot).
+- **Rules** (user: like the Hombro and the Cruce): a roll is 1 action,
+  balanced on one cube each pivots (Cantilever Pivot), each crushes a
+  Cabeza only with a cube landing on it, and weighs 4 cubes in a push. All
+  of it was already the shape system's (rollVox, pivotCellOf,
+  rollSweepClashes, cubeCount); PIVOT_CAPABLE (rules-selections),
+  PIVOT_CAPABLE_ROSTER (the sphere) and PIVOTERS (RulesCards) list them,
+  and every text that names the pivot pieces reads "Codo, Hombro, Cruce,
+  Bota, Rayo, Zeta, Zurdo or Diestro" (es "... Zurdo o Diestro", vi "...
+  Zurdo hoặc Diestro").
+- **Starts** (user: "Any of the twelve ways, so long as nothing protrudes
+  outside the perimeter of the game board"; the Bota likewise):
+  PIECE_ORIENTATIONS holds every way of each (`everyWay`: the steadiest
+  first, then the fewest rows deep, then the narrowest), each inside its
+  own box, so nothing hangs past the board. generateAnomalySetup now draws
+  only from the ways that fit its home rows (o.h <= depth): the Bota's 8
+  lying lengthwise are 3 deep (16 of its 24 in two rows). Hand placement
+  (setOutPoses) offers every way, balanced ones too, steadiest first. A
+  side's opening is the other's turned 180° (mirrorVox), which keeps a
+  hand: each side's Zurdo is a Zurdo.
+- **Everywhere else**: PIECE_META (labels Zu, Di, Bo: a replay code names
+  pieces by label), the menus' rows (PIECE_OPTIONS: Codo, Hombro, Cruce,
+  Bota, Rayo, Zeta, Zurdo, Diestro, the pivot pieces together at the end;
+  notes "4 cubes in an L", "4 cubes twisting left/right"), the sphere's
+  MATTER rows, icons (top views: the Bota's L of four, the twins' mirror Ls
+  of three) and roster builder (futuris.js), the store's catalog (49 T
+  4416-4418, 45¢), Lluvia's signs (靴 boot, 左 left, 右 right), the display
+  poses (piece-showcase POSES: every still, viewer, the gate's and the
+  Lab's isometric pictures and the store's wood photos, as the photos had
+  them, the Bota flat), the gate's PICTURE_TYPES, the Monolith's rock
+  (PIECE_FORMS: the Bota a pillar with its foot out, face on; the twins as
+  photographed), the rules cards (PIECE_TEXT), es and vi. Their bodies in
+  every world are the shape system's: makePolycubeSmooth3D for the twins
+  (not flat), the flat sweep for the Bota.
+- The front page's row (tools/front_pieces.mjs "lineup", 4300 x 800 so
+  the pieces keep their size; front-8 and front-28 use it): all eighteen,
+  the Bota upright on its foot after the Codo (a boot in profile), the
+  Zurdo and the Diestro at the end as a mirrored pair, three cubes down
+  and the fourth up at the back (P.botaUp 12, P.zurdo 0, P.diestro 3).
+  Captions "All eighteen pieces in a row.", the names list, front-28's
+  "Eighteen pieces". Packed with ffmpeg (PIL is broken here):
+  alphaextract + cropdetect (skip=0) for the drawn box, a 24 px margin,
+  premultiply, lanczos to 1800 wide, unpremultiply, libwebp quality 86,
+  compression_level 6 (35 KB).
+- Tests: shapes.smoke (twins never one another, mirrors, hands in every
+  way, ground counts, four rolls, east-and-back, pivots), placement.smoke
+  (every way offered, steadiest first), theme-futuris.smoke (300 setups:
+  each twin itself on both sides, all its ways seen), rules-selections
+  (18 types), e2e-singularity (18 rows in order, 18 stills, the eight
+  that pivot lit together at the end), e2e-gate (18 pictures), e2e-lluvia
+  (18 pictures), e2e-pivot-guide (eight pivot pieces), e2e-monolith (every
+  shape in the land), e2e-closeups (every world draws the three solid).
+

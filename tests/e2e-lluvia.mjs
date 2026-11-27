@@ -47,8 +47,10 @@ await page.locator('[data-testid="lluvia-open-matter"]').click();
 await page.waitForTimeout(300);
 check("MATTER opens its panel", (await page.locator('[data-testid="lluvia-panel-matter"]').count()) === 1);
 // Every piece pictured as the city draws it, each Arco size its own row.
-check("...every piece pictured (15, each Arco size its own row)", !!(await (async () => { for (let i = 0; i < 40; i++) { const n = await page.locator('[data-testid^="lluvia-pic-"]').evaluateAll((els) => els.filter((e) => (e.getAttribute("src") || "").startsWith("data:image/png")).length); if (n === 15) return true; await page.waitForTimeout(150); } return false; })()));
+check("...every piece pictured (18, each Arco size its own row)", !!(await (async () => { for (let i = 0; i < 40; i++) { const n = await page.locator('[data-testid^="lluvia-pic-"]').evaluateAll((els) => els.filter((e) => (e.getAttribute("src") || "").startsWith("data:image/png")).length); if (n === 18) return true; await page.waitForTimeout(150); } return false; })()));
 check("...the Arco Chico, Alto and Ancho each with a picture", (await page.locator('[data-testid="lluvia-pic-arcoChico"]').count()) === 1 && (await page.locator('[data-testid="lluvia-pic-arcoAlto"]').count()) === 1 && (await page.locator('[data-testid="lluvia-pic-arcoAncho"]').count()) === 1);
+// (And the three newest, the Bota, the Zurdo and the Diestro.)
+check("...the Bota, the Zurdo and the Diestro each with a picture", (await page.locator('[data-testid="lluvia-pic-bota"]').count()) === 1 && (await page.locator('[data-testid="lluvia-pic-zurdo"]').count()) === 1 && (await page.locator('[data-testid="lluvia-pic-diestro"]').count()) === 1);
 // A picture: the piece large, in 3D, as the city draws it (user).
 await page.locator('[data-testid="lluvia-inspect-zeta"]').scrollIntoViewIfNeeded();
 await page.locator('[data-testid="lluvia-inspect-zeta"]').click();

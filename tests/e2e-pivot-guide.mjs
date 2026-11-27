@@ -26,11 +26,11 @@ const flashing = (page, sel) => page.evaluate((sel) => {
 const clearFlashes = (page) => page.evaluate(() => window.__ecFlashed && window.__ecFlashed.clear());
 // The rows in order, by the prefix of their testids.
 const order = (page, prefix) => page.evaluate((p) => [...document.querySelectorAll(`[data-testid^="${p}"]`)].map((e) => e.getAttribute("data-testid").slice(p.length)).filter((k) => /^[a-zA-Z0-9]+$/.test(k) && k !== "total"), prefix);
-const PIVOTS = ["codo", "hombro", "cruce", "rayo", "zeta"];
+const PIVOTS = ["codo", "hombro", "cruce", "bota", "rayo", "zeta", "zurdo", "diestro"];
 
 async function show(page, { warn, row, label }) {
   check(`${label}: the warning flashes`, !!(await poll(() => flashing(page, warn), 1500, 50)));
-  check(`${label}: then the five pivot pieces flash`, !!(await poll(async () => (await Promise.all(PIVOTS.map((k) => flashing(page, row(k))))).every(Boolean), 4000, 80)));
+  check(`${label}: then the eight pivot pieces flash`, !!(await poll(async () => (await Promise.all(PIVOTS.map((k) => flashing(page, row(k))))).every(Boolean), 4000, 80)));
   const seen = await page.evaluate((sels) => sels.every((sel) => { const r = document.querySelector(sel).getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight; }), PIVOTS.map(row));
   check(`${label}: ...on screen (jumped to)`, seen);
 }
@@ -66,7 +66,7 @@ console.log("Tienda's order form (phone)");
   await poll(() => page.locator('[data-testid="tienda-order"]').count(), 8000);
   await page.waitForTimeout(800);
   const rows = await order(page, "tienda-piece-");
-  check(`the pivot pieces together at the end (${rows.join(" ")})`, rows.slice(-5).join(",") === PIVOTS.join(",") && rows.indexOf("arcoAncho") === rows.length - 6);
+  check(`the pivot pieces together at the end (${rows.join(" ")})`, rows.slice(-PIVOTS.length).join(",") === PIVOTS.join(",") && rows.indexOf("arcoAncho") === rows.length - PIVOTS.length - 1);
   await page.locator('[data-testid="tienda-law-cantileverPivot"]').click();
   await show(page, { label: "pivot on", warn: '[data-testid="law-warning-cantileverPivot"]', row: (k) => `[data-testid="tienda-piece-${k}"]` });
   await page.waitForTimeout(2200);
@@ -89,7 +89,7 @@ console.log("\nthe gate's sheet (Cromo, phone)");
   await poll(() => page.locator('[data-testid="gate-sheet"]').count(), 4000);
   await page.waitForTimeout(500);
   const rows = await order(page, "gate-piece-");
-  check(`the pivot pieces together at the end (${rows.join(" ")})`, rows.slice(-5).join(",") === PIVOTS.join(","));
+  check(`the pivot pieces together at the end (${rows.join(" ")})`, rows.slice(-PIVOTS.length).join(",") === PIVOTS.join(","));
   await page.locator('[data-testid="gate-law-cantileverPivot"]').click();
   await show(page, { label: "pivot on", warn: '[data-testid="gate-law-warning-cantileverPivot"]', row: (k) => `[data-testid="gate-piece-${k}"]` });
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
@@ -110,14 +110,14 @@ console.log("\nLluvia's city");
   await page.locator('[data-testid="lluvia-open-matter"]').click();
   await page.waitForTimeout(400);
   const rows = await order(page, "lluvia-matter-");
-  check(`the pivot pieces together at the end (${rows.join(" ")})`, rows.slice(-5).join(",") === PIVOTS.join(","));
+  check(`the pivot pieces together at the end (${rows.join(" ")})`, rows.slice(-PIVOTS.length).join(",") === PIVOTS.join(","));
   await page.locator('[data-testid="lluvia-panel-close"]').click();
   await page.locator('[data-testid="lluvia-open-laws"]').click();
   await page.waitForTimeout(300);
   await page.locator('[data-testid="lluvia-law-cantileverPivot"]').click();
   check("pivot on: the warning flashes", !!(await poll(() => flashing(page, '[data-testid="law-warning-cantileverPivot"]'), 1500, 50)));
   check("...then over to MATTER", !!(await poll(() => page.locator('[data-testid="lluvia-panel-matter"]').count(), 3000)));
-  check("...where the five pivot pieces flash", !!(await poll(async () => (await Promise.all(PIVOTS.map((k) => flashing(page, `[data-testid="lluvia-matter-${k}"]`)))).every(Boolean), 4000, 80)));
+  check("...where the eight pivot pieces flash", !!(await poll(async () => (await Promise.all(PIVOTS.map((k) => flashing(page, `[data-testid="lluvia-matter-${k}"]`)))).every(Boolean), 4000, 80)));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

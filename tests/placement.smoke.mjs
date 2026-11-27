@@ -156,6 +156,13 @@ console.log("every way round it can stand");
   check("no start balanced on one cube: the Codo's 8, the Hombro's 4, the Cruce's 6, the Rayo's 8", setOutPoses("codo").length === 8 && setOutPoses("hombro").length === 4 && setOutPoses("cruce").length === 6 && setOutPoses("rayo").length === 8
     && ["codo", "hombro", "cruce", "rayo"].every((t) => setOutPoses(t).every((o) => parseVox(o.vox).filter((c) => c[2] === 0).length >= 2)));
   check("...but the Zeta's own, as drawn, and those turned a quarter (12 in all)", setOutPoses("zeta").length === 12);
+  // (User, of the Zurdo and the Diestro: "Any of the twelve ways, so long as
+  // nothing protrudes outside the perimeter of the game board"; the Bota
+  // likewise, every way.)
+  check("the Zurdo and the Diestro every way, balanced on one cube too (12 each); the Bota every way (24)",
+    setOutPoses("zurdo").length === 12 && setOutPoses("diestro").length === 12 && setOutPoses("bota").length === 24
+    && ["zurdo", "diestro"].every((t) => setOutPoses(t).some((o) => parseVox(o.vox).filter((c) => c[2] === 0).length === 1)), `${setOutPoses("zurdo").length} ${setOutPoses("diestro").length} ${setOutPoses("bota").length}`);
+  check("...the steadiest offered first", ["zurdo", "diestro", "bota"].every((t) => parseVox(setOutPoses(t)[0].vox).filter((c) => c[2] === 0).length >= 3));
   check("the Arco Chico and Alto 12 each; boxes as they were", setOutPoses("arcoChico").length === 12 && setOutPoses("arcoAlto").length === 12 && setOutPoses("flaco").length === 3 && setOutPoses("block2x3").length === 6 && setOutPoses("turrito").length === 1);
   check("a Cabeza and a Turrito don't turn", !turnsWhileSettingOut({ type: "cabeza" }) && !turnsWhileSettingOut({ type: "turrito" }) && turnsWhileSettingOut({ type: "arcoAncho" }));
 

@@ -487,14 +487,16 @@ function terrainGeometry(hx, hz, detail) {
 // [x, up, depth]; a box of them.
 const V = (s) => s.split(";").map((t) => t.split(",").map(Number)).map(([x, row, up]) => [x, up, row]);
 const BOX = (w, up, d) => { const out = []; for (let x = 0; x < w; x++) for (let y = 0; y < up; y++) for (let z = 0; z < d; z++) out.push([x, y, z]); return out; };
-/* Every piece in the game, the standard five and Cabeza Nova's ten, as
-   the land's rock: its pose for Light's sandstone, then (where it has
+/* Every piece in the game, the standard five and Cabeza Nova's thirteen,
+   as the land's rock: its pose for Light's sandstone, then (where it has
    one) another for Dark's basalt. Standing, mostly, where the rock would:
    the Flaco and the 1×3 a pillar and a fallen column, the Chato a fin,
    the Turrito a block balanced on a pedestal, the Cabeza a disc stood on
    edge, the Codo an overhang, the Arcos arches, the Rayo stepped out
    over itself, the Zeta and the Cruce (a capped spire) balanced on one
-   cube, the Hombro a corner with its spire. */
+   cube, the Hombro a corner with its spire, the Bota a pillar with its
+   foot out, the Zurdo and the Diestro a ledge on a block and a column
+   with a step at its foot, each the other's mirror. */
 export const PIECE_FORMS = [
   ["cabeza", { disc: true }],
   ["turrito", { cells: BOX(1, 1, 1), pedestal: true }],
@@ -511,6 +513,9 @@ export const PIECE_FORMS = [
   ["zeta", { cells: V("0,0,0;0,0,1;1,0,1;2,0,1;2,0,2"), face: true }],
   ["hombro", { cells: V("0,0,0;1,0,0;0,1,0;0,0,1") }],
   ["cruce", { cells: V("1,0,0;0,0,1;1,0,1;2,0,1"), face: true }],
+  ["bota", { cells: V("0,0,0;1,0,0;0,0,1;0,0,2"), face: true }],
+  ["zurdo", { cells: V("0,0,0;1,0,0;0,0,1;0,1,1") }],
+  ["diestro", { cells: V("0,0,0;0,0,1;1,0,0;1,1,0") }],
 ];
 
 /* A piece's form as rock: its distance function and size, its cube a

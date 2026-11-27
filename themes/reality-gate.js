@@ -627,7 +627,7 @@ function piecePictures(world, look, types) {
 // (Other menus' rows use them too: Lluvia's city.)
 export const piecePicture = (world, type) => pictures.get(`${world}|${type}`) || null;
 export const piecePicturesReady = (world, look) => piecePictures(world, look, PICTURE_TYPES) || PICTURE_TYPES.every((t) => !POSES[t] || pictures.has(`${world}|${t}`));
-const PICTURE_TYPES = ["cabeza", "turrito", "flaco", "chato", "opa", "block1x3", "block2x3", "arcoChico", "arcoAlto", "arcoAncho", "codo", "hombro", "cruce", "rayo", "zeta"];
+const PICTURE_TYPES = ["cabeza", "turrito", "flaco", "chato", "opa", "block1x3", "block2x3", "arcoChico", "arcoAlto", "arcoAncho", "codo", "hombro", "cruce", "bota", "rayo", "zeta", "zurdo", "diestro"];
 
 /* Each piece as a small isometric still (user, of a list of the pieces:
    "a little 3D, not fully 3D, just a maybe isometric view of each type of
@@ -808,7 +808,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
   const allRules = h("section", { className: "rg-sec", "aria-label": "All rules" },
     h("div", { className: "rg-row" },
       h("span", { className: "rg-name" }, "All rules", h("span", { className: "rg-note", "data-testid": "gate-all-laws-note" }, "Every rule under Rules below, on or off at once.",
-        allLawsOn(sel) && warnings.some((w) => w.key === "cantileverPivot") ? " Cantilever pivot needs a Codo, Hombro, Cruce, Rayo or Zeta: add one under Pieces." : "")),
+        allLawsOn(sel) && warnings.some((w) => w.key === "cantileverPivot") ? " Cantilever pivot needs a Codo, Hombro, Cruce, Bota, Rayo, Zeta, Zurdo or Diestro: add one under Pieces." : "")),
       h(Switch, { on: allLawsOn(sel), label: "All rules", testid: "gate-all-laws", onClick: () => { pivotHush.hush(); change((n) => setAllLaws(n, !allLawsOn(n))); } })));
 
   const rules = h("section", { className: "rg-sec", "aria-label": "Rules" },

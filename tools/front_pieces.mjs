@@ -31,6 +31,10 @@ const P = {
   codoUp: 0, codoUpEnd: 1, codoFlat: 4,
   arcoChicoUp: 0, arcoChicoFlat: 1, arcoAltoUp: 0, arcoAnchoUp: 0, arcoAnchoFlat: 1,
   rayoUp: 0, rayoFlat: 2, zetaUp: 0, hombro: 0, cruceFlat: 0, cruceUp: 2,
+  // The Bota upright on its foot, the toe to the right (a boot in profile);
+  // the twins as a mirrored pair, three cubes on the ground and the fourth
+  // up at the back, the Zurdo's on its left, the Diestro's on its right.
+  botaUp: 12, zurdo: 0, diestro: 3,
 };
 const pc = (type, pose, col, row, mat, extra = {}) => ({ type, pose, col, row, mat, ...extra });
 
@@ -118,9 +122,9 @@ export const COMPOSITIONS = {
   "arch-brass": { size: [1600, 1100], dpr: 1, camera: { kind: "persp", az: 0.5, el: 0.28, fov: 24, pad: 1.1 }, ground: 0.45, pieces: [pc("arcoChico", P.arcoChicoUp, 0, 0, "black"), pc("turrito", 0, 1, 0, "brass")] },
   // Every piece type in a row, three-quarters on, the woods alternating.
   "lineup": {
-    size: [3600, 800], dpr: 1, camera: { kind: "ortho", az: 0.32, el: 0.36, pad: 1.03 }, ground: 0.35,
+    size: [4300, 800], dpr: 1, camera: { kind: "ortho", az: 0.32, el: 0.36, pad: 1.03 }, ground: 0.35,
     pieces: (() => {
-      const row = [["cabeza", 0], ["turrito", 0], ["flaco", P.flacoUp], ["chato", P.chatoUp], ["opa", 0], ["block1x3", P.b13Up], ["block2x3", P.b23Up], ["codo", P.codoUp], ["arcoChico", P.arcoChicoUp], ["arcoAlto", P.arcoAltoUp], ["arcoAncho", P.arcoAnchoUp], ["rayo", P.rayoUp], ["zeta", P.zetaUp], ["hombro", P.hombro], ["cruce", P.cruceUp]];
+      const row = [["cabeza", 0], ["turrito", 0], ["flaco", P.flacoUp], ["chato", P.chatoUp], ["opa", 0], ["block1x3", P.b13Up], ["block2x3", P.b23Up], ["codo", P.codoUp], ["bota", P.botaUp], ["arcoChico", P.arcoChicoUp], ["arcoAlto", P.arcoAltoUp], ["arcoAncho", P.arcoAnchoUp], ["rayo", P.rayoUp], ["zeta", P.zetaUp], ["hombro", P.hombro], ["cruce", P.cruceUp], ["zurdo", P.zurdo], ["diestro", P.diestro]];
       let col = 0; const out = [];
       row.forEach(([t, pose], i) => { const o = PIECE_ORIENTATIONS[t][pose]; out.push(pc(t, pose, col, 0, i % 2 ? "dark" : "light")); col += o.w + 1; });
       return out;

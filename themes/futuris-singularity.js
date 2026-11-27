@@ -579,7 +579,7 @@ const LAWS_ITEMS = [
   // TOPOLOGY with the board, under Missing Squares, not in LAWS, and All
   // Laws leaves it alone, user: `board`.)
   { key: "blackHoleSquares", label: "Singularity Squares", board: true, blurb: "Two linked squares. A one-square piece that enters one comes out beside the other, on the same side it went in. Ends the turn." },
-  { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Hombro, Cruce, Rayo or Zeta can be) turns a quarter turn around it. Not while it's caught in a narrow Arco's opening (a Chico or an Alto); under an Arco Ancho, it can. Costs 1 action." },
+  { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Hombro, Cruce, Bota, Rayo, Zeta, Zurdo or Diestro can be) turns a quarter turn around it. Not while it's caught in a narrow Arco's opening (a Chico or an Alto); under an Arco Ancho, it can. Costs 1 action." },
   { key: "threeActions", label: "3 Actions Per Turn", blurb: "3 actions per turn instead of 2." },
   // (On by default: a game begun here is never the standard game.)
   { key: "punto", label: "Punto (Komi)", def: true, blurb: "The side that opens has one action fewer on the game's first turn, to blunt the first strike: one action with 2 a turn, two with 3. On by default unless you turn it off; the standard game has no handicap." },
@@ -633,6 +633,11 @@ const PIECE_FOOTPRINTS = {
   zeta: [[0, 0], [0, 1], [1, 1], [2, 1], [2, 2]],
   hombro: [[0, 0], [1, 0], [0, 1]],
   cruce: [[0, 0], [1, 0], [2, 0], [1, 1]],
+  bota: [[0, 0], [1, 0], [2, 0], [0, 1]],
+  // (The twins seen from above: three squares in an L, one the other in
+  // a mirror, turned away from the Hombro's.)
+  zurdo: [[1, 0], [0, 1], [1, 1]],
+  diestro: [[0, 0], [0, 1], [1, 1]],
 };
 
 // MATTER — every piece type, one row each with a count (0-4; the
@@ -665,9 +670,15 @@ const MATTER_ROSTER = [
   // Hombro) or flat out the back (the Cruce, a T).
   { key: "hombro", label: "Hombro", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "hombro", view: "hombro", detail: "4 cubes: a Codo with one standing on its corner." },
   { key: "cruce", label: "Cruce", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "cruce", view: "cruce", detail: "4 cubes in a T." },
+  // (And the Bota: a fourth on the end of an arm.)
+  { key: "bota", label: "Bota", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "bota", view: "bota", detail: "4 cubes in an L: a Codo with one more on an arm." },
   // The Rayo (4-cube S/Z) and the Zeta (5-cube Z).
   { key: "rayo", label: "Rayo", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "rayo", view: "rayo", detail: "4 cubes in an S." },
   { key: "zeta", label: "Zeta", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "zeta", view: "zeta", detail: "5 cubes in a Z." },
+  // The twins: four cubes turning through all three ways, each the other
+  // in a mirror.
+  { key: "zurdo", label: "Zurdo", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "zurdo", view: "zurdo", detail: "4 cubes twisting left, the Diestro in a mirror." },
+  { key: "diestro", label: "Diestro", min: 0, max: MAX_OF_A_KIND, default: 0, icon: "diestro", view: "diestro", detail: "4 cubes twisting right, the Zurdo in a mirror." },
 ];
 // No cap on a side's pieces but whether they fit (user, of "11 pieces a
 // side: 10 at most": "drop it, so the only limit is whether the pieces
@@ -2399,7 +2410,7 @@ function openRulesCard(tab, focus = null) {
 
 // Pieces that can ever stand balanced on one cube (so can Cantilever
 // Pivot): checked against every orientation in engine/shapes.js.
-const PIVOT_CAPABLE_ROSTER = ["codo", "hombro", "cruce", "rayo", "zeta"];
+const PIVOT_CAPABLE_ROSTER = ["codo", "hombro", "cruce", "bota", "rayo", "zeta", "zurdo", "diestro"];
 
 // A law that's on but can't do anything with the other settings, and
 // why: shown under the law's own row.
@@ -2409,7 +2420,7 @@ function lawWarning(key, sel) {
   if (key === "cantileverPivot") {
     const roster = (sel.matter && sel.matter.roster) || {};
     if (!PIVOT_CAPABLE_ROSTER.some((k) => roster[k] > 0))
-      return { testid: "law-warning-cantileverPivot", text: "Only a Codo, Hombro, Cruce, Rayo or Zeta can pivot. Add one in MATTER." };
+      return { testid: "law-warning-cantileverPivot", text: "Only a Codo, Hombro, Cruce, Bota, Rayo, Zeta, Zurdo or Diestro can pivot. Add one in MATTER." };
   }
   if (key === "shoving") {
     if (shovesOnRolls(sel)) {
@@ -3281,7 +3292,7 @@ function renderCategoryOverlay(t) {
     // (It keeps you here: no trip to MATTER for Pivot, its note says it.)
     const all = allLawsOn(sel);
     const allRow = renderCheckboxRow(
-      { key: "allLaws", label: "All Laws", blurb: "Every law below, on or off at once." + (all && lawWarning("cantileverPivot", sel) ? " Cantilever Pivot needs a Codo, Hombro, Cruce, Rayo or Zeta: add one in MATTER." : "") },
+      { key: "allLaws", label: "All Laws", blurb: "Every law below, on or off at once." + (all && lawWarning("cantileverPivot", sel) ? " Cantilever Pivot needs a Codo, Hombro, Cruce, Bota, Rayo, Zeta, Zurdo or Diestro: add one in MATTER." : "") },
       all,
       () => { setAllLaws(sel, !all, (_, key) => flip(key)); s.labelsDirty = true; s.bump(); },
       "law-all"

@@ -168,7 +168,7 @@ console.log("Cabeza Nova: the one menu");
     await all.click();
     check("...off: none", (await p.locator(`${laws}[aria-checked="true"]`).count()) === 0 && (await all.getAttribute("aria-checked")) === "false");
   }
-  check("...each piece pictured, as Cromo draws it (15, each Arco size its own)", !!(await poll(async () => (await p.locator('[data-testid^="gate-pic-"]').count()) === 15, 6000)));
+  check("...each piece pictured, as Cromo draws it (18, each Arco size its own)", !!(await poll(async () => (await p.locator('[data-testid^="gate-pic-"]').count()) === 18, 6000)));
   check("...the Arco Chico, Alto and Ancho each in a row of their own, no size switch", (await p.locator('[data-testid="gate-piece-arcoChico"]').count()) === 1 && (await p.locator('[data-testid="gate-piece-arcoAlto"]').count()) === 1 && (await p.locator('[data-testid="gate-piece-arcoAncho"]').count()) === 1 && (await p.locator('[data-testid^="gate-arco-"]').count()) === 0);
   await p.waitForTimeout(600); await shot(p, "sheet-phone");
   {

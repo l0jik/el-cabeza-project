@@ -389,8 +389,8 @@ check("dragging brings MATTER into view regardless of the shuffled arrangement",
 // roller on the right — the 1×3 and 2×3 blocks included (they used to be
 // on/off checkboxes) ----
 const rowKeys = await page.locator('[data-testid^="matter-row-"]').evaluateAll((els) => els.map((e) => e.dataset.testid.replace("matter-row-", "")));
-check("MATTER lists every piece type as the same kind of row (15, each Arco size its own)",
-  rowKeys.join(",") === "cabeza,turrito,flaco,chato,opa,block1x3,block2x3,arcoChico,arcoAlto,arcoAncho,codo,hombro,cruce,rayo,zeta", rowKeys.join(","));
+check("MATTER lists every piece type as the same kind of row (18, each Arco size its own)",
+  rowKeys.join(",") === "cabeza,turrito,flaco,chato,opa,block1x3,block2x3,arcoChico,arcoAlto,arcoAncho,codo,hombro,cruce,bota,rayo,zeta,zurdo,diestro", rowKeys.join(","));
 check("no checkbox rows are left for pieces", (await page.locator('[data-testid^="matter-piece-"]').count()) === 0);
 {
   // Place pieces manually in MATTER's Setup too (user: "is set out by hand in
@@ -411,7 +411,7 @@ check("no checkbox rows are left for pieces", (await page.locator('[data-testid^
   await page.waitForTimeout(400);
 }
 check("each row's still is a rendered 3D image",
-  (await page.locator('[data-testid^="matter-view-"] img').count()) === 15);
+  (await page.locator('[data-testid^="matter-view-"] img').count()) === 18);
 // More below (user: the newest pieces, at the list's foot, seemed not to
 // be there): said at the panel's foot while there's more, gone at its end.
 {
@@ -1102,23 +1102,24 @@ if (state.activeCategory === "laws") {
   if (diagOn) await page.locator('[data-testid="law-diagonalSlide"]').click();
   await page.waitForTimeout(120);
   // A law that can't act warns under its own row: Cantilever Pivot with no
-  // Codo, Rayo or Zeta in the roster.
+  // piece that can pivot in the roster.
   const pivotWasOn = !!state.selections.laws.cantileverPivot;
   if (!pivotWasOn) { await page.locator('[data-testid="law-cantileverPivot"]').click(); await page.waitForTimeout(150); }
-  const pivotCapable = ["codo", "hombro", "cruce", "rayo", "zeta"].some((k) => state.selections.matter.roster[k] > 0);
+  const PIVOTERS = ["codo", "hombro", "cruce", "bota", "rayo", "zeta", "zurdo", "diestro"];
+  const pivotCapable = PIVOTERS.some((k) => state.selections.matter.roster[k] > 0);
   check("Cantilever Pivot warns when no piece in the roster can pivot",
     (await page.locator('[data-testid="law-warning-cantileverPivot"]').count()) === (pivotCapable ? 0 : 1));
   if (!pivotCapable && !pivotWasOn) {
     // ...and shows where they are (pivot-guide.js): the warning flashes,
-    // then over to MATTER, the Codo, Rayo and Zeta together and lit.
+    // then over to MATTER, the eight that can pivot together and lit.
     const flashing = (sel) => page.evaluate((sel) => { const e = document.querySelector(sel); return !!e && e.classList.contains("ec-guide-flash"); }, sel);
     check("...the warning flashes", !!(await poll(() => flashing('[data-testid="law-warning-cantileverPivot"]'), 1500, 60)));
     check("...then over to MATTER", !!(await poll(async () => (await sphereState()).activeCategory === "matter", 3000, 100)));
-    check("...the five pivot pieces together at the end, lit", !!(await poll(() => page.evaluate(() => {
+    check("...the eight pivot pieces together at the end, lit", !!(await poll(() => page.evaluate((pivoters) => {
       const rows = [...document.querySelectorAll('[data-testid^="matter-row-"]')].map((e) => e.getAttribute("data-testid").replace("matter-row-", ""));
-      const lit = ["codo", "hombro", "cruce", "rayo", "zeta"].every((k) => document.querySelector(`[data-testid="matter-row-${k}"]`).classList.contains("ec-guide-flash"));
-      return lit && rows.slice(-5).join(",") === "codo,hombro,cruce,rayo,zeta";
-    }), 3000, 80)));
+      const lit = pivoters.every((k) => document.querySelector(`[data-testid="matter-row-${k}"]`).classList.contains("ec-guide-flash"));
+      return lit && rows.slice(-pivoters.length).join(",") === pivoters.join(",");
+    }, PIVOTERS), 3000, 80)));
     await closeOverlay();
     await navigateToCategory("laws");
   }

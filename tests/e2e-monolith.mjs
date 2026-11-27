@@ -151,11 +151,11 @@ const landOf = (pg) => poll(() => pg.evaluate(() => {
     fog: f ? { isFog: !!f.isFog, near: f.near, far: f.far } : null, skyFogless: !!sky && sky.material.fog === false, stats: g.userData.stats,
   };
 }), 120000, 500);
-const SHAPES = ["cabeza", "turrito", "opa", "flaco", "chato", "block1x3", "block2x3", "codo", "arcoChico", "arcoAlto", "arcoAncho", "rayo", "zeta", "hombro", "cruce"];
+const SHAPES = ["cabeza", "turrito", "opa", "flaco", "chato", "block1x3", "block2x3", "codo", "arcoChico", "arcoAlto", "arcoAncho", "rayo", "zeta", "hombro", "cruce", "bota", "zurdo", "diestro"];
 function landChecks(land, where, { bothSides = false } = {}) {
   check(`${where}: the land hangs on the board group (it turns with the board)`, !!land && land.onBoard);
   check(`${where}: sky, moon, ground, rock, its shadows, rubble`, !!land && Object.values(land.has).every(Boolean), JSON.stringify(land && land.has));
-  check(`${where}: every piece's shape stands in the land, the standard five and Cabeza Nova's ten${bothSides ? ", on both sides" : ""}`, !!land && SHAPES.every((s) => land.types[s] && (!bothSides || (land.types[s].includes("light") && land.types[s].includes("dark")))), JSON.stringify(land && land.types));
+  check(`${where}: every piece's shape stands in the land, the standard five and Cabeza Nova's thirteen${bothSides ? ", on both sides" : ""}`, !!land && SHAPES.every((s) => land.types[s] && (!bothSides || (land.types[s].includes("light") && land.types[s].includes("dark")))), JSON.stringify(land && land.types));
   check(`${where}: and rock of other kinds between (${land && land.kinds.join(", ")})`, !!land && land.kinds.length >= (bothSides ? 9 : 6));
   check(`${where}: the board a part of the ground: the slab, its outline and its grid gone`, !!land && land.slabGone);
   check(`${where}: ...the plateau's floor level under the board and its bench (${land && land.floorPts} points at 0, ${land && land.overFloor} above)`, !!land && land.floorPts >= 20 && land.overFloor === 0);

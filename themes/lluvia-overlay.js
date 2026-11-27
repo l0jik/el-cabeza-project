@@ -49,7 +49,7 @@ const JP = "'Dela Gothic One', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'IPA
 
 /* The choices themselves, and applying them to a game, are shared with
    Tienda (themes/rules-selections.js); the city only adds its signs. */
-const SIGN = { cabeza: "頭", turrito: "塔", flaco: "細", chato: "平", opa: "重", block1x3: "棒", block2x3: "板", codo: "肘", arcoChico: "弧", arcoAlto: "拱", arcoAncho: "橋", rayo: "雷", zeta: "乙", hombro: "肩", cruce: "十" };
+const SIGN = { cabeza: "頭", turrito: "塔", flaco: "細", chato: "平", opa: "重", block1x3: "棒", block2x3: "板", codo: "肘", arcoChico: "弧", arcoAlto: "拱", arcoAncho: "橋", rayo: "雷", zeta: "乙", hombro: "肩", cruce: "十", bota: "靴", zurdo: "左", diestro: "右" };
 // [key, name, sign, min, max, default]
 const PIECES = PIECE_OPTIONS.map((p) => [p.key, p.name, SIGN[p.key], p.min, p.max, p.def]);
 const LAWS = RULE_LAWS.map((l) => [l.key, l.name, l.note]); // (black holes are set with the board)
@@ -124,7 +124,7 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = 
       onClick: () => { sound("key"); pivotHush.hush(); change((s) => { setAllLaws(s, !allLawsOn(s)); }); },
       style: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", gap: 10, width: "100%", minHeight: 56, padding: "6px 0 8px", background: "transparent", border: "none", borderBottom: "2px solid rgba(255,179,71,0.35)", textAlign: "left", cursor: "pointer", ...TERM },
     },
-    h("span", { style: { display: "flex", flexDirection: "column" } }, h("span", { style: { fontSize: 22, color: "#ffe2b0" } }, "ALL LAWS"), h("span", { "data-testid": "lluvia-all-laws-note", style: { fontSize: 16, color: "#a8783a" } }, "Every law below, on or off at once.", all && warnings.some((w) => w.key === "cantileverPivot") ? " Cantilever pivot needs a Codo, Hombro, Cruce, Rayo or Zeta: add one in MATTER." : "")),
+    h("span", { style: { display: "flex", flexDirection: "column" } }, h("span", { style: { fontSize: 22, color: "#ffe2b0" } }, "ALL LAWS"), h("span", { "data-testid": "lluvia-all-laws-note", style: { fontSize: 16, color: "#a8783a" } }, "Every law below, on or off at once.", all && warnings.some((w) => w.key === "cantileverPivot") ? " Cantilever pivot needs a Codo, Hombro, Cruce, Bota, Rayo, Zeta, Zurdo or Diestro: add one in MATTER." : "")),
     h("span", { style: { fontSize: 22, color: all ? "#fff27a" : "#7a6040", textShadow: all ? "0 0 8px rgba(255,242,122,0.7)" : "none" } }, all ? "[ ON ]" : "[OFF ]"));
     body = [allRow, ...LAWS.flatMap(([k, name, note]) => {
       const on = !!sel.laws[k];

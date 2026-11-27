@@ -1737,6 +1737,9 @@ const CATALOG = {
   zeta: ["49 T 4409", "55¢", "Five cubes, a Z."],
   hombro: ["49 T 4414", "45¢", "Four cubes: an L with one standing on its corner."],
   cruce: ["49 T 4415", "45¢", "Four cubes, a T."],
+  bota: ["49 T 4416", "45¢", "Four cubes, an L."],
+  zurdo: ["49 T 4417", "45¢", "Four cubes twisting left. Its twin is the Diestro."],
+  diestro: ["49 T 4418", "45¢", "Four cubes twisting right. Its twin is the Zurdo."],
 };
 // The summary's groups, in the store's words.
 export const TIENDA_VARIANT_LABELS = { laws: "RULES", matter: "PIECES", topologies: "BOARD" };
@@ -2075,7 +2078,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
         // Every rule at once, first on the form (user: "a switch ... at the
         // top of all custom setting menus to turn all laws on").
         !classic && h("div", { className: "td-all" },
-          check("all-laws", allLawsOn(sel), "All rules", "Mark this box for every rule in section 2; clear it for none." + (allLawsOn(sel) && warnings.some((w) => w.key === "cantileverPivot") ? " Cantilever pivot needs a Codo, Hombro, Cruce, Rayo or Zeta: order one in section 1." : ""),
+          check("all-laws", allLawsOn(sel), "All rules", "Mark this box for every rule in section 2; clear it for none." + (allLawsOn(sel) && warnings.some((w) => w.key === "cantileverPivot") ? " Cantilever pivot needs a Codo, Hombro, Cruce, Bota, Rayo, Zeta, Zurdo or Diestro: order one in section 1." : ""),
             () => { pivotHush.hush(); change((s) => setAllLaws(s, !allLawsOn(s))); })),
         sec("Pieces", "quantity for each side — the other side gets the same",
           pieceRows,

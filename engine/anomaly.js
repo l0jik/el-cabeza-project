@@ -9,8 +9,26 @@
 
 import { BOARD_ROWS, BOARD_COLS, withFullTurn } from "./constants.js";
 import { createInitialPieces } from "./rules.js";
-import { mirrorVox } from "./shapes.js";
+import { mirrorVox, allPosesOf } from "./shapes.js";
 import { cabezaInDanger, canEndGame } from "./ai.js";
+
+/* The three pieces from the user's photos, as their cubes ("x,y,l": the
+   column, the row toward the near side, the level). The Zurdo as the
+   upper one stood: a bar of two on the board, a bar of two on its left
+   end pointing out at you over the next square (its path turns
+   left-handed). The Diestro as the lower: a column of two, a bar of two
+   at its foot beside it pointing at you (right-handed). The Bota flat: a
+   row of three and a fourth beside one end. */
+export const ZURDO_VOX = "0,0,0;1,0,0;0,0,1;0,1,1";
+export const DIESTRO_VOX = "0,0,0;0,0,1;1,0,0;1,1,0";
+export const BOTA_VOX = "0,0,0;1,0,0;2,0,0;0,1,0";
+// Every way a shape can stand, the steadiest first (most cubes on the
+// board), then the fewest rows deep, then the narrowest, then by cubes.
+function everyWay(vox) {
+  return allPosesOf(vox)
+    .sort((a, b) => b.ground - a.ground || a.h - b.h || a.w - b.w || (a.vox < b.vox ? -1 : a.vox > b.vox ? 1 : 0))
+    .map(({ w, h, z, vox: v }) => ({ w, h, z, vox: v }));
+}
 
 export const PIECE_ORIENTATIONS = {
   flaco: [
@@ -115,6 +133,16 @@ export const PIECE_ORIENTATIONS = {
     { w: 3, h: 2, z: 1, vox: "1,0,0;0,1,0;1,1,0;2,1,0" },
     { w: 3, h: 1, z: 2, vox: "0,0,0;1,0,0;2,0,0;1,0,1" },
   ],
+  // The Zurdo, the Diestro and the Bota (user: "Any of the twelve ways, so
+  // long as nothing protrudes outside the perimeter of the game board"):
+  // every way each can stand, the steadiest first (most cubes on the
+  // board), balanced on one cube too. All inside the piece's own box, so
+  // nothing hangs past the board's edge; a setup takes only the ways that
+  // fit its home rows (the twins' box is 2x2x2: all twelve; the Bota's 3
+  // long: 16 of its 24 in two rows).
+  zurdo: everyWay(ZURDO_VOX),
+  diestro: everyWay(DIESTRO_VOX),
+  bota: everyWay(BOTA_VOX),
 };
 
 export function shuffledIndices(n) {
@@ -298,7 +326,11 @@ export function generateAnomalySetup(roster, blocked = [], { depth = 2 } = {}) {
     const placed = [];
     let ok = true;
     for (const { type, index } of instances) {
-      const orientations = PIECE_ORIENTATIONS[type];
+      // (Only the ways that fit its home rows: a Bota lying lengthwise is
+      // 3 rows deep, and drawn here it could never be placed.)
+      const every = PIECE_ORIENTATIONS[type];
+      const fitting = every.filter((o) => o.h <= depth && o.w <= BOARD_COLS);
+      const orientations = fitting.length ? fitting : every;
       const { w, h, z, vox } = orientations[Math.floor(Math.random() * orientations.length)];
       const rowOptions = [];
       for (let row = 0; row <= depth - h; row++) rowOptions.push(row);

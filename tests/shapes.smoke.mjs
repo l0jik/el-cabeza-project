@@ -292,5 +292,60 @@ check("a box still fills every level of its footprint", maskAt({ row: 0, col: 0,
   check("the Cruce on its stem: the pivot arm point is a square out from the stem", !!pc && Math.hypot(pt.row - (pc.row + 0.5), pt.col - (pc.col + 0.5)) > 0.9, JSON.stringify({ pc, pt }));
 }
 
+// ---- the Zurdo, the Diestro and the Bota (user's photos) ----
+// The twins: four cubes on a path through all three directions, each the
+// other in a mirror. Their hands, in the world (x east, up, row toward the
+// near side: three.js's X, Y, Z): along each one's path, the third step
+// against the cross of the first two; left for the Zurdo, right for the
+// Diestro, read from either end.
+{
+  const { ZURDO_VOX, DIESTRO_VOX, BOTA_VOX, PIECE_ORIENTATIONS } = await import("../engine/anomaly.js");
+  const { allPosesOf } = await import("../engine/shapes.js");
+  const hand = (vox) => {
+    const c = parseVox(vox);
+    const adj = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) === 1;
+    const end = c.find((q) => c.filter((o) => adj(o, q)).length === 1);
+    const path = [end];
+    while (path.length < c.length) path.push(c.find((q) => !path.includes(q) && adj(q, path[path.length - 1])));
+    // (vox x,row,level -> world X,Y,Z = x, level, row)
+    const w = path.map(([x, row, l]) => [x, l, row]);
+    const d = [0, 1, 2].map((i) => [0, 1, 2].map((k) => w[i + 1][k] - w[i][k]));
+    const [a, b, e] = d;
+    const cross = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    return cross[0] * e[0] + cross[1] * e[1] + cross[2] * e[2];
+  };
+  const ways = (vox) => new Set(allPosesOf(vox).map((o) => o.vox));
+  const z = ways(ZURDO_VOX), d = ways(DIESTRO_VOX);
+  const mirrored = voxKey(parseVox(ZURDO_VOX).map(([x, y, l]) => [1 - x, y, l]));
+  check("the Zurdo and the Diestro: 12 ways each, never the same piece by any turn",
+    z.size === 12 && d.size === 12 && ![...z].some((k) => d.has(k)));
+  check("...each the other in a mirror", d.has(mirrored));
+  check(`...the Zurdo left-handed, the Diestro right (${hand(ZURDO_VOX)}, ${hand(DIESTRO_VOX)}), in every way each stands`,
+    [...z].every((k) => hand(k) === -1) && [...d].every((k) => hand(k) === 1));
+  const byGround = (vox) => allPosesOf(vox).reduce((m, o) => ({ ...m, [o.ground]: (m[o.ground] || 0) + 1 }), {});
+  check("...four ways on three cubes, four on two, four balanced on one", JSON.stringify(byGround(ZURDO_VOX)) === '{"1":4,"2":4,"3":4}' && JSON.stringify(byGround(DIESTRO_VOX)) === '{"1":4,"2":4,"3":4}');
+  check("the Bota: an L of four, 24 ways (8 flat, 4 on edge, 4 upright on its foot, 8 balanced on one)",
+    allPosesOf(BOTA_VOX).length === 24 && JSON.stringify(byGround(BOTA_VOX)) === '{"1":8,"2":4,"3":4,"4":8}', JSON.stringify(byGround(BOTA_VOX)));
+  check("...every way of each a start (user: \"Any of the twelve ways, so long as nothing protrudes outside the perimeter of the game board\"), inside its own box",
+    PIECE_ORIENTATIONS.zurdo.length === 12 && PIECE_ORIENTATIONS.diestro.length === 12 && PIECE_ORIENTATIONS.bota.length === 24
+    && ["zurdo", "diestro", "bota"].every((t) => PIECE_ORIENTATIONS[t].every((o) => parseVox(o.vox).every(([x, y, l]) => x < o.w && y < o.h && l < o.z))));
+  for (const [type, vox] of [["zurdo", ZURDO_VOX], ["diestro", DIESTRO_VOX], ["bota", BOTA_VOX]]) {
+    const o = allPosesOf(vox).find((q) => q.vox === voxKey(parseVox(vox))) || allPosesOf(vox)[0];
+    const p = { id: type, type, owner: "dark", row: 4, col: 4, w: o.w, h: o.h, z: o.z, vox: o.vox };
+    let q = p, r = p;
+    for (let i = 0; i < 4; i++) q = rollBlock(q, "E");
+    for (let i = 0; i < 4; i++) r = rollBlock(r, "S");
+    check(`the ${type} keeps its 4 cubes and its pose after four rolls either way`,
+      cubeCount(q) === 4 && q.vox === p.vox && r.vox === p.vox, `${q.vox} / ${r.vox}`);
+    const back = rollBlock(rollBlock(p, "E"), "W");
+    check(`...a roll east and back west is where it was (undo relies on it)`, back.vox === p.vox && back.col === p.col && back.row === p.row);
+    setActiveLaws({ cantileverPivot: true });
+    const balanced = allPosesOf(vox).filter((w) => w.ground === 1).map((w) => ({ ...p, w: w.w, h: w.h, z: w.z, vox: w.vox }));
+    check(`...balanced on one cube it pivots (Cantilever Pivot; ${balanced.length} ways)`,
+      balanced.length > 0 && balanced.every((b) => Object.keys(legalMovesFor([b], b)).some((k) => k.startsWith("pivot"))));
+    setActiveLaws({ cantileverPivot: false });
+  }
+}
+
 if (failures) { console.log(`\nSHAPES SMOKE TEST FAILED (${failures})`); process.exit(1); }
 console.log("\nSHAPES SMOKE TEST PASSED");

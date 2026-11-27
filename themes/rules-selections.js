@@ -41,14 +41,20 @@ export const PIECE_OPTIONS = [
   { key: "arcoChico", name: "Arco Chico", note: "3 wide, 2 tall", min: 0, max: MAX_OF_A_KIND, def: 0 },
   { key: "arcoAlto", name: "Arco Alto", note: "3 wide, 3 tall", min: 0, max: MAX_OF_A_KIND, def: 0 },
   { key: "arcoAncho", name: "Arco Ancho", note: "4 wide, 2 tall", min: 0, max: MAX_OF_A_KIND, def: 0 },
-  // The pieces that can pivot (Codo, Hombro, Cruce, Rayo, Zeta) together at the end,
-  // so the pivot warning can point at one place (user).
+  // The pieces that can pivot (Codo, Hombro, Cruce, Bota, Rayo, Zeta,
+  // Zurdo, Diestro) together at the end, so the pivot warning can point
+  // at one place (user).
   { key: "codo", name: "Codo", min: 0, max: MAX_OF_A_KIND, def: 0 },
-  // (The Codo's family, with a fourth cube at its corner, user.)
+  // (The Codo's family, with a fourth cube at its corner, user; and the
+  // Bota, a fourth on the end of an arm.)
   { key: "hombro", name: "Hombro", note: "A Codo with a cube standing on its corner", min: 0, max: MAX_OF_A_KIND, def: 0 },
   { key: "cruce", name: "Cruce", note: "4 cubes in a T", min: 0, max: MAX_OF_A_KIND, def: 0 },
+  { key: "bota", name: "Bota", note: "4 cubes in an L", min: 0, max: MAX_OF_A_KIND, def: 0 },
   { key: "rayo", name: "Rayo", min: 0, max: MAX_OF_A_KIND, def: 0 },
   { key: "zeta", name: "Zeta", min: 0, max: MAX_OF_A_KIND, def: 0 },
+  // (The twins, each the other in a mirror.)
+  { key: "zurdo", name: "Zurdo", note: "4 cubes twisting left", min: 0, max: MAX_OF_A_KIND, def: 0 },
+  { key: "diestro", name: "Diestro", note: "4 cubes twisting right", min: 0, max: MAX_OF_A_KIND, def: 0 },
 ];
 // The Arco's three sizes (each a piece of its own above; an older save's
 // one Arco count and size, `arco` and `arcoSize`, is read as that size's).
@@ -72,7 +78,7 @@ export const LAW_OPTIONS = [
   // and All rules leaves it alone, as it does Missing squares: `board`.)
   { key: "blackHoleSquares", name: "Singularity squares", board: true, note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn. One set or two." },
   { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal slide. 1 action more. Choose whether rolls shove too, or only slides, whether a shove may push your own pieces, and whether pieces behind block it or are pushed along too." },
-  { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Hombro, Cruce, Rayo or Zeta standing on one cube turns a quarter turn round it. Not while it's caught in a narrow Arco's opening (a Chico or an Alto); under an Arco Ancho, it can. 1 action." },
+  { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Hombro, Cruce, Bota, Rayo, Zeta, Zurdo or Diestro standing on one cube turns a quarter turn round it. Not while it's caught in a narrow Arco's opening (a Chico or an Alto); under an Arco Ancho, it can. 1 action." },
   // (3 actions per turn directly above Split movement: user.)
   { key: "threeActions", name: "3 actions per turn", note: "3 actions a turn instead of 2." },
   { key: "splitMovement", name: "Split movement, 2 pieces", note: "Spend a turn's actions on up to two pieces." },
@@ -501,14 +507,14 @@ export function lawsForEngine(sel) {
   return { ...l, diagonalSlide: !!l.diagonalSlide, splitThree: three, splitMovement: !!l.splitMovement || three, ...shoveLaws(sel.shove), holeAnyExit: holeAnyExitOn(sel) };
 }
 // Pieces that can ever stand balanced on one cube (so can pivot).
-export const PIVOT_CAPABLE = ["codo", "hombro", "cruce", "rayo", "zeta"];
+export const PIVOT_CAPABLE = ["codo", "hombro", "cruce", "bota", "rayo", "zeta", "zurdo", "diestro"];
 /* A law that's on but can't do anything with the other choices, and why
    (as Futuris's sphere warns): { key, testid, text } for each. */
 export function lawWarnings(sel) {
   const out = [];
   const l = sel.laws;
   if (l.cantileverPivot && !PIVOT_CAPABLE.some((k) => sel.counts[k] > 0))
-    out.push({ key: "cantileverPivot", testid: "law-warning-cantileverPivot", text: "Only a Codo, Hombro, Cruce, Rayo or Zeta can pivot. Order one under Pieces." });
+    out.push({ key: "cantileverPivot", testid: "law-warning-cantileverPivot", text: "Only a Codo, Hombro, Cruce, Bota, Rayo, Zeta, Zurdo or Diestro can pivot. Order one under Pieces." });
   if (l.shoving) {
     if (shoveOf(sel.shove).onRolls) {
       // Every Opa move costs 2 and a shove 1 more: an Opa only shoves with 3.

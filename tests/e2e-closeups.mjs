@@ -25,7 +25,7 @@ const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromi
 
 const WORLDS = process.argv.slice(2).length ? process.argv.slice(2)
   : ["standard", "futuris", "futuris:matter", "cromo", "plano", "luna", "ciudad", "noir", "lluvia", "tienda", "lab", "parrish?look=orinoco", "parrish?look=watermark"];
-const TYPES = ["cabeza", "turrito", "flaco", "chato", "opa", "block1x3", "block2x3", "codo", "arcoChico", "arcoAlto", "arcoAncho", "rayo", "zeta", "hombro", "cruce"];
+const TYPES = ["cabeza", "turrito", "flaco", "chato", "opa", "block1x3", "block2x3", "codo", "arcoChico", "arcoAlto", "arcoAncho", "rayo", "zeta", "hombro", "cruce", "bota", "zurdo", "diestro"];
 // [yaw, pitch]: from the side, from below at a slant, from underneath, upside down.
 const VIEWS = [];
 for (const pitch of [0, -0.7, -1.45, Math.PI]) for (const yaw of [0.3, 1.9]) VIEWS.push([yaw, pitch]);

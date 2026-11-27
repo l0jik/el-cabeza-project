@@ -200,7 +200,7 @@ function buildRosterFromSelections(matterSelections) {
   });
   if (matterSelections.roster.rayo > 0) roster.push({ type: "rayo", count: matterSelections.roster.rayo });
   if (matterSelections.roster.zeta > 0) roster.push({ type: "zeta", count: matterSelections.roster.zeta });
-  ["hombro", "cruce"].forEach((type) => {
+  ["hombro", "cruce", "bota", "zurdo", "diestro"].forEach((type) => {
     const count = matterSelections.roster[type] || 0;
     if (count > 0) roster.push({ type, count });
   });

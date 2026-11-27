@@ -39,7 +39,7 @@ export const LAW_TEXT = {
   slide: { name: "Orthogonal Slide", text: "Any piece can move one open square along its row or column (north, south, east or west, not corner to corner) without tipping. A slide costs 2 actions." },
   diagonalSlide: { name: "Diagonal Slide", text: "Any piece can move one open square corner to corner without tipping, for 2 actions. On its own, or with Orthogonal Slide for all eight ways. A diagonal slide never shoves." },
   blackHoleSquares: { name: "Singularity Squares", text: "Two linked singularities. A piece standing on one square that enters one comes out of the other, one square past it on the same side it went in, and the turn ends. With two sets, the player picks which singularity it comes out of, either one in the other half of the board (with Exit from any other singularity, any of the other three), and it comes out of that one the same way; a piece pushed in comes out of that singularity's own partner." },
-  cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube can turn a quarter turn around it, for 1 action. Not while it's caught in a narrow Arco's opening (a Chico or an Alto); under an Arco Ancho, it can." },
+  cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Hombro, Cruce, Bota, Rayo, Zeta, Zurdo or Diestro balanced on one cube can turn a quarter turn around it, for 1 action. Not while it's caught in a narrow Arco's opening (a Chico or an Alto); under an Arco Ancho, it can." },
   threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 actions instead of 2." },
   splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 actions can be shared between up to three pieces in one turn, one action each." },
   shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra action. A slide pushes them one square; a roll pushes them just past where it lands. Never diagonally, even with Diagonal Slide. Nothing may be behind them." },
@@ -138,7 +138,7 @@ function CostsCard({ C, classic }) {
     ["Cabeza step", "Any of 8 directions", <Dots n={1} C={C} />],
     ["Opa move", "Roll or slide; once per turn", <Dots n={2} C={C} />],
     ["Slide", "One square, no tipping", <Dots n={2} C={C} />, true],
-    ["Pivot", "Codo, Hombro, Cruce, Rayo or Zeta on one cube", <Dots n={1} C={C} />, true],
+    ["Pivot", "Codo, Hombro, Cruce, Bota, Rayo, Zeta, Zurdo or Diestro on one cube", <Dots n={1} C={C} />, true],
     ["Shove", "Added to the move that pushes", <Dots n={1} C={C} plus />, true],
     ["Back to an earlier spot", "This turn only", <span style={{ color: C.slate }}>free</span>],
   ];
@@ -472,7 +472,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "cantileverPivot", law: "cantileverPivot", title: "Pivot", cost: <Dots n={1} C={C} />, text: "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube turns a quarter turn around it. Its arm is held up, so it swings right over a Cabeza. Not while it's caught in a narrow Arco's opening (a Chico or an Alto); under an Arco Ancho, it can.",
+      key: "cantileverPivot", law: "cantileverPivot", title: "Pivot", cost: <Dots n={1} C={C} />, text: "A Codo, Hombro, Cruce, Bota, Rayo, Zeta, Zurdo or Diestro balanced on one cube turns a quarter turn around it. Its arm is held up, so it swings right over a Cabeza. Not while it's caught in a narrow Arco's opening (a Chico or an Alto); under an Arco Ancho, it can.",
       svg: (
         <>
           {panels}
@@ -800,8 +800,11 @@ const PIECE_TEXT = {
   zeta: ["Five cubes in a Z. Rolls for 1 action. " + CUBE_CRUSH, "roll"],
   hombro: ["Four cubes: a Codo with one standing on its corner. Rolls for 1 action. " + CUBE_CRUSH, "roll"],
   cruce: ["Four cubes in a T. Rolls for 1 action. " + CUBE_CRUSH, "roll"],
+  bota: ["Four cubes in an L: a Codo with one more on an arm. Rolls for 1 action. " + CUBE_CRUSH, "roll"],
+  zurdo: ["Four cubes twisting left, the Diestro in a mirror. Rolls for 1 action. " + CUBE_CRUSH, "roll"],
+  diestro: ["Four cubes twisting right, the Zurdo in a mirror. Rolls for 1 action. " + CUBE_CRUSH, "roll"],
 };
-const PIVOTERS = ["codo", "hombro", "cruce", "rayo", "zeta"];
+const PIVOTERS = ["codo", "hombro", "cruce", "bota", "rayo", "zeta", "zurdo", "diestro"];
 
 export function pieceCardInfo(piece, laws = {}, name = piece.type) {
   let [text, tile] = PIECE_TEXT[piece.type] || ["Rolls over one edge, 1 action a roll. " + CRUSH, "roll"];

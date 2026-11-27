@@ -130,4 +130,36 @@ console.log("shell is EdgesGeometry-based LineSegments:", shell.geometry.type ==
   console.log("generateAnomalySetup places Hombros and Cruces with their cubes, mirrored and non-overlapping (200 rolls): ok");
 }
 
+// The Zurdo, the Diestro and the Bota (user's photos): the same, and each
+// twin still itself on the other side (the 180° turn keeps a hand; a
+// mirror wouldn't), every way it starts inside the home rows.
+{
+  const { allPosesOf } = await import("../engine/shapes.js");
+  const { ZURDO_VOX, DIESTRO_VOX } = await import("../engine/anomaly.js");
+  const zurdo = new Set(allPosesOf(ZURDO_VOX).map((o) => o.vox)), diestro = new Set(allPosesOf(DIESTRO_VOX).map((o) => o.vox));
+  const seenWays = { zurdo: new Set(), diestro: new Set(), bota: new Set() };
+  for (let i = 0; i < 300; i++) {
+    const ps = generateAnomalySetup([{ type: "zurdo", count: 1 }, { type: "diestro", count: 1 }, { type: "bota", count: 1 }, { type: "cabeza", count: 1 }]);
+    for (const type of ["zurdo", "diestro", "bota"]) {
+      const all = ps.filter((p) => p.type === type);
+      if (all.length !== 2) throw new Error(`expected 2 ${type}s, got ${all.length}`);
+      const d = all.find((p) => p.owner === "dark");
+      if (!d.vox || parseVox(d.vox).length !== 4) throw new Error(`${type} without its 4 cubes: ${JSON.stringify(d)}`);
+      if (d.row + d.h > 2) throw new Error(`Dark ${type} outside its home rows: ${JSON.stringify(d)}`);
+      const l = ps.find((p) => p.id === d.id.replace("dark-", "light-"));
+      if (l.vox !== mirrorVox(d)) throw new Error(`Light's ${type} isn't Dark's turned`);
+      if (type !== "bota") {
+        const own = type === "zurdo" ? zurdo : diestro;
+        if (!own.has(d.vox) || !own.has(l.vox)) throw new Error(`a ${type} that isn't one: dark ${d.vox}, light ${l.vox}`);
+      }
+      seenWays[type].add(d.vox);
+    }
+    for (let a = 0; a < ps.length; a++)
+      for (let b = a + 1; b < ps.length; b++)
+        if (piecesClash(ps[a], ps[b])) throw new Error(`opening overlaps: ${ps[a].id} / ${ps[b].id}`);
+  }
+  if (seenWays.zurdo.size < 10 || seenWays.diestro.size < 10 || seenWays.bota.size < 12) throw new Error(`starts not spread over their ways: ${seenWays.zurdo.size} ${seenWays.diestro.size} ${seenWays.bota.size}`);
+  console.log(`generateAnomalySetup places Zurdos, Diestros and Botas, each twin itself on both sides, in ${seenWays.zurdo.size}, ${seenWays.diestro.size} and ${seenWays.bota.size} ways (300 rolls): ok`);
+}
+
 console.log("\nFUTURIS THEME SMOKE TEST PASSED");

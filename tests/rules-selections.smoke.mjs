@@ -60,7 +60,7 @@ import("../themes/rules-selections.js").then(async (m) => {
   // the only limit is whether the pieces fit, with a short note that big
   // armies weaken the computer": a kind goes as high as two home rows of
   // the widest board hold, the Cabeza one or two.)
-  check("15 piece types (each Arco size its own; the Hombro and Cruce too), up to 40 each (Cabeza 1-2)", m.PIECE_OPTIONS.length === 15 && m.MAX_OF_A_KIND === 40 && m.PIECE_OPTIONS.every((p) => p.max === (p.key === "cabeza" ? 2 : m.MAX_OF_A_KIND)));
+  check("18 piece types (each Arco size its own; the Hombro and Cruce, the Bota, the Zurdo and the Diestro too), up to 40 each (Cabeza 1-2)", m.PIECE_OPTIONS.length === 18 && m.MAX_OF_A_KIND === 40 && m.PIECE_OPTIONS.every((p) => p.max === (p.key === "cabeza" ? 2 : m.MAX_OF_A_KIND)));
   check("...no cap on the whole army, and a note for a big one", !("MAX_PIECES" in m) && m.BIG_ARMY === 10 && /^Big armies weaken the computer/.test(m.BIG_ARMY_NOTE));
   {
     const { PIECE_META: PIECE_TYPES } = await import("../engine/constants.js");

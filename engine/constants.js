@@ -232,6 +232,23 @@ export const PIECE_META = {
   // T. Stood up on its stem, it too balances on one cube.
   hombro: { label: "Ho", name: "Hombro", shape: "block", maxSteps: 2 },
   cruce: { label: "Cr", name: "Cruce", shape: "block", maxSteps: 2 },
+  // The Zurdo and the Diestro ("left-handed", "right-handed"; the user's
+  // photo of two wooden pieces): four cubes each, a path that turns
+  // through all three directions, each the other in a mirror, so no turn
+  // makes one the other. The Zurdo turns left-handed (in the photo, a bar
+  // on the board with a bar on its left end pointing out over the next
+  // square), the Diestro right-handed (a column with a bar at its foot).
+  // Like the Hombro and the Cruce (user): a roll is 1 action, balanced on
+  // one cube they pivot, they crush only with a cube landing on a Cabeza,
+  // and they weigh 4 cubes in a push. A side's setup turns its pieces
+  // 180° for the other side, which keeps each twin itself.
+  zurdo: { label: "Zu", name: "Zurdo", shape: "block", maxSteps: 2 },
+  diestro: { label: "Di", name: "Diestro", shape: "block", maxSteps: 2 },
+  // The Bota ("boot"; user: "Basically an L shape. Like an elbow, but with
+  // one additional block on one end"): three cubes in a row and a fourth
+  // beside one end, flat; upright on its foot, or balanced on one cube with
+  // the foot held out at the top. The same rules as the twins.
+  bota: { label: "Bo", name: "Bota", shape: "block", maxSteps: 2 },
 };
 
 /* The Arco's three sizes: the key an older save's one size choice
