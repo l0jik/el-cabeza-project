@@ -1210,3 +1210,44 @@ takes the phone's font size (docs/memory/android-app.md).
   the OPA"; on a desktop and the large-text foldable it hadn't at all).
   Details in 05-camera-input.md.
 
+
+## The clerk comic as large as the screen allows (2026-11-28)
+
+User, the Pixel 10 Pro Fold's inner screen with its large font, the
+comic's tenth panel low on the screen: "the comic book style cell images
+... they just seem kind of small. They're not centered vertically ...
+especially on the very last one ... that image is really small ... take
+up as much space as they can without having to scroll in any direction."
+
+- Measured there (898 x 930, words at 150%): the photograph 473 x 604, 65%
+  of the height, 178 px empty above it and 16 below on most panels; the
+  last 415 x 529 (57%). Room for the longest time caption ("Later that day
+  at everyone's favorite department store, Big Glutts...", 164 px at that
+  size) was kept above every panel, so it held still, low and smaller;
+  the most a caption-and-Next had needed under it was kept too; and the
+  last panel's two ways out wrapped in the clipping's narrow margin,
+  drawing the panel in.
+- Now (themes/tienda-overlay.js ClerkScene) each frame is measured for
+  itself: room above for its own time caption if it has one (else 20 px,
+  CLIP_TAPE_ROOM, for the tapes' ends), its own caption-and-Next under the
+  panel (the most it needs that frame, so it settles), and at the end the
+  two ways out as a row of their own under the clipping (.td-clerk-actions
+  out of the paper, the dialog as wide as the screen: side by side where
+  they fit, each its own line where they don't); the photograph as tall
+  as the rest leaves, eased from frame to frame (0.35 s). The layer
+  centres it. The 420 px cap on smaller screens is gone. The tapes' ends
+  ran past a phone's screen and let it scroll sideways: the layer clips
+  sideways (overflow-x hidden).
+- After, the foldable: 604 x 771 (83%), 11 px above and 15 below; the
+  first panel (its caption and "You hand over the order form...") 65%,
+  "Moments later..." 74%; the last 592 x 755 (81%), with "Go home,
+  confused... with your form" too (both on one row). A Chromebook's
+  1366 x 768: 79%, the last 78%. A phone is as wide as it can be (the
+  panel 342 px on a 390 px screen), now centred.
+- The photographs are 368 x 474, all there is (the storyboard sheets they
+  were cut from are 1536 x 1024 with several panels each): larger, they're
+  a little softer, under the print's dots.
+- tests/e2e-clerk.mjs: the foldable with its large font, every frame on
+  the screen, nothing to scroll; with no time caption, the photograph at
+  least 78% of the height and centred; the last at least 75%, its two ways
+  out under the clipping, the longer way home too.

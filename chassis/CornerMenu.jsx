@@ -8,7 +8,8 @@
    on a touch screen a first tap, raises it, and a second tap opens it. */
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { openRules } from "./RulesCards.jsx";
-import { cornerMenuParts } from "./corner-menu.js";
+import { cornerMenuParts, picSideOf } from "./corner-menu.js";
+import { isoPictures, isoPicturesCached } from "../themes/reality-gate.js";
 import { useRaise } from "./raise-on-tap.js";
 import { useLanguage } from "./i18n.js";
 import { fontsHref } from "./font-links.js";
@@ -33,13 +34,36 @@ function useFonts(look, fonts) {
 // replay starts playing, so a glide began over the bar.
 // onChangeRules: Change rules on the card (where the rules can be chosen:
 // the chassis's askChangeRules), or null.
-export default function CornerMenu({ look, rules, extra = null, audio = null, below = null, onChangeRules = null }) {
+// pieceLook: the world's own pieces ({ buildPieceVisual, EDGE_RADIUS }),
+// for a picture of each kind on the card, or null.
+export default function CornerMenu({ look, rules, extra = null, audio = null, below = null, onChangeRules = null, pieceLook = null }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const lift = useRaise(ref, open);
   // (Its lines are made in the language: made again when it changes.)
   useLanguage();
-  const { tab, card, css, fonts } = cornerMenuParts(look, rules, extra, !!onChangeRules);
+  /* Each kind's picture (user: "badge-size avatars to indicate what each
+     piece looked like and not just the name"): drawn once for the world
+     and its kinds, in the side that stands out on the card, while nothing
+     else is asked of the screen (or straight away, the card opened first),
+     and kept (reality-gate.js isoPictures, as the Lab's read-out). */
+  const kinds = rules.pieces.map((p) => p.type), kindsKey = kinds.join(",");
+  const dark = picSideOf(look) === "dark", picKey = `cm-${look}`;
+  const [pics, setPics] = useState(() => (pieceLook && kinds.length ? isoPicturesCached(picKey, kinds, dark) : null));
+  useEffect(() => {
+    if (!pieceLook || !pieceLook.buildPieceVisual || !kinds.length) return undefined;
+    const have = isoPicturesCached(picKey, kinds, dark);
+    if (have) { setPics(have); return undefined; }
+    setPics(null);
+    let live = true;
+    const draw = () => { if (!live) return; const p = isoPictures(picKey, pieceLook, kinds, { dark }); if (live) setPics(p); };
+    if (open) { draw(); return () => { live = false; }; }
+    const idle = typeof window !== "undefined" && window.requestIdleCallback;
+    const id = idle ? window.requestIdleCallback(draw, { timeout: 4000 }) : setTimeout(draw, 800);
+    return () => { live = false; if (idle) window.cancelIdleCallback(id); else clearTimeout(id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picKey, dark, kindsKey, pieceLook, open]);
+  const { tab, card, css, fonts } = cornerMenuParts(look, rules, extra, !!onChangeRules, pics);
   useFonts(look, fonts);
 
   const shut = () => { setOpen(false); if (audio && audio.playDockClose) audio.playDockClose(); };
@@ -106,6 +130,7 @@ export default function CornerMenu({ look, rules, extra = null, audio = null, be
       data-look={look}
       data-open={open ? "true" : "false"}
       data-raised={lift.raised ? "true" : "false"}
+      data-pics={pics ? "true" : "false"}
       onPointerDown={lift.onPointerDown}
       onClick={onClick}
       style={below != null ? { top: below } : undefined}

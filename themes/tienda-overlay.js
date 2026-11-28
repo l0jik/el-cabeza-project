@@ -1204,10 +1204,15 @@ const STORY_CSS = `
   /* (Centred while it fits; taller than the screen, from its top, the
      rest a scroll away: centred, its top went off the screen where it
      couldn't be scrolled to.) */
-  .td-clerk-layer { cursor: pointer; align-items: flex-start; justify-content: flex-start; }
+  /* (Never sideways: the tapes' ends, turned past the clipping's corners,
+     ran a few pixels past a phone's screen and let it scroll; user: "without
+     having to scroll in any direction".) */
+  .td-clerk-layer { cursor: pointer; align-items: flex-start; justify-content: flex-start; overflow-x: hidden; }
   .td-clerk-layer > .td-clerk { margin: auto; }
+  /* (As wide as the screen: the clipping takes its own width, measured,
+     and the two ways out at the end their row under it.) */
   .td-clerk { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: default; animation: tdClerkIn 0.4s ease both;
-    width: min(420px, 100%); }
+    width: 100%; }
   @keyframes tdClerkIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   /* A panel clipped out of a 1975 comic book: yellowed newsprint, cut by
      hand (the ragged edge is a clip-path, the shadow a drop-shadow on the
@@ -1266,7 +1271,6 @@ const STORY_CSS = `
     font-size: 11px; padding: 4px 9px 3px; opacity: 0.92; animation: tdClerkTopIn 0.35s ease both; }
   /* (Two lines: a little higher, clear of the tape's ends.) */
   .td-clerk-narration.td-clerk-when.td-clerk-top.td-clerk-long { bottom: calc(100% + 32px); }
-  .td-clerk-narration.td-clerk-when.td-clerk-top.td-clerk-sizer { visibility: hidden; animation: none; pointer-events: none; }
   .td-clerk-print[data-settled="true"] { transition: width 0.35s ease, margin-top 0.35s ease; }
   /* The store's own stripes on it (user: Big Glutts' branding "that go up
      the left side vertically and then curve and then go across the top"):
@@ -1301,7 +1305,13 @@ const STORY_CSS = `
   .td-clerk-actions .td-plain { background: #FBF6E6; color: #17110D; }
   .td-clerk-actions [data-testid="tienda-clerk-go-home"], .td-clerk-actions [data-testid="tienda-clerk-go-home"]:hover { background: #C8392B; color: #FBF6E6; }
   @media (prefers-reduced-motion: reduce) { .td-clerk-shot, .td-clerk-print[data-fade="slow"] .td-clerk-shot { transition-duration: 0.01s; } .td-clerk-narration, .td-clerk-pa, .td-clerk-narration.td-clerk-when.td-clerk-top { animation: none; } .td-clerk-print[data-settled="true"] { transition: none; } }
-  .td-clerk-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; padding: 14px 6px 16px; }
+  /* The two ways out, a row under the clipping (each its own line when
+     they won't go side by side; a word wraps in its button only on a
+     screen too narrow for it); the clipping keeps a margin under its
+     dots. */
+  .td-clerk-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; max-width: 100%; padding: 0 6px 2px; }
+  .td-clerk-actions .td-btn { max-width: 100%; text-align: center; }
+  .td-clerk-print[data-last="true"] .td-clerk-paper { padding-bottom: 14px; }
   /* A larger screen (user: the captions "are really small on a desktop or
      laptop ... Maybe not on the phone, but definitely on desktop or laptop
      experiences, or larger screen experiences"): the clipping takes more
@@ -1311,7 +1321,6 @@ const STORY_CSS = `
      the caption up top (on a laptop's 768px it ran off the top of the
      screen), its stripes scaled with it. A phone keeps its sizes. */
   @media (min-width: 700px) and (min-height: 560px) {
-    .td-clerk { width: min(100%, 720px); }
     .td-clerk-print { --cap-room: clamp(84px, 11.5vh, 130px); margin-top: var(--cap-room);
       width: min(100%, calc((100dvh - 170px - var(--cap-room)) * 368 / 474 + 32px)); }
     .td-clerk-narration.td-clerk-when.td-clerk-top { font-size: clamp(15px, 2vh, 21px); max-width: min(84vw, 27em);
@@ -1509,8 +1518,6 @@ const CLERK_FRAMES = [
   { shots: ["manager-7"], lines: ["But we'd love to help you if we could\u2026"] },
   { shots: ["manager-8"], lines: ["Is there anything else I can help you with today?"] },
 ];
-// The longest of the times over the clipping (the room kept for them).
-const LONGEST_WHEN = CLERK_FRAMES.reduce((a, f) => (f.narration && f.narration.length > a.length ? f.narration : a), "");
 // Every shot in order, with its frame.
 const CLERK_STEPS = CLERK_FRAMES.flatMap((f, fi) => f.shots.map((shot, si) => ({ shot, frame: fi, line: f.lines[si], alt: f.alt, narration: f.narration, handover: !!f.handover, page: !!f.page && si === 0 })));
 /* The clipping's edge: cut by hand with scissors, a little off true, so
@@ -1528,6 +1535,9 @@ const CLIP_EDGE = (() => {
   return `polygon(${pts.join(", ")})`;
 })();
 export const CLERK_SHOT_FILES = CLERK_STEPS.map((s) => `el-cabeza-${s.shot}.jpg`);
+// Room over a clipping with no caption above it, for the tapes' ends; and
+// the gap between the clipping and the two ways out (.td-clerk's gap).
+const CLIP_TAPE_ROOM = 20, CLIP_GAP = 12;
 const PA_CAPTION = "Ding-dong. \u201cManager to Games, please. Manager to Games.\u201d";
 
 function ClerkScene({ audio, onStay, onGoHome }) {
@@ -1607,18 +1617,23 @@ function ClerkScene({ audio, onStay, onGoHome }) {
     if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3) { swipe.swiped = true; if (dx < 0) next(); else back(); }
   };
   const onLayerClick = () => { if (swipe.swiped) { swipe.swiped = false; return; } next(); };
-  /* The clipping sized to the screen by what's on it, measured (user, the
-     app on a phone with its large font, every word half again as big:
-     "Look at the top of this image, it's getting cut off now", the time's
-     caption over the clipping; and the last panel's two ways out, "Why is
-     this not fitting on the screen correctly?"). Room above it for the
-     time's caption: the longest one's, set unseen (so the panel holds
-     still from frame to frame, a caption or none); under the panel, the
-     tallest caption-and-Next yet; and the photograph as tall as the
-     screen leaves once those and the paper's margins are counted. At the
-     end, the two ways out under it: the clipping draws in to make room
-     for them. The stylesheet's sizes (guessed for normal-sized words)
-     until it's measured, before it's drawn. */
+  /* Each panel as large as the screen lets it be, centred, nothing to
+     scroll (user, the Pixel Fold with its large font: "they just seem a
+     little bit small. They're not centered vertically ... especially on
+     the very last one ... take up as much space as they can without
+     having to scroll in any direction"; before, the app's large font:
+     "Look at the top of this image, it's getting cut off now" and, of the
+     last panel's two ways out, "Why is this not fitting on the screen
+     correctly?"). Measured for the frame on the screen: room above for
+     its own time caption if it has one (else just the tape's ends; the
+     longest caption's room was kept on every frame, so the panel held
+     still, low on the screen and smaller), its own caption-and-Next under
+     the panel (the most it's needed this frame, so it settles), at the
+     end the two ways out under the clipping (a row of their own, as wide
+     as the screen: inside the clipping their long words wrapped and drew
+     the panel in), and the photograph as tall as the rest leaves. The
+     layer centres what's drawn. The stylesheet's sizes until it's
+     measured, before it's drawn. */
   const printRef = React.useRef(null);
   const footHeld = React.useRef({ key: "", px: 0 });
   const [fitBox, setFitBox] = React.useState(null);
@@ -1629,21 +1644,24 @@ function ClerkScene({ audio, onStay, onGoHome }) {
     const measure = () => {
       raf = 0;
       if (!fig.isConnected) return;
-      const shots = fig.querySelector(".td-clerk-shots"), sizer = fig.querySelector(".td-clerk-sizer");
-      const foot = fig.querySelector(".td-clerk-actions, .td-clerk-foot");
+      const shots = fig.querySelector(".td-clerk-shots"), when = fig.querySelector(".td-clerk-when");
+      const foot = fig.querySelector(".td-clerk-foot");
+      const ways = fig.parentElement && fig.parentElement.querySelector(".td-clerk-actions");
       const layer = fig.closest(".td-layer");
-      if (!shots || !foot || !layer) return;
-      const vh = window.innerHeight, key = `${window.innerWidth}x${vh}`;
+      if (!shots || !layer) return;
+      const vh = window.innerHeight, key = `${window.innerWidth}x${vh}|${s.frame}`;
       if (footHeld.current.key !== key) footHeld.current = { key, px: 0 };
-      const footNow = foot.offsetHeight;
-      if (!last) footHeld.current.px = Math.max(footHeld.current.px, footNow);
-      const footH = last ? footNow : footHeld.current.px;
-      const cap = sizer ? Math.max(0, Math.ceil(fig.getBoundingClientRect().top - sizer.getBoundingClientRect().top)) + 12 : 0;
+      const footNow = foot ? foot.offsetHeight : 0;
+      footHeld.current.px = Math.max(footHeld.current.px, footNow);
+      const footH = footHeld.current.px;
+      // (The tapes' ends stand a little above the clipping.)
+      const cap = when ? Math.max(0, Math.ceil(fig.getBoundingClientRect().top - when.getBoundingClientRect().top)) + 12 : CLIP_TAPE_ROOM;
       const ls = getComputedStyle(layer);
       const pad = parseFloat(ls.paddingTop) + parseFloat(ls.paddingBottom);
       const tilt = Math.ceil(fig.offsetWidth * 0.02) + 6; // (its turn on the table, and a little air)
-      const margins = fig.offsetHeight - shots.offsetHeight - footNow; // (the paper's top margin, the dots)
-      const photoH = Math.max(140, vh - pad - tilt - cap - margins - footH);
+      const margins = fig.offsetHeight - shots.offsetHeight - footNow; // (the paper's margins, the dots)
+      const below = ways ? ways.offsetHeight + CLIP_GAP : 0;
+      const photoH = Math.max(140, vh - pad - tilt - cap - margins - footH - below);
       const w = Math.round((photoH * 368) / 474 + 32);
       setFitBox((b) => (b && Math.abs(b.w - w) < 2 && Math.abs(b.cap - cap) < 2 ? b : { w, cap }));
     };
@@ -1651,6 +1669,9 @@ function ClerkScene({ audio, onStay, onGoHome }) {
     const again = () => { if (!raf) raf = requestAnimationFrame(measure); };
     const ro = typeof ResizeObserver === "function" ? new ResizeObserver(again) : null;
     if (ro) ro.observe(fig);
+    // (And the two ways out, at the end: their row's height is the photograph's to give.)
+    const ways = fig.parentElement && fig.parentElement.querySelector(".td-clerk-actions");
+    if (ro && ways) ro.observe(ways);
     window.addEventListener("resize", again);
     return () => { if (ro) ro.disconnect(); window.removeEventListener("resize", again); if (raf) cancelAnimationFrame(raf); };
   }, [step, lettered]);
@@ -1670,8 +1691,7 @@ function ClerkScene({ audio, onStay, onGoHome }) {
       // A panel clipped out of a 1975 comic book and kept: yellowed
       // newsprint cut by hand, two strips of old tape, the panel in its
       // ink border, printed in Ben-Day dots, a little faded.
-      h("figure", { ref: printRef, className: "td-clerk-print", "data-fade": fade, "data-settled": settled ? "true" : "false", style: fitBox ? { width: `min(100%, ${fitBox.w}px)`, marginTop: fitBox.cap } : undefined },
-        h("p", { className: "td-clerk-narration td-clerk-when td-clerk-top td-clerk-long td-clerk-sizer", "aria-hidden": "true" }, LONGEST_WHEN),
+      h("figure", { ref: printRef, className: "td-clerk-print", "data-fade": fade, "data-settled": settled ? "true" : "false", "data-last": last ? "true" : "false", style: fitBox ? { width: `min(100%, ${fitBox.w}px)`, marginTop: fitBox.cap } : undefined },
         s.narration && h("p", { key: `w${s.frame}`, className: `td-clerk-narration td-clerk-when td-clerk-top${s.narration.length > 32 ? " td-clerk-long" : ""}`, "data-testid": "tienda-clerk-when" },
           h("span", { className: "td-clerk-stripes", "aria-hidden": "true" }, h("i"), h("i"), h("i"), h("i")), s.narration),
         h("span", { className: "td-clerk-tape td-clerk-tape-l", "aria-hidden": "true" }),
@@ -1700,19 +1720,22 @@ function ClerkScene({ audio, onStay, onGoHome }) {
         // In the clipping's bottom margin (clear of the dock's piece on
         // a phone, which floats over the bottom of the screen): the
         // narrator's caption under the panel, off the faces (user), and a
-        // small Next at the right; at the end, the two ways out.
-        last
-          ? h("div", { className: "td-clerk-actions" }, [
-              h("button", { key: "stay", type: "button", className: "td-btn td-plain", "data-testid": "tienda-clerk-stay", onClick: (e) => { e.stopPropagation(); onStay(); } }, "Stay a while"),
-              h("button", { key: "home", type: "button", className: "td-btn td-primary", "data-testid": "tienda-clerk-go-home", onClick: (e) => { e.stopPropagation(); audio && audio.playSelect && audio.playSelect(); onGoHome(); } }, withOrder ? "Go home, confused\u2026 with your form" : "Go home, confused."),
-            ])
-          : h("div", { className: "td-clerk-foot" },
+        // small Next at the right. (At the end, the two ways out, under
+        // the clipping: below.)
+        !last && h("div", { className: "td-clerk-foot" },
               h("div", { key: `n${s.frame}`, className: "td-clerk-captions" },
                 // The first panel, come with the order form: what you do
                 // (walking you through it: user).
                 s.handover && withOrder && h("p", { className: "td-clerk-narration", "data-testid": "tienda-clerk-handover" }, "You hand over the order form\u2026")),
               h("button", { type: "button", className: "td-clerk-next", "data-testid": "tienda-clerk-next", "aria-label": "Next panel", onClick: (e) => { e.stopPropagation(); next(); } },
                 h("span", null, "Next"), h("i", { "aria-hidden": "true" }))))),
+      // At the end, the two ways out, a row of their own under the
+      // clipping, as wide as the screen (each on a line of its own when
+      // they won't go side by side).
+      last && h("div", { className: "td-clerk-actions" }, [
+        h("button", { key: "stay", type: "button", className: "td-btn td-plain", "data-testid": "tienda-clerk-stay", onClick: (e) => { e.stopPropagation(); onStay(); } }, "Stay a while"),
+        h("button", { key: "home", type: "button", className: "td-btn td-primary", "data-testid": "tienda-clerk-go-home", onClick: (e) => { e.stopPropagation(); audio && audio.playSelect && audio.playSelect(); onGoHome(); } }, withOrder ? "Go home, confused\u2026 with your form" : "Go home, confused."),
+      ]),
       // The line, for a screen reader (the photograph carries it on screen).
       h("p", { className: "td-sr", "data-testid": "tienda-clerk-line", "aria-live": "polite" }, s.line ? `\u201c${s.line}\u201d` : s.alt)));
 }

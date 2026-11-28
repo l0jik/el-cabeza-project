@@ -594,3 +594,40 @@ camera, 4.5 off it, went in after it.
   above the board. Every other world as it was (no solids).
   tests/e2e-zoom-pan.mjs 8: the pinch of the video (fingers spreading as
   they drift up) and those views, in the store and the den.
+
+
+## The drag takes the way it lines up with best (2026-11-28)
+
+User, a screenshot of the den (House rules, 15 x 16, 3 actions), Light's
+Arco Chico dragged straight ahead into a new piece, told "No pushing on a
+diagonal": "This push by the ash arch straight forward is being
+interpreted with the new piece as being diagonal. Obviously the piece is
+parallel to the piece that's pushing it, so it should just push straight
+up ... We need to check and see what's causing this logic error."
+
+- The rules were right, the note wasn't. The other side's Cabeza stood
+  just ahead of the arch's left end, beside the new piece: straight ahead
+  the arch meets both, 1 cube and 4, together as many as its own 5, and a
+  piece only pushes pieces with fewer cubes (engine/why-not.js says
+  "heavy"). The new pieces push like any other (a probe: the flat arch
+  pushes each of them straight ahead in every way they stand, 88 of 88).
+- The note came from the drag. Its ways were the slides the rules allow,
+  with the diagonal shoves they refuse (blockedDiagonalShoves, the X)
+  listed among them, and only when none of those was within 60 degrees of
+  the drag were the other refused ways (Why not's) looked at. With 3
+  actions a diagonal push (slide 2, push 1) is affordable, so it's
+  listed: a drag straight ahead was 50 degrees off it (dot about 0.63)
+  and took it, though the straight way lined up exactly. (With 2 actions
+  the diagonal costs too much, stays with the refused ways, and the
+  straight way's reason won.)
+- Now chassis/ElCabeza3D.jsx dragWay: of the eight, the way the drag lines
+  up with best (within ~60 degrees): a slide the rules allow, a refused
+  diagonal shove's X, or (Why not on) any other refused way, its reason; a
+  near tie (0.03) goes to the allowed way. onMove and slideThatWay (the
+  drag back toward the start square) both use it.
+- tests/e2e-why-not.mjs 1d: the user's arrangement on the Lab's board (the
+  flat Arco Chico, the Pink Cabeza ahead of its left end, a Pink Diestro
+  ahead of the rest, 3 actions, diagonal slide on): dragged straight ahead,
+  the X, then "Can't push the Pink Cabeza and the Pink Diestro / Together
+  they have 5 cubes, and your Arco Chico has 5", nothing moved; dragged on
+  the diagonal, still "No pushing on a diagonal".

@@ -115,3 +115,31 @@ link; nothing without story or link; Nova's page not taking it; Noir
 after the story; Spanish on a phone by touch). tests/e2e-gate.mjs (Cromo
 after the story: Change rules after a game and under Begin Game; Nova's
 phone bar menu).
+
+
+## Each kind's picture on the corner menu's card (2026-11-28)
+
+User, Cromo's PARAMETERS card on the foldable, the pieces circled, names
+and counts only: "Refresh my memory, but weren't we supposed to have
+badge-size avatars to indicate what each piece looked like and not just
+the name? Wasn't that supposed to be in all of the lab menus?" The Lab's
+own read-out has had them since the user's option 3 (themes/lab/hud.js,
+docs/memory/theme-lab.md); the corner menu every other world uses
+(chassis/corner-menu.js) never had. Now each kind's picture comes before
+its name: the world's own piece (the chassis hands CornerMenu its
+buildPieceVisual, as it does the Reality Gate), isometric
+(reality-gate.js isoPictures, as the Lab's), drawn once for the world and
+its kinds in idle time (straight away if the card's opened first) and
+kept; in the side that stands out on the card (corner-menu.js PIC_SIDE:
+the dark side's pieces on the den's, the store's, the City's and Tá muid
+beo's light cards, the light side's on the rest); badge-sized (2.1em
+tall in a 3.1em slot, the names lined up after them); a kind with none
+faint. The card is a little wider with them (404 px times the size of
+words), two kinds side by side as before (one to a line on a phone). Without a piece look (or
+if they can't be drawn), names and counts as before. Cromo's chrome mirrors
+its own dark studio (each material's envMap), which from the pictures'
+35-degree angle shows only the dark: a pale metal with a room of its own
+is lent isoPictures' bright room for its picture, its own given back
+after (the Lab's Corporate Swiss, pale metal with none, as before).
+tests/e2e-corner-menu.mjs (every world: a picture for each kind, before
+its name, drawn, 16 to 44 px tall, the card on the screen).

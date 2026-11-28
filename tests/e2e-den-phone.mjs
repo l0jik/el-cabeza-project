@@ -8,8 +8,11 @@
    call to come, without the story's way there), a game under way, the
    phone rushed to ring (__DEN_CALL_NOW__).
 
-   - Desktop: from the first ring the glass and the dock's Room view are
-     greyed and dead to a click. Over at the phone and picked up, a click
+   - Desktop: from the first ring the glass is out of sight and the
+     dock's Room view greyed, both dead to a click; at the phone and on
+     the call the light bulb goes too (user, the call with both circled:
+     "should just simply be removed from this phone scene as they cannot
+     be used anyway"), both back once the view's back on the board. Over at the phone and picked up, a click
      on the glass leaves the room's camera where it was (not up over the
      room), the receiver low by it; a click away from the phone, and
      Escape, leave the view with it, the receiver at your ear, and pick
@@ -98,6 +101,7 @@ const where = (page) => page.evaluate(() => {
   t.boardGroup.parent.traverse((o) => { if (!hand && o.userData && o.userData.phone && o.userData.rest) hand = o; });
   const hp = hand ? hand.getWorldPosition(new t.camera.position.constructor()) : null;
   const glass = document.querySelector('[data-testid="room-view-corner"]');
+  const bulb = document.querySelector('[data-testid="focus-corner"]');
   const dockRoom = document.querySelector('[data-testid="room-view"]');
   return {
     up: !!window.__EC_TEST_CAM__().dollhouse,
@@ -105,7 +109,8 @@ const where = (page) => page.evaluate(() => {
     handY: hp ? +hp.y.toFixed(1) : null,
     handToCam: hp ? +hp.distanceTo(t.camera.position).toFixed(1) : null,
     stage: window.__DEN_CALL__().stage, hs: window.__DEN_CALL_HANDSET__(), visit: +window.__DEN_PHONE_VISIT__().w.toFixed(2),
-    glass: glass ? { off: glass.disabled, op: +(+getComputedStyle(glass).opacity).toFixed(2), title: glass.title } : null,
+    glass: glass ? { off: glass.disabled, op: +(+getComputedStyle(glass).opacity).toFixed(2), title: glass.title, shown: getComputedStyle(glass).visibility === "visible" } : null,
+    bulbShown: bulb ? getComputedStyle(bulb).visibility === "visible" : null,
     dockRoom: dockRoom ? dockRoom.disabled : null,
   };
 });
@@ -185,12 +190,14 @@ console.log("\ndesktop: the phone rings, and you take it");
   check("the phone rings", await ring(page));
   // (Ghosted over its half-second fade.)
   s = (await poll(page, async () => { const w = await where(page); return w.glass && w.glass.op < 0.5 ? w : null; }, 2500)) || (await where(page));
-  check(`from the first ring, the glass is greyed and dead (opacity ${s.glass && s.glass.op}), and says why`, !!s.glass && s.glass.off && s.glass.op < 0.5 && /on the phone/i.test(s.glass.title), JSON.stringify(s.glass));
+  check(`from the first ring, the glass is out of sight and dead (opacity ${s.glass && s.glass.op}), and says why`, !!s.glass && s.glass.off && s.glass.op < 0.5 && !s.glass.shown && /on the phone/i.test(s.glass.title), JSON.stringify(s.glass));
   check("...and the dock's Room view with it", s.dockRoom === true, String(s.dockRoom));
   await pressGlass(page);
   await page.waitForTimeout(1500);
   check("...a click on it does nothing: the camera stays in the room", !(await where(page)).up);
   check("the slip: over to the phone", await toPhone(page));
+  s = await where(page);
+  check("at the phone: the glass and the light bulb gone from the screen (user: \"should just simply be removed from this phone scene\")", s.glass && !s.glass.shown && s.bulbShown === false, JSON.stringify({ glass: s.glass, bulb: s.bulbShown }));
   await cordLog(page);
   check("a tap on the phone: picked up, the receiver lifted", await pickUp(page));
   await page.waitForTimeout(600);
@@ -199,6 +206,7 @@ console.log("\ndesktop: the phone rings, and you take it");
   await page.waitForTimeout(2500);
   s = await where(page);
   check(`on the phone, a click on the glass: no Room view, the receiver stays where it was (y ${s.handY}, was ${held.handY})`, !s.up && s.glass.off && Math.abs(s.handY - held.handY) < 1, JSON.stringify(s));
+  check("...on the call, the glass and the light bulb still gone", !s.glass.shown && s.bulbShown === false, JSON.stringify({ glass: s.glass, bulb: s.bulbShown }));
   // On the line, a click away from the phone and Escape: the view stays
   // with it, and nothing on the board is picked.
   await awayClick(page);
@@ -219,9 +227,11 @@ console.log("\ndesktop: the phone rings, and you take it");
   check(`the receiver's cord end below its middle all the way, up, at your ear and down again (${moving.length} frames: highest ${top}, at the ear ${earTop})`, moving.length > 10 && cord.some((c) => c.hs === "lift") && cord.some((c) => c.hs === "down") && top <= 0.02 && earTop < -0.3, JSON.stringify(moving.filter((c, i) => i % 15 === 0)));
   s = await where(page);
   check("hung up: the glass and the dock's Room view work again", !!s.glass && !s.glass.off && s.dockRoom === false, JSON.stringify(s));
+  check("...the glass back on the screen", s.glass.shown, JSON.stringify(s.glass));
   await pressGlass(page);
   check("...and up over the room it goes", !!(await poll(page, async () => (await where(page)).up, 4000)));
   check("off the phone, the full-screen button's back", !!(await poll(page, async () => !(await page.evaluate(() => document.documentElement.classList.contains("ec-den-call"))) && (await fsShown(page)), 15000)));
+  check("...and the light bulb", !!(await poll(page, async () => (await where(page)).bulbShown === true, 5000)));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
@@ -236,7 +246,7 @@ console.log("\ndesktop: up in the Room view when it rings, over to the phone");
   await page.waitForTimeout(1200);
   check("the phone rings", await ring(page));
   const s0 = await where(page);
-  check("...the glass greyed, the camera still up there", s0.glass.off && s0.up, JSON.stringify(s0));
+  check("...the glass out of sight, the camera still up there", s0.glass.off && !s0.glass.shown && s0.up, JSON.stringify(s0));
   check("the slip: over to the phone", await toPhone(page));
   check("...and the room's own camera down from the Room view to the board", !!(await poll(page, async () => !(await where(page)).up, 6000)));
   check("a tap on the phone: picked up", await pickUp(page));

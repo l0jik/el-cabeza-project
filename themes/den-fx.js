@@ -877,10 +877,18 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     let phoneGoal = 0, phoneW = 0, phoneFrom = 0, phoneT0 = 0;
     const phoneSwallow = new Set();
     const PHONE_MS = 1600;
+    /* At the phone (from the slip, or picked up from anywhere, till the
+       receiver's down and the view's back at the board), the page is
+       flagged (html.ec-den-phone): the zoom-out glass and the light bulb
+       are put away meanwhile (user, the call with both circled: "should
+       just simply be removed from this phone scene as they cannot be used
+       anyway"; a tap there did nothing, or only brought the camera back). */
+    const phoneFlag = (on) => { if (typeof document !== "undefined") document.documentElement.classList.toggle("ec-den-phone", on); };
     function phoneVisit(on) {
       const g = on ? 1 : 0;
       if (g === phoneGoal) return;
       phoneFrom = phoneW; phoneT0 = performance.now(); phoneGoal = g;
+      phoneFlag(on);
       if (on) bookGoal = 0;
     }
     const phoneRay = new THREE.Raycaster(), phoneNdc = new THREE.Vector2();
@@ -2351,6 +2359,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (den) den.dispose();
         if (brass) brass.dispose();
         if (call) call.dispose();
+        phoneFlag(false);
         if (hall) hall.dispose();
         if (ending) { ending.dispose(); ending = null; }
         if (previewEl) { previewEl.remove(); previewEl = null; }

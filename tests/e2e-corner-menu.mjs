@@ -128,6 +128,30 @@ for (const world of WORLDS) {
     check("...each side's pieces", /Cabeza/i.test(t) && /Turrito/i.test(t) && /Flaco/i.test(t) && /Chato/i.test(t) && /Opa/i.test(t));
     check("...the board, 10 across by 12", /10 × 12/.test(t) || /10×12/.test(t), t.slice(-300));
     check("...all of it on the screen", s.cardBox.x >= 0 && s.cardBox.y >= 0 && s.cardBox.r <= VIEW.width && s.cardBox.b <= VIEW.height, JSON.stringify(s.cardBox));
+    // Each kind's picture before its name (user, Cromo's card: "weren't we
+    // supposed to have badge-size avatars to indicate what each piece
+    // looked like and not just the name?"): one for every kind listed,
+    // the world's own piece drawn in it (not a blank), badge-sized.
+    const pics = await poll(() => page.evaluate(() => {
+      const u = document.querySelector('[data-testid="corner-menu-pieces"]');
+      if (!u || u.dataset.pictures !== "true") return null;
+      const rows = [...u.querySelectorAll(".cm-pc")];
+      const drawn = (img) => {
+        if (!img || !img.complete || !img.naturalWidth) return 0;
+        const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight;
+        const g = c.getContext("2d"); g.drawImage(img, 0, 0);
+        const d = g.getImageData(0, 0, c.width, c.height).data;
+        let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 40) n++;
+        return n / (c.width * c.height);
+      };
+      const out = rows.map((li) => { const img = li.querySelector(".pic img"); const b = img && img.getBoundingClientRect(); return { type: li.dataset.type, cover: +drawn(img).toFixed(3), h: b ? Math.round(b.height) : 0, before: !!img && img.compareDocumentPosition(li.querySelector(".n")) & Node.DOCUMENT_POSITION_FOLLOWING ? true : false }; });
+      return out;
+    }), 10000);
+    const blank = (pics || []).filter((p) => p.cover < 0.04 || !p.before);
+    check(`...a picture of each kind before its name (${pics ? pics.length : 0} kinds)`, !!pics && pics.length >= 5 && blank.length === 0, JSON.stringify(blank.length ? blank : pics));
+    check(`...badge-sized (${pics ? [...new Set(pics.map((p) => p.h))].join("/") : "-"} px tall)`, !!pics && pics.every((p) => p.h >= 16 && p.h <= 44), JSON.stringify(pics));
+    const after = await menuState(page);
+    check("...and the card still on the screen", !!after && !!after.cardBox && after.cardBox.r <= VIEW.width && after.cardBox.b <= VIEW.height, JSON.stringify(after && after.cardBox));
   }
   await pressOutside(page);
   check("a press outside closes it", !!(await poll(async () => { const v = await menuState(page); return v && v.open === "false"; }, 3000)));

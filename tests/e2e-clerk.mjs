@@ -153,6 +153,82 @@ for (const phone of [false, true]) {
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
+/* The Pixel Fold's inner screen with its large font (user: "they just
+   seem a little bit small. They're not centered vertically ... especially
+   on the very last one ... take up as much space as they can without
+   having to scroll in any direction"): every frame on the screen, nothing
+   to scroll; a frame with no time caption over it, its photograph at
+   least 78% of the screen's height (65% before) and centred; the last,
+   its two ways out a row under the clipping, the photograph at least 75%
+   (57% before), with the story's longer "Go home, confused... with your
+   form" too. */
+{
+  console.log("\nfoldable, large font: each panel as big as the screen allows");
+  const ctx = await browser.newContext({ viewport: { width: 898, height: 930 }, isMobile: true, hasTouch: true });
+  await ctx.addInitScript(() => {
+    window.__EC_TEST_HOOKS__ = true;
+    window.__TIENDA_MUSIC_ONLY__ = "none";
+    document.addEventListener("DOMContentLoaded", () => { const st = document.createElement("style"); st.textContent = "html{-webkit-text-size-adjust:150%}"; document.head.append(st); });
+    try {
+      if (!sessionStorage.getItem("clerk-test-seeded")) {
+        sessionStorage.setItem("clerk-test-seeded", "1");
+        localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true }));
+        localStorage.setItem("el-cabeza:singularity-seen", "1");
+        localStorage.setItem("el-cabeza:commercial-aired", "1");
+        localStorage.setItem("el-cabeza:special-order-noted", "1");
+      }
+    } catch (e) { /* none */ }
+  });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto(URL);
+  await poll(() => page.evaluate(() => !!window.__DEN_THREE__), 30000);
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => window.__EC_TEST_BACK_TO_STORE__());
+  await poll(() => page.evaluate(() => !!window.__TIENDA_THREE__), 30000);
+  check("the Games counter scene", !!(await poll(() => has(page, "tienda-clerk"), 15000)));
+  await poll(() => page.evaluate(() => [...document.querySelectorAll(".td-clerk-shot")].every((i) => i.complete && i.naturalWidth > 0)), 15000);
+  const measure = () => page.evaluate(() => {
+    const L = document.querySelector('[data-testid="tienda-clerk"]');
+    if (!L) return null;
+    const box = (sel) => { const e = document.querySelector(sel); return e ? e.getBoundingClientRect() : null; };
+    const drawn = [...document.querySelectorAll(".td-clerk-print, .td-clerk-when, .td-clerk-tape, .td-clerk-actions")].map((e) => e.getBoundingClientRect());
+    const shots = box(".td-clerk-shots"), print = box(".td-clerk-print"), ways = box(".td-clerk-actions");
+    return {
+      step: +L.dataset.step, frame: +L.dataset.frame, vh: innerHeight, when: !!document.querySelector(".td-clerk-when"),
+      photo: Math.round(shots.height), top: Math.round(Math.min(...drawn.map((b) => b.top))), bottom: Math.round(Math.max(...drawn.map((b) => b.bottom))),
+      waysBelow: ways ? ways.top >= print.bottom - 1 && ways.bottom <= innerHeight : null,
+      scrolls: L.scrollHeight > L.clientHeight + 1 || (getComputedStyle(L).overflowX !== "hidden" && L.scrollWidth > L.clientWidth + 1),
+    };
+  });
+  const rows = [];
+  for (let i = 0; i < 20; i++) {
+    await page.waitForTimeout(1000);
+    const m = await measure();
+    if (!m) break;
+    rows.push(m);
+    if (!(await has(page, "tienda-clerk-next"))) break;
+    await q(page, "tienda-clerk-next").click();
+  }
+  const plain = rows.filter((m) => !m.when && m.waysBelow === null);
+  const off = rows.filter((m) => m.top < 0 || m.bottom > m.vh || m.scrolls);
+  check(`every frame on the screen, nothing to scroll (${rows.length} shots)`, rows.length === 14 && off.length === 0, JSON.stringify(off));
+  const small = plain.filter((m) => m.photo < 0.78 * m.vh);
+  check(`a frame with no time caption: its photograph at least 78% of the screen's height (${plain.map((m) => Math.round((100 * m.photo) / m.vh)).join(", ")}%)`, plain.length >= 10 && small.length === 0, JSON.stringify(small));
+  const uneven = plain.filter((m) => Math.abs(m.top - (m.vh - m.bottom)) > 24);
+  check("...centred on the screen", uneven.length === 0, JSON.stringify(uneven.map((m) => ({ step: m.step, above: m.top, below: m.vh - m.bottom }))));
+  const end = rows[rows.length - 1];
+  check(`the last panel: its photograph at least 75% of the screen's height (${end && Math.round((100 * end.photo) / end.vh)}%), the two ways out under the clipping`, !!end && end.step === 13 && end.photo >= 0.75 * end.vh && end.waysBelow === true, JSON.stringify(end));
+  // (The story's first time through, the order form in hand: the longer way home.)
+  await page.evaluate(() => { document.querySelector('[data-testid="tienda-clerk-go-home"]').textContent = "Go home, confused… with your form"; });
+  await page.waitForTimeout(1200);
+  const form = await measure();
+  check(`...with "Go home, confused… with your form": still at least 75% (${form && Math.round((100 * form.photo) / form.vh)}%), on the screen`, !!form && form.photo >= 0.75 * form.vh && form.waysBelow === true && form.bottom <= form.vh && !form.scrolls, JSON.stringify(form));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failures ? `\n${failures} failed` : "\nall passed");
 process.exit(failures ? 1 : 0);

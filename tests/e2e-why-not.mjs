@@ -31,6 +31,12 @@
       there (2 left, a slide's 2), its rolled shape kept, no note; with 2
       actions no slide is left for it, and the same drag takes the move
       back, as ever. On a computer and by touch.
+   1d. A straight push refused, with diagonal pushes on offer (user, an
+      arch pushed straight ahead into a new piece with the other side's
+      Cabeza beside it, 3 actions, told "No pushing on a diagonal"): the
+      drag takes the way it lines up with best, so the note gives the
+      straight push's own reason (5 cubes against the arch's 5); a drag
+      on the diagonal still says no pushing on a diagonal.
    2. Why not switched off: the same drag, no note and no X, the piece
       card still there. The Piece guide off and Why not on: the note, and
       no card. A player who'd switched the guide off and never touched
@@ -365,6 +371,50 @@ for (const phone of [false, true]) {
   await page.waitForTimeout(1800);
   h = await hombro();
   check("...dragged back the way it came, 1 action left, no slide for it: the move taken back", h.row === 3 && h.col === 4 && h.vox === "0,0,1;0,1,0;0,1,1;1,1,1" && !(await note(page)).up, JSON.stringify(h));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await s.ctx.close();
+}
+
+// ---- 1d. A straight push the rules refuse, with diagonal pushes on
+// offer (user, Light's arch dragged straight ahead into a new piece, the
+// other side's Cabeza beside it, 3 actions: "This push by the ash arch
+// straight forward is being interpreted with the new piece as being
+// diagonal ... We need to check and see what's causing this logic
+// error"). With 3 actions a diagonal push is affordable, so it was ranked
+// with the allowed ways, and the straight way (refused: the Cabeza's 1
+// cube and the Diestro's 4 against the Arco Chico's 5) was only looked at
+// when none of those lined up: a diagonal 50deg off the drag won. Now the
+// way it lines up with best: the straight push's own reason; a drag on
+// the diagonal still says no pushing on a diagonal. ----
+{
+  console.log("[a straight push refused, diagonal pushes on offer]");
+  const ARCH = [
+    P("light-arco", "arcoChico", "light", 8, 1, 3, 2, 1, "0,0,0;0,1,0;1,0,0;2,0,0;2,1,0"),
+    P("dark-cabeza", "cabeza", "dark", 7, 1, 1, 1, 1),
+    P("dark-diestro", "diestro", "dark", 6, 2, 2, 2, 2, "0,0,0;0,0,1;1,0,0;1,1,0"),
+    P("light-cabeza", "cabeza", "light", 9, 8, 1, 1, 1),
+    P("dark-turrito", "turrito", "dark", 0, 9, 1, 1, 1),
+  ];
+  const s = await open({ pieces: ARCH, laws: { ...LAWS, diagonalSlide: true, threeActions: true }, opening: ["W", "W", "W"] });
+  const { page, errs } = s;
+  await aim(page, false, [7.5, 2]);
+  const p0 = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-arco"));
+  await tap(s, p0.x, p0.y);
+  // (Pressed on the middle of its bar, the side facing the push.)
+  const bar = await page.evaluate(() => window.__EC_TEST_CUBE_POS__(8, 2, 0));
+  let mid = await dragToward(s, bar, [8, 2], [-1, 0]);
+  let n = await note(page);
+  check("dragged straight ahead into the Pink Cabeza and Diestro: the X while it points there", mid.x && !mid.arrow, JSON.stringify(mid));
+  check("...let go: too heavy, not a diagonal", n.up && n.code === "heavy", JSON.stringify(n));
+  check("...\"Can't push the Pink Cabeza and the Pink Diestro\": 5 cubes together against the Arco Chico's 5", /Can't push the Pink Cabeza and the Pink Diestro/.test(n.title) && /Together they have 5 cubes, and your Arco Chico has 5/.test(n.body), `${n.title} | ${n.body}`);
+  const a = await pieceAt(page, "light-arco");
+  check("...and nothing moved", a.row === 8 && a.col === 1, JSON.stringify(a));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
+  if ((await chosen(page)) === 0) await tap(s, p0.x, p0.y);
+  mid = await dragToward(s, bar, [8, 2], [-1, 1]);
+  n = await note(page);
+  check("dragged on the diagonal, ahead and to the right: still no pushing on a diagonal", mid.x && n.up && n.code === "diagonalPush" && n.title === "No pushing on a diagonal", JSON.stringify({ mid, n }));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await s.ctx.close();
 }

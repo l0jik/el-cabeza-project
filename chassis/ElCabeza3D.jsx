@@ -435,23 +435,42 @@ function arrowLabWanted() {
    scraping sounds"). */
 const slidesOnly = (piece) => !!piece && !!PIECE_META[piece.type] && PIECE_META[piece.type].shape === "disc";
 const slides = (piece, dir) => slidesOnly(piece) || (!!dir && isSlideKey(dir));
-/* What a drag on the chosen piece, its net way on the screen (ux, uy),
-   points at, as onMove snaps it: a slide the rules allow within ~60deg
-   (a slide, a shove, or a diagonal shove refused, its X): { legal };
-   else the nearest one they refuse, if a piece is in its way (a push Why
-   not names): { refused } (its reason); else null. A drag back toward
-   the start square at a legal slide is that slide; at a refused push,
-   Undo Move and then Why not's note on the push (onMove). */
-function slideThatWay(slideDrag, ux, uy) {
+/* The way a drag on the chosen piece points, its net way on the screen
+   (ux, uy): of the eight, the one it lines up with best, within ~60deg.
+   A slide the rules allow ({ legal }: its entry), a diagonal shove they
+   refuse ({ blocked }: its entry, the X), or, Why not on, any other way
+   they refuse ({ refused }: its entry and reason); a near tie goes to the
+   way they allow. (The refused diagonals were ranked with the allowed
+   ways, and the other refused ways only looked at when none of those was
+   within 60deg, so a diagonal 50deg off the drag won over the straight
+   way it pointed at: user, an arch pushed straight ahead into a new piece
+   with the other side's Cabeza beside it, 5 cubes against its 5, told "No
+   pushing on a diagonal".) */
+const DRAG_TIE = 0.03;
+function dragWay(slideDrag, ux, uy) {
   if (!slideDrag) return null;
-  const nearest = (list) => {
-    let best = 0.5, hit = null;
-    for (const d of list) { const dot = ux * d.dirX + uy * d.dirY; if (dot > best) { best = dot; hit = d; } }
-    return hit;
+  let best = -Infinity, way = null;
+  const consider = (d, kind, bonus) => {
+    const dot = ux * d.dirX + uy * d.dirY;
+    if (dot <= 0.5 || dot + bonus <= best) return;
+    best = dot + bonus;
+    way = { [kind]: d };
   };
-  if (nearest(slideDrag.dirs)) return { legal: true };
-  const refused = nearest(slideDrag.refused);
-  const r = refused && refused.reason;
+  for (const d of slideDrag.dirs) consider(d, d.blocked ? "blocked" : "legal", d.blocked ? 0 : DRAG_TIE);
+  for (const d of slideDrag.refused) consider(d, "refused", 0);
+  return way;
+}
+/* What a drag back toward the start square points at: a slide the rules
+   allow, or a diagonal shove's X (both the slide's gesture: { legal });
+   a push they refuse, a piece in its way (a push Why not names:
+   { refused }, its reason); else null. At a legal slide it's that slide;
+   at a refused push, Undo Move and then Why not's note on the push
+   (onMove). */
+function slideThatWay(slideDrag, ux, uy) {
+  const way = dragWay(slideDrag, ux, uy);
+  if (!way) return null;
+  if (way.legal || way.blocked) return { legal: true };
+  const r = way.refused.reason;
   return r && ((r.pushed && r.pushed.length) || (r.blockers && r.blockers.length)) ? { refused: r } : null;
 }
 function noteMoveSound(kind, piece, played) {
@@ -3811,6 +3830,8 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
   const cornerShown = isPlaying && !awaitingBegin && !!theme.cornerMenu && !(setupExtras && (setupExtras.noGame || (setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle")));
   const cornerRaw = cornerShown ? (typeof theme.cornerMenu === "function" ? theme.cornerMenu(setupExtras || {}) : theme.cornerMenu) : null;
   const cornerMenu = cornerRaw ? (typeof cornerRaw === "string" ? { look: cornerRaw } : cornerRaw) : null;
+  // (The world's own pieces, for each kind's picture on the corner menu's card.)
+  const cornerPieceLook = React.useMemo(() => (theme.buildPieceVisual ? { buildPieceVisual: theme.buildPieceVisual, EDGE_RADIUS: theme.EDGE_RADIUS } : null), [theme]);
   // The Begin Game button's words, which a theme may change for where the
   // game is (Tienda's store: "Try a Demo Game", it isn't bought yet).
   const beginLabel = (theme.beginLabel && theme.beginLabel(setupExtras)) || "Begin Game";
@@ -10057,8 +10078,9 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
               ];
               // With Why not on, every other way a slide could go here,
               // refused, and why (engine/why-not.js): the X while the drag
-              // points that way, the note when it's let go there. (A way
-              // the rules allow always wins the drag, as before.)
+              // points that way, the note when it's let go there. (The
+              // drag takes whichever way it lines up with best; a near
+              // tie goes to a way the rules allow: dragWay.)
               const refused = piece && piece.type !== "cabeza" && whyNotRef.current.on
                 ? Object.keys(STEP_DIRS)
                   .filter((dir) => !slideEntries.some(([key]) => baseDirOfSlideKey(key) === dir))
@@ -10378,20 +10400,13 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
           let blocked = null;
           let refusedPick = null;
           if (totalLen > DRAG_DEAD_ZONE_PX) {
-            let bestDot = 0.5; // require ~60deg alignment before claiming a direction
-            for (const d of slideDrag.dirs) {
-              const dot = (totalDx / totalLen) * d.dirX + (totalDy / totalLen) * d.dirY;
-              if (dot > bestDot) { bestDot = dot; chosen = d.key; blocked = d.blocked; }
-            }
-            // Nothing the rules allow that way: the nearest way they
-            // refuse (the Piece guide's), its X on the square.
-            if (!chosen) {
-              let best = 0.5;
-              for (const d of slideDrag.refused) {
-                const dot = (totalDx / totalLen) * d.dirX + (totalDy / totalLen) * d.dirY;
-                if (dot > best) { best = dot; refusedPick = d; }
-              }
-            }
+            // The way it lines up with best (~60deg at most): a slide, a
+            // refused diagonal shove's X, or a way the rules refuse (the
+            // Piece guide's), its X on the square (dragWay).
+            const way = dragWay(slideDrag, totalDx / totalLen, totalDy / totalLen);
+            if (way && way.legal) chosen = way.legal.key;
+            else if (way && way.blocked) { chosen = way.blocked.key; blocked = way.blocked.blocked; }
+            else if (way && way.refused) refusedPick = way.refused;
           }
           // A blocked diagonal shows its X and commits nothing; so does a
           // refused way, its note said when it's let go (onUp).
@@ -12951,13 +12966,18 @@ function ElCabeza3DScene({ theme, initialMuted = false, onMutedChange, carry = n
           full-screen switch goes altogether, the corner's and the bar
           menu's (user: "When on the phone in your den, you should not be
           able to click the unmaximize button ... just remove it during
-          that scene"; toggleFullscreen holds its shortcuts meanwhile). */}
+          that scene"; toggleFullscreen holds its shortcuts meanwhile); at
+          the phone, the call included, the zoom-out glass and the light
+          bulb go too, back with the view at the board (html.ec-den-phone,
+          den-fx.js; user: "should just simply be removed from this phone
+          scene as they cannot be used anyway"). */}
       <style>{`${PLAY_UI_ASIDE}
 ${IDLE_UI_CSS}
 html.ec-den-call :is([data-testid="check-alert"], [data-testid="check-alert-recall"]) {
   opacity: 0 !important; pointer-events: none !important; transition: opacity 0.4s ease !important;
 }
-html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscreen"]) { display: none !important; }`}</style>
+html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscreen"]) { display: none !important; }
+html.ec-den-phone :is([data-testid="room-view-corner"], [data-testid="focus-corner"]) { visibility: hidden !important; pointer-events: none !important; }`}</style>
       {!shell && showPoints && !awaitingBegin && (isPlaying || pointsFinal) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle") && (() => {
         const budget = turnBudget();
         const final = isPlaying ? null : pointsFinal;
@@ -13945,8 +13965,11 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
          up over the room, the roof off, the whole of it below. (It was a
          little house, user: "It kind of makes people think, go home.
          That's not what this is ... it's to zoom up"; of six drawn, "Go
-         with option 4, Zoom out".) Held off (roomLock: the den's phone),
-         greyed and dead to a tap. */}
+         with option 4, Zoom out".) Held off (roomLock: the den's phone,
+         from the first ring till the receiver's back down): out of sight,
+         not greyed (user, of it and the light bulb on the call: "should
+         just simply be removed from this phone scene as they cannot be
+         used anyway"; still disabled, its title saying why). */}
       {!shell && theme.freeCamera && theme.freeCamera.dollhouse && (
         <button
           type="button"
@@ -13960,11 +13983,11 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
           style={{
             position: "fixed", ...cornerStyle("room"), zIndex: cornerControlsZ, width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
-            color: COLORS.charcoal, opacity: cornerColumnCovered ? 0 : roomLock ? 0.16 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5,
-            pointerEvents: cornerColumnCovered ? "none" : "auto", visibility: cornerColumnCovered ? "hidden" : "visible", cursor: roomLock ? "not-allowed" : viewMode === "room" ? "default" : "pointer", transition: "opacity 0.5s ease",
+            color: COLORS.charcoal, opacity: cornerColumnCovered || roomLock ? 0 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5,
+            pointerEvents: cornerColumnCovered || roomLock ? "none" : "auto", visibility: cornerColumnCovered || roomLock ? "hidden" : "visible", cursor: viewMode === "room" ? "default" : "pointer", transition: "opacity 0.5s ease",
           }}
           onMouseEnter={(e) => { if (!cornerColumnCovered && !roomLock && viewMode !== "room") e.currentTarget.style.opacity = 1; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerColumnCovered ? 0 : roomLock ? 0.16 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerColumnCovered || roomLock ? 0 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5; }}
         >
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="10.5" cy="10.5" r="6.6" />
@@ -16664,7 +16687,7 @@ html.ec-den-call :is([data-fullscreen-toggle], [data-testid="shell-menu-fullscre
       </div>
 
       {theme.renderExtraOverlays && theme.renderExtraOverlays(setupExtras && { ...setupExtras, firstLook })}
-      {cornerMenu && <CornerMenu key={cornerMenu.look} look={cornerMenu.look} rules={rulesNow} extra={cornerMenu.extra || null} audio={audioRef.current} below={cornerBelow} onChangeRules={rulesChoice && !replay && !online ? askChangeRules : null} />}
+      {cornerMenu && <CornerMenu key={cornerMenu.look} look={cornerMenu.look} rules={rulesNow} extra={cornerMenu.extra || null} audio={audioRef.current} below={cornerBelow} onChangeRules={rulesChoice && !replay && !online ? askChangeRules : null} pieceLook={cornerPieceLook} />}
       {gate && (
         <RealityGate
           key={gate.n}

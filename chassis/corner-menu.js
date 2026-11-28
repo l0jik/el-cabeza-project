@@ -83,11 +83,16 @@ const sums = {
 };
 
 // The card's insides, the same everywhere (each look's own labels and marks).
-function card(r, L, extra, change) {
+// pics: each kind's picture ({ type: { url, w, h } }), or null.
+function card(r, L, extra, change, pics = null) {
   const laws = r.laws.length
     ? r.laws.map((l) => `<li class="cm-law"><button type="button" class="cm-name" data-cm="law" data-law="${esc(l.key)}" data-testid="corner-menu-law-${esc(l.key)}">${esc(l.name)}</button>${(l.sets || []).map(([k, v]) => `<span class="cm-set"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></span>`).join("")}</li>`).join("")
     : `<li class="cm-law cm-none"><span class="cm-name">${esc(L.noLaws || "None: the standard rules")}</span></li>`;
-  const pieces = r.pieces.map((p) => `<li class="cm-pc${p.count !== p.std ? " changed" : ""}"><span class="n">${esc(p.name)}</span><span class="c">${L.count ? L.count(p.count) : p.count}</span></li>`).join("");
+  const pieces = r.pieces.map((p) => {
+    const pic = pics && pics[p.type];
+    const img = pic ? `<span class="pic${p.count ? "" : " none"}" aria-hidden="true"><img src="${pic.url}" width="${pic.w}" height="${pic.h}" alt="" draggable="false"></span>` : "";
+    return `<li class="cm-pc${p.count !== p.std ? " changed" : ""}" data-type="${esc(p.type)}">${img}<span class="n">${esc(p.name)}</span><span class="c">${L.count ? L.count(p.count) : p.count}</span></li>`;
+  }).join("");
   // (Two sets of black holes: where a piece that goes in may come out.)
   const rows = [["Size", r.board.label], ...(r.board.pairs ? [["Missing squares", plural(r.board.pairs, "pair")]] : []), ...(r.board.holePairs ? [["Singularities", plural(r.board.holePairs, "set")]] : []),
     ...(r.board.holePairs > 1 ? [["Singularity exits", r.board.anyExit ? "Any other singularity" : "The other half"]] : [])];
@@ -105,7 +110,7 @@ function card(r, L, extra, change) {
   const opp = r.opponent ? `<section class="cm-sec cm-opp"><ul><li class="cm-bd" data-testid="corner-menu-opponent"><span class="k">${esc(t("Opponent"))}</span><span class="v">${esc(r.opponent)}</span></li></ul></section>` : "";
   return `${L.head || ""}
     ${opp}<section class="cm-sec cm-laws"><h4>${L.laws(r)}</h4><ul>${laws}</ul></section>
-    <section class="cm-sec cm-pieces"><h4>${L.pieces(r)}</h4><ul>${pieces}</ul>${L.piecesExtra ? L.piecesExtra(r) : ""}</section>
+    <section class="cm-sec cm-pieces"><h4>${L.pieces(r)}</h4><ul data-testid="corner-menu-pieces" data-pictures="${pics ? "true" : "false"}">${pieces}</ul>${L.piecesExtra ? L.piecesExtra(r) : ""}</section>
     <section class="cm-sec cm-board"><h4>${L.board(r)}</h4><ul>${board}</ul>${L.boardExtra ? L.boardExtra(r) : ""}</section>
     ${go}${swap}${L.foot(r)}`;
 }
@@ -151,6 +156,21 @@ const BASE = `
   .cm .cm-pc .n { min-width: 0; overflow-wrap: break-word; }
   .cm .cm-pc .c { flex: none; white-space: nowrap; }
   .cm .cm-pc, .cm .cm-bd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  /* Each kind's picture before its name (user, Cromo's card: "weren't we
+     supposed to have badge-size avatars to indicate what each piece
+     looked like and not just the name?"; the Lab's read-out has had them
+     since the user's option 3): the world's own piece, isometric
+     (reality-gate.js isoPictures), the side that stands out on the card
+     (PIC_SIDE); a kind with none, faint. The card a little wider for
+     them, so two kinds still go side by side (one to a line only where
+     they won't: a phone). */
+  .cm[data-pics="true"] .cm-card { width: calc(404px * var(--cm-tz, 1)); }
+  .cm .cm-pieces ul[data-pictures="true"] { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(168px * var(--cm-tz, 1))), 1fr)); row-gap: 2px; }
+  .cm .cm-pieces ul[data-pictures="true"] .cm-pc { align-items: center; justify-content: flex-start; gap: 6px; }
+  .cm .cm-pieces ul[data-pictures="true"] .cm-pc .n { flex: 1 1 auto; }
+  .cm .cm-pc .pic { flex: none; width: 2.7em; height: 2.1em; display: inline-flex; align-items: center; justify-content: center; }
+  .cm .cm-pc .pic img { max-width: 100%; max-height: 100%; width: auto; height: auto; }
+  .cm .cm-pc .pic.none img { opacity: 0.35; }
   .cm .cm-bd .v { text-align: right; } /* (a long one, "Any other singularity", wraps flush right) */
   .cm .cm-extra { display: block; margin-top: 10px; text-decoration: underline; }
   /* Change rules on a touch screen: the look's small link (11 px in Luna's)
@@ -581,8 +601,15 @@ const PARRISH_TITLE = { "parrish-orinoco": "TÁ MUID BEO", "parrish-watermark": 
 /* A look's tab and card (markup), and its CSS. `extra`: a further action
    on the card, { label } (the store's "Purchase and bring home").
    `change`: Change rules on it (true where the rules can be chosen). */
-export function cornerMenuParts(look, r, extra = null, change = false) {
+export function cornerMenuParts(look, r, extra = null, change = false, pics = null) {
   const L0 = LOOKS[look] || LOOKS.den;
   const L = typeof L0.L.head === "function" ? { ...L0.L, head: L0.L.head(PARRISH_TITLE[look] || "") } : L0.L;
-  return { tab: L0.tab(r), card: card(r, L, extra, change), css: BASE + L0.css, fonts: L0.fonts };
+  return { tab: L0.tab(r), card: card(r, L, extra, change, pics), css: BASE + L0.css, fonts: L0.fonts };
 }
+/* Whose pieces the pictures show: the side that stands out on the look's
+   card (its pieces the light one on a dark card, the dark on a light). */
+const PIC_SIDE = {
+  den: "dark", store: "dark", ciudad: "dark", "parrish-orinoco": "dark",
+  futuris: "light", lluvia: "light", cromo: "light", plano: "light", luna: "light", noir: "light", "parrish-watermark": "light",
+};
+export const picSideOf = (look) => PIC_SIDE[look] || "dark";

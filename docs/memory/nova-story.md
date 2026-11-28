@@ -983,3 +983,20 @@ when the card does); on a screen too short for both, as high as fits.
   (den-hall.js .den-hall-say, with its 6.3vh; den-trip.js .say). The
   thoughts on the story's cards (den-cards.js: the den's "Finally…", the
   store's lights) are cards, not bubbles, and kept their size.
+
+
+## The phone's scene without the corner's two buttons (2026-11-28)
+
+User, a screenshot of the den's call ("BIG GLUTTS, ON THE LINE") with the
+zoom-out glass and the light bulb circled: "The buttons circled in red
+should just simply be removed from this phone scene as they cannot be used
+anyway." (On the line a tap on the room does nothing; the glass was
+greyed and disabled from the first ring.) At the phone, from the slip or
+picked up from anywhere, till the receiver's down and the view's back at
+the board, the page is flagged (html.ec-den-phone, themes/den-fx.js
+phoneVisit, cleared on dispose too) and both buttons are out of sight
+(chassis/ElCabeza3D.jsx's style beside the points). The glass, from the
+first ring (roomLock), is out of sight rather than greyed, still disabled
+with its title saying why. Both are back as the view comes back.
+tests/e2e-den-phone.mjs (from the first ring the glass out of sight; at
+the phone and on the call both gone; hung up, both back).

@@ -716,9 +716,15 @@ export function isoPictures(key, look, types, { dark = false, height = 176, floo
         cam.left = m.l - padX / k; cam.right = cam.left + w / k;
         cam.bottom = m.b - padY / k; cam.top = cam.bottom + height / k;
         cam.updateProjectionMatrix();
-        scene.environment = paleMetal(m) ? brightRoom() : null;
+        const pale = paleMetal(m);
+        scene.environment = pale ? brightRoom() : null;
+        // (A pale metal with a room of its own to mirror, Cromo's chrome
+        // and its dark studio, from this angle mirrors only the dark: it's
+        // lent the bright room for its picture, its own given back after.)
+        const lent = [];
+        if (pale) m.group.traverse((o) => { const mt = o.isMesh && !Array.isArray(o.material) && o.material; if (mt && mt.envMap && mt.metalness >= 0.4) { lent.push([mt, mt.envMap]); mt.envMap = brightRoom(); } });
         scene.add(m.group);
-        renderer.render(scene, cam);
+        try { renderer.render(scene, cam); } finally { lent.forEach(([mt, e]) => { mt.envMap = e; }); }
         out[m.type] = { url: canvas.toDataURL("image/png"), w, h: height };
         scene.remove(m.group);
       });
